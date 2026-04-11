@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth antialiased;
+  }
+
+  body {
+    @apply bg-rw-bg text-rw-ink;
+    background: radial-gradient(circle at top left, #272a3b 0%, #050712 55%);
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-rw-focus ring-offset-2 ring-offset-rw-bg;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

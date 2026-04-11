@@ -1,0 +1,36 @@
+# Dipendenze
+node_modules/
+.pnpm-store/
+
+# Ambiente (solo locale)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Build e cache
+dist/
+build/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+coverage/
+
+# Log e tmp
+*.log
+npm-debug.log*
+pnpm-debug.log*
+tmp/
+temp/
+
+# Upload di sviluppo (mantieni le cartelle con .gitkeep)
+apps/api/uploads/temp/*
+!apps/api/uploads/temp/.gitkeep
+apps/api/uploads/mock/*
+!apps/api/uploads/mock/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
