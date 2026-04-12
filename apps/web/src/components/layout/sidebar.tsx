@@ -4,8 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navSections } from "./nav-config";
+import { getVisibleNavSections } from "./nav-config";
 import { useAuth } from "@/components/auth/auth-context";
+import { useI18n } from "@/core/i18n/provider";
 
 type SidebarProps = {
   mobileOpen: boolean;
@@ -15,17 +16,9 @@ type SidebarProps = {
 export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const { t } = useI18n();
 
-  const sections = navSections
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((item) => {
-        if (!item.visibleFor) return true;
-        if (!user) return false;
-        return item.visibleFor.includes(user.role);
-      }),
-    }))
-    .filter((section) => section.items.length > 0);
+  const sections = getVisibleNavSections(user?.role);
 
   return (
     <>
@@ -46,10 +39,10 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
           </div>
           <div className="min-w-0">
             <p className="font-display text-lg font-semibold leading-tight tracking-tight">
-              RistoWord
+              {t("app.brand")}
             </p>
             <p className="mt-0.5 text-xs text-rw-sidebarMuted">
-              Un tocco, un’azione. Niente stress.
+              {t("app.tagline")}
             </p>
           </div>
         </div>
@@ -132,8 +125,7 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
           <div className="flex items-center gap-2 rounded-2xl bg-white/5 px-3 py-2.5 text-xs text-rw-sidebarMuted">
             <Sparkles className="h-4 w-4 shrink-0 text-rw-accentSoft" aria-hidden />
             <span>
-              Stile RistoWord: grandi pulsanti, parole semplici, zero giri
-              strani.
+              {t("sidebar.styleNote")}
             </span>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Lexend } from "next/font/google";
+import { I18nProvider } from "@/core/i18n/provider";
 import "./globals.css";
 
 const lexend = Lexend({
@@ -37,7 +38,7 @@ export default function RootLayout({
   return (
     <html lang="it" className={`${lexend.variable} ${fraunces.variable}`}>
       <body className="min-h-dvh font-sans text-[15px] leading-relaxed">
-        {children}
+        <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
   );

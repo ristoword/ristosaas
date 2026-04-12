@@ -1,4 +1,4 @@
-][rewrghy76trtytr5wsqaAERTREWQfghgfdsa`zxcvgfv` ] "use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -80,6 +80,8 @@ export function LoginPage() {
               { u: "cassa", p: "cassa123", r: "Cassa" },
               { u: "supervisor", p: "super123", r: "Supervisor" },
               { u: "magazzino", p: "magazzino123", r: "Magazzino" },
+              { u: "hotel", p: "hotel123", r: "Hotel Manager" },
+              { u: "reception", p: "reception123", r: "Reception" },
             ].map((d) => (
               <button key={d.u} type="button" onClick={() => { setUsername(d.u); setPassword(d.p); }} className="rounded-lg border border-rw-line/50 bg-rw-surfaceAlt px-2 py-1.5 text-left hover:border-rw-accent/30">
                 <span className="font-semibold text-rw-ink">{d.u}</span> <span className="text-rw-muted">· {d.r}</span>

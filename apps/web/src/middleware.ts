@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { hasVerticalEnabled } from "@/core/tenant/platform-config";
 import { findUserById } from "@/lib/auth/users.store";
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
 
 const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login"];
+const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/dev-access"];
+const RESTAURANT_ONLY = ["/rooms", "/sala-fullscreen", "/cucina", "/pizzeria", "/bar", "/cassa", "/chiusura", "/asporto", "/prenotazioni", "/magazzino", "/fornitori", "/menu-admin", "/daily-menu", "/food-cost", "/catering"];
+const HOTEL_ONLY = ["/hotel"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -27,6 +31,24 @@ export async function middleware(req: NextRequest) {
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (INTERNAL_ONLY.some((p) => pathname.startsWith(p)) && user.role !== "super_admin") {
+    const dashboardUrl = req.nextUrl.clone();
+    dashboardUrl.pathname = "/dashboard";
+    return NextResponse.redirect(dashboardUrl);
+  }
+
+  if (RESTAURANT_ONLY.some((p) => pathname.startsWith(p)) && !hasVerticalEnabled("restaurant")) {
+    const dashboardUrl = req.nextUrl.clone();
+    dashboardUrl.pathname = "/dashboard";
+    return NextResponse.redirect(dashboardUrl);
+  }
+
+  if (HOTEL_ONLY.some((p) => pathname.startsWith(p)) && !hasVerticalEnabled("hotel")) {
+    const dashboardUrl = req.nextUrl.clone();
+    dashboardUrl.pathname = "/dashboard";
+    return NextResponse.redirect(dashboardUrl);
   }
 
   return NextResponse.next();

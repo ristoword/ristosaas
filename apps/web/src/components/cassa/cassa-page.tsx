@@ -22,6 +22,8 @@ import { TabBar } from "@/components/shared/tab-bar";
 import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
+import { useHotel } from "@/components/hotel/hotel-context";
+import { tenantPlatformProfile } from "@/core/tenant/platform-config";
 import {
   ordersApi,
   menuApi,
@@ -155,6 +157,12 @@ function CassaTab({
   const [discount, setDiscount] = useState("");
   const [vatOverride, setVatOverride] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
+  const [reservationId, setReservationId] = useState("");
+  const { reservations, roomCharge } = useHotel();
+  const roomChargeEnabled =
+    tenantPlatformProfile.enabledFeatures.includes("restaurant") &&
+    tenantPlatformProfile.enabledFeatures.includes("hotel") &&
+    tenantPlatformProfile.enabledFeatures.includes("integration_room_charge");
 
   const grouped = useMemo(() => {
     const map = new Map<string, Order[]>();
@@ -176,10 +184,26 @@ function CassaTab({
   const vatVal = parseFloat(vatOverride) || 10;
   const afterDiscount = subtotal - discountVal;
   const total = afterDiscount * (1 + vatVal / 100);
+  const inHouseReservations = useMemo(
+    () => reservations.filter((reservation) => reservation.status === "in_casa"),
+    [reservations],
+  );
 
   function doFlash(msg: string) {
     setFlash(msg);
     setTimeout(() => setFlash(null), 2500);
+  }
+
+  async function handleRoomCharge() {
+    if (!selected || !reservationId) return;
+    const tableLabel = selected.table ? `tavolo ${selected.table}` : "asporto";
+    const charge = await roomCharge(
+      reservationId,
+      selected.id,
+      `Addebito ristorante ${tableLabel}`,
+      Number(total.toFixed(2)),
+    );
+    doFlash(`Addebito inviato al folio camera: € ${charge.amount.toFixed(2)}`);
   }
 
   return (
@@ -301,6 +325,46 @@ function CassaTab({
             </div>
 
             <div className="flex flex-wrap gap-3">
+              {roomChargeEnabled && selected ? (
+                <div className="flex w-full flex-col gap-3 rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-rw-ink">Addebita su camera</p>
+                    <p className="text-xs text-rw-muted">
+                      Sposta il conto sul folio dell’ospite in casa dal layer integration.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-end">
+                    <div className="min-w-0 flex-1">
+                      <label className={LABEL}>Prenotazione hotel</label>
+                      <select
+                        className={INPUT}
+                        value={reservationId}
+                        onChange={(e) => setReservationId(e.target.value)}
+                      >
+                        <option value="">Seleziona ospite in casa</option>
+                        {inHouseReservations.map((reservation) => (
+                          <option key={reservation.id} value={reservation.id}>
+                            {reservation.guestName} · camera {reservation.roomId?.replace("hr_", "") || "n/d"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      type="button"
+                      className={BTN_OUTLINE}
+                      disabled={!reservationId}
+                      onClick={() => {
+                        handleRoomCharge().catch((err) => {
+                          console.error("Failed to charge room:", err);
+                          doFlash("Errore durante l’addebito su camera.");
+                        });
+                      }}
+                    >
+                      <CreditCard className="h-4 w-4" /> Addebita su camera
+                    </button>
+                  </div>
+                </div>
+              ) : null}
               <button type="button" className={BTN_OUTLINE} onClick={() => doFlash("Chiusura simulata — nessun pagamento reale.")}>
                 <CreditCard className="h-4 w-4" /> Simula chiusura
               </button>

@@ -1,6 +1,8 @@
 "use client";
 
 import { Bell, Menu, Search } from "lucide-react";
+import { useI18n } from "@/core/i18n/provider";
+import { useI10n } from "@/core/i10n/formatters";
 
 type TopBarProps = {
   onOpenSidebar: () => void;
@@ -8,11 +10,9 @@ type TopBarProps = {
 };
 
 export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
-  const today = new Intl.DateTimeFormat("it-IT", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(new Date());
+  const { locale, setLocale, t } = useI18n();
+  const { formatDate } = useI10n();
+  const today = formatDate(new Date());
 
   return (
     <header className="sticky top-0 z-30 border-b border-rw-line bg-rw-surface/90 px-4 py-3 backdrop-blur-md md:px-8">
@@ -23,22 +23,20 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
           className="inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-rw-line bg-rw-surfaceAlt text-rw-ink shadow-sm md:hidden"
           aria-controls="app-sidebar"
           aria-expanded={menuOpen}
-          aria-label="Apri o chiudi menu"
+          aria-label={t("topbar.menu.toggle")}
         >
           <Menu className="h-6 w-6" />
         </button>
 
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-semibold text-rw-ink md:text-xl">
-            Buongiorno, squadra
+            {t("topbar.greeting")}
           </p>
           <p className="truncate text-sm text-rw-muted capitalize">{today}</p>
         </div>
 
         <div className="hidden min-w-0 flex-1 md:block">
-          <label className="sr-only" htmlFor="global-search">
-            Cerca in RistoWord
-          </label>
+          <label className="sr-only" htmlFor="global-search">{t("topbar.search.label")}</label>
           <div className="relative">
             <Search
               className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-rw-muted"
@@ -48,17 +46,29 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
               id="global-search"
               name="q"
               readOnly
-              placeholder="Cerca ovunque: tavolo, cliente, piatto…"
+              placeholder={t("topbar.search")}
               className="h-12 w-full cursor-not-allowed rounded-2xl border border-rw-line bg-rw-surfaceAlt pl-12 pr-4 text-sm text-rw-muted"
               title="La ricerca globale si collegherà ai moduli."
             />
           </div>
         </div>
 
+        <label className="hidden text-xs font-semibold text-rw-muted md:flex md:items-center md:gap-2">
+          <span>{t("locale.label")}</span>
+          <select
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as "it" | "en")}
+            className="h-10 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 text-sm text-rw-ink"
+          >
+            <option value="it">{t("locale.it")}</option>
+            <option value="en">{t("locale.en")}</option>
+          </select>
+        </label>
+
         <button
           type="button"
           className="relative inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rw-line bg-rw-surface text-rw-ink shadow-sm transition hover:border-rw-accent/40 hover:bg-rw-surfaceAlt"
-          aria-label="Notifiche (in arrivo)"
+          aria-label={t("topbar.notifications")}
         >
           <Bell className="h-5 w-5" />
           <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rw-accent" />

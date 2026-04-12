@@ -5,6 +5,8 @@ import { ordersStore } from "@/lib/store/modules/orders.store";
 import { roomsStore } from "@/lib/store/modules/rooms.store";
 import { tablesStore } from "@/lib/store/modules/tables.store";
 import { stockStore, stockMovementsStore } from "@/lib/store/modules/warehouse.store";
+import { hotelStore, hotelCheckIn, hotelCheckOut } from "@/lib/store/modules/hotel.store";
+import { closeGuestFolioForCheckout, integrationStore, postRestaurantChargeToRoom } from "@/lib/store/modules/integration.store";
 
 export { uid };
 
@@ -17,4 +19,10 @@ export const db = {
   tables: tablesStore,
   stock: stockStore,
   stockMovements: stockMovementsStore,
+  hotel: hotelStore,
+  integration: integrationStore,
+  hotelCheckIn,
+  hotelCheckOut,
+  postRestaurantChargeToRoom,
+  closeGuestFolioForCheckout,
 };

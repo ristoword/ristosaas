@@ -174,6 +174,63 @@ export const archivioApi = {
   get: (id: string) => get<ArchivedOrder>(`/archivio/${id}`),
 };
 
+export type HotelRoomStatus = "libera" | "occupata" | "da_pulire" | "pulita" | "fuori_servizio" | "manutenzione";
+export type HotelReservationStatus = "confermata" | "in_casa" | "check_out" | "cancellata" | "no_show";
+export type HotelRoom = { id: string; code: string; floor: number; capacity: number; status: HotelRoomStatus; roomType: string };
+export type HotelReservation = {
+  id: string;
+  customerId: string;
+  guestName: string;
+  phone: string;
+  email: string;
+  roomId: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+  guests: number;
+  status: HotelReservationStatus;
+  roomType: string;
+  boardType: "room_only" | "bed_breakfast" | "half_board" | "full_board";
+  nights: number;
+  rate: number;
+  documentCode: string;
+};
+export type HotelStay = { id: string; reservationId: string; roomId: string; actualCheckInAt: string | null; actualCheckOutAt: string | null };
+export type HousekeepingTask = { id: string; roomId: string; assignedTo: string; status: "todo" | "in_progress" | "done"; scheduledFor: string; inspected: boolean };
+export type HotelKeycard = { id: string; roomId: string; reservationId: string; validFrom: string; validUntil: string; status: "attiva" | "scaduta" | "annullata"; issuedBy: string };
+export type GuestFolio = { id: string; tenantId: string; customerId: string; stayId: string | null; currency: string; balance: number; status: "open" | "closed" };
+export type FolioCharge = { id: string; folioId: string; source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment"; sourceId: string | null; description: string; amount: number; postedAt: string };
+
+export const hotelApi = {
+  listRooms: () => get<HotelRoom[]>("/hotel/rooms"),
+  createRoom: (data: Omit<HotelRoom, "id">) => post<HotelRoom>("/hotel/rooms", data),
+  updateRoom: (id: string, data: Partial<HotelRoom>) => put<HotelRoom>(`/hotel/rooms/${id}`, data),
+  deleteRoom: (id: string) => del<{ deleted: boolean }>(`/hotel/rooms/${id}`),
+  listReservations: () => get<HotelReservation[]>("/hotel/reservations"),
+  createReservation: (data: Omit<HotelReservation, "id">) => post<HotelReservation>("/hotel/reservations", data),
+  updateReservation: (id: string, data: Partial<HotelReservation>) => put<HotelReservation>(`/hotel/reservations/${id}`, data),
+  deleteReservation: (id: string) => del<{ deleted: boolean }>(`/hotel/reservations/${id}`),
+  checkIn: (reservationId: string, roomId: string) =>
+    post<{ reservation: HotelReservation; room: HotelRoom; stay: HotelStay; card: HotelKeycard }>("/hotel/front-desk/check-in", { reservationId, roomId }),
+  checkOut: (reservationId: string, cityTaxAmount = 0, paymentMethod: "cash" | "card" | "room_charge_settlement" = "card") =>
+    post<{
+      reservation: HotelReservation;
+      room: HotelRoom;
+      stay: HotelStay | null;
+      housekeepingTask: HousekeepingTask;
+      keycards: HotelKeycard[];
+      folio: { folio: GuestFolio; charges: FolioCharge[]; settlement: FolioCharge } | null;
+    }>("/hotel/front-desk/check-out", { reservationId, cityTaxAmount, paymentMethod }),
+  listHousekeeping: () => get<HousekeepingTask[]>("/hotel/housekeeping"),
+  listKeycards: () => get<HotelKeycard[]>("/hotel/keycards"),
+};
+
+export const integrationApi = {
+  listFolios: () => get<GuestFolio[]>("/integration/folios"),
+  listCharges: () => get<FolioCharge[]>("/integration/charges"),
+  chargeRoom: (reservationId: string, orderId: string, description: string, amount: number) =>
+    post<{ folio: GuestFolio; charge: FolioCharge }>("/integration/room-charge", { reservationId, orderId, description, amount }),
+};
+
 export const api = {
   auth: {
     me: () => get<AuthUser>("/auth/me"),
@@ -195,6 +252,8 @@ export const api = {
   catering: cateringApi,
   asporto: asportoApi,
   archivio: archivioApi,
+  hotel: hotelApi,
+  integration: integrationApi,
 };
 
 /* ─── Types re-exported for frontend convenience ─── */

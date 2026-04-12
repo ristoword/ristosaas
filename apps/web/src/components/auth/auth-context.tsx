@@ -3,7 +3,20 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
 
-export type UserRole = "owner" | "sala" | "cucina" | "cassa" | "supervisor" | "magazzino" | "staff" | "bar" | "pizzeria" | "super_admin";
+export type UserRole =
+  | "owner"
+  | "sala"
+  | "cucina"
+  | "cassa"
+  | "supervisor"
+  | "magazzino"
+  | "staff"
+  | "bar"
+  | "pizzeria"
+  | "hotel_manager"
+  | "reception"
+  | "housekeeping"
+  | "super_admin";
 
 export type User = {
   id: string;

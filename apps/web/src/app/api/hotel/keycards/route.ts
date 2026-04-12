@@ -1,0 +1,12 @@
+import { NextRequest } from "next/server";
+import { db } from "@/lib/api/store";
+import { ok } from "@/lib/api/helpers";
+import { requireApiUser } from "@/lib/auth/guards";
+
+const HOTEL_ROLES = ["hotel_manager", "reception", "super_admin"] as const;
+
+export async function GET(req: NextRequest) {
+  const guard = requireApiUser(req, HOTEL_ROLES);
+  if (guard.error) return guard.error;
+  return ok(db.hotel.keycards.all());
+}

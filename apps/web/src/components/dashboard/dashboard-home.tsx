@@ -1,56 +1,101 @@
+"use client";
+
 import {
   ArrowRight,
+  BedDouble,
+  CreditCard,
   Clock3,
+  Hotel,
   HeartHandshake,
   ShieldCheck,
   Sparkles,
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { navSections } from "@/components/layout/nav-config";
+import { getVisibleNavSections } from "@/components/layout/nav-config";
+import { useAuth } from "@/components/auth/auth-context";
+import { useHotel } from "@/components/hotel/hotel-context";
+import { tenantPlatformProfile } from "@/core/tenant/platform-config";
+import { useI18n } from "@/core/i18n/provider";
+import { useI10n } from "@/core/i10n/formatters";
+import { useOrders } from "@/components/orders/orders-context";
 import { cn } from "@/lib/utils";
 
-const stats = [
-  {
-    label: "Coperti previsti",
-    value: "—",
-    sub: "Quando colleghiamo i moduli, qui vedrai i numeri veri.",
-    tone: "from-rw-accent/15 to-rw-accentSoft/10",
-  },
-  {
-    label: "Tavoli liberi",
-    value: "—",
-    sub: "Stato sala in tempo reale, senza aprire mille schermate.",
-    tone: "from-emerald-500/15 to-emerald-400/5",
-  },
-  {
-    label: "Ordini in corso",
-    value: "—",
-    sub: "Sala e cucina sempre d'accordo, con un colore per stato.",
-    tone: "from-amber-400/20 to-amber-300/5",
-  },
-];
-
-const quickActions = [
-  {
-    title: "Apri un tavolo",
-    body: "Grande, verde, impossibile sbagliare.",
-    icon: Zap,
-  },
-  {
-    title: "Controlla la sala",
-    body: "Vedi cosa succede senza perderti.",
-    icon: HeartHandshake,
-  },
-  {
-    title: "Chiudi la giornata",
-    body: "In un solo posto, quando sarà pronto.",
-    icon: ShieldCheck,
-  },
-];
-
 export function DashboardHome() {
-  const modules = navSections.flatMap((s) => s.items).filter((i) => i.id !== "dashboard");
+  const { user } = useAuth();
+  const { rooms, reservations, folios, charges } = useHotel();
+  const { activeOrders } = useOrders();
+  const { t } = useI18n();
+  const { formatCurrency } = useI10n();
+  const modules = getVisibleNavSections(user?.role).flatMap((s) => s.items).filter((i) => i.id !== "dashboard");
+  const isRestaurantEnabled = tenantPlatformProfile.enabledFeatures.includes("restaurant");
+  const isHotelEnabled = tenantPlatformProfile.enabledFeatures.includes("hotel");
+  const inHouseReservations = reservations.filter((reservation) => reservation.status === "in_casa");
+
+  const stats = [
+    ...(isRestaurantEnabled
+      ? [
+          {
+            label: "Ordini in corso",
+            value: String(activeOrders.length),
+            sub: "Operatività ristorante attiva nel pacchetto corrente.",
+            tone: "from-rw-accent/15 to-rw-accentSoft/10",
+          },
+          {
+            label: "Verticale Restaurant",
+            value: "ON",
+            sub: "Tavoli, ordini, cucina, cassa e delivery attivi.",
+            tone: "from-emerald-500/15 to-emerald-400/5",
+          },
+        ]
+      : []),
+    ...(isHotelEnabled
+      ? [
+          {
+            label: "Camere occupate",
+            value: String(rooms.filter((room) => room.status === "occupata").length),
+            sub: "Stato camere in tempo reale dal verticale hotel.",
+            tone: "from-blue-500/15 to-blue-400/5",
+          },
+          {
+            label: "Arrivi / partenze",
+            value: `${reservations.filter((reservation) => reservation.checkInDate === "2026-04-12").length}/${reservations.filter((reservation) => reservation.checkOutDate === "2026-04-12").length}`,
+            sub: "Reception, soggiorni e housekeeping nello stesso sistema.",
+            tone: "from-amber-400/20 to-amber-300/5",
+          },
+        ]
+      : []),
+    ...(isRestaurantEnabled && isHotelEnabled
+      ? [
+          {
+            label: "Folio integrati",
+            value: String(folios.length),
+            sub: "Conti hotel e addebiti ristorante convergono nello stesso ospite.",
+            tone: "from-violet-500/15 to-violet-400/5",
+          },
+        ]
+      : []),
+  ];
+
+  const quickActions = [
+    ...(isRestaurantEnabled
+      ? [
+          { title: "Apri un tavolo", body: "Grande, verde, impossibile sbagliare.", icon: Zap },
+          { title: "Controlla la sala", body: "Vedi cosa succede senza perderti.", icon: HeartHandshake },
+        ]
+      : []),
+    ...(isHotelEnabled
+      ? [
+          { title: "Apri il front desk", body: "Check-in, check-out e ospiti in casa.", icon: Hotel },
+          { title: "Controlla le camere", body: "Disponibilità, pulizie e manutenzioni.", icon: BedDouble },
+        ]
+      : []),
+    {
+      title: "Controllo struttura",
+      body: "Core comune e verticali attivi in base al pacchetto acquistato.",
+      icon: ShieldCheck,
+    },
+  ];
 
   return (
     <div className="space-y-10 md:space-y-12">
@@ -63,30 +108,34 @@ export function DashboardHome() {
           <div className="max-w-2xl space-y-3">
             <p className="inline-flex items-center gap-2 rounded-full border border-rw-line bg-rw-surfaceAlt px-3 py-1 text-xs font-semibold uppercase tracking-wide text-rw-soft">
               <Sparkles className="h-3.5 w-3.5 text-rw-accent" aria-hidden />
-              SaaS che sembra un gioco, lavora come un professionista
+              {t("dashboard.hero.badge")}
             </p>
             <h1 className="font-display text-3xl font-semibold tracking-tight text-rw-ink md:text-4xl">
-              Tutto sotto controllo,{" "}
-              <span className="text-rw-accent">senza pensarci troppo</span>.
+              {t("dashboard.hero.title.prefix")}{" "}
+              <span className="text-rw-accent">{t("dashboard.hero.title.accent")}</span>.
             </h1>
             <p className="text-base text-rw-soft md:text-lg">
-              Pochi colori, parole chiare, pulsanti grandi: così chiunque può
-              usarlo in mezzo al casino di una serata piena. I moduli arriveranno
-              uno alla volta: li collegheremo senza stravolgere questo stile.
+              {t("dashboard.hero.body")}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-3 md:flex-col md:items-stretch">
             <div className="inline-flex items-center gap-2 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-muted">
               <Clock3 className="h-5 w-5 text-rw-accent" aria-hidden />
               <span>
-                Modalità dimostrativa: nessun dato reale ancora collegato.
+                {t("dashboard.plan")}: <strong className="text-rw-ink">{tenantPlatformProfile.plan}</strong>
               </span>
             </div>
+            {isRestaurantEnabled && isHotelEnabled ? (
+              <div className="inline-flex items-center gap-2 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-muted">
+                <CreditCard className="h-5 w-5 text-rw-accent" aria-hidden />
+                <span>{t("dashboard.integration.ready")}</span>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
 
-      <section aria-labelledby="stats-heading" className="grid gap-4 md:grid-cols-3">
+      <section aria-labelledby="stats-heading" className={cn("grid gap-4", stats.length > 3 ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-3")}>
         <h2 id="stats-heading" className="sr-only">
           Indicatori principali
         </h2>
@@ -114,10 +163,10 @@ export function DashboardHome() {
               id="quick-heading"
               className="font-display text-xl font-semibold text-rw-ink"
             >
-              Cosa vuoi fare adesso?
+              {t("dashboard.quick.title")}
             </h2>
             <p className="text-sm text-rw-muted">
-              Tre azioni enormi: niente menu nascosti, niente termini strani.
+              {t("dashboard.quick.subtitle")}
             </p>
           </div>
         </div>
@@ -130,7 +179,7 @@ export function DashboardHome() {
                 type="button"
                 disabled
                 className="group flex flex-col items-start gap-4 rounded-3xl border border-dashed border-rw-line bg-rw-surface p-6 text-left shadow-sm transition hover:border-rw-accent/30 hover:shadow-rw-sm disabled:cursor-not-allowed disabled:opacity-80"
-                title="Si collegherà ai moduli sala e ordini."
+                title="Azioni rapide allineate ai verticali acquistati."
               >
                 <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rw-surfaceAlt text-rw-accent ring-1 ring-rw-line">
                   <Icon className="h-7 w-7" aria-hidden />
@@ -142,7 +191,7 @@ export function DashboardHome() {
                   <p className="mt-1 text-sm text-rw-muted">{a.body}</p>
                 </div>
                 <span className="mt-auto inline-flex items-center gap-1 text-sm font-semibold text-rw-accent">
-                  In arrivo
+                  {t("dashboard.workflow")}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </span>
               </button>
@@ -151,17 +200,135 @@ export function DashboardHome() {
         </div>
       </section>
 
+      {isRestaurantEnabled && isHotelEnabled ? (
+        <section aria-labelledby="integration-heading" className="space-y-4">
+          <div>
+            <h2
+              id="integration-heading"
+              className="font-display text-xl font-semibold text-rw-ink"
+            >
+              {t("dashboard.integration.title")}
+            </h2>
+            <p className="text-sm text-rw-muted">
+              {t("dashboard.integration.subtitle")}
+            </p>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <article className="rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rw-surfaceAlt text-rw-accent ring-1 ring-rw-line">
+                  <CreditCard className="h-6 w-6" aria-hidden />
+                </span>
+                <div>
+                  <p className="font-display text-lg font-semibold text-rw-ink">
+                    Folio ospite
+                  </p>
+                  <p className="text-sm text-rw-muted">
+                    Conto camera e servizi accessori nello stesso saldo finale.
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 font-display text-3xl font-semibold text-rw-ink">
+                {folios.length}
+              </p>
+              <p className="mt-2 text-sm text-rw-soft">
+                Folio attivi o creati dal layer integration.
+              </p>
+              {folios.length > 0 ? (
+                <ul className="mt-4 space-y-2 text-sm text-rw-soft">
+                  {folios.slice(0, 3).map((folio) => (
+                    <li key={folio.id} className="flex items-center justify-between rounded-2xl border border-rw-line bg-rw-surfaceAlt px-3 py-2">
+                      <span className="font-mono text-xs text-rw-muted">{folio.id}</span>
+                      <span className="font-semibold text-rw-ink">{formatCurrency(folio.balance)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </article>
+
+            <article className="rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rw-surfaceAlt text-rw-accent ring-1 ring-rw-line">
+                  <Hotel className="h-6 w-6" aria-hidden />
+                </span>
+                <div>
+                  <p className="font-display text-lg font-semibold text-rw-ink">
+                    Ospiti interni
+                  </p>
+                  <p className="text-sm text-rw-muted">
+                    La reception può riconoscere gli ospiti che consumano al ristorante.
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 font-display text-3xl font-semibold text-rw-ink">
+                {inHouseReservations.length}
+              </p>
+              <p className="mt-2 text-sm text-rw-soft">
+                Prenotazioni attualmente in casa e pronte per addebito su camera.
+              </p>
+              {inHouseReservations.length > 0 ? (
+                <ul className="mt-4 space-y-2 text-sm text-rw-soft">
+                  {inHouseReservations.slice(0, 3).map((reservation) => (
+                    <li key={reservation.id} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt px-3 py-2">
+                      <p className="font-semibold text-rw-ink">{reservation.guestName}</p>
+                      <p className="text-xs text-rw-muted">
+                        Camera {reservation.roomId?.replace("hr_", "") || "da assegnare"} · checkout {reservation.checkOutDate}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </article>
+
+            <article className="rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rw-surfaceAlt text-rw-accent ring-1 ring-rw-line">
+                  <HeartHandshake className="h-6 w-6" aria-hidden />
+                </span>
+                <div>
+                  <p className="font-display text-lg font-semibold text-rw-ink">
+                    Flussi integrati
+                  </p>
+                  <p className="text-sm text-rw-muted">
+                    Room charge, piani pasti e report unificati.
+                  </p>
+                </div>
+              </div>
+              <ul className="mt-4 space-y-2 text-sm text-rw-soft">
+                <li>Addebito ordine ristorante su camera</li>
+                <li>Colazione inclusa e pacchetti soggiorno</li>
+                <li>Conto unico ospite tra front desk e cassa</li>
+              </ul>
+              <div className="mt-4 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-3 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">Ultimi addebiti</p>
+                {charges.length === 0 ? (
+                  <p className="mt-2 text-sm text-rw-soft">Nessun addebito camera registrato ancora.</p>
+                ) : (
+                  <ul className="mt-2 space-y-2 text-sm text-rw-soft">
+                    {charges.slice(0, 3).map((charge) => (
+                      <li key={charge.id} className="flex items-center justify-between">
+                        <span className="truncate pr-3">{charge.description}</span>
+                        <span className="font-semibold text-rw-ink">{formatCurrency(charge.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </article>
+          </div>
+        </section>
+      ) : null}
+
       <section aria-labelledby="modules-heading" className="space-y-4">
         <div>
           <h2
             id="modules-heading"
             className="font-display text-xl font-semibold text-rw-ink"
           >
-            I tuoi strumenti
+            {t("dashboard.modules.title")}
           </h2>
           <p className="text-sm text-rw-muted">
-            Ogni riquadro è un modulo: quando è pronto, lo accendiamo dalla
-            stessa home. Un solo posto, un solo stile RistoWord.
+            {t("dashboard.modules.subtitle")}
           </p>
         </div>
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -180,11 +347,11 @@ export function DashboardHome() {
                       </p>
                       {!m.ready ? (
                         <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-rw-muted">
-                          Presto
+                          {t("dashboard.comingSoon")}
                         </span>
                       ) : (
                         <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
-                          Attivo
+                          {t("dashboard.active")}
                         </span>
                       )}
                     </div>
@@ -192,8 +359,8 @@ export function DashboardHome() {
                   </div>
                 </div>
                 <p className="mt-4 text-xs text-rw-muted">
-                  Un backend unico per tutti i ristoranti: qui vedi solo la
-                  facciata semplice, i dati restano ordinati sotto.
+                  Core comune, verticali separati e integrazione attivata solo
+                  dove serve davvero.
                 </p>
               </>
             );

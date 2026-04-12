@@ -8,6 +8,9 @@ export type UserRole =
   | "staff"
   | "bar"
   | "pizzeria"
+  | "hotel_manager"
+  | "reception"
+  | "housekeeping"
   | "super_admin";
 
 export type StoredUser = {
@@ -28,6 +31,9 @@ export const USERS: StoredUser[] = [
   { id: "u4", username: "cassa", password: "cassa123", name: "Anna Verdi", role: "cassa", email: "cassa@ristosaas.it" },
   { id: "u5", username: "supervisor", password: "super123", name: "Elena Neri", role: "supervisor", email: "supervisor@ristosaas.it" },
   { id: "u6", username: "magazzino", password: "magazzino123", name: "Luca Costa", role: "magazzino", email: "magazzino@ristosaas.it" },
+  { id: "u8", username: "hotel", password: "hotel123", name: "Giulia Ferri", role: "hotel_manager", email: "hotel@ristosaas.it" },
+  { id: "u9", username: "reception", password: "reception123", name: "Martina Blu", role: "reception", email: "reception@ristosaas.it" },
+  { id: "u10", username: "housekeeping", password: "house123", name: "Davide Serra", role: "housekeeping", email: "housekeeping@ristosaas.it" },
   { id: "u7", username: "admin", password: "admin", name: "Super Admin", role: "super_admin", email: "admin@ristosaas.it" },
 ];
 

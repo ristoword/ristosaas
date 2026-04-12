@@ -1,14 +1,19 @@
 import type { LucideIcon } from "lucide-react";
 import type { UserRole } from "@/components/auth/auth-context";
+import type { AppFeature, AppVertical } from "@/core/tenant/platform-config";
+import { hasFeatureEnabled, hasVerticalEnabled } from "@/core/tenant/platform-config";
 import {
   Armchair,
   Archive,
   BarChart3,
+  BedDouble,
   BookUser,
+  CalendarDays,
   ChefHat,
   ClipboardList,
   Coffee,
   CreditCard,
+  DoorOpen,
   FileText,
   Globe,
   KeyRound,
@@ -45,6 +50,8 @@ export type NavItem = {
   icon: LucideIcon;
   ready: boolean;
   visibleFor?: UserRole[];
+  vertical?: AppVertical;
+  feature?: AppFeature;
 };
 
 export type NavSection = { title: string; items: NavItem[] };
@@ -73,6 +80,8 @@ export const navSections: NavSection[] = [
         href: "/rooms",
         icon: Armchair,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "sala-fullscreen",
@@ -81,6 +90,8 @@ export const navSections: NavSection[] = [
         href: "/sala-fullscreen",
         icon: Maximize,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "cucina",
@@ -89,6 +100,8 @@ export const navSections: NavSection[] = [
         href: "/cucina",
         icon: ChefHat,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "pizzeria",
@@ -97,6 +110,8 @@ export const navSections: NavSection[] = [
         href: "/pizzeria",
         icon: Pizza,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "bar",
@@ -105,6 +120,8 @@ export const navSections: NavSection[] = [
         href: "/bar",
         icon: Wine,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "cassa",
@@ -113,6 +130,8 @@ export const navSections: NavSection[] = [
         href: "/cassa",
         icon: CreditCard,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "chiusura",
@@ -121,6 +140,8 @@ export const navSections: NavSection[] = [
         href: "/chiusura",
         icon: ScrollText,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "asporto",
@@ -129,6 +150,8 @@ export const navSections: NavSection[] = [
         href: "/asporto",
         icon: ShoppingBag,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "prenotazioni",
@@ -137,6 +160,83 @@ export const navSections: NavSection[] = [
         href: "/prenotazioni",
         icon: ClipboardList,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
+      },
+    ],
+  },
+  {
+    title: "Hotel",
+    items: [
+      {
+        id: "hotel",
+        label: "Hotel Dashboard",
+        hint: "Reception, occupazione e stato camere.",
+        href: "/hotel",
+        icon: BedDouble,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+      },
+      {
+        id: "hotel-rooms",
+        label: "Camere",
+        hint: "Stato camere, disponibilità e blocchi.",
+        href: "/hotel/rooms",
+        icon: MapPin,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+      },
+      {
+        id: "hotel-reservations",
+        label: "Prenotazioni Hotel",
+        hint: "Arrivi, partenze e conferme soggiorni.",
+        href: "/hotel/reservations",
+        icon: CalendarDays,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+      },
+      {
+        id: "hotel-checkin",
+        label: "Check-in / Check-out",
+        hint: "Front desk e movimenti ospiti.",
+        href: "/hotel/front-desk",
+        icon: DoorOpen,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+      },
+      {
+        id: "hotel-housekeeping",
+        label: "Housekeeping",
+        hint: "Pulizie, camere pronte e manutenzione.",
+        href: "/hotel/housekeeping",
+        icon: Shield,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+      },
+      {
+        id: "hotel-keycards",
+        label: "Keycard / Serrature",
+        hint: "Accessi camera e stato tessere.",
+        href: "/hotel/keycards",
+        icon: KeyRound,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+      },
+      {
+        id: "hotel-folio",
+        label: "Guest Folio",
+        hint: "Conto unico ospite e movimenti integrati.",
+        href: "/hotel/folio",
+        icon: CreditCard,
+        ready: true,
+        vertical: "integration",
+        feature: "integration_unified_folio",
       },
     ],
   },
@@ -150,6 +250,8 @@ export const navSections: NavSection[] = [
         href: "/magazzino",
         icon: Package,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "fornitori",
@@ -158,6 +260,8 @@ export const navSections: NavSection[] = [
         href: "/fornitori",
         icon: Truck,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "menu-admin",
@@ -166,6 +270,8 @@ export const navSections: NavSection[] = [
         href: "/menu-admin",
         icon: Soup,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "daily-menu",
@@ -174,6 +280,8 @@ export const navSections: NavSection[] = [
         href: "/daily-menu",
         icon: Star,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "food-cost",
@@ -182,6 +290,8 @@ export const navSections: NavSection[] = [
         href: "/food-cost",
         icon: FileText,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
       {
         id: "catering",
@@ -190,6 +300,8 @@ export const navSections: NavSection[] = [
         href: "/catering",
         icon: UtensilsCrossed,
         ready: true,
+        vertical: "restaurant",
+        feature: "restaurant",
       },
     ],
   },
@@ -360,3 +472,18 @@ export const navSections: NavSection[] = [
     ],
   },
 ];
+
+export function getVisibleNavSections(userRole?: UserRole | null) {
+  return navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (!hasVerticalEnabled(item.vertical)) return false;
+        if (!hasFeatureEnabled(item.feature)) return false;
+        if (!item.visibleFor) return true;
+        if (!userRole) return false;
+        return item.visibleFor.includes(userRole);
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
+}

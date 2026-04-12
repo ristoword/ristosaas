@@ -6,9 +6,11 @@ import {
   ArrowUpRight,
   BadgeEuro,
   BarChart3,
+  BedDouble,
   Box,
   ChefHat,
   ClipboardList,
+  CreditCard,
   DollarSign,
   FileText,
   Loader2,
@@ -34,8 +36,14 @@ import {
   warehouseApi,
   staffApi,
   archivioApi,
+  integrationApi,
+  hotelApi,
   type Order,
   type MenuItem as ApiMenuItem,
+  type FolioCharge,
+  type GuestFolio,
+  type HotelReservation,
+  type HotelRoom,
   type StockItem,
   type StaffMember,
   type ArchivedOrder,
@@ -61,6 +69,7 @@ const TABS = [
   { id: "storni", label: "Storni" },
   { id: "menu", label: "Menù" },
   { id: "magazzino", label: "Magazzino" },
+  { id: "unified", label: "Hotel + Ristorante" },
 ];
 
 const inputCls =
@@ -113,6 +122,10 @@ export function SupervisorPage() {
   const [totalStockValue, setTotalStockValue] = useState(0);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [archivedOrders, setArchivedOrders] = useState<ArchivedOrder[]>([]);
+  const [hotelRooms, setHotelRooms] = useState<HotelRoom[]>([]);
+  const [hotelReservations, setHotelReservations] = useState<HotelReservation[]>([]);
+  const [folios, setFolios] = useState<GuestFolio[]>([]);
+  const [folioCharges, setFolioCharges] = useState<FolioCharge[]>([]);
 
   const [storicoFilter, setStoricoFilter] = useState("");
   const [menuFilter, setMenuFilter] = useState("");
@@ -132,8 +145,12 @@ export function SupervisorPage() {
       warehouseApi.list(),
       staffApi.list(),
       archivioApi.list(),
+      hotelApi.listRooms(),
+      hotelApi.listReservations(),
+      integrationApi.listFolios(),
+      integrationApi.listCharges(),
     ])
-      .then(([ordersData, menuData, warehouseData, staffData, archivioData]) => {
+      .then(([ordersData, menuData, warehouseData, staffData, archivioData, roomsData, reservationsData, foliosData, chargesData]) => {
         setOrders(ordersData);
         setMenuItems(menuData);
         setStockItems(warehouseData.items);
@@ -141,6 +158,10 @@ export function SupervisorPage() {
         setTotalStockValue(warehouseData.totalValue);
         setStaffMembers(staffData);
         setArchivedOrders(archivioData);
+        setHotelRooms(roomsData);
+        setHotelReservations(reservationsData);
+        setFolios(foliosData);
+        setFolioCharges(chargesData);
       })
       .catch((err) => console.error("Failed to fetch supervisor data:", err))
       .finally(() => setLoading(false));
@@ -157,6 +178,11 @@ export function SupervisorPage() {
   const scontrinoMedio = ordiniCompletati > 0 ? incassoLordo / ordiniCompletati : 0;
   const ordiniAttivi = orders.filter((o) => o.status !== "chiuso" && o.status !== "annullato").length;
   const activeStaff = staffMembers.filter((s) => s.status === "attivo");
+  const occupiedRooms = hotelRooms.filter((room) => room.status === "occupata").length;
+  const hotelRevenue = hotelReservations.reduce((sum, reservation) => sum + reservation.rate, 0);
+  const integratedRevenue = folioCharges
+    .filter((charge) => charge.source === "restaurant")
+    .reduce((sum, charge) => sum + charge.amount, 0);
 
   const menuCategorie = useMemo(
     () => ["tutti", ...Array.from(new Set(menuItems.map((m) => m.category)))],
@@ -462,6 +488,47 @@ export function SupervisorPage() {
             }
           >
             <DataTable columns={inventoryColonne} data={stockItems} keyExtractor={(r) => r.id} emptyMessage="Magazzino vuoto" />
+          </Card>
+        </div>
+      )}
+
+      {tab === "unified" && (
+        <div className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard icon={BedDouble as typeof DollarSign} label="Camere occupate" value={String(occupiedRooms)} sub={`su ${hotelRooms.length} camere`} />
+            <MetricCard icon={BadgeEuro} label="Revenue hotel" value={`€${hotelRevenue.toFixed(2)}`} sub="Totale soggiorni" />
+            <MetricCard icon={CreditCard as typeof DollarSign} label="Room charge" value={`€${integratedRevenue.toFixed(2)}`} sub="Ristorante su camera" />
+            <MetricCard icon={ClipboardList} label="Folios" value={String(folios.length)} sub="Conti ospite aperti/chiusi" />
+          </div>
+
+          <Card title="Report unificati hotel + ristorante" description="Visione manageriale cross-verticale.">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
+                <p className="font-semibold text-rw-ink">Revenue ristorante</p>
+                <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€{incassoNetto.toFixed(2)}</p>
+              </div>
+              <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
+                <p className="font-semibold text-rw-ink">Revenue hotel</p>
+                <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€{hotelRevenue.toFixed(2)}</p>
+              </div>
+              <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
+                <p className="font-semibold text-rw-ink">Valore integrato</p>
+                <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€{(incassoNetto + hotelRevenue).toFixed(2)}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Mix piani soggiorno" description="Room only, B&B, mezza pensione, pensione completa.">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {(["room_only", "bed_breakfast", "half_board", "full_board"] as const).map((boardType) => (
+                <div key={boardType} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+                  <p className="text-sm font-medium text-rw-muted">{boardType}</p>
+                  <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">
+                    {hotelReservations.filter((reservation) => reservation.boardType === boardType).length}
+                  </p>
+                </div>
+              ))}
+            </div>
           </Card>
         </div>
       )}
