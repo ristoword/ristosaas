@@ -161,7 +161,7 @@ export function SalaPage() {
                         disabled={!chargeReservationId[order.id]}
                         onClick={() => {
                           const total = order.items.reduce((sum, item) => sum + (item.price ?? 0) * item.qty, 0);
-                          roomCharge(chargeReservationId[order.id]!, order.id, `Addebito comanda tavolo ${order.table}`, total).catch(console.error);
+                          roomCharge(chargeReservationId[order.id]!, order.id, `Addebito comanda tavolo ${order.table}`, total, "dinner").catch(console.error);
                         }}
                       >
                         <CreditCard className="mr-1 inline h-3.5 w-3.5" />

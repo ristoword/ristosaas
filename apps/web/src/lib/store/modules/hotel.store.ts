@@ -1,12 +1,13 @@
 import { uid } from "@/lib/store/id";
-import { hotelKeycards as seedKeycards, hotelReservations as seedReservations, hotelRooms as seedRooms, hotelStays as seedStays, housekeepingTasks as seedHousekeeping } from "@/modules/hotel/domain/mock-data";
-import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
+import { hotelKeycards as seedKeycards, hotelRatePlans as seedRatePlans, hotelReservations as seedReservations, hotelRooms as seedRooms, hotelStays as seedStays, housekeepingTasks as seedHousekeeping } from "@/modules/hotel/domain/mock-data";
+import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay, RatePlan } from "@/modules/hotel/domain/types";
 
 const rooms = new Map<string, HotelRoom>(seedRooms.map((room) => [room.id, room]));
 const reservations = new Map<string, HotelReservation>(seedReservations.map((reservation) => [reservation.id, reservation]));
 const stays = new Map<string, HotelStay>(seedStays.map((stay) => [stay.id, stay]));
 const housekeeping = new Map<string, HousekeepingTask>(seedHousekeeping.map((task) => [task.id, task]));
 const keycards = new Map<string, HotelKeycard>(seedKeycards.map((card) => [card.id, card]));
+const ratePlans = new Map<string, RatePlan>(seedRatePlans.map((plan) => [plan.id, plan]));
 
 function setRoomStatus(roomId: string, status: HotelRoom["status"]) {
   const room = rooms.get(roomId);
@@ -143,5 +144,11 @@ export const hotelStore = {
     all: () => [...keycards.values()],
     get: (id: string) => keycards.get(id),
     set: (id: string, card: HotelKeycard) => keycards.set(id, card),
+  },
+  ratePlans: {
+    all: () => [...ratePlans.values()],
+    get: (id: string) => ratePlans.get(id),
+    findByCode: (code: string) => [...ratePlans.values()].find((plan) => plan.code === code),
+    filterByRoomType: (roomType: string) => [...ratePlans.values()].filter((plan) => plan.roomType === roomType),
   },
 };

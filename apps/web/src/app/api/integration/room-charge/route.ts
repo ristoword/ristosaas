@@ -9,15 +9,16 @@ export async function POST(req: NextRequest) {
   const guard = requireApiUser(req, INTEGRATION_ROLES);
   if (guard.error) return guard.error;
 
-  const { reservationId, orderId, description, amount } = await body<{
+  const { reservationId, orderId, description, amount, serviceType } = await body<{
     reservationId: string;
     orderId: string;
     description: string;
     amount: number;
+    serviceType: "breakfast" | "lunch" | "dinner";
   }>(req);
 
-  if (!reservationId || !orderId || !description || !amount) return err("reservationId, orderId, description and amount required");
-  const result = db.postRestaurantChargeToRoom({ reservationId, orderId, description, amount });
+  if (!reservationId || !orderId || !description || !amount || !serviceType) return err("reservationId, orderId, description, amount and serviceType required");
+  const result = db.postRestaurantChargeToRoom({ reservationId, orderId, description, amount, serviceType });
   if (!result) return err("Reservation not found", 404);
 
   return ok(result);

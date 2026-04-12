@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { hotelApi, integrationApi, type FolioCharge, type GuestFolio, type HotelKeycard, type HotelReservation, type HotelRoom, type HousekeepingTask } from "@/lib/api-client";
+import { hotelApi, integrationApi, type FolioCharge, type GuestFolio, type HotelKeycard, type HotelReservation, type HotelRoom, type HousekeepingTask, type RatePlan } from "@/lib/api-client";
 
 type HotelContextValue = {
   rooms: HotelRoom[];
@@ -10,6 +10,7 @@ type HotelContextValue = {
   keycards: HotelKeycard[];
   folios: GuestFolio[];
   charges: FolioCharge[];
+  ratePlans: RatePlan[];
   loading: boolean;
   refresh: () => Promise<void>;
   createRoom: (data: Omit<HotelRoom, "id">) => Promise<void>;
@@ -18,7 +19,7 @@ type HotelContextValue = {
   createReservation: (data: Omit<HotelReservation, "id">) => Promise<void>;
   updateReservation: (id: string, data: Partial<HotelReservation>) => Promise<void>;
   deleteReservation: (id: string) => Promise<void>;
-  roomCharge: (reservationId: string, orderId: string, description: string, amount: number) => Promise<FolioCharge>;
+  roomCharge: (reservationId: string, orderId: string, description: string, amount: number, serviceType: "breakfast" | "lunch" | "dinner") => Promise<FolioCharge>;
   finalizeCheckout: (reservationId: string, cityTaxAmount: number, paymentMethod: "cash" | "card" | "room_charge_settlement") => Promise<void>;
 };
 
@@ -37,18 +38,20 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
   const [keycards, setKeycards] = useState<HotelKeycard[]>([]);
   const [folios, setFolios] = useState<GuestFolio[]>([]);
   const [charges, setCharges] = useState<FolioCharge[]>([]);
+  const [ratePlans, setRatePlans] = useState<RatePlan[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [roomsData, reservationsData, housekeepingData, keycardsData, foliosData, chargesData] = await Promise.all([
+      const [roomsData, reservationsData, housekeepingData, keycardsData, foliosData, chargesData, availabilityData] = await Promise.all([
         hotelApi.listRooms(),
         hotelApi.listReservations(),
         hotelApi.listHousekeeping(),
         hotelApi.listKeycards(),
         integrationApi.listFolios(),
         integrationApi.listCharges(),
+        hotelApi.availability({ roomType: "Classic", checkInDate: "2026-04-12", checkOutDate: "2026-04-13" }),
       ]);
       setRooms(roomsData);
       setReservations(reservationsData);
@@ -56,6 +59,7 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
       setKeycards(keycardsData);
       setFolios(foliosData);
       setCharges(chargesData);
+      setRatePlans(availabilityData.ratePlans);
     } finally {
       setLoading(false);
     }
@@ -63,13 +67,13 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  const roomCharge = useCallback(async (reservationId: string, orderId: string, description: string, amount: number) => {
-    const result = await integrationApi.chargeRoom(reservationId, orderId, description, amount);
+  const roomCharge = useCallback(async (reservationId: string, orderId: string, description: string, amount: number, serviceType: "breakfast" | "lunch" | "dinner") => {
+    const result = await integrationApi.chargeRoom(reservationId, orderId, description, amount, serviceType);
     setFolios((prev) => {
       const next = prev.filter((folio) => folio.id !== result.folio.id);
       return [result.folio, ...next];
     });
-    setCharges((prev) => [result.charge, ...prev]);
+    setCharges((prev) => [...result.credits, result.charge, ...prev]);
     return result.charge;
   }, []);
 
@@ -127,7 +131,7 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ rooms, reservations, housekeeping, keycards, folios, charges, loading, refresh, createRoom, updateRoom, deleteRoom, createReservation, updateReservation, deleteReservation, roomCharge, finalizeCheckout }}>
+    <Ctx.Provider value={{ rooms, reservations, housekeeping, keycards, folios, charges, ratePlans, loading, refresh, createRoom, updateRoom, deleteRoom, createReservation, updateReservation, deleteReservation, roomCharge, finalizeCheckout }}>
       {children}
     </Ctx.Provider>
   );

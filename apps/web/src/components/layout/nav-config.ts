@@ -189,6 +189,16 @@ export const navSections: NavSection[] = [
         feature: "hotel",
       },
       {
+        id: "hotel-planner",
+        label: "Planner Camere",
+        hint: "Vista mensile PMS per disponibilità e occupazione.",
+        href: "/hotel/planner",
+        icon: CalendarDays,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+      },
+      {
         id: "hotel-reservations",
         label: "Prenotazioni Hotel",
         hint: "Arrivi, partenze e conferme soggiorni.",

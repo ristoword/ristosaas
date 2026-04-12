@@ -7,5 +7,9 @@
     "dev:web": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "start": "pnpm --filter web start"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "prisma": "^6.19.3"
   }
 }

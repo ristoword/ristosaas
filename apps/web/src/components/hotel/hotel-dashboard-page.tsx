@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
+import { hotelRatePlans } from "@/modules/hotel/domain/mock-data";
 
 export function HotelDashboardPage() {
   const { rooms, reservations, housekeeping, folios, charges } = useHotel();
@@ -105,6 +106,19 @@ export function HotelDashboardPage() {
                 <p className="font-semibold text-rw-ink">Soggiorni e ospiti</p>
               </div>
               <p className="mt-2 text-sm text-rw-soft">Cliente unico, nucleo ospiti, piani pasti e conto camera.</p>
+            </div>
+            <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 sm:col-span-2">
+              <p className="font-semibold text-rw-ink">Rate plans attivi</p>
+              <div className="mt-3 grid gap-2 md:grid-cols-2">
+                {hotelRatePlans.map((plan) => (
+                  <div key={plan.id} className="rounded-xl border border-rw-line bg-rw-surface px-3 py-2 text-sm">
+                    <p className="font-semibold text-rw-ink">{plan.name}</p>
+                    <p className="text-xs text-rw-muted">
+                      {plan.roomType} · {plan.boardType} · € {plan.nightlyRate}/notte
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </Card>

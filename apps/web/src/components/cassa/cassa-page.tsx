@@ -158,6 +158,7 @@ function CassaTab({
   const [vatOverride, setVatOverride] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
   const [reservationId, setReservationId] = useState("");
+  const [serviceType, setServiceType] = useState<"breakfast" | "lunch" | "dinner">("dinner");
   const { reservations, roomCharge } = useHotel();
   const roomChargeEnabled =
     tenantPlatformProfile.enabledFeatures.includes("restaurant") &&
@@ -202,6 +203,7 @@ function CassaTab({
       selected.id,
       `Addebito ristorante ${tableLabel}`,
       Number(total.toFixed(2)),
+      serviceType,
     );
     doFlash(`Addebito inviato al folio camera: € ${charge.amount.toFixed(2)}`);
   }
@@ -347,6 +349,18 @@ function CassaTab({
                             {reservation.guestName} · camera {reservation.roomId?.replace("hr_", "") || "n/d"}
                           </option>
                         ))}
+                      </select>
+                    </div>
+                    <div className="min-w-0 md:w-44">
+                      <label className={LABEL}>Servizio</label>
+                      <select
+                        className={INPUT}
+                        value={serviceType}
+                        onChange={(e) => setServiceType(e.target.value as typeof serviceType)}
+                      >
+                        <option value="breakfast">Colazione</option>
+                        <option value="lunch">Pranzo</option>
+                        <option value="dinner">Cena</option>
                       </select>
                     </div>
                     <button

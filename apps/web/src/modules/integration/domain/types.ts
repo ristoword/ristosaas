@@ -8,7 +8,7 @@ export type GuestFolio = {
   status: "open" | "closed";
 };
 
-export type FolioChargeSource = "hotel" | "restaurant" | "manual" | "city_tax" | "payment";
+export type FolioChargeSource = "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit";
 
 export type FolioCharge = {
   id: string;

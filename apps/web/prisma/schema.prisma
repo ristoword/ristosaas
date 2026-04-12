@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductPlan {
+  restaurant_only
+  hotel_only
+  all_included
+}
+
+enum TenantFeatureCode {
+  restaurant
+  hotel
+  integration_room_charge
+  integration_unified_folio
+  integration_meal_plans
+}
+
+enum RestaurantOrderStatus {
+  in_attesa
+  in_preparazione
+  pronto
+  servito
+  chiuso
+  annullato
+}
+
+enum HotelReservationStatus {
+  confermata
+  in_casa
+  check_out
+  cancellata
+  no_show
+}
+
+enum HotelRoomStatus {
+  libera
+  occupata
+  da_pulire
+  pulita
+  fuori_servizio
+  manutenzione
+}
+
+enum BoardType {
+  room_only
+  bed_breakfast
+  half_board
+  full_board
+}
+
+enum FolioStatus {
+  open
+  closed
+}
+
+enum FolioChargeSource {
+  hotel
+  restaurant
+  manual
+  city_tax
+  payment
+  meal_plan_credit
+}
+
+model Tenant {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String          @unique
+  plan        ProductPlan
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  features    TenantFeature[]
+  users       User[]
+  customers   Customer[]
+  hotelRooms  HotelRoom[]
+  reservations HotelReservation[]
+  stays       Stay[]
+  folios      GuestFolio[]
+  housekeepingTasks HousekeepingTask[]
+}
+
+model TenantFeature {
+  id       String            @id @default(cuid())
+  tenantId String
+  code     TenantFeatureCode
+  enabled  Boolean           @default(true)
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  username     String   @unique
+  passwordHash String
+  name         String
+  email        String   @unique
+  role         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  email       String?
+  phone       String?
+  allergies   String?
+  preferences String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservations HotelReservation[]
+  folios      GuestFolio[]
+}
+
+model HotelRoom {
+  id           String          @id @default(cuid())
+  tenantId     String
+  code         String
+  floor        Int
+  roomType     String
+  capacity     Int
+  status       HotelRoomStatus
+  ratePlanCode String?
+  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservations HotelReservation[]
+  tasks        HousekeepingTask[]
+
+  @@unique([tenantId, code])
+}
+
+model HotelReservation {
+  id           String                @id @default(cuid())
+  tenantId     String
+  customerId   String
+  roomId       String?
+  guestName    String
+  phone        String?
+  email        String?
+  checkInDate  DateTime
+  checkOutDate DateTime
+  guests       Int
+  status       HotelReservationStatus
+  roomType     String
+  boardType    BoardType
+  nights       Int
+  rate         Decimal               @db.Decimal(10, 2)
+  documentCode String?
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer     Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  room         HotelRoom?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  stay         Stay?
+}
+
+model Stay {
+  id               String             @id @default(cuid())
+  tenantId         String
+  reservationId    String             @unique
+  actualCheckInAt  DateTime?
+  actualCheckOutAt DateTime?
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservation      HotelReservation   @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  folio            GuestFolio?
+}
+
+model HousekeepingTask {
+  id               String   @id @default(cuid())
+  tenantId         String
+  roomId           String
+  assignedToUserId String?
+  status           String
+  scheduledFor     DateTime
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room             HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model GuestFolio {
+  id         String       @id @default(cuid())
+  tenantId   String
+  customerId String
+  stayId     String?      @unique
+  currency   String       @default("EUR")
+  balance    Decimal      @db.Decimal(10, 2)
+  status     FolioStatus  @default(open)
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  stay       Stay?        @relation(fields: [stayId], references: [id], onDelete: SetNull)
+  charges     FolioCharge[]
+}
+
+model FolioCharge {
+  id          String            @id @default(cuid())
+  folioId     String
+  source      FolioChargeSource
+  sourceId    String?
+  description String
+  amount      Decimal           @db.Decimal(10, 2)
+  postedAt    DateTime          @default(now())
+  folio       GuestFolio        @relation(fields: [folioId], references: [id], onDelete: Cascade)
+}

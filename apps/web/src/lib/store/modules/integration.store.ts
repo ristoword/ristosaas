@@ -30,9 +30,12 @@ export function postRestaurantChargeToRoom(params: {
   orderId: string;
   description: string;
   amount: number;
+  serviceType: "breakfast" | "lunch" | "dinner";
 }) {
   const folio = getOrCreateFolioByReservation(params.reservationId);
   if (!folio) return null;
+  const reservation = hotelStore.reservations.get(params.reservationId);
+  if (!reservation) return null;
 
   const charge: FolioCharge = {
     id: uid("charge"),
@@ -44,11 +47,33 @@ export function postRestaurantChargeToRoom(params: {
     postedAt: new Date().toISOString(),
   };
   folioCharges.set(charge.id, charge);
-  guestFolios.set(folio.id, { ...folio, balance: folio.balance + params.amount });
+  let nextBalance = folio.balance + params.amount;
+
+  const coveredByMealPlan =
+    (reservation.boardType === "bed_breakfast" && params.serviceType === "breakfast") ||
+    (reservation.boardType === "half_board" && ["breakfast", "dinner"].includes(params.serviceType)) ||
+    (reservation.boardType === "full_board" && ["breakfast", "lunch", "dinner"].includes(params.serviceType));
+
+  if (coveredByMealPlan) {
+    const credit: FolioCharge = {
+      id: uid("charge"),
+      folioId: folio.id,
+      source: "meal_plan_credit",
+      sourceId: params.reservationId,
+      description: `Copertura piano pasti (${params.serviceType})`,
+      amount: -params.amount,
+      postedAt: new Date().toISOString(),
+    };
+    folioCharges.set(credit.id, credit);
+    nextBalance -= params.amount;
+  }
+
+  guestFolios.set(folio.id, { ...folio, balance: nextBalance });
 
   return {
     folio: guestFolios.get(folio.id)!,
     charge,
+    credits: integrationStore.folioCharges.byFolioId(folio.id).filter((item) => item.source === "meal_plan_credit"),
   };
 }
 

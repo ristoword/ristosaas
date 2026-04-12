@@ -1,13 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { useHotel } from "@/components/hotel/hotel-context";
-import type { HotelReservation, HotelReservationStatus } from "@/lib/api-client";
+import { hotelApi, type HotelReservation, type HotelReservationStatus, type HotelRoom, type RatePlan } from "@/lib/api-client";
 
 const statusTone = {
   confermata: "info",
@@ -19,6 +19,7 @@ const statusTone = {
 
 export function HotelReservationsPage() {
   const { reservations, createReservation, updateReservation, deleteReservation } = useHotel();
+  const [availability, setAvailability] = useState<{ availableCount: number; rooms: HotelRoom[]; ratePlans: RatePlan[] } | null>(null);
   const [form, setForm] = useState<Omit<HotelReservation, "id">>({
     customerId: "cst_new",
     guestName: "",
@@ -49,6 +50,17 @@ export function HotelReservationsPage() {
     [reservations],
   );
   const [editingReservationId, setEditingReservationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    hotelApi
+      .availability({
+        roomType: form.roomType,
+        checkInDate: form.checkInDate,
+        checkOutDate: form.checkOutDate,
+      })
+      .then(setAvailability)
+      .catch(() => setAvailability(null));
+  }, [form.roomType, form.checkInDate, form.checkOutDate]);
 
   return (
     <div className="space-y-6">
@@ -111,18 +123,24 @@ export function HotelReservationsPage() {
           </div>
         </Card>
 
-        <Card title="Snapshot booking" description="Visione revenue e mix pacchetti soggiorno.">
+        <Card title="Booking engine per tipologia" description="Disponibilità per tipo camera e tariffa associata.">
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+              <p className="text-sm font-medium text-rw-muted">Disponibili per {form.roomType}</p>
+              <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">{availability?.availableCount ?? 0}</p>
+              <p className="mt-2 text-sm text-rw-soft">{form.checkInDate} → {form.checkOutDate}</p>
+            </div>
             <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
               <p className="text-sm font-medium text-rw-muted">Revenue prenotazioni</p>
               <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">€ {totalProjectedRevenue.toFixed(2)}</p>
               <p className="mt-2 text-sm text-rw-soft">Valore complessivo soggiorni registrati.</p>
             </div>
-            {(["room_only", "bed_breakfast", "half_board", "full_board"] as const).map((boardType) => (
-              <div key={boardType} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
-                <p className="text-sm font-medium text-rw-muted">{boardLabels[boardType]}</p>
-                <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">
-                  {reservations.filter((reservation) => reservation.boardType === boardType).length}
+            {availability?.ratePlans.map((plan) => (
+              <div key={plan.id} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+                <p className="text-sm font-medium text-rw-muted">{plan.name}</p>
+                <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€ {plan.nightlyRate}</p>
+                <p className="mt-2 text-sm text-rw-soft">
+                  {boardLabels[plan.boardType]} · {plan.refundable ? "refundable" : "non refundable"}
                 </p>
               </div>
             ))}

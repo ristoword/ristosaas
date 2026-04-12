@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model bookings {
+  id          Int       @id @default(autoincrement())
+  tenant_id   Int
+  room_id     Int
+  guest_name  String
+  guest_email String?
+  check_in    DateTime  @db.Date
+  check_out   DateTime  @db.Date
+  status      String
+  created_at  DateTime? @default(dbgenerated("'2026-04-12 22:16:04.291646+00'::timestamp with time zone")) @db.Timestamptz(6)
+  updated_at  DateTime? @default(dbgenerated("'2026-04-12 22:16:04.291646+00'::timestamp with time zone")) @db.Timestamptz(6)
+}
+
+model payments {
+  id         Int       @id @default(autoincrement())
+  tenant_is  Int
+  booking_id Int
+  amount     Decimal   @db.Decimal
+  currency   String
+  status     String
+  method     String?
+  created_at DateTime? @default(dbgenerated("'2026-04-12 22:20:46.045472+00'::timestamp with time zone")) @db.Timestamptz(6)
+  updated_at DateTime? @default(dbgenerated("'2026-04-12 22:20:46.045472+00'::timestamp with time zone")) @db.Timestamptz(6)
+}
+
+model rooms {
+  id         Int       @id @default(autoincrement())
+  tenant_id  Int
+  name       String
+  capacity   Int
+  price      Decimal   @db.Decimal
+  status     String
+  created_at DateTime? @default(dbgenerated("'2026-04-12 22:10:11.799992+00'::timestamp with time zone")) @db.Timestamptz(6)
+  updated_at DateTime? @default(dbgenerated("'2026-04-12 22:10:11.799992+00'::timestamp with time zone")) @db.Timestamptz(6)
+}
+
+model tenant_settings {
+  id            Int       @id @default(autoincrement())
+  tenant_id     Int
+  business_type String
+  settings      Json?     @default("{}")
+  created_at    DateTime? @default(dbgenerated("'2026-04-12 22:03:11.53888+00'::timestamp with time zone")) @db.Timestamptz(6)
+  updated_at    DateTime? @default(dbgenerated("'2026-04-12 22:03:11.53888+00'::timestamp with time zone")) @db.Timestamptz(6)
+}
+
+model tenants {
+  id         Int       @id @default(autoincrement())
+  name       String
+  slug       String
+  status     String
+  created_at DateTime? @default(dbgenerated("'2026-04-12 21:44:07.564961+00'::timestamp with time zone")) @db.Timestamptz(6)
+  updated_at DateTime? @default(dbgenerated("'2026-04-12 21:44:07.564961+00'::timestamp with time zone")) @db.Timestamptz(6)
+}
+
+model user {
+  id            Int       @id @default(autoincrement())
+  tenant_id     Int
+  email         String
+  password_hash String
+  role          String
+  created_at    DateTime? @default(dbgenerated("'2026-04-12 21:54:04.037303+00'::timestamp with time zone")) @db.Timestamptz(6)
+  updated_at    DateTime? @default(dbgenerated("'2026-04-12 21:54:04.037303+00'::timestamp with time zone")) @db.Timestamptz(6)
+  full_name     String
+}

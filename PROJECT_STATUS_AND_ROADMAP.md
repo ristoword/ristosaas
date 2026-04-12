@@ -15,6 +15,7 @@ Il progetto e arrivato a una base piattaforma multi-verticale con:
 - `RBAC iniziale`
 - `dashboard unificata`
 - `i18n / i10n base`
+- `Prisma + schema PostgreSQL iniziale`
 
 ## Architettura Attuale
 
@@ -38,6 +39,7 @@ Copre:
 - folio integration
 - impostazioni globali
 - internazionalizzazione base
+- base ORM PostgreSQL pronta
 
 ### Verticale Restaurant
 
@@ -114,7 +116,7 @@ Gestiti tramite:
 ### Non ancora reale al 100%
 
 - dati ancora in-memory
-- niente DB reale
+- schema DB pronto ma non ancora migrato su database reale
 - niente persistenza vera
 - niente webhook reali
 - niente Stripe live operativo
@@ -241,6 +243,7 @@ Sostituire completamente lo stato in-memory.
 ### Da fare
 
 - scegliere ORM (`Prisma` o `Drizzle`)
+- Prisma introdotto nel progetto
 - introdurre Postgres
 - migrazioni
 - seed iniziale
@@ -253,6 +256,13 @@ Sostituire completamente lo stato in-memory.
 
 - persistenza reale
 - ambiente stabile
+
+### Stato corrente
+
+- `prisma/schema.prisma` creato
+- `PrismaClient` configurato
+- `DATABASE_URL` aggiunta in `.env.example`
+- runtime ancora su store in-memory fino alla migrazione vera
 
 ---
 
@@ -414,23 +424,90 @@ Il prodotto puo dirsi davvero pronto quando avra:
 
 ## Stato Stimato Attuale
 
-- Architettura: 75%
-- Verticale Restaurant: 60%
-- Verticale Hotel: 55%
-- Integrazione Hotel + Restaurant: 45%
-- Security production: 25%
+- Architettura: 80%
+- Verticale Restaurant: 62%
+- Verticale Hotel: 68%
+- Integrazione Hotel + Restaurant: 58%
+- Security production: 30%
 - Billing/licenze reali: 20%
-- Deploy production robusto: 45%
-- Go-live commerciale: 35%
+- Deploy production robusto: 50%
+- Go-live commerciale: 42%
 
 ---
 
 ## Priorita Assolute Prossime
 
-- planner camere
-- rate plans
-- meal plan integration
-- DB reale
+- seed iniziale su PostgreSQL
+- repository Prisma
+- prime API reali hotel su DB
+- migrazione graduale dallo store in-memory al DB
 - billing/licenze reali
 - hardening sicurezza
+
+---
+
+## Punto Di Ripartenza Domani
+
+### Stato raggiunto oggi
+
+- Prisma introdotto nel progetto
+- `prisma/schema.prisma` creato e valido
+- `PrismaClient` pronto
+- `apps/web/.env.local` sistemato
+- connessione al PostgreSQL pubblico Railway verificata
+- snapshot schema attuale DB salvato in:
+  - `apps/web/prisma/railway-current.prisma`
+- migrazione safe applicata sul DB esistente:
+  - mantenute tabelle legacy
+  - aggiunte tabelle nuova piattaforma
+- build progetto completata con successo
+
+### Tabelle ora presenti nel DB Railway
+
+Legacy:
+
+- `bookings`
+- `payments`
+- `rooms`
+- `tenant_settings`
+- `tenants`
+- `user`
+
+Nuova piattaforma:
+
+- `Tenant`
+- `TenantFeature`
+- `User`
+- `Customer`
+- `HotelRoom`
+- `HotelReservation`
+- `Stay`
+- `HousekeepingTask`
+- `GuestFolio`
+- `FolioCharge`
+
+### Cosa NON e ancora stato fatto
+
+- niente seed iniziale reale nel DB
+- API ancora in gran parte su store in-memory
+- repository Prisma non ancora introdotti
+- frontend non ancora alimentato da DB reale
+
+### Primo task da cui ripartire
+
+1. creare seed iniziale per:
+   - tenant
+   - tenant features
+   - utenti
+   - clienti
+   - camere
+   - prenotazioni
+   - soggiorni
+   - folio
+2. introdurre repository Prisma per:
+   - hotel rooms
+   - hotel reservations
+   - guest folio
+3. spostare le prime API hotel dal mock/store in-memory a Prisma
+4. verificare che UI hotel legga dati reali dal DB
 

@@ -13,6 +13,17 @@ export type HotelRoom = {
   capacity: number;
   status: HotelRoomStatus;
   roomType: string;
+  ratePlanCode?: string;
+};
+
+export type RatePlan = {
+  id: string;
+  code: string;
+  name: string;
+  roomType: string;
+  boardType: HotelReservation["boardType"];
+  nightlyRate: number;
+  refundable: boolean;
 };
 
 export type HotelReservationStatus =

@@ -1,14 +1,22 @@
-import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
+import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay, RatePlan } from "@/modules/hotel/domain/types";
 
 export const hotelRooms: HotelRoom[] = [
-  { id: "hr_101", code: "101", floor: 1, capacity: 2, status: "occupata", roomType: "Classic" },
-  { id: "hr_102", code: "102", floor: 1, capacity: 2, status: "pulita", roomType: "Classic" },
-  { id: "hr_103", code: "103", floor: 1, capacity: 3, status: "da_pulire", roomType: "Deluxe" },
-  { id: "hr_104", code: "104", floor: 1, capacity: 4, status: "libera", roomType: "Family" },
-  { id: "hr_201", code: "201", floor: 2, capacity: 2, status: "manutenzione", roomType: "Superior" },
-  { id: "hr_202", code: "202", floor: 2, capacity: 2, status: "fuori_servizio", roomType: "Classic" },
-  { id: "hr_203", code: "203", floor: 2, capacity: 2, status: "pulita", roomType: "Superior" },
-  { id: "hr_204", code: "204", floor: 2, capacity: 3, status: "libera", roomType: "Deluxe" },
+  { id: "hr_101", code: "101", floor: 1, capacity: 2, status: "occupata", roomType: "Classic", ratePlanCode: "RP_CLASSIC_BB" },
+  { id: "hr_102", code: "102", floor: 1, capacity: 2, status: "pulita", roomType: "Classic", ratePlanCode: "RP_CLASSIC_RO" },
+  { id: "hr_103", code: "103", floor: 1, capacity: 3, status: "da_pulire", roomType: "Deluxe", ratePlanCode: "RP_DELUXE_HB" },
+  { id: "hr_104", code: "104", floor: 1, capacity: 4, status: "libera", roomType: "Family", ratePlanCode: "RP_FAMILY_FB" },
+  { id: "hr_201", code: "201", floor: 2, capacity: 2, status: "manutenzione", roomType: "Superior", ratePlanCode: "RP_SUPERIOR_BB" },
+  { id: "hr_202", code: "202", floor: 2, capacity: 2, status: "fuori_servizio", roomType: "Classic", ratePlanCode: "RP_CLASSIC_RO" },
+  { id: "hr_203", code: "203", floor: 2, capacity: 2, status: "pulita", roomType: "Superior", ratePlanCode: "RP_SUPERIOR_BB" },
+  { id: "hr_204", code: "204", floor: 2, capacity: 3, status: "libera", roomType: "Deluxe", ratePlanCode: "RP_DELUXE_HB" },
+];
+
+export const hotelRatePlans: RatePlan[] = [
+  { id: "rp_1", code: "RP_CLASSIC_RO", name: "Classic Room Only", roomType: "Classic", boardType: "room_only", nightlyRate: 90, refundable: true },
+  { id: "rp_2", code: "RP_CLASSIC_BB", name: "Classic B&B", roomType: "Classic", boardType: "bed_breakfast", nightlyRate: 110, refundable: true },
+  { id: "rp_3", code: "RP_DELUXE_HB", name: "Deluxe Half Board", roomType: "Deluxe", boardType: "half_board", nightlyRate: 150, refundable: false },
+  { id: "rp_4", code: "RP_FAMILY_FB", name: "Family Full Board", roomType: "Family", boardType: "full_board", nightlyRate: 220, refundable: false },
+  { id: "rp_5", code: "RP_SUPERIOR_BB", name: "Superior B&B", roomType: "Superior", boardType: "bed_breakfast", nightlyRate: 135, refundable: true },
 ];
 
 export const hotelReservations: HotelReservation[] = [

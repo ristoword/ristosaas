@@ -176,7 +176,16 @@ export const archivioApi = {
 
 export type HotelRoomStatus = "libera" | "occupata" | "da_pulire" | "pulita" | "fuori_servizio" | "manutenzione";
 export type HotelReservationStatus = "confermata" | "in_casa" | "check_out" | "cancellata" | "no_show";
-export type HotelRoom = { id: string; code: string; floor: number; capacity: number; status: HotelRoomStatus; roomType: string };
+export type HotelRoom = { id: string; code: string; floor: number; capacity: number; status: HotelRoomStatus; roomType: string; ratePlanCode?: string };
+export type RatePlan = {
+  id: string;
+  code: string;
+  name: string;
+  roomType: string;
+  boardType: "room_only" | "bed_breakfast" | "half_board" | "full_board";
+  nightlyRate: number;
+  refundable: boolean;
+};
 export type HotelReservation = {
   id: string;
   customerId: string;
@@ -198,9 +207,13 @@ export type HotelStay = { id: string; reservationId: string; roomId: string; act
 export type HousekeepingTask = { id: string; roomId: string; assignedTo: string; status: "todo" | "in_progress" | "done"; scheduledFor: string; inspected: boolean };
 export type HotelKeycard = { id: string; roomId: string; reservationId: string; validFrom: string; validUntil: string; status: "attiva" | "scaduta" | "annullata"; issuedBy: string };
 export type GuestFolio = { id: string; tenantId: string; customerId: string; stayId: string | null; currency: string; balance: number; status: "open" | "closed" };
-export type FolioCharge = { id: string; folioId: string; source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment"; sourceId: string | null; description: string; amount: number; postedAt: string };
+export type FolioCharge = { id: string; folioId: string; source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit"; sourceId: string | null; description: string; amount: number; postedAt: string };
 
 export const hotelApi = {
+  availability: (params: { roomType: string; checkInDate: string; checkOutDate: string }) => {
+    const qs = new URLSearchParams(params);
+    return get<{ roomType: string; checkInDate: string; checkOutDate: string; availableCount: number; rooms: HotelRoom[]; ratePlans: RatePlan[] }>(`/hotel/availability?${qs.toString()}`);
+  },
   listRooms: () => get<HotelRoom[]>("/hotel/rooms"),
   createRoom: (data: Omit<HotelRoom, "id">) => post<HotelRoom>("/hotel/rooms", data),
   updateRoom: (id: string, data: Partial<HotelRoom>) => put<HotelRoom>(`/hotel/rooms/${id}`, data),
@@ -227,8 +240,8 @@ export const hotelApi = {
 export const integrationApi = {
   listFolios: () => get<GuestFolio[]>("/integration/folios"),
   listCharges: () => get<FolioCharge[]>("/integration/charges"),
-  chargeRoom: (reservationId: string, orderId: string, description: string, amount: number) =>
-    post<{ folio: GuestFolio; charge: FolioCharge }>("/integration/room-charge", { reservationId, orderId, description, amount }),
+  chargeRoom: (reservationId: string, orderId: string, description: string, amount: number, serviceType: "breakfast" | "lunch" | "dinner") =>
+    post<{ folio: GuestFolio; charge: FolioCharge; credits: FolioCharge[] }>("/integration/room-charge", { reservationId, orderId, description, amount, serviceType }),
 };
 
 export const api = {
