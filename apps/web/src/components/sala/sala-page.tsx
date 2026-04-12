@@ -1,22 +1,26 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Info, Plus, Send } from "lucide-react";
-import { mockSalaTables } from "./mock-tables";
+import { useEffect, useMemo, useState } from "react";
+import { Info, Send } from "lucide-react";
+import { tablesApi } from "@/lib/api-client";
+import type { SalaTable } from "@/lib/api-client";
 import { SalaFloor } from "./sala-floor";
 import { TableActionsModal } from "./table-actions-modal";
 import { OrderSendModal } from "./order-send-modal";
 import { useOrders } from "@/components/orders/orders-context";
-import type { SalaTable } from "./types";
 import type { Order } from "@/components/orders/types";
 
 export function SalaPage() {
-  const [tables] = useState<SalaTable[]>(() => mockSalaTables);
+  const [tables, setTables] = useState<SalaTable[]>([]);
   const [selected, setSelected] = useState<SalaTable | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [orderModalTable, setOrderModalTable] = useState<SalaTable | null>(null);
   const { getOrdersForTable, patchActiveCourse, activeOrders } = useOrders();
+
+  useEffect(() => {
+    tablesApi.list().then(setTables).catch(console.error);
+  }, []);
 
   const selectedId = selected?.id ?? null;
 

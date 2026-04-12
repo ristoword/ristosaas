@@ -1,5 +1,8 @@
 import { AppShell } from "@/components/layout/app-shell";
+import { AuthProvider } from "@/components/auth/auth-context";
 import { OrdersProvider } from "@/components/orders/orders-context";
+import { MenuProvider } from "@/components/menu/menu-context";
+import { WarehouseProvider } from "@/components/warehouse/warehouse-context";
 
 export default function DashboardGroupLayout({
   children,
@@ -7,8 +10,14 @@ export default function DashboardGroupLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <OrdersProvider>
-      <AppShell>{children}</AppShell>
-    </OrdersProvider>
+    <AuthProvider>
+      <WarehouseProvider>
+        <MenuProvider>
+          <OrdersProvider>
+            <AppShell>{children}</AppShell>
+          </OrdersProvider>
+        </MenuProvider>
+      </WarehouseProvider>
+    </AuthProvider>
   );
 }

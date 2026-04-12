@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { UserRole } from "@/components/auth/auth-context";
 import {
   Armchair,
   Archive,
@@ -9,21 +10,31 @@ import {
   Coffee,
   CreditCard,
   FileText,
+  Globe,
+  KeyRound,
   LayoutDashboard,
+  Mail,
   MapPin,
+  Maximize,
   Monitor,
   Package,
   Pizza,
+  Plug,
   QrCode,
+  ScrollText,
   Settings,
+  Shield,
   ShoppingBag,
   Soup,
   Star,
   Store,
+  Terminal,
   Truck,
+  UserCheck,
   Users,
   UtensilsCrossed,
   Wine,
+  Wrench,
 } from "lucide-react";
 
 export type NavItem = {
@@ -33,6 +44,7 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
   ready: boolean;
+  visibleFor?: UserRole[];
 };
 
 export type NavSection = { title: string; items: NavItem[] };
@@ -60,6 +72,14 @@ export const navSections: NavSection[] = [
         hint: "Planimetria touch, tavoli e azioni.",
         href: "/rooms",
         icon: Armchair,
+        ready: true,
+      },
+      {
+        id: "sala-fullscreen",
+        label: "Sala Fullscreen",
+        hint: "Mappa tavoli a schermo intero.",
+        href: "/sala-fullscreen",
+        icon: Maximize,
         ready: true,
       },
       {
@@ -92,6 +112,14 @@ export const navSections: NavSection[] = [
         hint: "POS, conti, pagamenti.",
         href: "/cassa",
         icon: CreditCard,
+        ready: true,
+      },
+      {
+        id: "chiusura",
+        label: "Chiusura Z",
+        hint: "Chiusura giornaliera e report.",
+        href: "/chiusura",
+        icon: ScrollText,
         ready: true,
       },
       {
@@ -177,6 +205,30 @@ export const navSections: NavSection[] = [
         ready: true,
       },
       {
+        id: "staff-hr",
+        label: "Staff HR",
+        hint: "Presenze, ferie, pagamenti, disciplina.",
+        href: "/staff-hr",
+        icon: UserCheck,
+        ready: true,
+      },
+      {
+        id: "staff-me",
+        label: "Il Mio Profilo",
+        hint: "Turni, ferie, timbrature.",
+        href: "/staff-me",
+        icon: BookUser,
+        ready: true,
+      },
+      {
+        id: "customers",
+        label: "CRM Clienti",
+        hint: "Anagrafica, preferenze, allergie.",
+        href: "/customers",
+        icon: Globe,
+        ready: true,
+      },
+      {
         id: "supervisor",
         label: "Supervisor",
         hint: "KPI, report, controllo totale.",
@@ -195,6 +247,14 @@ export const navSections: NavSection[] = [
         hint: "Incassi, fatture, comande.",
         href: "/archivio",
         icon: Archive,
+        ready: true,
+      },
+      {
+        id: "archivio-comande",
+        label: "Archivio Comande",
+        hint: "Storico ordini, ricerca, export.",
+        href: "/archivio-comande",
+        icon: ClipboardList,
         ready: true,
       },
     ],
@@ -225,6 +285,77 @@ export const navSections: NavSection[] = [
         href: "/owner",
         icon: Settings,
         ready: true,
+      },
+      {
+        id: "licenses",
+        label: "Licenze",
+        hint: "Gestione licenza e abbonamento.",
+        href: "/licenses",
+        icon: KeyRound,
+        ready: true,
+        visibleFor: ["super_admin"],
+      },
+      {
+        id: "sessions",
+        label: "Sessioni",
+        hint: "Sessioni attive, logout remoto.",
+        href: "/sessions",
+        icon: Shield,
+        ready: true,
+      },
+    ],
+  },
+  {
+    title: "Integrazioni",
+    items: [
+      {
+        id: "stripe",
+        label: "Stripe",
+        hint: "Pagamenti online, abbonamento.",
+        href: "/stripe",
+        icon: CreditCard,
+        ready: true,
+        visibleFor: ["super_admin"],
+      },
+      {
+        id: "email-settings",
+        label: "Email / SMTP",
+        hint: "Configurazione email e template.",
+        href: "/email-settings",
+        icon: Mail,
+        ready: true,
+      },
+      {
+        id: "websocket",
+        label: "WebSocket",
+        hint: "Monitor connessioni real-time.",
+        href: "/websocket",
+        icon: Plug,
+        ready: true,
+        visibleFor: ["super_admin"],
+      },
+    ],
+  },
+  {
+    title: "Admin",
+    items: [
+      {
+        id: "super-admin",
+        label: "Super Admin",
+        hint: "Gestione tenant, licenze, sistema.",
+        href: "/super-admin",
+        icon: Wrench,
+        ready: true,
+        visibleFor: ["super_admin"],
+      },
+      {
+        id: "dev-access",
+        label: "Dev Access",
+        hint: "Bridge emergenza, diagnostica.",
+        href: "/dev-access",
+        icon: Terminal,
+        ready: true,
+        visibleFor: ["super_admin"],
       },
     ],
   },

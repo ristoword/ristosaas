@@ -1,16 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
-  CalendarCheck,
   Clock,
   Edit,
+  Loader2,
   Plus,
   Send,
   ToggleLeft,
   ToggleRight,
-  UserCheck,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -19,29 +18,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-type Ruolo = "sala" | "cucina" | "bar" | "pizzeria" | "cassa" | "supervisor";
-
-type Dipendente = {
-  id: string;
-  nome: string;
-  cognome: string;
-  ruolo: Ruolo;
-  telefono: string;
-  email: string;
-  dataAssunzione: string;
-  tipoContratto: string;
-  note: string;
-  attivo: boolean;
-  presenteOggi: boolean;
-  oraEntrata?: string;
-  oraUscita?: string;
-  oreLavorate?: number;
-};
+import { staffApi, type StaffMember } from "@/lib/api-client";
 
 type RichiestaAssenza = {
   id: string;
@@ -53,28 +30,7 @@ type RichiestaAssenza = {
   stato: "in attesa" | "approvata" | "rifiutata";
 };
 
-/* ------------------------------------------------------------------ */
-/*  Mock data                                                          */
-/* ------------------------------------------------------------------ */
-
-const RUOLI: Ruolo[] = ["sala", "cucina", "bar", "pizzeria", "cassa", "supervisor"];
-
-const mockStaff: Dipendente[] = [
-  { id: "d1", nome: "Marco", cognome: "Bianchi", ruolo: "sala", telefono: "333-1111111", email: "marco@risto.it", dataAssunzione: "2022-03-15", tipoContratto: "Indeterminato", note: "", attivo: true, presenteOggi: true, oraEntrata: "09:00", oraUscita: "17:30", oreLavorate: 8.5 },
-  { id: "d2", nome: "Giulia", cognome: "Rossi", ruolo: "cucina", telefono: "333-2222222", email: "giulia@risto.it", dataAssunzione: "2021-06-01", tipoContratto: "Indeterminato", note: "Chef di linea", attivo: true, presenteOggi: true, oraEntrata: "08:30", oraUscita: "16:30", oreLavorate: 8 },
-  { id: "d3", nome: "Luca", cognome: "Verdi", ruolo: "bar", telefono: "333-3333333", email: "luca@risto.it", dataAssunzione: "2023-01-10", tipoContratto: "Determinato", note: "", attivo: true, presenteOggi: true, oraEntrata: "10:00", oraUscita: undefined, oreLavorate: undefined },
-  { id: "d4", nome: "Francesca", cognome: "Neri", ruolo: "pizzeria", telefono: "333-4444444", email: "francesca@risto.it", dataAssunzione: "2020-09-20", tipoContratto: "Indeterminato", note: "Pizzaiola esperta", attivo: true, presenteOggi: false },
-  { id: "d5", nome: "Alessandro", cognome: "Conti", ruolo: "cassa", telefono: "333-5555555", email: "alessandro@risto.it", dataAssunzione: "2023-05-12", tipoContratto: "Apprendistato", note: "", attivo: true, presenteOggi: true, oraEntrata: "11:00", oraUscita: undefined, oreLavorate: undefined },
-  { id: "d6", nome: "Sara", cognome: "Moretti", ruolo: "supervisor", telefono: "333-6666666", email: "sara@risto.it", dataAssunzione: "2019-02-01", tipoContratto: "Indeterminato", note: "Responsabile sala", attivo: true, presenteOggi: true, oraEntrata: "08:00", oraUscita: "17:00", oreLavorate: 9 },
-  { id: "d7", nome: "Davide", cognome: "Ferrari", ruolo: "cucina", telefono: "333-7777777", email: "davide@risto.it", dataAssunzione: "2024-01-15", tipoContratto: "Determinato", note: "", attivo: false, presenteOggi: false },
-  { id: "d8", nome: "Elena", cognome: "Colombo", ruolo: "sala", telefono: "333-8888888", email: "elena@risto.it", dataAssunzione: "2023-11-01", tipoContratto: "Part-time", note: "", attivo: true, presenteOggi: false },
-];
-
-const mockAssenze: RichiestaAssenza[] = [
-  { id: "a1", dipendenteId: "d4", tipo: "ferie", dal: "2026-04-15", al: "2026-04-22", note: "Vacanze pasquali", stato: "approvata" },
-  { id: "a2", dipendenteId: "d7", tipo: "malattia", dal: "2026-04-10", al: "2026-04-14", note: "Influenza", stato: "in attesa" },
-  { id: "a3", dipendenteId: "d8", tipo: "permesso", dal: "2026-04-11", al: "2026-04-11", note: "Visita medica", stato: "approvata" },
-];
+const ROLES = ["sala", "cucina", "bar", "pizzeria", "cassa", "supervisor"];
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30";
@@ -82,63 +38,64 @@ const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98]";
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-
 export function StaffPage() {
-  const [staff, setStaff] = useState<Dipendente[]>(mockStaff);
-  const [assenze, setAssenze] = useState<RichiestaAssenza[]>(mockAssenze);
-  const [presenzeDate, setPresenzeDate] = useState("2026-04-11");
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [assenze, setAssenze] = useState<RichiestaAssenza[]>([]);
 
-  // new-employee form
-  const [fNome, setFNome] = useState("");
-  const [fCognome, setFCognome] = useState("");
-  const [fRuolo, setFRuolo] = useState<Ruolo>("sala");
-  const [fTelefono, setFTelefono] = useState("");
+  const [fName, setFName] = useState("");
+  const [fRole, setFRole] = useState("sala");
+  const [fPhone, setFPhone] = useState("");
   const [fEmail, setFEmail] = useState("");
-  const [fDataAss, setFDataAss] = useState("");
-  const [fContratto, setFContratto] = useState("");
-  const [fNote, setFNote] = useState("");
+  const [fHireDate, setFHireDate] = useState("");
+  const [fSalary, setFSalary] = useState("");
+  const [fHoursWeek, setFHoursWeek] = useState("");
+  const [fNotes, setFNotes] = useState("");
 
-  // absence-request form
   const [aDipId, setADipId] = useState("");
   const [aTipo, setATipo] = useState<"ferie" | "malattia" | "permesso">("ferie");
   const [aDal, setADal] = useState("");
   const [aAl, setAAl] = useState("");
   const [aNote, setANote] = useState("");
 
-  // filter for absences
   const [assenzaFiltro, setAssenzaFiltro] = useState<"tutti" | "in attesa" | "approvata" | "rifiutata">("tutti");
 
-  /* ---- derived KPIs ---- */
-  const totale = staff.length;
-  const attivi = staff.filter((s) => s.attivo).length;
-  const presentiOggi = staff.filter((s) => s.presenteOggi).length;
-  const turniAperti = staff.filter((s) => s.presenteOggi && !s.oraUscita).length;
-  const anomalie = assenze.filter((a) => a.stato === "in attesa").length;
-  const oreOggi = staff.reduce((acc, s) => acc + (s.oreLavorate ?? 0), 0);
+  useEffect(() => {
+    staffApi
+      .list()
+      .then(setStaff)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  /* ---- handlers ---- */
-  function handleAddDipendente() {
-    if (!fNome.trim() || !fCognome.trim()) return;
-    const id = `d${Date.now()}`;
-    const nuovo: Dipendente = {
-      id,
-      nome: fNome.trim(),
-      cognome: fCognome.trim(),
-      ruolo: fRuolo,
-      telefono: fTelefono,
-      email: fEmail,
-      dataAssunzione: fDataAss || new Date().toISOString().slice(0, 10),
-      tipoContratto: fContratto || "Determinato",
-      note: fNote,
-      attivo: true,
-      presenteOggi: false,
-    };
-    setStaff((p) => [...p, nuovo]);
-    setFNome(""); setFCognome(""); setFRuolo("sala"); setFTelefono("");
-    setFEmail(""); setFDataAss(""); setFContratto(""); setFNote("");
+  const totale = staff.length;
+  const attivi = staff.filter((s) => s.status === "attivo").length;
+  const inFerie = staff.filter((s) => s.status === "ferie").length;
+  const inMalattia = staff.filter((s) => s.status === "malattia").length;
+  const anomalie = assenze.filter((a) => a.stato === "in attesa").length;
+  const oreTotali = staff.reduce((acc, s) => acc + s.hoursWeek, 0);
+
+  async function handleAddDipendente() {
+    if (!fName.trim()) return;
+    try {
+      const created = await staffApi.create({
+        name: fName.trim(),
+        role: fRole,
+        phone: fPhone,
+        email: fEmail,
+        hireDate: fHireDate || new Date().toISOString().slice(0, 10),
+        salary: Number(fSalary) || 0,
+        hoursWeek: Number(fHoursWeek) || 40,
+        status: "attivo",
+        notes: fNotes,
+      });
+      setStaff((p) => [...p, created]);
+      setFName(""); setFRole("sala"); setFPhone("");
+      setFEmail(""); setFHireDate(""); setFSalary(""); setFHoursWeek(""); setFNotes("");
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Errore nel salvataggio");
+    }
   }
 
   function handleAddAssenza() {
@@ -148,44 +105,53 @@ export function StaffPage() {
     setADipId(""); setATipo("ferie"); setADal(""); setAAl(""); setANote("");
   }
 
-  function toggleAttivo(id: string) {
-    setStaff((p) => p.map((s) => (s.id === id ? { ...s, attivo: !s.attivo } : s)));
+  async function toggleAttivo(member: StaffMember) {
+    const newStatus = member.status === "attivo" ? "licenziato" : "attivo";
+    try {
+      const updated = await staffApi.update(member.id, { status: newStatus });
+      setStaff((p) => p.map((s) => (s.id === member.id ? updated : s)));
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Errore nell'aggiornamento");
+    }
   }
 
   function getDipNome(id: string) {
     const d = staff.find((s) => s.id === id);
-    return d ? `${d.nome} ${d.cognome}` : id;
+    return d ? d.name : id;
   }
 
-  /* ---- tables ---- */
   const staffCols = [
-    { key: "nome", header: "Nome", render: (r: Dipendente) => <span className="font-medium text-rw-ink">{r.nome} {r.cognome}</span> },
-    { key: "ruolo", header: "Ruolo", render: (r: Dipendente) => <span className="capitalize">{r.ruolo}</span> },
+    { key: "name", header: "Nome", render: (r: StaffMember) => <span className="font-medium text-rw-ink">{r.name}</span> },
+    { key: "role", header: "Ruolo", render: (r: StaffMember) => <span className="capitalize">{r.role}</span> },
     {
-      key: "attivo", header: "Stato",
-      render: (r: Dipendente) => (
-        <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", r.attivo ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400")}>
-          {r.attivo ? "Attivo" : "Inattivo"}
-        </span>
-      ),
+      key: "status", header: "Stato",
+      render: (r: StaffMember) => {
+        const toneMap: Record<string, string> = {
+          attivo: "bg-emerald-500/15 text-emerald-400",
+          ferie: "bg-amber-500/15 text-amber-400",
+          malattia: "bg-blue-500/15 text-blue-400",
+          licenziato: "bg-red-500/15 text-red-400",
+        };
+        return (
+          <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold capitalize", toneMap[r.status] ?? "text-rw-muted")}>
+            {r.status}
+          </span>
+        );
+      },
     },
     {
-      key: "presente", header: "Oggi",
-      render: (r: Dipendente) => (
-        <span className={cn("text-xs font-semibold", r.presenteOggi ? "text-emerald-400" : "text-rw-muted")}>
-          {r.presenteOggi ? "Sì" : "No"}
-        </span>
-      ),
+      key: "hoursWeek", header: "Ore/sett.",
+      render: (r: StaffMember) => <span className="text-xs text-rw-soft">{r.hoursWeek}h</span>,
     },
     {
       key: "azioni", header: "Azioni",
-      render: (r: Dipendente) => (
+      render: (r: StaffMember) => (
         <div className="flex items-center gap-2">
           <button type="button" className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title="Modifica">
             <Edit className="h-4 w-4" />
           </button>
-          <button type="button" onClick={() => toggleAttivo(r.id)} className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title={r.attivo ? "Disattiva" : "Attiva"}>
-            {r.attivo ? <ToggleRight className="h-4 w-4 text-emerald-400" /> : <ToggleLeft className="h-4 w-4" />}
+          <button type="button" onClick={() => toggleAttivo(r)} className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title={r.status === "attivo" ? "Disattiva" : "Attiva"}>
+            {r.status === "attivo" ? <ToggleRight className="h-4 w-4 text-emerald-400" /> : <ToggleLeft className="h-4 w-4" />}
           </button>
         </div>
       ),
@@ -209,74 +175,84 @@ export function StaffPage() {
     { key: "note", header: "Note" },
   ];
 
-  const presentiOggiList = staff.filter((s) => s.presenteOggi);
-  const presenzeCols = [
-    { key: "nome", header: "Nome", render: (r: Dipendente) => <span className="font-medium text-rw-ink">{r.nome} {r.cognome}</span> },
-    { key: "entrata", header: "Entrata", render: (r: Dipendente) => r.oraEntrata ?? "—" },
-    { key: "uscita", header: "Uscita", render: (r: Dipendente) => r.oraUscita ?? "—" },
-    { key: "ore", header: "Ore", render: (r: Dipendente) => r.oreLavorate != null ? r.oreLavorate.toFixed(1) : "In corso" },
-    {
-      key: "stato", header: "Stato",
-      render: (r: Dipendente) => (
-        <span className={cn("text-xs font-semibold", r.oraUscita ? "text-rw-muted" : "text-emerald-400")}>
-          {r.oraUscita ? "Completato" : "In turno"}
-        </span>
-      ),
-    },
+  const staffPerRole = ROLES.map((role) => ({
+    role,
+    count: staff.filter((s) => s.role === role && s.status === "attivo").length,
+  }));
+
+  const roleCols = [
+    { key: "role", header: "Ruolo", render: (r: { role: string; count: number }) => <span className="font-medium capitalize text-rw-ink">{r.role}</span> },
+    { key: "count", header: "Attivi", render: (r: { role: string; count: number }) => <span className="text-rw-soft">{r.count}</span> },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-rw-accent" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-96 flex-col items-center justify-center gap-3 text-red-400">
+        <AlertTriangle className="h-8 w-8" />
+        <p className="text-sm">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
-      {/* Header + KPIs */}
       <PageHeader title="Staff" subtitle="Gestione dipendenti, presenze e assenze">
         <Chip label="Totale" value={totale} tone="info" />
         <Chip label="Attivi" value={attivi} tone="success" />
-        <Chip label="Presenti" value={presentiOggi} tone="accent" />
-        <Chip label="Turni aperti" value={turniAperti} tone="warn" />
+        <Chip label="In ferie" value={inFerie} tone="accent" />
+        <Chip label="Malattia" value={inMalattia} tone="warn" />
         <Chip label="Anomalie" value={anomalie} tone={anomalie > 0 ? "danger" : "default"} />
-        <Chip label="Ore oggi" value={oreOggi.toFixed(1)} />
+        <Chip label="Ore/sett." value={oreTotali} />
       </PageHeader>
 
-      {/* Two-column layout */}
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
-        {/* LEFT — Forms */}
         <div className="space-y-6">
-          {/* Add employee */}
           <Card title="Aggiungi dipendente" description="Compila i dati del nuovo membro dello staff.">
             <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Nome</label><input className={inputCls} value={fNome} onChange={(e) => setFNome(e.target.value)} placeholder="Mario" /></div>
-                <div><label className={labelCls}>Cognome</label><input className={inputCls} value={fCognome} onChange={(e) => setFCognome(e.target.value)} placeholder="Rossi" /></div>
+              <div>
+                <label className={labelCls}>Nome completo</label>
+                <input className={inputCls} value={fName} onChange={(e) => setFName(e.target.value)} placeholder="Mario Rossi" />
               </div>
               <div>
                 <label className={labelCls}>Ruolo</label>
-                <select className={inputCls} value={fRuolo} onChange={(e) => setFRuolo(e.target.value as Ruolo)}>
-                  {RUOLI.map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
+                <select className={inputCls} value={fRole} onChange={(e) => setFRole(e.target.value)}>
+                  {ROLES.map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Telefono</label><input className={inputCls} value={fTelefono} onChange={(e) => setFTelefono(e.target.value)} placeholder="333-…" /></div>
+                <div><label className={labelCls}>Telefono</label><input className={inputCls} value={fPhone} onChange={(e) => setFPhone(e.target.value)} placeholder="333-…" /></div>
                 <div><label className={labelCls}>Email</label><input className={inputCls} value={fEmail} onChange={(e) => setFEmail(e.target.value)} placeholder="email@…" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Data assunzione</label><input type="date" className={inputCls} value={fDataAss} onChange={(e) => setFDataAss(e.target.value)} /></div>
-                <div><label className={labelCls}>Tipo contratto</label><input className={inputCls} value={fContratto} onChange={(e) => setFContratto(e.target.value)} placeholder="Indeterminato" /></div>
+                <div><label className={labelCls}>Data assunzione</label><input type="date" className={inputCls} value={fHireDate} onChange={(e) => setFHireDate(e.target.value)} /></div>
+                <div><label className={labelCls}>Stipendio (€)</label><input type="number" className={inputCls} value={fSalary} onChange={(e) => setFSalary(e.target.value)} placeholder="1500" /></div>
               </div>
-              <div><label className={labelCls}>Note</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={fNote} onChange={(e) => setFNote(e.target.value)} placeholder="Annotazioni…" /></div>
+              <div>
+                <label className={labelCls}>Ore/settimana</label>
+                <input type="number" className={inputCls} value={fHoursWeek} onChange={(e) => setFHoursWeek(e.target.value)} placeholder="40" />
+              </div>
+              <div><label className={labelCls}>Note</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={fNotes} onChange={(e) => setFNotes(e.target.value)} placeholder="Annotazioni…" /></div>
               <button type="button" className={btnPrimary} onClick={handleAddDipendente}>
                 <UserPlus className="h-4 w-4" /> Salva
               </button>
             </div>
           </Card>
 
-          {/* Absence request */}
           <Card title="Nuova richiesta assenza" description="Richiesta ferie, malattia o permesso.">
             <div className="space-y-3">
               <div>
                 <label className={labelCls}>Dipendente</label>
                 <select className={inputCls} value={aDipId} onChange={(e) => setADipId(e.target.value)}>
                   <option value="">— Seleziona —</option>
-                  {staff.filter((s) => s.attivo).map((s) => <option key={s.id} value={s.id}>{s.nome} {s.cognome}</option>)}
+                  {staff.filter((s) => s.status === "attivo").map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div>
@@ -299,9 +275,7 @@ export function StaffPage() {
           </Card>
         </div>
 
-        {/* RIGHT — Tables */}
         <div className="space-y-6">
-          {/* Staff table */}
           <Card
             title="Elenco staff"
             description={`${totale} dipendenti registrati`}
@@ -314,7 +288,6 @@ export function StaffPage() {
             <DataTable columns={staffCols} data={staff} keyExtractor={(r) => r.id} emptyMessage="Nessun dipendente" />
           </Card>
 
-          {/* Absence requests */}
           <Card
             title="Richieste assenze"
             headerRight={
@@ -338,19 +311,15 @@ export function StaffPage() {
             <DataTable columns={assenzeCols} data={filteredAssenze} keyExtractor={(r) => r.id} emptyMessage="Nessuna richiesta" />
           </Card>
 
-          {/* Attendance today */}
           <Card
-            title="Presenze oggi"
+            title="Staff per ruolo"
             headerRight={
-              <div className="flex items-center gap-2">
-                <input type="date" className={cn(inputCls, "w-auto py-1.5 text-xs")} value={presenzeDate} onChange={(e) => setPresenzeDate(e.target.value)} />
-                <span className="inline-flex items-center gap-1.5 text-xs text-rw-muted">
-                  <Clock className="h-3.5 w-3.5" /> {presentiOggiList.length} presenti
-                </span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 text-xs text-rw-muted">
+                <Clock className="h-3.5 w-3.5" /> {oreTotali} ore/sett. totali
+              </span>
             }
           >
-            <DataTable columns={presenzeCols} data={presentiOggiList} keyExtractor={(r) => r.id} emptyMessage="Nessuna presenza registrata" />
+            <DataTable columns={roleCols} data={staffPerRole} keyExtractor={(r) => r.role} emptyMessage="Nessun ruolo" />
           </Card>
         </div>
       </div>

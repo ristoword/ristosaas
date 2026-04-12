@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   CalendarDays,
   Download,
   FileText,
+  Loader2,
   Plus,
   Receipt,
   Search,
@@ -14,15 +15,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { TabBar } from "@/components/shared/tab-bar";
 import { DataTable } from "@/components/shared/data-table";
+import { archivioApi, type ArchivedOrder } from "@/lib/api-client";
 
-/* ── Shared styles ─────────────────────────────────── */
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
 const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98]";
 
-/* ── Tabs ──────────────────────────────────────────── */
 const tabs = [
   { id: "report", label: "Report incassi" },
   { id: "fatture-entrata", label: "Fatture in entrata" },
@@ -30,59 +30,71 @@ const tabs = [
   { id: "comande", label: "Archivio comande" },
 ];
 
-/* ── Mock: Report incassi ──────────────────────────── */
-type ReportRow = { id: string; period: string; covers: number; revenue: number; average: number };
-const mockReport: ReportRow[] = [
-  { id: "r1", period: "2026-04-07", covers: 68, revenue: 2450.0, average: 36.03 },
-  { id: "r2", period: "2026-04-08", covers: 52, revenue: 1870.5, average: 35.97 },
-  { id: "r3", period: "2026-04-09", covers: 74, revenue: 2780.0, average: 37.57 },
-  { id: "r4", period: "2026-04-10", covers: 91, revenue: 3620.0, average: 39.78 },
-  { id: "r5", period: "2026-04-11", covers: 45, revenue: 1650.0, average: 36.67 },
-];
+type ReportRow = { id: string; period: string; orders: number; revenue: number; average: number };
 
-/* ── Mock: Fatture in entrata ──────────────────────── */
 type FatturaEntrata = { id: string; date: string; supplier: string; number: string; amount: number; iva: string; status: string };
-const mockFattureEntrata: FatturaEntrata[] = [
-  { id: "fe1", date: "2026-04-10", supplier: "Ortofrutticola Vesuvio", number: "FE-2026/034", amount: 480.0, iva: "10%", status: "Registrata" },
-  { id: "fe2", date: "2026-04-09", supplier: "Caseificio Campano", number: "FE-2026/033", amount: 320.5, iva: "4%", status: "Da verificare" },
-  { id: "fe3", date: "2026-04-08", supplier: "Bevande Italia Srl", number: "FE-2026/032", amount: 1150.0, iva: "22%", status: "Registrata" },
-  { id: "fe4", date: "2026-04-05", supplier: "Macelleria De Luca", number: "FE-2026/031", amount: 890.0, iva: "10%", status: "Pagata" },
-];
 
-/* ── Mock: Fatture da cassa ────────────────────────── */
 type FatturaCassa = { id: string; date: string; number: string; customer: string; amount: number; iva: string; type: string };
-const mockFattureCassa: FatturaCassa[] = [
-  { id: "fc1", date: "2026-04-11", number: "FC-2026/112", customer: "Azienda Moda Srl", amount: 245.0, iva: "10%", type: "Fattura" },
-  { id: "fc2", date: "2026-04-10", number: "FC-2026/111", customer: "Studio Legale Rossi", amount: 180.0, iva: "10%", type: "Ricevuta" },
-  { id: "fc3", date: "2026-04-09", number: "FC-2026/110", customer: "Privato", amount: 95.5, iva: "10%", type: "Scontrino" },
-];
-
-/* ── Mock: Archivio comande ────────────────────────── */
-type Comanda = { id: string; datetime: string; table: string; area: string; status: string; covers: number; waiter: string };
-const mockComande: Comanda[] = [
-  { id: "c1", datetime: "2026-04-11 20:15", table: "T4", area: "Sala", status: "Chiusa", covers: 4, waiter: "Marco" },
-  { id: "c2", datetime: "2026-04-11 19:30", table: "T7", area: "Terrazza", status: "Chiusa", covers: 2, waiter: "Sara" },
-  { id: "c3", datetime: "2026-04-11 20:00", table: "T1", area: "Sala", status: "Annullata", covers: 6, waiter: "Marco" },
-  { id: "c4", datetime: "2026-04-10 21:00", table: "T12", area: "Privé", status: "Chiusa", covers: 8, waiter: "Luca" },
-  { id: "c5", datetime: "2026-04-10 20:30", table: "T3", area: "Sala", status: "Chiusa", covers: 3, waiter: "Sara" },
-  { id: "c6", datetime: "2026-04-10 19:45", table: "T9", area: "Terrazza", status: "Chiusa", covers: 2, waiter: "Luca" },
-];
 
 /* ── Tab panels ────────────────────────────────────── */
 
-function ReportPanel() {
+function ReportPanel({ orders, loading }: { orders: ArchivedOrder[]; loading: boolean }) {
   const [groupBy, setGroupBy] = useState("day");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const report = useMemo(() => {
+    const filtered = orders.filter((o) => {
+      if (o.status === "annullato") return false;
+      if (dateFrom && o.date < dateFrom) return false;
+      if (dateTo && o.date > dateTo) return false;
+      return true;
+    });
+
+    const grouped = new Map<string, { revenue: number; count: number }>();
+    for (const o of filtered) {
+      let key = o.date;
+      if (groupBy === "month") key = o.date.slice(0, 7);
+      else if (groupBy === "year") key = o.date.slice(0, 4);
+
+      const existing = grouped.get(key) ?? { revenue: 0, count: 0 };
+      existing.revenue += o.total;
+      existing.count += 1;
+      grouped.set(key, existing);
+    }
+
+    return [...grouped.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([period, data], i) => ({
+        id: `r${i}`,
+        period,
+        orders: data.count,
+        revenue: data.revenue,
+        average: data.count > 0 ? data.revenue / data.count : 0,
+      }));
+  }, [orders, groupBy, dateFrom, dateTo]);
+
+  const totalRevenue = report.reduce((s, r) => s + r.revenue, 0);
+  const totalOrders = report.reduce((s, r) => s + r.orders, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-rw-accent" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className={labelCls}>Da</label>
-          <input type="date" className={inputCls} defaultValue="2026-04-07" />
+          <input type="date" className={inputCls} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         </div>
         <div>
           <label className={labelCls}>A</label>
-          <input type="date" className={inputCls} defaultValue="2026-04-11" />
+          <input type="date" className={inputCls} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
         <div>
           <label className={labelCls}>Raggruppa per</label>
@@ -92,28 +104,24 @@ function ReportPanel() {
             <option value="year">Anno</option>
           </select>
         </div>
-        <button type="button" className={btnPrimary}>
-          <Search className="h-4 w-4" />
-          Calcola
-        </button>
       </div>
 
       <DataTable<ReportRow>
         columns={[
           { key: "period", header: "Periodo" },
-          { key: "covers", header: "Coperti", className: "text-right" },
+          { key: "orders", header: "Ordini", className: "text-right" },
           { key: "revenue", header: "Incasso", className: "text-right", render: (r) => `€${r.revenue.toFixed(2)}` },
-          { key: "average", header: "Media/coperto", className: "text-right", render: (r) => `€${r.average.toFixed(2)}` },
+          { key: "average", header: "Media/ordine", className: "text-right", render: (r) => `€${r.average.toFixed(2)}` },
         ]}
-        data={mockReport}
+        data={report}
         keyExtractor={(r) => r.id}
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
         {[
-          { label: "Totale coperti", value: mockReport.reduce((s, r) => s + r.covers, 0) },
-          { label: "Totale incasso", value: `€${mockReport.reduce((s, r) => s + r.revenue, 0).toFixed(2)}` },
-          { label: "Media/coperto", value: `€${(mockReport.reduce((s, r) => s + r.revenue, 0) / mockReport.reduce((s, r) => s + r.covers, 0)).toFixed(2)}` },
+          { label: "Totale ordini", value: totalOrders },
+          { label: "Totale incasso", value: `€${totalRevenue.toFixed(2)}` },
+          { label: "Media/ordine", value: `€${totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : "0.00"}` },
         ].map((s) => (
           <div key={s.label} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4 text-center">
             <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">{s.label}</p>
@@ -126,6 +134,8 @@ function ReportPanel() {
 }
 
 function FattureEntrataPanel() {
+  const [fatture, setFatture] = useState<FatturaEntrata[]>([]);
+
   return (
     <div className="space-y-4">
       <Card title="Registra fattura fornitore" headerRight={<Plus className="h-4 w-4 text-rw-accent" />}>
@@ -185,14 +195,17 @@ function FattureEntrataPanel() {
             ),
           },
         ]}
-        data={mockFattureEntrata}
+        data={fatture}
         keyExtractor={(r) => r.id}
+        emptyMessage="Nessuna fattura registrata"
       />
     </div>
   );
 }
 
 function FattureCassaPanel() {
+  const [fatture] = useState<FatturaCassa[]>([]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -221,54 +234,76 @@ function FattureCassaPanel() {
             ),
           },
         ]}
-        data={mockFattureCassa}
+        data={fatture}
         keyExtractor={(r) => r.id}
+        emptyMessage="Nessuna fattura emessa"
       />
     </div>
   );
 }
 
-function ComandePanel() {
+function ComandePanel({ orders, loading }: { orders: ArchivedOrder[]; loading: boolean }) {
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const filtered = useMemo(() => {
+    return orders.filter((o) => {
+      if (dateFrom && o.date < dateFrom) return false;
+      if (dateTo && o.date > dateTo) return false;
+      return true;
+    });
+  }, [orders, dateFrom, dateTo]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-rw-accent" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className={labelCls}>Da</label>
-          <input type="date" className={inputCls} defaultValue="2026-04-10" />
+          <input type="date" className={inputCls} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
         </div>
         <div>
           <label className={labelCls}>A</label>
-          <input type="date" className={inputCls} defaultValue="2026-04-11" />
+          <input type="date" className={inputCls} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
-        <button type="button" className={btnPrimary}>
+        <button type="button" className={btnPrimary} onClick={() => {}}>
           <CalendarDays className="h-4 w-4" />
           Filtra
         </button>
       </div>
 
-      <DataTable<Comanda>
+      <DataTable<ArchivedOrder>
         columns={[
-          { key: "datetime", header: "Data/Ora" },
+          { key: "date", header: "Data", render: (r) => `${r.date} ${r.closedAt?.slice(11, 16) ?? ""}` },
           { key: "table", header: "Tavolo" },
-          { key: "area", header: "Area" },
+          { key: "waiter", header: "Cameriere" },
           {
             key: "status",
             header: "Stato",
             render: (r) => (
               <span className={cn(
                 "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-                r.status === "Chiusa" && "bg-emerald-500/15 text-emerald-400",
-                r.status === "Annullata" && "bg-red-500/15 text-red-400",
+                r.status === "completato" && "bg-emerald-500/15 text-emerald-400",
+                r.status === "annullato" && "bg-red-500/15 text-red-400",
+                r.status === "stornato" && "bg-amber-500/15 text-amber-400",
               )}>
                 {r.status}
               </span>
             ),
           },
-          { key: "covers", header: "Coperti", className: "text-right" },
-          { key: "waiter", header: "Cameriere" },
+          { key: "paymentMethod", header: "Pagamento" },
+          { key: "total", header: "Totale", className: "text-right", render: (r) => `€${r.total.toFixed(2)}` },
         ]}
-        data={mockComande}
+        data={filtered}
         keyExtractor={(r) => r.id}
+        emptyMessage="Nessuna comanda trovata"
       />
     </div>
   );
@@ -277,6 +312,16 @@ function ComandePanel() {
 /* ── Main ──────────────────────────────────────────── */
 export function ArchivioPage() {
   const [activeTab, setActiveTab] = useState("report");
+  const [orders, setOrders] = useState<ArchivedOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    archivioApi
+      .list()
+      .then(setOrders)
+      .catch((err) => console.error("Failed to fetch archivio:", err))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -285,10 +330,10 @@ export function ArchivioPage() {
       <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       <div>
-        {activeTab === "report" && <ReportPanel />}
+        {activeTab === "report" && <ReportPanel orders={orders} loading={loading} />}
         {activeTab === "fatture-entrata" && <FattureEntrataPanel />}
         {activeTab === "fatture-cassa" && <FattureCassaPanel />}
-        {activeTab === "comande" && <ComandePanel />}
+        {activeTab === "comande" && <ComandePanel orders={orders} loading={loading} />}
       </div>
     </div>
   );

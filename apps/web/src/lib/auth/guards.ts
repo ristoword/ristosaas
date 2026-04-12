@@ -1,0 +1,20 @@
+import type { NextRequest } from "next/server";
+import { err } from "@/lib/api/helpers";
+import { getRequestUser } from "@/lib/auth/session";
+import type { PublicUser, UserRole } from "@/lib/auth/users.store";
+
+export function hasRole(userRole: UserRole, requiredRoles: readonly string[]) {
+  if (userRole === "owner" || userRole === "super_admin") return true;
+  return requiredRoles.includes(userRole);
+}
+
+export function requireApiUser(req: NextRequest, requiredRoles?: readonly string[]) {
+  const user = getRequestUser(req);
+  if (!user) return { error: err("Unauthorized", 401), user: null as PublicUser | null };
+
+  if (requiredRoles && requiredRoles.length > 0 && !hasRole(user.role, requiredRoles)) {
+    return { error: err("Forbidden", 403), user: null as PublicUser | null };
+  }
+
+  return { error: null, user };
+}

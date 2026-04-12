@@ -1,97 +1,30 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Building2,
   CreditCard,
-  FileText,
   Mail,
   Phone,
   Plus,
   Save,
   Search,
-  ShoppingCart,
+  Star,
   Trash2,
-  User,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { suppliersApi, type Supplier } from "@/lib/api-client";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
 import { Modal } from "@/components/shared/modal";
 import { TabBar } from "@/components/shared/tab-bar";
-
-/* ------------------------------------------------------------------ */
-/*  Types & mock data                                                  */
-/* ------------------------------------------------------------------ */
-
-type Supplier = {
-  id: string;
-  name: string;
-  vat: string;
-  address: string;
-  phone: string;
-  email: string;
-  iban: string;
-  paymentTerms: string;
-  notes: string;
-};
-
-type SupplierOrder = {
-  id: string;
-  supplierId: string;
-  date: string;
-  products: string;
-  total: number;
-  status: "inviato" | "confermato" | "consegnato" | "annullato";
-};
-
-type Invoice = {
-  id: string;
-  supplierId: string;
-  number: string;
-  date: string;
-  amount: number;
-  due: string;
-  paid: boolean;
-};
-
-const mockSuppliers: Supplier[] = [
-  { id: "s1", name: "Molino Rossi S.r.l.", vat: "IT01234567890", address: "Via della Farina 12, Napoli", phone: "+39 081 1234567", email: "ordini@molinorossi.it", iban: "IT60X0542811101000000123456", paymentTerms: "30 gg DFFM", notes: "Consegna martedì e giovedì" },
-  { id: "s2", name: "Caseificio Ferrara", vat: "IT09876543210", address: "Contrada Bufalara 5, Caserta", phone: "+39 0823 987654", email: "info@caseificioferrara.it", iban: "IT40R0100503214000000054321", paymentTerms: "60 gg DFFM", notes: "Mozzarella DOP" },
-  { id: "s3", name: "Ortofrutticola Sud S.p.A.", vat: "IT11223344556", address: "Centro Agroalimentare, Salerno", phone: "+39 089 5551234", email: "commerciale@ortosud.it", iban: "IT15T0633403200000012345678", paymentTerms: "15 gg", notes: "Consegna giornaliera ore 6:00" },
-  { id: "s4", name: "Oleificio Ferrante", vat: "IT55667788990", address: "SP 14 km 3, Bitonto (BA)", phone: "+39 080 3456789", email: "vendite@oleificioferrante.it", iban: "IT22K0503404000000000056789", paymentTerms: "30 gg", notes: "Olio EVO e condimenti" },
-  { id: "s5", name: "Cantina dei Colli", vat: "IT33445566778", address: "Loc. Vigneti 8, Montepulciano (SI)", phone: "+39 0578 654321", email: "ordini@cantinacolli.it", iban: "IT80E0306909606100000000123", paymentTerms: "90 gg DFFM", notes: "DOC e DOCG Toscana" },
-  { id: "s6", name: "Beverage Italia S.r.l.", vat: "IT44556677889", address: "Via Industriale 22, Roma", phone: "+39 06 7654321", email: "orders@beverageitalia.it", iban: "IT90F0760103200001012345678", paymentTerms: "30 gg", notes: "Bibite, birre, spirits" },
-];
-
-const mockOrders: SupplierOrder[] = [
-  { id: "so1", supplierId: "s1", date: "2026-04-10", products: "Farina 00 x50kg, Lievito x5kg", total: 58.5, status: "consegnato" },
-  { id: "so2", supplierId: "s1", date: "2026-04-08", products: "Farina Manitoba x30kg", total: 33, status: "consegnato" },
-  { id: "so3", supplierId: "s2", date: "2026-04-11", products: "Mozzarella bufala x10kg", total: 125, status: "confermato" },
-  { id: "so4", supplierId: "s3", date: "2026-04-11", products: "Pomodoro SM x30kg, Basilico x4kg", total: 108, status: "inviato" },
-  { id: "so5", supplierId: "s4", date: "2026-04-05", products: "Olio EVO x20L", total: 178, status: "consegnato" },
-  { id: "so6", supplierId: "s5", date: "2026-04-03", products: "Montepulciano x24bt, Chianti x12bt", total: 216, status: "consegnato" },
-  { id: "so7", supplierId: "s6", date: "2026-04-09", products: "Coca-Cola x5ct, Birra Moretti x3ct", total: 142, status: "confermato" },
-];
-
-const mockInvoices: Invoice[] = [
-  { id: "inv1", supplierId: "s1", number: "FT-2026/0412", date: "2026-04-01", amount: 580, due: "2026-05-01", paid: true },
-  { id: "inv2", supplierId: "s1", number: "FT-2026/0498", date: "2026-04-10", amount: 91.5, due: "2026-05-10", paid: false },
-  { id: "inv3", supplierId: "s2", number: "001/2026", date: "2026-03-28", amount: 375, due: "2026-05-28", paid: false },
-  { id: "inv4", supplierId: "s3", number: "SA-1042", date: "2026-04-08", amount: 245, due: "2026-04-23", paid: true },
-  { id: "inv5", supplierId: "s4", number: "OLF-226", date: "2026-04-05", amount: 178, due: "2026-05-05", paid: false },
-  { id: "inv6", supplierId: "s5", number: "CC-2026-088", date: "2026-04-03", amount: 216, due: "2026-07-03", paid: false },
-  { id: "inv7", supplierId: "s6", number: "BI-4410", date: "2026-04-09", amount: 142, due: "2026-05-09", paid: false },
-];
+import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 
 const DETAIL_TABS = [
   { id: "anagrafica", label: "Anagrafica" },
-  { id: "ordini", label: "Ordini" },
-  { id: "fatture", label: "Fatture" },
-  { id: "pagamenti", label: "Pagamenti" },
 ];
 
 const INPUT =
@@ -105,60 +38,90 @@ const BTN_PRIMARY =
 const BTN_OUTLINE =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink transition hover:border-rw-accent/30 active:scale-[0.98]";
 
-const orderStatusColors: Record<SupplierOrder["status"], string> = {
-  inviato: "border-blue-500/30 bg-blue-500/10 text-blue-400",
-  confermato: "border-amber-500/30 bg-amber-500/10 text-amber-400",
-  consegnato: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
-  annullato: "border-red-500/30 bg-red-500/10 text-red-400",
-};
-
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-
 export function FornitoriPage() {
-  const [suppliers, setSuppliers] = useState<Supplier[]>(mockSuppliers);
-  const [selectedId, setSelectedId] = useState<string | null>(mockSuppliers[0]?.id ?? null);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [detailTab, setDetailTab] = useState("anagrafica");
   const [modalOpen, setModalOpen] = useState(false);
+
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      const data = await suppliersApi.list();
+      setSuppliers(data);
+      if (!selectedId && data.length > 0) setSelectedId(data[0].id);
+    } catch (err) {
+      console.error("Failed to fetch suppliers:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSuppliers();
+  }, [fetchSuppliers]);
 
   const filtered = useMemo(
     () =>
       suppliers.filter(
         (s) =>
           s.name.toLowerCase().includes(search.toLowerCase()) ||
-          s.vat.toLowerCase().includes(search.toLowerCase()),
+          s.piva.toLowerCase().includes(search.toLowerCase()),
       ),
     [suppliers, search],
   );
 
   const selected = suppliers.find((s) => s.id === selectedId) ?? null;
 
-  function updateSupplier(patch: Partial<Supplier>) {
+  async function updateSupplier(patch: Partial<Supplier>) {
     if (!selectedId) return;
-    setSuppliers((prev) =>
-      prev.map((s) => (s.id === selectedId ? { ...s, ...patch } : s)),
+    try {
+      const updated = await suppliersApi.update(selectedId, patch);
+      setSuppliers((prev) =>
+        prev.map((s) => (s.id === selectedId ? updated : s)),
+      );
+    } catch (err) {
+      console.error("Failed to update supplier:", err);
+    }
+  }
+
+  async function addSupplier(s: Omit<Supplier, "id">) {
+    try {
+      const created = await suppliersApi.create(s);
+      setSuppliers((prev) => [...prev, created]);
+      setSelectedId(created.id);
+      setModalOpen(false);
+      setDetailTab("anagrafica");
+    } catch (err) {
+      console.error("Failed to create supplier:", err);
+    }
+  }
+
+  async function removeSupplier(id: string) {
+    try {
+      await suppliersApi.delete(id);
+      setSuppliers((prev) => prev.filter((s) => s.id !== id));
+      if (selectedId === id) setSelectedId(null);
+    } catch (err) {
+      console.error("Failed to delete supplier:", err);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <p className="text-sm text-rw-muted">Caricamento fornitori…</p>
+      </div>
     );
-  }
-
-  function addSupplier(s: Omit<Supplier, "id">) {
-    const ns: Supplier = { ...s, id: `s-${Date.now()}` };
-    setSuppliers((prev) => [...prev, ns]);
-    setSelectedId(ns.id);
-    setModalOpen(false);
-    setDetailTab("anagrafica");
-  }
-
-  function removeSupplier(id: string) {
-    setSuppliers((prev) => prev.filter((s) => s.id !== id));
-    if (selectedId === id) setSelectedId(null);
   }
 
   return (
     <div className="space-y-6">
       <PageHeader title="Fornitori" subtitle="Anagrafica, ordini, fatture e pagamenti">
         <Chip label="Fornitori" value={suppliers.length} tone="info" />
+        <AiToggleButton onClick={() => setAiOpen(true)} label="AI Fornitori" />
         <button type="button" className={BTN_PRIMARY} onClick={() => setModalOpen(true)}>
           <Plus className="h-4 w-4" /> Nuovo fornitore
         </button>
@@ -190,7 +153,7 @@ export function FornitoriPage() {
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-rw-ink">{s.name}</p>
-                    <p className="truncate text-xs text-rw-muted">{s.vat}</p>
+                    <p className="truncate text-xs text-rw-muted">{s.piva}</p>
                   </div>
                 </button>
               </li>
@@ -215,7 +178,7 @@ export function FornitoriPage() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <h2 className="font-display text-xl font-semibold text-rw-ink">{selected.name}</h2>
-                  <p className="text-sm text-rw-muted">{selected.vat}</p>
+                  <p className="text-sm text-rw-muted">{selected.piva}</p>
                 </div>
                 <button
                   type="button"
@@ -231,23 +194,17 @@ export function FornitoriPage() {
               {detailTab === "anagrafica" && (
                 <AnagraficaPanel supplier={selected} onUpdate={updateSupplier} />
               )}
-              {detailTab === "ordini" && <OrdiniPanel supplierId={selected.id} />}
-              {detailTab === "fatture" && <FatturePanel supplierId={selected.id} />}
-              {detailTab === "pagamenti" && <PagamentiPanel supplierId={selected.id} />}
             </>
           )}
         </div>
       </div>
 
-      {/* New supplier modal */}
       <NewSupplierModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={addSupplier} />
+
+      <AiChat context="fornitori" open={aiOpen} onClose={() => setAiOpen(false)} title="AI Fornitori" />
     </div>
   );
 }
-
-/* ================================================================== */
-/*  Anagrafica panel                                                   */
-/* ================================================================== */
 
 function AnagraficaPanel({
   supplier,
@@ -256,9 +213,29 @@ function AnagraficaPanel({
   supplier: Supplier;
   onUpdate: (patch: Partial<Supplier>) => void;
 }) {
+  const [draft, setDraft] = useState(supplier);
+  const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState(false);
 
-  function save() {
+  useEffect(() => {
+    setDraft(supplier);
+  }, [supplier]);
+
+  async function save() {
+    setSaving(true);
+    await onUpdate({
+      name: draft.name,
+      piva: draft.piva,
+      address: draft.address,
+      phone: draft.phone,
+      email: draft.email,
+      category: draft.category,
+      paymentTerms: draft.paymentTerms,
+      rating: draft.rating,
+      notes: draft.notes,
+      active: draft.active,
+    });
+    setSaving(false);
     setFlash(true);
     setTimeout(() => setFlash(false), 2200);
   }
@@ -267,221 +244,81 @@ function AnagraficaPanel({
     <Card title="Dati anagrafici">
       {flash && (
         <p className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300" role="status">
-          Dati salvati con successo (simulato).
+          Dati salvati con successo.
         </p>
       )}
       <div className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={LABEL}>Ragione sociale</label>
-            <input className={INPUT} value={supplier.name} onChange={(e) => onUpdate({ name: e.target.value })} />
+            <input className={INPUT} value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
           </div>
           <div>
             <label className={LABEL}>P.IVA / Cod. Fiscale</label>
-            <input className={INPUT} value={supplier.vat} onChange={(e) => onUpdate({ vat: e.target.value })} />
+            <input className={INPUT} value={draft.piva} onChange={(e) => setDraft({ ...draft, piva: e.target.value })} />
           </div>
         </div>
         <div>
           <label className={LABEL}>Indirizzo</label>
-          <input className={INPUT} value={supplier.address} onChange={(e) => onUpdate({ address: e.target.value })} />
+          <input className={INPUT} value={draft.address} onChange={(e) => setDraft({ ...draft, address: e.target.value })} />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className={LABEL}>Telefono</label>
             <div className="relative">
               <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-              <input className={cn(INPUT, "pl-9")} value={supplier.phone} onChange={(e) => onUpdate({ phone: e.target.value })} />
+              <input className={cn(INPUT, "pl-9")} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
             </div>
           </div>
           <div>
             <label className={LABEL}>Email</label>
             <div className="relative">
               <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-              <input className={cn(INPUT, "pl-9")} value={supplier.email} onChange={(e) => onUpdate({ email: e.target.value })} />
+              <input className={cn(INPUT, "pl-9")} value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
             </div>
           </div>
         </div>
-        <div>
-          <label className={LABEL}>IBAN</label>
-          <div className="relative">
-            <CreditCard className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-            <input className={cn(INPUT, "pl-9")} value={supplier.iban} onChange={(e) => onUpdate({ iban: e.target.value })} />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={LABEL}>Categoria</label>
+            <input className={INPUT} value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} placeholder="es. Alimentari, Bevande…" />
+          </div>
+          <div>
+            <label className={LABEL}>Termini di pagamento</label>
+            <input className={INPUT} value={draft.paymentTerms} onChange={(e) => setDraft({ ...draft, paymentTerms: e.target.value })} placeholder="es. 30 gg DFFM" />
+          </div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className={LABEL}>Rating</label>
+            <div className="relative">
+              <Star className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
+              <input type="number" min={0} max={5} step={0.5} className={cn(INPUT, "pl-9")} value={draft.rating} onChange={(e) => setDraft({ ...draft, rating: parseFloat(e.target.value) || 0 })} />
+            </div>
+          </div>
+          <div className="flex items-end pb-1">
+            <label className="flex items-center gap-2 text-sm text-rw-ink cursor-pointer">
+              <input
+                type="checkbox"
+                checked={draft.active}
+                onChange={(e) => setDraft({ ...draft, active: e.target.checked })}
+                className="h-4 w-4 rounded border-rw-line bg-rw-surfaceAlt text-rw-accent focus:ring-rw-accent/30"
+              />
+              Fornitore attivo
+            </label>
           </div>
         </div>
         <div>
-          <label className={LABEL}>Termini di pagamento</label>
-          <input className={INPUT} value={supplier.paymentTerms} onChange={(e) => onUpdate({ paymentTerms: e.target.value })} placeholder="es. 30 gg DFFM" />
-        </div>
-        <div>
           <label className={LABEL}>Note</label>
-          <textarea className={cn(INPUT, "resize-y")} rows={3} value={supplier.notes} onChange={(e) => onUpdate({ notes: e.target.value })} placeholder="Note interne…" />
+          <textarea className={cn(INPUT, "resize-y")} rows={3} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} placeholder="Note interne…" />
         </div>
-        <button type="button" className={cn(BTN_PRIMARY, "w-full sm:w-auto")} onClick={save}>
-          <Save className="h-4 w-4" /> Salva
+        <button type="button" className={cn(BTN_PRIMARY, "w-full sm:w-auto")} onClick={save} disabled={saving}>
+          <Save className="h-4 w-4" /> {saving ? "Salvataggio…" : "Salva"}
         </button>
       </div>
     </Card>
   );
 }
-
-/* ================================================================== */
-/*  Ordini panel                                                       */
-/* ================================================================== */
-
-function OrdiniPanel({ supplierId }: { supplierId: string }) {
-  const supplierOrders = useMemo(
-    () => mockOrders.filter((o) => o.supplierId === supplierId),
-    [supplierId],
-  );
-
-  return (
-    <Card title="Ordini fornitore" description={`${supplierOrders.length} ordini`}>
-      <DataTable
-        columns={[
-          { key: "date", header: "Data" },
-          { key: "products", header: "Prodotti" },
-          { key: "total", header: "Totale", render: (r: SupplierOrder) => `€ ${r.total.toFixed(2)}` },
-          {
-            key: "status",
-            header: "Stato",
-            render: (r: SupplierOrder) => (
-              <span className={cn("inline-block rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase", orderStatusColors[r.status])}>
-                {r.status}
-              </span>
-            ),
-          },
-        ]}
-        data={supplierOrders}
-        keyExtractor={(r) => r.id}
-        emptyMessage="Nessun ordine per questo fornitore"
-      />
-    </Card>
-  );
-}
-
-/* ================================================================== */
-/*  Fatture panel                                                      */
-/* ================================================================== */
-
-function FatturePanel({ supplierId }: { supplierId: string }) {
-  const supplierInvoices = useMemo(
-    () => mockInvoices.filter((i) => i.supplierId === supplierId),
-    [supplierId],
-  );
-
-  return (
-    <Card title="Fatture" description={`${supplierInvoices.length} fatture`}>
-      <DataTable
-        columns={[
-          { key: "number", header: "Numero" },
-          { key: "date", header: "Data" },
-          { key: "amount", header: "Importo", render: (r: Invoice) => `€ ${r.amount.toFixed(2)}` },
-          { key: "due", header: "Scadenza" },
-          {
-            key: "paid",
-            header: "Stato",
-            render: (r: Invoice) =>
-              r.paid ? (
-                <span className="inline-block rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase text-emerald-400">
-                  Pagata
-                </span>
-              ) : (
-                <span className="inline-block rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-0.5 text-[11px] font-semibold uppercase text-amber-400">
-                  Da pagare
-                </span>
-              ),
-          },
-        ]}
-        data={supplierInvoices}
-        keyExtractor={(r) => r.id}
-        emptyMessage="Nessuna fattura per questo fornitore"
-      />
-    </Card>
-  );
-}
-
-/* ================================================================== */
-/*  Pagamenti panel                                                    */
-/* ================================================================== */
-
-function PagamentiPanel({ supplierId }: { supplierId: string }) {
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-
-  const supplierInvoices = useMemo(
-    () => mockInvoices.filter((i) => i.supplierId === supplierId),
-    [supplierId],
-  );
-
-  const filteredInvoices = useMemo(() => {
-    let list = supplierInvoices;
-    if (dateFrom) list = list.filter((i) => i.date >= dateFrom);
-    if (dateTo) list = list.filter((i) => i.date <= dateTo);
-    return list;
-  }, [supplierInvoices, dateFrom, dateTo]);
-
-  const totalAmount = filteredInvoices.reduce((s, i) => s + i.amount, 0);
-  const paidAmount = filteredInvoices.filter((i) => i.paid).reduce((s, i) => s + i.amount, 0);
-  const unpaidAmount = totalAmount - paidAmount;
-
-  return (
-    <Card title="Riepilogo pagamenti">
-      <div className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label className={LABEL}>Da data</label>
-            <input type="date" className={INPUT} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          </div>
-          <div>
-            <label className={LABEL}>A data</label>
-            <input type="date" className={INPUT} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3">
-            <p className="text-xs text-rw-muted">Totale fatturato</p>
-            <p className="font-display text-lg font-semibold text-rw-ink">€ {totalAmount.toFixed(2)}</p>
-          </div>
-          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-            <p className="text-xs text-emerald-400">Pagato</p>
-            <p className="font-display text-lg font-semibold text-emerald-300">€ {paidAmount.toFixed(2)}</p>
-          </div>
-          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-            <p className="text-xs text-amber-400">Da pagare</p>
-            <p className="font-display text-lg font-semibold text-amber-300">€ {unpaidAmount.toFixed(2)}</p>
-          </div>
-        </div>
-
-        <DataTable
-          columns={[
-            { key: "number", header: "Fattura" },
-            { key: "date", header: "Data" },
-            { key: "amount", header: "Importo", render: (r: Invoice) => `€ ${r.amount.toFixed(2)}` },
-            { key: "due", header: "Scadenza" },
-            {
-              key: "paid",
-              header: "Pagato",
-              render: (r: Invoice) =>
-                r.paid ? (
-                  <span className="text-emerald-400">Sì</span>
-                ) : (
-                  <span className="text-amber-400">No</span>
-                ),
-            },
-          ]}
-          data={filteredInvoices}
-          keyExtractor={(r) => r.id}
-          emptyMessage="Nessuna fattura nel periodo selezionato"
-        />
-      </div>
-    </Card>
-  );
-}
-
-/* ================================================================== */
-/*  New supplier modal                                                 */
-/* ================================================================== */
 
 function NewSupplierModal({
   open,
@@ -494,13 +331,15 @@ function NewSupplierModal({
 }) {
   const empty: Omit<Supplier, "id"> = {
     name: "",
-    vat: "",
+    piva: "",
     address: "",
     phone: "",
     email: "",
-    iban: "",
+    category: "",
     paymentTerms: "",
+    rating: 0,
     notes: "",
+    active: true,
   };
   const [form, setForm] = useState(empty);
 
@@ -520,7 +359,7 @@ function NewSupplierModal({
           </div>
           <div>
             <label className={LABEL}>P.IVA</label>
-            <input className={INPUT} value={form.vat} onChange={(e) => setForm({ ...form, vat: e.target.value })} placeholder="IT00000000000" />
+            <input className={INPUT} value={form.piva} onChange={(e) => setForm({ ...form, piva: e.target.value })} placeholder="IT00000000000" />
           </div>
         </div>
         <div>
@@ -539,8 +378,8 @@ function NewSupplierModal({
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className={LABEL}>IBAN</label>
-            <input className={INPUT} value={form.iban} onChange={(e) => setForm({ ...form, iban: e.target.value })} placeholder="IT…" />
+            <label className={LABEL}>Categoria</label>
+            <input className={INPUT} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Alimentari, Bevande…" />
           </div>
           <div>
             <label className={LABEL}>Termini pagamento</label>

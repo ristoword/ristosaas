@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { navSections } from "./nav-config";
+import { useAuth } from "@/components/auth/auth-context";
 
 type SidebarProps = {
   mobileOpen: boolean;
@@ -13,6 +14,18 @@ type SidebarProps = {
 
 export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useAuth();
+
+  const sections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (!item.visibleFor) return true;
+        if (!user) return false;
+        return item.visibleFor.includes(user.role);
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <>
@@ -42,7 +55,7 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
         </div>
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
-          {navSections.map((section) => (
+          {sections.map((section) => (
             <div key={section.title}>
               <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-rw-sidebarMuted">
                 {section.title}

@@ -1,20 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Banknote,
   CreditCard,
-  Euro,
   FileText,
+  Loader2,
   Percent,
   Plus,
   Printer,
   Receipt,
   Save,
   Search,
-  ShoppingBag,
   Trash2,
-  UtensilsCrossed,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,21 +21,17 @@ import { Chip } from "@/components/shared/chip";
 import { TabBar } from "@/components/shared/tab-bar";
 import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
-import { useOrders } from "@/components/orders/orders-context";
+import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
+import {
+  ordersApi,
+  menuApi,
+  type Order,
+  type MenuItem as ApiMenuItem,
+} from "@/lib/api-client";
 
 /* ------------------------------------------------------------------ */
-/*  Mock data                                                          */
+/*  Types                                                              */
 /* ------------------------------------------------------------------ */
-
-type MenuItem = {
-  id: string;
-  name: string;
-  category: string;
-  area: string;
-  price: number;
-  vat: number;
-  notes: string;
-};
 
 type DailyReport = {
   id: string;
@@ -47,23 +41,6 @@ type DailyReport = {
   revenue: number;
   notes: string;
 };
-
-const mockMenu: MenuItem[] = [
-  { id: "m1", name: "Bruschetta pomodoro", category: "Antipasti", area: "cucina", price: 6.5, vat: 10, notes: "" },
-  { id: "m2", name: "Tagliatelle al ragù", category: "Primi", area: "cucina", price: 12, vat: 10, notes: "" },
-  { id: "m3", name: "Margherita", category: "Pizze", area: "pizzeria", price: 8, vat: 10, notes: "" },
-  { id: "m4", name: "Filetto di manzo", category: "Secondi", area: "cucina", price: 22, vat: 10, notes: "" },
-  { id: "m5", name: "Tiramisù", category: "Dolci", area: "cucina", price: 7, vat: 10, notes: "" },
-  { id: "m6", name: "Spritz Aperol", category: "Cocktail", area: "bar", price: 7, vat: 22, notes: "" },
-  { id: "m7", name: "Calzone ripieno", category: "Pizze", area: "pizzeria", price: 10, vat: 10, notes: "" },
-  { id: "m8", name: "Insalata mista", category: "Contorni", area: "cucina", price: 5, vat: 10, notes: "" },
-];
-
-const mockReports: DailyReport[] = [
-  { id: "r1", date: "2026-04-10", foodSpend: 320, staffSpend: 580, revenue: 2340, notes: "Serata tranquilla" },
-  { id: "r2", date: "2026-04-09", foodSpend: 450, staffSpend: 580, revenue: 3120, notes: "Gruppo da 25 pax" },
-  { id: "r3", date: "2026-04-08", foodSpend: 280, staffSpend: 520, revenue: 1890, notes: "" },
-];
 
 const TABS = [
   { id: "cassa", label: "Cassa / Tavoli" },
@@ -88,9 +65,25 @@ const BTN_OUTLINE =
 
 export function CassaPage() {
   const [tab, setTab] = useState("cassa");
-  const { orders, patchStatus } = useOrders();
+  const [aiOpen, setAiOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  /* ---- KPI ---- */
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [menuItems, setMenuItems] = useState<ApiMenuItem[]>([]);
+
+  const fetchData = useCallback(() => {
+    return Promise.all([ordersApi.list(), menuApi.listItems()])
+      .then(([ordersData, menuData]) => {
+        setOrders(ordersData);
+        setMenuItems(menuData);
+      })
+      .catch((err) => console.error("Failed to fetch cassa data:", err));
+  }, []);
+
+  useEffect(() => {
+    fetchData().finally(() => setLoading(false));
+  }, [fetchData]);
+
   const servedOrders = useMemo(() => orders.filter((o) => o.status === "servito"), [orders]);
   const tavoliDaChiudere = useMemo(
     () => new Set(servedOrders.filter((o) => o.table).map((o) => o.table)).size,
@@ -105,12 +98,30 @@ export function CassaPage() {
     [servedOrders],
   );
 
+  const handleCloseTable = useCallback(async (orderId: string) => {
+    try {
+      await ordersApi.patchStatus(orderId, "chiuso");
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: "chiuso" as const } : o)));
+    } catch (err) {
+      console.error("Failed to close order:", err);
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-rw-accent" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader title="Cassa" subtitle="Gestione conti, menù e chiusure">
         <Chip label="Tavoli da chiudere" value={tavoliDaChiudere} tone="warn" />
         <Chip label="Comande servite" value={servedOrders.length} tone="success" />
         <Chip label="Incasso simulato" value={`€ ${incassoSimulato.toFixed(2)}`} tone="accent" />
+        <AiToggleButton onClick={() => setAiOpen(true)} label="AI Cassa" />
       </PageHeader>
 
       <TabBar tabs={TABS} active={tab} onChange={setTab} />
@@ -118,11 +129,13 @@ export function CassaPage() {
       {tab === "cassa" && (
         <CassaTab
           servedOrders={servedOrders}
-          onCloseTable={(id) => patchStatus(id, "chiuso")}
+          onCloseTable={handleCloseTable}
         />
       )}
-      {tab === "menu" && <MenuTab />}
-      {tab === "report" && <ReportTab />}
+      {tab === "menu" && <MenuTab menuItems={menuItems} setMenuItems={setMenuItems} />}
+      {tab === "report" && <ReportTab orders={orders} />}
+
+      <AiChat context="cassa" open={aiOpen} onClose={() => setAiOpen(false)} title="AI Cassa" />
     </div>
   );
 }
@@ -131,13 +144,11 @@ export function CassaPage() {
 /*  Tab: Cassa / Tavoli                                                */
 /* ================================================================== */
 
-type ServedOrder = ReturnType<typeof useOrders>["orders"][number];
-
 function CassaTab({
   servedOrders,
   onCloseTable,
 }: {
-  servedOrders: ServedOrder[];
+  servedOrders: Order[];
   onCloseTable: (id: string) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -146,7 +157,7 @@ function CassaTab({
   const [flash, setFlash] = useState<string | null>(null);
 
   const grouped = useMemo(() => {
-    const map = new Map<string, ServedOrder[]>();
+    const map = new Map<string, Order[]>();
     for (const o of servedOrders) {
       const key = o.table ?? "asporto";
       const arr = map.get(key) ?? [];
@@ -173,7 +184,6 @@ function CassaTab({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-      {/* Left – tables list */}
       <Card title="Tavoli serviti" description="Seleziona un tavolo per generare il conto">
         {grouped.size === 0 && (
           <p className="py-6 text-center text-sm text-rw-muted">Nessun tavolo pronto per il conto</p>
@@ -199,7 +209,6 @@ function CassaTab({
         </ul>
       </Card>
 
-      {/* Right – bill detail */}
       <Card
         title={selected ? `Conto — ${selected.table ? `Tavolo ${selected.table}` : "Asporto"}` : "Dettaglio conto"}
         description={selected ? `Cameriere: ${selected.waiter} · Coperti: ${selected.covers ?? "–"}` : "Seleziona un tavolo a sinistra"}
@@ -217,7 +226,6 @@ function CassaTab({
           </div>
         ) : (
           <>
-            {/* Items */}
             <div className="mb-4 overflow-x-auto rounded-xl border border-rw-line">
               <table className="w-full text-sm">
                 <thead>
@@ -241,7 +249,6 @@ function CassaTab({
               </table>
             </div>
 
-            {/* Discount / VAT */}
             <div className="mb-4 grid gap-4 sm:grid-cols-2">
               <div>
                 <label className={LABEL}>Sconto (€)</label>
@@ -272,7 +279,6 @@ function CassaTab({
               </div>
             </div>
 
-            {/* Totals */}
             <div className="mb-5 space-y-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm">
               <div className="flex justify-between text-rw-soft">
                 <span>Subtotale</span>
@@ -294,7 +300,6 @@ function CassaTab({
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex flex-wrap gap-3">
               <button type="button" className={BTN_OUTLINE} onClick={() => doFlash("Chiusura simulata — nessun pagamento reale.")}>
                 <CreditCard className="h-4 w-4" /> Simula chiusura
@@ -325,44 +330,58 @@ function CassaTab({
 /*  Tab: Menù ufficiale                                                */
 /* ================================================================== */
 
-function MenuTab() {
-  const [items, setItems] = useState<MenuItem[]>(mockMenu);
+function MenuTab({ menuItems, setMenuItems }: { menuItems: ApiMenuItem[]; setMenuItems: React.Dispatch<React.SetStateAction<ApiMenuItem[]>> }) {
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState<Omit<MenuItem, "id">>({
+  const [form, setForm] = useState({
     name: "",
     category: "",
     area: "cucina",
     price: 0,
-    vat: 10,
     notes: "",
   });
 
   const filtered = useMemo(
     () =>
-      items.filter(
+      menuItems.filter(
         (i) =>
           i.name.toLowerCase().includes(search.toLowerCase()) ||
           i.category.toLowerCase().includes(search.toLowerCase()),
       ),
-    [items, search],
+    [menuItems, search],
   );
 
-  function addItem() {
+  async function addItem() {
     if (!form.name.trim()) return;
-    setItems((prev) => [
-      ...prev,
-      { ...form, id: `m-${Date.now()}` },
-    ]);
-    setForm({ name: "", category: "", area: "cucina", price: 0, vat: 10, notes: "" });
+    try {
+      const created = await menuApi.createItem({
+        name: form.name,
+        category: form.category,
+        area: form.area,
+        price: form.price,
+        code: "",
+        active: true,
+        recipeId: null,
+        notes: form.notes,
+        foodCostPct: null,
+      });
+      setMenuItems((prev) => [...prev, created]);
+      setForm({ name: "", category: "", area: "cucina", price: 0, notes: "" });
+    } catch (err) {
+      console.error("Failed to create menu item:", err);
+    }
   }
 
-  function removeItem(id: string) {
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  async function removeItem(id: string) {
+    try {
+      await menuApi.deleteItem(id);
+      setMenuItems((prev) => prev.filter((i) => i.id !== id));
+    } catch (err) {
+      console.error("Failed to delete menu item:", err);
+    }
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
-      {/* Form */}
       <Card title="Nuovo piatto" description="Aggiungi un piatto al menù ufficiale">
         <div className="space-y-3">
           <div>
@@ -383,15 +402,9 @@ function MenuTab() {
               </select>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className={LABEL}>Prezzo (€)</label>
-              <input type="number" min="0" step="0.50" className={INPUT} value={form.price || ""} onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) || 0 })} placeholder="0.00" />
-            </div>
-            <div>
-              <label className={LABEL}>IVA (%)</label>
-              <input type="number" min="0" max="100" className={INPUT} value={form.vat || ""} onChange={(e) => setForm({ ...form, vat: parseFloat(e.target.value) || 0 })} placeholder="10" />
-            </div>
+          <div>
+            <label className={LABEL}>Prezzo (€)</label>
+            <input type="number" min="0" step="0.50" className={INPUT} value={form.price || ""} onChange={(e) => setForm({ ...form, price: parseFloat(e.target.value) || 0 })} placeholder="0.00" />
           </div>
           <div>
             <label className={LABEL}>Note</label>
@@ -403,7 +416,6 @@ function MenuTab() {
         </div>
       </Card>
 
-      {/* List */}
       <Card
         title="Piatti in menù"
         description={`${filtered.length} piatti trovati`}
@@ -419,12 +431,20 @@ function MenuTab() {
             { key: "name", header: "Nome" },
             { key: "category", header: "Categoria" },
             { key: "area", header: "Area" },
-            { key: "price", header: "Prezzo", render: (r: MenuItem) => `€ ${r.price.toFixed(2)}` },
-            { key: "vat", header: "IVA", render: (r: MenuItem) => `${r.vat}%` },
+            { key: "price", header: "Prezzo", render: (r: ApiMenuItem) => `€ ${r.price.toFixed(2)}` },
             {
-              key: "actions",
+              key: "active",
+              header: "Stato",
+              render: (r: ApiMenuItem) => (
+                <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", r.active ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400")}>
+                  {r.active ? "Attivo" : "Disattivo"}
+                </span>
+              ),
+            },
+            {
+              key: "id",
               header: "",
-              render: (r: MenuItem) => (
+              render: (r: ApiMenuItem) => (
                 <button type="button" onClick={() => removeItem(r.id)} className="text-red-400 hover:text-red-300">
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -444,12 +464,10 @@ function MenuTab() {
 /*  Tab: Report                                                        */
 /* ================================================================== */
 
-function ReportTab() {
-  const [reports, setReports] = useState<DailyReport[]>(mockReports);
+function ReportTab({ orders }: { orders: Order[] }) {
+  const [reports, setReports] = useState<DailyReport[]>([]);
   const [form, setForm] = useState({ date: "", foodSpend: "", staffSpend: "", notes: "" });
   const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
-
-  const { orders } = useOrders();
 
   const todayRevenue = useMemo(
     () =>
@@ -475,7 +493,6 @@ function ReportTab() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
-      {/* Form */}
       <div className="space-y-6">
         <Card title="Chiusura giornaliera" description="Compila i dati e salva il report">
           <div className="space-y-3">
@@ -508,9 +525,7 @@ function ReportTab() {
         </Card>
       </div>
 
-      {/* Display + history */}
       <div className="space-y-6">
-        {/* Selected report detail */}
         <Card title={selectedReport ? `Report del ${selectedReport.date}` : "Dettaglio report"}>
           {!selectedReport ? (
             <div className="flex flex-col items-center gap-2 py-10 text-rw-muted">
@@ -546,30 +561,33 @@ function ReportTab() {
           )}
         </Card>
 
-        {/* History */}
         <Card title="Storico report">
-          <ul className="space-y-2">
-            {reports.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedReport(r)}
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition",
-                    selectedReport?.id === r.id
-                      ? "border-rw-accent bg-rw-accent/10 text-rw-ink"
-                      : "border-rw-line bg-rw-surfaceAlt text-rw-soft hover:border-rw-accent/25",
-                  )}
-                >
-                  <div>
-                    <span className="font-semibold text-rw-ink">{r.date}</span>
-                    {r.notes && <span className="ml-2 text-xs text-rw-muted">— {r.notes}</span>}
-                  </div>
-                  <span className="text-sm font-semibold text-emerald-400">€ {r.revenue.toFixed(2)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          {reports.length === 0 ? (
+            <p className="py-6 text-center text-sm text-rw-muted">Nessun report salvato</p>
+          ) : (
+            <ul className="space-y-2">
+              {reports.map((r) => (
+                <li key={r.id}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedReport(r)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition",
+                      selectedReport?.id === r.id
+                        ? "border-rw-accent bg-rw-accent/10 text-rw-ink"
+                        : "border-rw-line bg-rw-surfaceAlt text-rw-soft hover:border-rw-accent/25",
+                    )}
+                  >
+                    <div>
+                      <span className="font-semibold text-rw-ink">{r.date}</span>
+                      {r.notes && <span className="ml-2 text-xs text-rw-muted">— {r.notes}</span>}
+                    </div>
+                    <span className="text-sm font-semibold text-emerald-400">€ {r.revenue.toFixed(2)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
     </div>

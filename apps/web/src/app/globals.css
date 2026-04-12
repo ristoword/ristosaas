@@ -26,3 +26,42 @@
     }
   }
 }
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  .print\:grid {
+    display: grid !important;
+  }
+
+  .print\:grid-cols-1 {
+    grid-template-columns: 1fr !important;
+  }
+
+  nav, header, aside, [data-sidebar] {
+    display: none !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 1rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  * {
+    border-color: #e5e7eb !important;
+    box-shadow: none !important;
+  }
+}
