@@ -1,0 +1,42 @@
+name: DB Connection Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  db-connection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: ${{ secrets.RISTOSAAS_DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Validate secret presence
+        run: |
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "Missing secret: RISTOSAAS_DATABASE_URL"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Prisma generate
+        run: pnpm --filter web prisma:generate
+
+      - name: DB connection smoke test
+        run: pnpm --filter web db:test:connection

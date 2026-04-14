@@ -7,6 +7,7 @@
     "dev:web": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "start": "pnpm --filter web start",
+    "db:test:connection": "pnpm --filter web db:test:connection",
     "db:backup": "bash ./infra/scripts/db-backup.sh",
     "db:restore:dryrun": "bash ./infra/scripts/db-restore-dryrun.sh ./storage/backups/latest.dump"
   },
