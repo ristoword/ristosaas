@@ -1,12 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { hasVerticalEnabled } from "@/core/tenant/platform-config";
 import { canAccessWithRole, getApiRequiredRoles, isPublicApiPath } from "@/lib/auth/rbac";
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
 
 const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login", "/api/auth/refresh"];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/dev-access"];
-const RESTAURANT_ONLY = ["/rooms", "/sala-fullscreen", "/cucina", "/pizzeria", "/bar", "/cassa", "/chiusura", "/asporto", "/prenotazioni", "/magazzino", "/fornitori", "/menu-admin", "/daily-menu", "/food-cost", "/catering"];
-const HOTEL_ONLY = ["/hotel"];
 
 async function verifySessionVersion(req: NextRequest) {
   const cookie = req.headers.get("cookie");
@@ -49,6 +46,23 @@ async function verifyLicense(req: NextRequest) {
   }
 }
 
+async function verifyEntitlements(req: NextRequest, pathname: string) {
+  const cookie = req.headers.get("cookie");
+  if (!cookie) return { ok: false, status: 401 };
+  try {
+    const url = new URL("/api/auth/entitlements-valid", req.nextUrl.origin);
+    url.searchParams.set("path", pathname);
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: { cookie },
+      cache: "no-store",
+    });
+    return { ok: response.ok, status: response.status };
+  } catch {
+    return { ok: false, status: 500 };
+  }
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -69,6 +83,12 @@ export async function middleware(req: NextRequest) {
     if (shouldCheckLicenseForApi(pathname)) {
       const validLicense = await verifyLicense(req);
       if (!validLicense) return NextResponse.json({ error: "License inactive" }, { status: 402 });
+      const entitlements = await verifyEntitlements(req, pathname);
+      if (!entitlements.ok) {
+        const status = entitlements.status === 403 ? 403 : 402;
+        const error = status === 403 ? "Feature not enabled by license plan" : "License limits exceeded";
+        return NextResponse.json({ error }, { status });
+      }
     }
 
     const requiredRoles = getApiRequiredRoles(pathname);
@@ -111,6 +131,12 @@ export async function middleware(req: NextRequest) {
       licenseUrl.pathname = "/licenses";
       return NextResponse.redirect(licenseUrl);
     }
+    const entitlements = await verifyEntitlements(req, pathname);
+    if (!entitlements.ok) {
+      const fallbackUrl = req.nextUrl.clone();
+      fallbackUrl.pathname = entitlements.status === 403 ? "/dashboard" : "/licenses";
+      return NextResponse.redirect(fallbackUrl);
+    }
   }
 
   if (user.mustChangePassword && pathname !== "/change-password") {
@@ -120,18 +146,6 @@ export async function middleware(req: NextRequest) {
   }
 
   if (INTERNAL_ONLY.some((p) => pathname.startsWith(p)) && user.role !== "super_admin") {
-    const dashboardUrl = req.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
-    return NextResponse.redirect(dashboardUrl);
-  }
-
-  if (RESTAURANT_ONLY.some((p) => pathname.startsWith(p)) && !hasVerticalEnabled("restaurant")) {
-    const dashboardUrl = req.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
-    return NextResponse.redirect(dashboardUrl);
-  }
-
-  if (HOTEL_ONLY.some((p) => pathname.startsWith(p)) && !hasVerticalEnabled("hotel")) {
     const dashboardUrl = req.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     return NextResponse.redirect(dashboardUrl);
