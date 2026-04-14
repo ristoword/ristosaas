@@ -36,6 +36,12 @@ const ALL_FEATURES: TenantFeatureCode[] = [
   "integration_meal_plans",
 ];
 
+type ReadinessCheck = {
+  key: string;
+  ok: boolean;
+  message: string;
+};
+
 function toLicenseStatusFromSubscription(status: string): "trial" | "active" | "expired" | "suspended" {
   if (status === "trialing" || status === "active") return "active";
   if (status === "past_due" || status === "unpaid") return "suspended";
@@ -143,6 +149,11 @@ function resolveEntitlement(object: any, itemPriceId: string | null): Entitlemen
   const fromPrice = resolveEntitlementFromPriceId(itemPriceId);
   if (fromPrice) return fromPrice;
   return null;
+}
+
+function envVar(name: string) {
+  const value = process.env[name];
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 async function applyTenantEntitlements(params: {
@@ -334,5 +345,150 @@ export const billingRepository = {
       }),
     ]);
     return { subscription, events };
+  },
+  async reconcileTenantFromLatestSubscription(tenantId: string) {
+    const subscription = await prisma.billingSubscription.findFirst({
+      where: { tenantId },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!subscription) {
+      return { reconciled: false as const, reason: "subscription_not_found" as const };
+    }
+
+    const entitlement = resolveEntitlement(
+      { metadata: {} },
+      subscription.priceId,
+    );
+    if (!entitlement) {
+      return { reconciled: false as const, reason: "entitlement_not_resolved" as const };
+    }
+
+    const currentPeriodEnd = subscription.currentPeriodEnd ?? null;
+    await applyTenantEntitlements({
+      tenantId,
+      plan: entitlement.plan,
+      seats: entitlement.seats,
+      billingCycle: entitlement.billingCycle,
+      licenseStatus: toLicenseStatusFromSubscription(subscription.status),
+      expiresAt: currentPeriodEnd,
+    });
+    return { reconciled: true as const, plan: entitlement.plan, seats: entitlement.seats };
+  },
+  async readiness(tenantId: string) {
+    const [
+      tenant,
+      subscription,
+      recentBillingFailures,
+    ] = await Promise.all([
+      prisma.tenant.findUnique({
+        where: { id: tenantId },
+        include: {
+          features: true,
+          license: true,
+        },
+      }),
+      prisma.billingSubscription.findFirst({
+        where: { tenantId },
+        orderBy: { updatedAt: "desc" },
+      }),
+      prisma.billingEvent.count({
+        where: {
+          tenantId,
+          type: "invoice.payment_failed",
+          createdAt: { gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30) },
+        },
+      }),
+    ]);
+
+    const envChecks: ReadinessCheck[] = [
+      { key: "stripe_secret", ok: envVar("STRIPE_SECRET_KEY"), message: "STRIPE_SECRET_KEY configurata" },
+      { key: "stripe_webhook", ok: envVar("STRIPE_WEBHOOK_SECRET"), message: "STRIPE_WEBHOOK_SECRET configurata" },
+      { key: "checkout_urls", ok: envVar("STRIPE_CHECKOUT_SUCCESS_URL") && envVar("STRIPE_CHECKOUT_CANCEL_URL"), message: "URL checkout success/cancel configurati" },
+      { key: "portal_url", ok: envVar("STRIPE_PORTAL_RETURN_URL"), message: "URL customer portal configurato" },
+      {
+        key: "price_catalog",
+        ok:
+          envVar("STRIPE_PRICE_RESTAURANT_MONTHLY") ||
+          envVar("STRIPE_PRICE_RESTAURANT_ANNUAL") ||
+          envVar("STRIPE_PRICE_HOTEL_MONTHLY") ||
+          envVar("STRIPE_PRICE_HOTEL_ANNUAL") ||
+          envVar("STRIPE_PRICE_ALL_INCLUDED_MONTHLY") ||
+          envVar("STRIPE_PRICE_ALL_INCLUDED_ANNUAL"),
+        message: "Almeno un prezzo Stripe collegato",
+      },
+    ];
+
+    const license = tenant?.license;
+    const enabledFeatures = new Set((tenant?.features ?? []).filter((f) => f.enabled).map((f) => f.code as TenantFeatureCode));
+    const requiredForPlan = tenant ? PLAN_FEATURES[tenant.plan as ProductPlan] ?? [] : [];
+    const missingFeatureForPlan = requiredForPlan.filter((feature) => !enabledFeatures.has(feature));
+
+    const tenantChecks: ReadinessCheck[] = [
+      { key: "tenant_exists", ok: !!tenant, message: "Tenant presente su DB" },
+      { key: "license_exists", ok: !!license, message: "Licenza tenant presente" },
+      {
+        key: "license_status",
+        ok: !!license && (license.status === "active" || license.status === "trial"),
+        message: "Licenza in stato active/trial",
+      },
+      {
+        key: "license_seats",
+        ok: !!license && license.usedSeats <= license.seats,
+        message: "Seats disponibili (usedSeats <= seats)",
+      },
+      {
+        key: "plan_features",
+        ok: missingFeatureForPlan.length === 0,
+        message: "Feature allineate al piano",
+      },
+      {
+        key: "subscription_linked",
+        ok: !!subscription,
+        message: "Subscription Stripe collegata al tenant",
+      },
+      {
+        key: "customer_linked",
+        ok: !!subscription?.stripeCustomerId,
+        message: "Customer Stripe collegato",
+      },
+    ];
+
+    const integrationReady = envChecks.every((check) => check.ok);
+    const tenantReady = tenantChecks.every((check) => check.ok);
+    const overallReady = integrationReady && tenantReady;
+
+    const nextActions: string[] = [];
+    if (!integrationReady) nextActions.push("Completa variabili STRIPE_* mancanti");
+    if (!tenantChecks.find((c) => c.key === "subscription_linked")?.ok) nextActions.push("Esegui primo checkout da pagina Stripe");
+    if (!tenantChecks.find((c) => c.key === "plan_features")?.ok) nextActions.push("Esegui reconcile entitlements dal pannello Stripe");
+    if ((recentBillingFailures ?? 0) > 0) nextActions.push("Verifica pagamenti falliti ultimi 30 giorni");
+
+    return {
+      overallReady,
+      integrationReady,
+      tenantReady,
+      envChecks,
+      tenantChecks,
+      tenantSummary: tenant
+        ? {
+            id: tenant.id,
+            plan: tenant.plan,
+            enabledFeatures: [...enabledFeatures],
+            licenseStatus: license?.status ?? null,
+            seats: license?.seats ?? null,
+            usedSeats: license?.usedSeats ?? null,
+          }
+        : null,
+      subscription: subscription
+        ? {
+            status: subscription.status,
+            priceId: subscription.priceId,
+            stripeCustomerId: subscription.stripeCustomerId,
+            currentPeriodEnd: subscription.currentPeriodEnd?.toISOString() ?? null,
+          }
+        : null,
+      recentBillingFailures,
+      nextActions,
+    };
   },
 };

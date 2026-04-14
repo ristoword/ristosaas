@@ -16,7 +16,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
-import { billingApi, type BillingEvent, type BillingSubscription } from "@/lib/api-client";
+import { billingApi, type BillingEvent, type BillingReadiness, type BillingSubscription } from "@/lib/api-client";
 
 export function StripePage() {
   const [showKey, setShowKey] = useState(false);
@@ -24,6 +24,8 @@ export function StripePage() {
   const [plan, setPlan] = useState<"restaurant_only" | "hotel_only" | "all_included">("all_included");
   const [loadingCheckout, setLoadingCheckout] = useState(false);
   const [loadingPortal, setLoadingPortal] = useState(false);
+  const [loadingReconcile, setLoadingReconcile] = useState(false);
+  const [readiness, setReadiness] = useState<BillingReadiness | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
   const [events, setEvents] = useState<BillingEvent[]>([]);
@@ -31,16 +33,31 @@ export function StripePage() {
   const webhookUrl = "https://api.ristodemo.it/webhooks/stripe";
   const isConnected = !!subscription;
 
+  const loadBilling = useCallback(async () => {
+    const [overview, readinessSnapshot] = await Promise.all([
+      billingApi.overview(),
+      billingApi.readiness(),
+    ]);
+    setSubscription(overview.subscription);
+    setEvents(overview.events);
+    setReadiness(readinessSnapshot);
+  }, []);
+
   useEffect(() => {
     billingApi
-      .overview()
-      .then((data) => {
-        setSubscription(data.subscription);
-        setEvents(data.events);
+      .readiness()
+      .then((snapshot) => {
+        setReadiness(snapshot);
+        return billingApi.overview();
+      })
+      .then((overview) => {
+        setSubscription(overview.subscription);
+        setEvents(overview.events);
       })
       .catch(() => {
         setSubscription(null);
         setEvents([]);
+        setReadiness(null);
       });
   }, []);
 
@@ -81,6 +98,22 @@ export function StripePage() {
       setLoadingPortal(false);
     }
   }, []);
+
+  const reconcileEntitlements = useCallback(async () => {
+    setActionError(null);
+    setLoadingReconcile(true);
+    try {
+      const result = await billingApi.reconcile();
+      if (!result.reconciled) {
+        setActionError(`Reconcile non completato: ${result.reason || "motivo non disponibile"}`);
+      }
+      await loadBilling();
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Errore durante reconcile licenza");
+    } finally {
+      setLoadingReconcile(false);
+    }
+  }, [loadBilling]);
 
   return (
     <div className="space-y-6">
@@ -187,6 +220,56 @@ export function StripePage() {
         </div>
       </Card>
 
+      <Card title="Readiness go-live billing">
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip label={readiness?.overallReady ? "Go-live billing pronto" : "Go-live billing non pronto"} tone={readiness?.overallReady ? "success" : "warn"} />
+          <Chip label={readiness?.integrationReady ? "Integrazione Stripe OK" : "Integrazione Stripe incompleta"} tone={readiness?.integrationReady ? "success" : "warn"} />
+          <Chip label={readiness?.tenantReady ? "Tenant allineato" : "Tenant da allineare"} tone={readiness?.tenantReady ? "success" : "warn"} />
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+            <p className="text-sm font-semibold text-rw-ink">Controlli integrazione</p>
+            <ul className="mt-2 space-y-1 text-sm text-rw-muted">
+              {(readiness?.envChecks || []).map((check) => (
+                <li key={check.key} className={check.ok ? "text-emerald-300" : "text-amber-200"}>
+                  {check.ok ? "✓" : "•"} {check.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+            <p className="text-sm font-semibold text-rw-ink">Controlli tenant</p>
+            <ul className="mt-2 space-y-1 text-sm text-rw-muted">
+              {(readiness?.tenantChecks || []).map((check) => (
+                <li key={check.key} className={check.ok ? "text-emerald-300" : "text-amber-200"}>
+                  {check.ok ? "✓" : "•"} {check.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        {readiness?.nextActions?.length ? (
+          <div className="mt-4 rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+            <p className="text-sm font-semibold text-rw-ink">Prossime azioni consigliate</p>
+            <ul className="mt-2 space-y-1 text-sm text-rw-muted">
+              {readiness.nextActions.map((action) => (
+                <li key={action}>• {action}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={reconcileEntitlements}
+            disabled={loadingReconcile}
+            className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-5 py-2.5 text-sm font-semibold text-rw-ink transition hover:bg-rw-surface disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Link2 className="h-4 w-4" /> {loadingReconcile ? "Riconcilio..." : "Riconcilia entitlements"}
+          </button>
+        </div>
+      </Card>
+
       {/* payment history */}
       <Card title="Storico pagamenti" headerRight={
         <button type="button" onClick={openPortal} className="inline-flex items-center gap-1.5 text-xs font-semibold text-rw-accent">
@@ -212,10 +295,10 @@ export function StripePage() {
         />
       </Card>
 
-      {/* mock checkout */}
+      {/* quick checkout */}
       <div className="flex justify-end">
-        <button type="button" className="inline-flex items-center gap-2 rounded-2xl bg-rw-accent px-6 py-3.5 text-base font-semibold text-white shadow-rw transition hover:bg-rw-accent/90">
-          <Receipt className="h-5 w-5" /> Simula checkout
+        <button type="button" onClick={openCheckout} className="inline-flex items-center gap-2 rounded-2xl bg-rw-accent px-6 py-3.5 text-base font-semibold text-white shadow-rw transition hover:bg-rw-accent/90">
+          <Receipt className="h-5 w-5" /> Vai a checkout Stripe
         </button>
       </div>
     </div>

@@ -410,6 +410,36 @@ export type BillingEvent = {
   processedAt: string | null;
 };
 
+export type BillingReadinessCheck = {
+  key: string;
+  ok: boolean;
+  message: string;
+};
+
+export type BillingReadiness = {
+  overallReady: boolean;
+  integrationReady: boolean;
+  tenantReady: boolean;
+  envChecks: BillingReadinessCheck[];
+  tenantChecks: BillingReadinessCheck[];
+  tenantSummary: {
+    id: string;
+    plan: string;
+    enabledFeatures: string[];
+    licenseStatus: string | null;
+    seats: number | null;
+    usedSeats: number | null;
+  } | null;
+  subscription: {
+    status: string;
+    priceId: string | null;
+    stripeCustomerId: string | null;
+    currentPeriodEnd: string | null;
+  } | null;
+  recentBillingFailures: number;
+  nextActions: string[];
+};
+
 export const billingApi = {
   overview: () =>
     get<{
@@ -419,6 +449,8 @@ export const billingApi = {
   checkout: (payload: { plan: "restaurant_only" | "hotel_only" | "all_included"; billingCycle: "monthly" | "annual" }) =>
     post<{ id: string; url: string }>("/billing/checkout", payload),
   portal: () => post<{ id: string; url: string }>("/billing/portal", {}),
+  readiness: () => get<BillingReadiness>("/billing/readiness"),
+  reconcile: () => post<{ reconciled: boolean; reason?: string; plan?: string; seats?: number }>("/billing/reconcile", {}),
 };
 
 export const api = {
