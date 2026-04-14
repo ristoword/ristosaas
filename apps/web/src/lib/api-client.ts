@@ -179,6 +179,11 @@ export const warehouseApi = {
   load: (productId: string, qty: number, reason?: string) => post<{ item: StockItem }>("/warehouse/load", { productId, qty, reason }),
   discharge: (productName: string, qty: number, reason: string) => post<{ item: StockItem }>("/warehouse/discharge", { productName, qty, reason }),
   movements: () => get<StockMovement[]>("/warehouse/movements"),
+  listEquipment: () => get<WarehouseEquipment[]>("/warehouse/equipment"),
+  createEquipment: (data: Omit<WarehouseEquipment, "id">) => post<WarehouseEquipment>("/warehouse/equipment", data),
+  updateEquipment: (id: string, data: Partial<WarehouseEquipment>) =>
+    put<WarehouseEquipment>(`/warehouse/equipment/${id}`, data),
+  deleteEquipment: (id: string) => del<{ deleted: boolean }>(`/warehouse/equipment/${id}`),
 };
 
 /* ─── Staff ──────────────────────────────────────── */
@@ -563,6 +568,15 @@ export type Room = { id: string; name: string; tables: number };
 export type StockItem = { id: string; name: string; category: string; qty: number; unit: string; minStock: number; costPerUnit: number; supplier: string };
 export type StockMovement = { id: string; date: string; productId: string; productName: string; type: "carico" | "scarico" | "scarico_comanda"; qty: number; unit: string; reason: string; orderId?: string };
 export type WarehouseAlert = { id: string; name: string; qty: number; minStock: number; level: "warning" | "critical"; message: string };
+export type WarehouseEquipment = {
+  id: string;
+  name: string;
+  category: string;
+  qty: number;
+  status: "operativo" | "manutenzione" | "fuori uso";
+  location: string;
+  value: number;
+};
 export type StaffMember = { id: string; name: string; role: string; email: string; phone: string; hireDate: string; salary: number; status: "attivo" | "ferie" | "malattia" | "licenziato"; hoursWeek: number; notes: string };
 export type StaffShift = { id: string; staffId: string; clockInAt: string; clockOutAt: string | null; notes: string; durationHours: number | null };
 export type Customer = { id: string; name: string; email: string; phone: string; type: "vip" | "habitue" | "walk-in" | "new"; visits: number; totalSpent: number; avgSpend: number; allergies: string; preferences: string; notes: string; lastVisit: string };

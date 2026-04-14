@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { ArrowDownUp, Download, Plus, Search, ShoppingCart, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
@@ -12,19 +12,7 @@ import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
 import { useWarehouse } from "@/components/warehouse/warehouse-context";
 import type { StockItem } from "@/components/warehouse/warehouse-context";
-
-type Equipment = {
-  id: string;
-  name: string;
-  category: string;
-  qty: number;
-  status: "operativo" | "manutenzione" | "fuori uso";
-  location: string;
-  value: number;
-};
-
-// TODO: replace with equipmentApi when backend endpoint is available
-const initialEquipment: Equipment[] = [];
+import { warehouseApi, type WarehouseEquipment as Equipment } from "@/lib/api-client";
 
 type ShoppingItem = { id: string; product: string; qty: number; unit: string; supplier: string; done: boolean };
 
@@ -296,16 +284,33 @@ function ListaSpesaTab() {
 }
 
 function AttrezzatureTab() {
-  const [equipment, setEquipment] = useState<Equipment[]>(initialEquipment);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<Omit<Equipment, "id">>({ name: "", category: "", qty: 1, status: "operativo", location: "", value: 0 });
 
-  function addEquipment() {
+  const loadEquipment = useCallback(async () => {
+    setLoading(true);
+    try {
+      const rows = await warehouseApi.listEquipment();
+      setEquipment(rows);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadEquipment();
+  }, [loadEquipment]);
+
+  async function addEquipment() {
     if (!form.name.trim()) return;
-    setEquipment((prev) => [...prev, { ...form, id: `eq-${Date.now()}` }]);
+    const created = await warehouseApi.createEquipment(form);
+    setEquipment((prev) => [...prev, created]);
     setForm({ name: "", category: "", qty: 1, status: "operativo", location: "", value: 0 });
   }
 
-  function removeEquipment(id: string) {
+  async function removeEquipment(id: string) {
+    await warehouseApi.deleteEquipment(id);
     setEquipment((prev) => prev.filter((e) => e.id !== id));
   }
 
@@ -328,6 +333,9 @@ function AttrezzatureTab() {
       </Card>
 
       <Card title="Inventario attrezzature" description={`${equipment.length} elementi`}>
+        {loading ? (
+          <div className="py-8 text-center text-sm text-rw-muted">Caricamento attrezzature...</div>
+        ) : null}
         <DataTable
           columns={[
             { key: "name", header: "Nome", render: (r: Equipment) => <span className="font-medium text-rw-ink">{r.name}</span> },

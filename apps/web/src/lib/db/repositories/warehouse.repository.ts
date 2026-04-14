@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
-import type { StockItem, StockMovement } from "@/lib/api/types/warehouse";
+import type { StockItem, StockMovement, WarehouseEquipment } from "@/lib/api/types/warehouse";
 
 type MovementType = StockMovement["type"];
 
@@ -46,6 +46,26 @@ function mapMovement(row: {
     unit: row.unit,
     reason: row.reason,
     orderId: row.orderId || undefined,
+  };
+}
+
+function mapEquipment(row: {
+  id: string;
+  name: string;
+  category: string;
+  qty: number;
+  status: string;
+  location: string;
+  value: { toNumber: () => number };
+}): WarehouseEquipment {
+  return {
+    id: row.id,
+    name: row.name,
+    category: row.category,
+    qty: row.qty,
+    status: row.status as WarehouseEquipment["status"],
+    location: row.location,
+    value: row.value.toNumber(),
   };
 }
 
@@ -152,5 +172,59 @@ export const warehouseRepository = {
       include: { item: { select: { name: true } } },
     });
     return mapMovement(row);
+  },
+  async listEquipment(tenantId: string) {
+    const rows = await prisma.warehouseEquipment.findMany({
+      where: { tenantId },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+    });
+    return rows.map(mapEquipment);
+  },
+  async getEquipment(tenantId: string, id: string) {
+    const row = await prisma.warehouseEquipment.findFirst({
+      where: { tenantId, id },
+    });
+    return row ? mapEquipment(row) : null;
+  },
+  async createEquipment(tenantId: string, data: Omit<WarehouseEquipment, "id">) {
+    const row = await prisma.warehouseEquipment.create({
+      data: {
+        tenantId,
+        name: data.name,
+        category: data.category,
+        qty: data.qty,
+        status: data.status,
+        location: data.location,
+        value: data.value,
+      },
+    });
+    return mapEquipment(row);
+  },
+  async updateEquipment(tenantId: string, id: string, updates: Partial<WarehouseEquipment>) {
+    const existing = await prisma.warehouseEquipment.findFirst({
+      where: { tenantId, id },
+    });
+    if (!existing) return null;
+    const row = await prisma.warehouseEquipment.update({
+      where: { id },
+      data: {
+        name: updates.name,
+        category: updates.category,
+        qty: updates.qty,
+        status: updates.status,
+        location: updates.location,
+        value: updates.value,
+      },
+    });
+    return mapEquipment(row);
+  },
+  async deleteEquipment(tenantId: string, id: string) {
+    const existing = await prisma.warehouseEquipment.findFirst({
+      where: { tenantId, id },
+      select: { id: true },
+    });
+    if (!existing) return false;
+    await prisma.warehouseEquipment.delete({ where: { id } });
+    return true;
   },
 };

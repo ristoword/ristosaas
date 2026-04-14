@@ -20,3 +20,13 @@ export type StockMovement = {
   reason: string;
   orderId?: string;
 };
+
+export type WarehouseEquipment = {
+  id: string;
+  name: string;
+  category: string;
+  qty: number;
+  status: "operativo" | "manutenzione" | "fuori uso";
+  location: string;
+  value: number;
+};

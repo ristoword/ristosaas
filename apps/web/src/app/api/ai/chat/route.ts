@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { err, ok, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 
 type AiRole = "user" | "assistant";
 type AiMessage = { role: AiRole; content: string };
@@ -32,9 +34,8 @@ function systemPromptForContext(context: string) {
 export async function POST(req: NextRequest) {
   const guard = requireApiUser(req);
   if (guard.error) return guard.error;
-
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return err("OPENAI_API_KEY non configurata", 500);
+  const user = guard.user;
+  const tenantId = user?.tenantId || getTenantId();
 
   const payload = await body<{
     context?: string;
@@ -44,8 +45,19 @@ export async function POST(req: NextRequest) {
 
   const message = payload.message?.trim();
   if (!message) return err("message is required");
-
   const context = (payload.context || "default").trim().toLowerCase();
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    await aiChatRepository.log({
+      tenantId,
+      userId: user.id,
+      context,
+      userMessage: message,
+      errorMessage: "OPENAI_API_KEY non configurata",
+    });
+    return err("OPENAI_API_KEY non configurata", 500);
+  }
   const history = Array.isArray(payload.history) ? payload.history.slice(-8) : [];
   const safeHistory = history.filter(
     (item) =>
@@ -75,6 +87,13 @@ export async function POST(req: NextRequest) {
 
   if (!response.ok) {
     const errorText = await response.text();
+    await aiChatRepository.log({
+      tenantId,
+      userId: user.id,
+      context,
+      userMessage: message,
+      errorMessage: `OpenAI error: ${errorText || response.statusText}`,
+    });
     return err(`OpenAI error: ${errorText || response.statusText}`, 502);
   }
 
@@ -82,7 +101,24 @@ export async function POST(req: NextRequest) {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const content = data.choices?.[0]?.message?.content?.trim();
-  if (!content) return err("Risposta AI vuota", 502);
+  if (!content) {
+    await aiChatRepository.log({
+      tenantId,
+      userId: user.id,
+      context,
+      userMessage: message,
+      errorMessage: "Risposta AI vuota",
+    });
+    return err("Risposta AI vuota", 502);
+  }
+
+  await aiChatRepository.log({
+    tenantId,
+    userId: user.id,
+    context,
+    userMessage: message,
+    assistantMessage: content,
+  });
 
   return ok({ reply: content });
 }
