@@ -5,11 +5,20 @@
 
 const BASE = "/api";
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(path: string, init?: RequestInit, canRetry = true): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
   });
+  if (res.status === 401 && canRetry && path !== "/auth/login" && path !== "/auth/refresh" && path !== "/auth/logout") {
+    const refreshed = await fetch(`${BASE}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    if (refreshed.ok) {
+      return request<T>(path, init, false);
+    }
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data as T;
@@ -413,6 +422,7 @@ export const api = {
   auth: {
     me: () => get<AuthUser>("/auth/me"),
     login: (username: string, password: string) => post<{ user: AuthUser }>("/auth/login", { username, password }),
+    refresh: () => post<{ user: AuthUser }>("/auth/refresh", {}),
     logout: () => post<{ ok: boolean }>("/auth/logout", {}),
     changePassword: (currentPassword: string, newPassword: string) =>
       post<{ success: boolean }>("/auth/change-password", { currentPassword, newPassword }),

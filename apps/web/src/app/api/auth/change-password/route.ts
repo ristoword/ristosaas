@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ok, err, body } from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
-import { setSessionCookie } from "@/lib/auth/session";
+import { setAuthCookies } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 
 export async function POST(req: NextRequest) {
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   if (!changed.ok) return err("User not found", 404);
 
   const res = NextResponse.json({ success: true });
-  setSessionCookie(res, {
+  setAuthCookies(res, {
     userId: changed.user.id,
     role: changed.user.role,
     username: changed.user.username,

@@ -3,7 +3,7 @@ import { hasVerticalEnabled } from "@/core/tenant/platform-config";
 import { canAccessWithRole, getApiRequiredRoles, isPublicApiPath } from "@/lib/auth/rbac";
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
 
-const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login"];
+const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login", "/api/auth/refresh"];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/dev-access"];
 const RESTAURANT_ONLY = ["/rooms", "/sala-fullscreen", "/cucina", "/pizzeria", "/bar", "/cassa", "/chiusura", "/asporto", "/prenotazioni", "/magazzino", "/fornitori", "/menu-admin", "/daily-menu", "/food-cost", "/catering"];
 const HOTEL_ONLY = ["/hotel"];

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { err, body } from "@/lib/api/helpers";
-import { setSessionCookie } from "@/lib/auth/session";
+import { setAuthCookies } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 
 export async function POST(req: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     user: safeUser,
   });
 
-  setSessionCookie(res, {
+  setAuthCookies(res, {
     userId: validatedUser.id,
     role: validatedUser.role,
     username: validatedUser.username,

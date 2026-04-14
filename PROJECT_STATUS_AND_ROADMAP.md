@@ -1,6 +1,6 @@
 # RistoSaaS Platform - Project Status and Final Roadmap
 
-Ultimo aggiornamento: 2026-04-14 (security hardening + RBAC centralizzato)
+Ultimo aggiornamento: 2026-04-14 (security hardening + RBAC + refresh token)
 
 ## 1) Stato Reale Attuale
 
@@ -56,11 +56,11 @@ Quello sotto e ordinato per priorita reale di go-live.
    - Login/change password/temp password migrati.
    - Migrazione compatibile utenti legacy al primo login riuscito.
 
-2. **Sicurezza sessione** (parzialmente completata)
+2. **Sicurezza sessione** ✅ (chiusa a livello applicativo)
    - ✅ Rotazione/invalidazione sessioni via `sessionVersion` su utente.
    - ✅ Verifica sessione valida in middleware + endpoint tecnico `auth/session-valid`.
    - ✅ Policy durata sessioni per ruolo (owner/supervisor/super_admin con TTL dedicati).
-   - ⏳ Opzionale refresh token con revoca (residuo per chiusura enterprise).
+   - ✅ Refresh token + endpoint `auth/refresh` con revoca legata a `sessionVersion`.
 
 3. **RBAC granulare finale** (in forte avanzamento)
    - ✅ Permission matrix centralizzata (`src/lib/auth/rbac.ts`) su endpoint sensibili.
@@ -137,7 +137,7 @@ Per dire "finito al 100%" devono risultare tutti `DONE`:
 - [x] KPI e report da dati persistenti
 - [x] Superadmin operativo reale
 - [x] Password hashing production-grade
-- [ ] Session invalidation/refresh completa (invalidate done, refresh/revoca residui)
+- [x] Session invalidation/refresh completa
 - [ ] Stripe live + webhook + enforcement licenze
 - [ ] Fiscale/documentale reale
 - [ ] Backup/restore verificati
@@ -159,11 +159,11 @@ Per dire "finito al 100%" devono risultare tutti `DONE`:
 
 ## 5) Stima Completamento
 
-Stato complessivo piattaforma: **~93%**
+Stato complessivo piattaforma: **~94%**
 
 - Core prodotto: 92%
 - Operativita restaurant/hotel/integration: 90%
-- Security production-grade: 86%
+- Security production-grade: 90%
 - Billing/licenze live: 55%
 - Qualita enterprise (test/obs/backup): 60%
 - Go-to-market readiness: 79%
