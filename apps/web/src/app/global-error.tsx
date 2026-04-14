@@ -1,6 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
+import { captureException } from "@/lib/observability/sentry-lite";
+
 export default function GlobalError({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => {
+    void captureException({
+      source: "client",
+      message: error.message || "Global app error",
+      stack: error.stack,
+      tags: { boundary: "global-error" },
+    });
+  }, [error]);
+
   return (
     <html lang="it">
       <body style={{ background: "#050712", color: "#e2e5f0", fontFamily: "system-ui", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100dvh" }}>

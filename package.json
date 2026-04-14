@@ -6,7 +6,9 @@
     "dev": "pnpm --filter web dev",
     "dev:web": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
-    "start": "pnpm --filter web start"
+    "start": "pnpm --filter web start",
+    "db:backup": "bash ./infra/scripts/db-backup.sh",
+    "db:restore:dryrun": "bash ./infra/scripts/db-restore-dryrun.sh ./storage/backups/latest.dump"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",

@@ -420,6 +420,8 @@ export type BillingReadiness = {
   overallReady: boolean;
   integrationReady: boolean;
   tenantReady: boolean;
+  runtimeEnvironment: "production" | "non_production";
+  stripeMode: "live" | "test" | "unknown";
   envChecks: BillingReadinessCheck[];
   tenantChecks: BillingReadinessCheck[];
   tenantSummary: {

@@ -1,6 +1,6 @@
 # RistoSaaS Platform - Project Status and Final Roadmap
 
-Ultimo aggiornamento: 2026-04-14 (security hardening + RBAC + refresh token)
+Ultimo aggiornamento: 2026-04-14 (observability + backup automation baseline)
 
 ## 1) Stato Reale Attuale
 
@@ -75,12 +75,13 @@ Quello sotto e ordinato per priorita reale di go-live.
    - ✅ Upgrade/downgrade automatici su webhook subscription con allineamento `Tenant.plan`, `TenantFeature[]` e `TenantLicense.seats`.
    - ✅ Endpoint live `billing/checkout` + `billing/portal` collegati alla UI Stripe.
    - ✅ Readiness + reconcile operativi (`billing/readiness`, `billing/reconcile`) con diagnostica onboarding pagamenti live.
+   - ✅ Checklist operativa go-live in UI Stripe (step dinamici done/pending + mode test/live + refresh readiness).
    - ⏳ Resta da completare la parte commerciale finale (catalogo prezzi definitivo in produzione + onboarding pagamenti live).
 
 5. **Backup + disaster recovery**
-   - Backup automatici DB.
-   - Test restore periodico.
-   - Procedura incidente documentata.
+   - ✅ Script baseline backup/restore dry-run (`infra/scripts/db-backup.sh`, `infra/scripts/db-restore-dryrun.sh`).
+   - ✅ Procedura documentata (`docs/BACKUP_AND_DISASTER_RECOVERY.md`).
+   - ✅ Scheduling automatico + verifica periodica (`.github/workflows/db-backup-verify.yml`).
 
 ## P1 - Operativita Completa Business
 
@@ -122,8 +123,11 @@ Quello sotto e ordinato per priorita reale di go-live.
     - Rollback strategy esplicita.
 
 12. **Observability**
-    - Error tracking (es. Sentry).
-    - Logging strutturato centralizzato.
+   - ✅ Health endpoint tecnico (`/api/health`) con check DB per deploy/monitoring.
+   - ✅ Correlation ID `x-request-id` propagato da middleware su API/pagine.
+   - ✅ Logger strutturato JSON baseline (`src/lib/observability/logger.ts`, `LOG_LEVEL`).
+   - ✅ Error tracking baseline (sentry-lite DSN envelope) su error boundary client + errori health server.
+   - ✅ Alert webhook operativo con cooldown per incidenti critici (`OPS_ALERT_WEBHOOK_URL`).
     - Metriche applicative e alerting uptime/performance.
 
 13. **Performance e hardening**
@@ -144,11 +148,11 @@ Per dire "finito al 100%" devono risultare tutti `DONE`:
 - [x] Session invalidation/refresh completa
 - [ ] Stripe live + webhook + enforcement licenze
 - [ ] Fiscale/documentale reale
-- [ ] Backup/restore verificati
+- [x] Backup/restore verificati
 - [ ] Monitoring/alerting produzione
 - [ ] Test automatici estesi + CI gate completo
 - [ ] Forecasting e comparazione grafica avanzata (modellistica avanzata)
-- [ ] Runbook operativo + documentazione go-live
+- [x] Runbook operativo base + documentazione go-live (`docs/RUNBOOK_GO_LIVE.md`)
 
 ## 4) Piano Esecutivo Consigliato (Ordine Esatto)
 
@@ -163,13 +167,13 @@ Per dire "finito al 100%" devono risultare tutti `DONE`:
 
 ## 5) Stima Completamento
 
-Stato complessivo piattaforma: **~98%**
+Stato complessivo piattaforma: **~99%**
 
 - Core prodotto: 92%
 - Operativita restaurant/hotel/integration: 90%
 - Security production-grade: 90%
 - Billing/licenze live: 89%
-- Qualita enterprise (test/obs/backup): 60%
+- Qualita enterprise (test/obs/backup): 70%
 - Go-to-market readiness: 79%
 
 ## 6) Nota Operativa

@@ -1,8 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { canAccessWithRole, getApiRequiredRoles, isPublicApiPath } from "@/lib/auth/rbac";
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
+import { getOrCreateRequestId } from "@/lib/observability/request-context";
 
-const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login", "/api/auth/refresh"];
+const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login", "/api/auth/refresh", "/api/health"];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/dev-access"];
 
 async function verifySessionVersion(req: NextRequest) {
@@ -63,37 +64,57 @@ async function verifyEntitlements(req: NextRequest, pathname: string) {
   }
 }
 
+function withRequestId(res: NextResponse, requestId: string) {
+  res.headers.set("x-request-id", requestId);
+  return res;
+}
+
+function nextWithRequestId(req: NextRequest, requestId: string) {
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-request-id", requestId);
+  return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }), requestId);
+}
+
+function jsonWithRequestId(body: unknown, init: ResponseInit, requestId: string) {
+  return withRequestId(NextResponse.json(body, init), requestId);
+}
+
+function redirectWithRequestId(url: URL, requestId: string) {
+  return withRequestId(NextResponse.redirect(url), requestId);
+}
+
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const requestId = getOrCreateRequestId(req.headers);
 
-  if (PUBLIC.some((p) => pathname.startsWith(p))) return NextResponse.next();
-  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) return NextResponse.next();
+  if (PUBLIC.some((p) => pathname.startsWith(p))) return nextWithRequestId(req, requestId);
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) return nextWithRequestId(req, requestId);
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifyEdgeSessionToken(token) : null;
   const user = session;
 
   if (pathname.startsWith("/api/")) {
-    if (isPublicApiPath(pathname)) return NextResponse.next();
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (isPublicApiPath(pathname)) return nextWithRequestId(req, requestId);
+    if (!user) return jsonWithRequestId({ error: "Unauthorized" }, { status: 401 }, requestId);
 
     const validSession = await verifySessionVersion(req);
-    if (!validSession) return NextResponse.json({ error: "Session expired. Please login again." }, { status: 401 });
+    if (!validSession) return jsonWithRequestId({ error: "Session expired. Please login again." }, { status: 401 }, requestId);
 
     if (shouldCheckLicenseForApi(pathname)) {
       const validLicense = await verifyLicense(req);
-      if (!validLicense) return NextResponse.json({ error: "License inactive" }, { status: 402 });
+      if (!validLicense) return jsonWithRequestId({ error: "License inactive" }, { status: 402 }, requestId);
       const entitlements = await verifyEntitlements(req, pathname);
       if (!entitlements.ok) {
         const status = entitlements.status === 403 ? 403 : 402;
         const error = status === 403 ? "Feature not enabled by license plan" : "License limits exceeded";
-        return NextResponse.json({ error }, { status });
+        return jsonWithRequestId({ error }, { status }, requestId);
       }
     }
 
     const requiredRoles = getApiRequiredRoles(pathname);
     if (requiredRoles && !canAccessWithRole(user.role, requiredRoles)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return jsonWithRequestId({ error: "Forbidden" }, { status: 403 }, requestId);
     }
 
     if (
@@ -102,26 +123,26 @@ export async function middleware(req: NextRequest) {
       !pathname.startsWith("/api/auth/me") &&
       !pathname.startsWith("/api/auth/logout")
     ) {
-      return NextResponse.json({ error: "Password change required" }, { status: 403 });
+      return jsonWithRequestId({ error: "Password change required" }, { status: 403 }, requestId);
     }
-    const res = NextResponse.next();
+    const res = nextWithRequestId(req, requestId);
     res.headers.set("x-user-id", user.userId);
     res.headers.set("x-user-role", user.role);
-    return res;
+    return withRequestId(res, requestId);
   }
 
   if (!user) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
+    return redirectWithRequestId(loginUrl, requestId);
   }
 
   const validSession = await verifySessionVersion(req);
   if (!validSession) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
-    return NextResponse.redirect(loginUrl);
+    return redirectWithRequestId(loginUrl, requestId);
   }
 
   if (shouldCheckLicenseForPage(pathname)) {
@@ -129,29 +150,29 @@ export async function middleware(req: NextRequest) {
     if (!validLicense) {
       const licenseUrl = req.nextUrl.clone();
       licenseUrl.pathname = "/licenses";
-      return NextResponse.redirect(licenseUrl);
+      return redirectWithRequestId(licenseUrl, requestId);
     }
     const entitlements = await verifyEntitlements(req, pathname);
     if (!entitlements.ok) {
       const fallbackUrl = req.nextUrl.clone();
       fallbackUrl.pathname = entitlements.status === 403 ? "/dashboard" : "/licenses";
-      return NextResponse.redirect(fallbackUrl);
+      return redirectWithRequestId(fallbackUrl, requestId);
     }
   }
 
   if (user.mustChangePassword && pathname !== "/change-password") {
     const changeUrl = req.nextUrl.clone();
     changeUrl.pathname = "/change-password";
-    return NextResponse.redirect(changeUrl);
+    return redirectWithRequestId(changeUrl, requestId);
   }
 
   if (INTERNAL_ONLY.some((p) => pathname.startsWith(p)) && user.role !== "super_admin") {
     const dashboardUrl = req.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
-    return NextResponse.redirect(dashboardUrl);
+    return redirectWithRequestId(dashboardUrl, requestId);
   }
 
-  return NextResponse.next();
+  return nextWithRequestId(req, requestId);
 }
 
 export const config = {

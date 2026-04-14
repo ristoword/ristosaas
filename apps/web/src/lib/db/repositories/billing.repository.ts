@@ -156,6 +156,13 @@ function envVar(name: string) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+function envValue(name: string) {
+  const value = process.env[name];
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 async function applyTenantEntitlements(params: {
   tenantId: string;
   plan: ProductPlan;
@@ -400,10 +407,25 @@ export const billingRepository = {
       }),
     ]);
 
+    const stripeSecretKey = envValue("STRIPE_SECRET_KEY");
+    const checkoutSuccessUrl = envValue("STRIPE_CHECKOUT_SUCCESS_URL");
+    const checkoutCancelUrl = envValue("STRIPE_CHECKOUT_CANCEL_URL");
+    const portalReturnUrl = envValue("STRIPE_PORTAL_RETURN_URL");
+    const runtimeEnvironment = process.env.NODE_ENV === "production" ? "production" : "non_production";
+    const stripeMode = stripeSecretKey?.startsWith("sk_live_")
+      ? "live"
+      : stripeSecretKey?.startsWith("sk_test_")
+        ? "test"
+        : "unknown";
+
     const envChecks: ReadinessCheck[] = [
       { key: "stripe_secret", ok: envVar("STRIPE_SECRET_KEY"), message: "STRIPE_SECRET_KEY configurata" },
       { key: "stripe_webhook", ok: envVar("STRIPE_WEBHOOK_SECRET"), message: "STRIPE_WEBHOOK_SECRET configurata" },
-      { key: "checkout_urls", ok: envVar("STRIPE_CHECKOUT_SUCCESS_URL") && envVar("STRIPE_CHECKOUT_CANCEL_URL"), message: "URL checkout success/cancel configurati" },
+      {
+        key: "checkout_urls",
+        ok: envVar("STRIPE_CHECKOUT_SUCCESS_URL") && envVar("STRIPE_CHECKOUT_CANCEL_URL"),
+        message: "URL checkout success/cancel configurati",
+      },
       { key: "portal_url", ok: envVar("STRIPE_PORTAL_RETURN_URL"), message: "URL customer portal configurato" },
       {
         key: "price_catalog",
@@ -415,6 +437,22 @@ export const billingRepository = {
           envVar("STRIPE_PRICE_ALL_INCLUDED_MONTHLY") ||
           envVar("STRIPE_PRICE_ALL_INCLUDED_ANNUAL"),
         message: "Almeno un prezzo Stripe collegato",
+      },
+      {
+        key: "live_mode_production",
+        ok: runtimeEnvironment !== "production" || stripeMode === "live",
+        message: "In produzione usa chiavi Stripe live (sk_live_*)",
+      },
+      {
+        key: "https_urls_production",
+        ok:
+          runtimeEnvironment !== "production" ||
+          !!(
+            checkoutSuccessUrl?.startsWith("https://") &&
+            checkoutCancelUrl?.startsWith("https://") &&
+            portalReturnUrl?.startsWith("https://")
+          ),
+        message: "In produzione usa solo URL https per checkout/portal",
       },
     ];
 
@@ -461,12 +499,25 @@ export const billingRepository = {
     if (!integrationReady) nextActions.push("Completa variabili STRIPE_* mancanti");
     if (!tenantChecks.find((c) => c.key === "subscription_linked")?.ok) nextActions.push("Esegui primo checkout da pagina Stripe");
     if (!tenantChecks.find((c) => c.key === "plan_features")?.ok) nextActions.push("Esegui reconcile entitlements dal pannello Stripe");
+    if (runtimeEnvironment === "production" && stripeMode !== "live") nextActions.push("Sostituisci chiave Stripe test con chiave live in produzione");
+    if (
+      runtimeEnvironment === "production" &&
+      !(
+        checkoutSuccessUrl?.startsWith("https://") &&
+        checkoutCancelUrl?.startsWith("https://") &&
+        portalReturnUrl?.startsWith("https://")
+      )
+    ) {
+      nextActions.push("Configura URL HTTPS validi per checkout success/cancel e customer portal");
+    }
     if ((recentBillingFailures ?? 0) > 0) nextActions.push("Verifica pagamenti falliti ultimi 30 giorni");
 
     return {
       overallReady,
       integrationReady,
       tenantReady,
+      runtimeEnvironment,
+      stripeMode,
       envChecks,
       tenantChecks,
       tenantSummary: tenant

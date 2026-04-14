@@ -1,8 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { captureException } from "@/lib/observability/sentry-lite";
 
 export default function DashboardError({ error, reset }: { error: Error; reset: () => void }) {
+  useEffect(() => {
+    void captureException({
+      source: "client",
+      message: error.message || "Dashboard error",
+      stack: error.stack,
+      tags: { boundary: "dashboard-error" },
+    });
+  }, [error]);
+
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="text-center space-y-4 max-w-md px-6">

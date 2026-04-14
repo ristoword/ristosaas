@@ -44,22 +44,13 @@ export function StripePage() {
   }, []);
 
   useEffect(() => {
-    billingApi
-      .readiness()
-      .then((snapshot) => {
-        setReadiness(snapshot);
-        return billingApi.overview();
-      })
-      .then((overview) => {
-        setSubscription(overview.subscription);
-        setEvents(overview.events);
-      })
+    loadBilling()
       .catch(() => {
         setSubscription(null);
         setEvents([]);
         setReadiness(null);
       });
-  }, []);
+  }, [loadBilling]);
 
   const payments = useMemo(
     () =>
@@ -71,6 +62,42 @@ export function StripePage() {
         descrizione: event.type,
       })),
     [events],
+  );
+
+  const goLiveChecklist = useMemo(
+    () => [
+      {
+        id: "env",
+        done: !!readiness?.integrationReady,
+        text: "Configura tutte le variabili STRIPE_* richieste",
+      },
+      {
+        id: "first_checkout",
+        done: !!readiness?.tenantChecks.find((check) => check.key === "subscription_linked")?.ok,
+        text: "Completa il primo checkout reale del tenant",
+      },
+      {
+        id: "customer_linked",
+        done: !!readiness?.tenantChecks.find((check) => check.key === "customer_linked")?.ok,
+        text: "Verifica customer Stripe collegato",
+      },
+      {
+        id: "entitlements",
+        done: !!readiness?.tenantChecks.find((check) => check.key === "plan_features")?.ok,
+        text: "Allinea features/piano con reconcile entitlements",
+      },
+      {
+        id: "license_state",
+        done: !!readiness?.tenantChecks.find((check) => check.key === "license_status")?.ok,
+        text: "Conferma stato licenza active/trial",
+      },
+      {
+        id: "billing_failures",
+        done: (readiness?.recentBillingFailures ?? 0) === 0,
+        text: "Zero pagamento fallito negli ultimi 30 giorni",
+      },
+    ],
+    [readiness],
   );
 
   const openCheckout = useCallback(async () => {
@@ -225,6 +252,20 @@ export function StripePage() {
           <Chip label={readiness?.overallReady ? "Go-live billing pronto" : "Go-live billing non pronto"} tone={readiness?.overallReady ? "success" : "warn"} />
           <Chip label={readiness?.integrationReady ? "Integrazione Stripe OK" : "Integrazione Stripe incompleta"} tone={readiness?.integrationReady ? "success" : "warn"} />
           <Chip label={readiness?.tenantReady ? "Tenant allineato" : "Tenant da allineare"} tone={readiness?.tenantReady ? "success" : "warn"} />
+          <Chip
+            label={readiness?.runtimeEnvironment === "production" ? "Runtime production" : "Runtime non-production"}
+            tone={readiness?.runtimeEnvironment === "production" ? "accent" : "default"}
+          />
+          <Chip
+            label={
+              readiness?.stripeMode === "live"
+                ? "Stripe live mode"
+                : readiness?.stripeMode === "test"
+                  ? "Stripe test mode"
+                  : "Stripe mode non rilevato"
+            }
+            tone={readiness?.stripeMode === "live" ? "success" : "warn"}
+          />
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
@@ -258,6 +299,16 @@ export function StripePage() {
             </ul>
           </div>
         ) : null}
+        <div className="mt-4 rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+          <p className="text-sm font-semibold text-rw-ink">Checklist operativa go-live</p>
+          <ul className="mt-2 space-y-1 text-sm text-rw-muted">
+            {goLiveChecklist.map((step) => (
+              <li key={step.id} className={step.done ? "text-emerald-300" : "text-amber-200"}>
+                {step.done ? "✓" : "•"} {step.text}
+              </li>
+            ))}
+          </ul>
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
@@ -266,6 +317,13 @@ export function StripePage() {
             className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-5 py-2.5 text-sm font-semibold text-rw-ink transition hover:bg-rw-surface disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Link2 className="h-4 w-4" /> {loadingReconcile ? "Riconcilio..." : "Riconcilia entitlements"}
+          </button>
+          <button
+            type="button"
+            onClick={loadBilling}
+            className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-5 py-2.5 text-sm font-semibold text-rw-ink transition hover:bg-rw-surface"
+          >
+            Aggiorna readiness
           </button>
         </div>
       </Card>
