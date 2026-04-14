@@ -65,6 +65,22 @@ export type AdminTenantOnboardingResult = {
   license: { id: string; key: string; status: string; plan: string; seats: number; usedSeats: number; expiresAt: string };
   adminUser: { id: string; username: string; email: string; role: string; mustChangePassword: boolean };
 };
+export type AdminTenantBootstrapResult = {
+  tenant: { id: string; name: string; slug: string; plan: string };
+  created: {
+    ratePlans: number;
+    rooms: number;
+    restaurantRooms: number;
+    restaurantTables: number;
+    warehouseItems: number;
+    recipes: number;
+    menuItems: number;
+    dailyDishes: number;
+    staffMembers: number;
+    customers: number;
+    reports: number;
+  };
+};
 export type AdminLicense = {
   id: string;
   tenantId: string;
@@ -486,6 +502,7 @@ export const api = {
           role?: string;
         };
       }) => post<AdminTenantOnboardingResult>("/admin/tenants", payload),
+      bootstrap: (tenantId: string) => post<AdminTenantBootstrapResult>(`/admin/tenants/${tenantId}/bootstrap`, {}),
     },
     licenses: {
       list: () => get<AdminLicense[]>("/admin/licenses"),

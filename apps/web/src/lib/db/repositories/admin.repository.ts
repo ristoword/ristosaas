@@ -157,6 +157,248 @@ export const adminRepository = {
       };
     });
   },
+  async bootstrapTenantOperationalData(tenantId: string) {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, name: true, slug: true, plan: true },
+    });
+    if (!tenant) throw new Error("tenant_not_found");
+
+    const created = {
+      ratePlans: 0,
+      rooms: 0,
+      restaurantRooms: 0,
+      restaurantTables: 0,
+      warehouseItems: 0,
+      recipes: 0,
+      menuItems: 0,
+      dailyDishes: 0,
+      staffMembers: 0,
+      customers: 0,
+      reports: 0,
+    };
+
+    await prisma.$transaction(async (tx) => {
+      const ratePlans = [
+        { code: "RP_CLASSIC_RO", name: "Classic Room Only", roomType: "Classic", boardType: "room_only", nightlyRate: "89.00", refundable: true },
+        { code: "RP_CLASSIC_BB", name: "Classic B&B", roomType: "Classic", boardType: "bed_breakfast", nightlyRate: "109.00", refundable: true },
+        { code: "RP_DELUXE_HB", name: "Deluxe Half Board", roomType: "Deluxe", boardType: "half_board", nightlyRate: "169.00", refundable: true },
+        { code: "RP_FAMILY_FB", name: "Family Full Board", roomType: "Family", boardType: "full_board", nightlyRate: "229.00", refundable: true },
+      ] as const;
+      for (const plan of ratePlans) {
+        await tx.hotelRatePlan.upsert({
+          where: { tenantId_code: { tenantId, code: plan.code } },
+          update: { ...plan, active: true },
+          create: { tenantId, ...plan, active: true },
+        });
+      }
+      created.ratePlans = ratePlans.length;
+
+      const rooms = [
+        { code: "101", floor: 1, roomType: "Classic", capacity: 2, status: "libera", ratePlanCode: "RP_CLASSIC_BB" },
+        { code: "102", floor: 1, roomType: "Classic", capacity: 2, status: "pulita", ratePlanCode: "RP_CLASSIC_RO" },
+        { code: "201", floor: 2, roomType: "Deluxe", capacity: 3, status: "libera", ratePlanCode: "RP_DELUXE_HB" },
+        { code: "301", floor: 3, roomType: "Family", capacity: 4, status: "libera", ratePlanCode: "RP_FAMILY_FB" },
+      ] as const;
+      for (const room of rooms) {
+        await tx.hotelRoom.upsert({
+          where: { tenantId_code: { tenantId, code: room.code } },
+          update: room,
+          create: { tenantId, ...room },
+        });
+      }
+      created.rooms = rooms.length;
+
+      const sala = await tx.restaurantRoom.upsert({
+        where: { tenantId_name: { tenantId, name: "Sala Principale" } },
+        update: { tables: 12 },
+        create: { tenantId, name: "Sala Principale", tables: 12 },
+      });
+      const terrazza = await tx.restaurantRoom.upsert({
+        where: { tenantId_name: { tenantId, name: "Terrazza" } },
+        update: { tables: 6 },
+        create: { tenantId, name: "Terrazza", tables: 6 },
+      });
+      created.restaurantRooms = 2;
+
+      const existingTables = await tx.restaurantTable.count({ where: { tenantId } });
+      if (existingTables === 0) {
+        const tableData = [
+          { roomId: sala.id, nome: "T1", posti: 4, x: 120, y: 80, forma: "quadrato", stato: "libero" },
+          { roomId: sala.id, nome: "T2", posti: 2, x: 220, y: 80, forma: "tondo", stato: "libero" },
+          { roomId: sala.id, nome: "T3", posti: 6, x: 320, y: 80, forma: "quadrato", stato: "libero" },
+          { roomId: terrazza.id, nome: "TR1", posti: 4, x: 120, y: 200, forma: "tondo", stato: "libero" },
+          { roomId: terrazza.id, nome: "TR2", posti: 2, x: 220, y: 200, forma: "tondo", stato: "libero" },
+        ] as const;
+        await tx.restaurantTable.createMany({
+          data: tableData.map((table) => ({ tenantId, ...table })),
+        });
+        created.restaurantTables = tableData.length;
+      } else {
+        created.restaurantTables = existingTables;
+      }
+
+      const stock = [
+        { name: "Farina 00", category: "Secchi", qty: "120.000", unit: "kg", minStock: "50.000", costPerUnit: "0.8500", supplier: "Molino Rossi" },
+        { name: "Mozzarella fior di latte", category: "Latticini", qty: "40.000", unit: "kg", minStock: "15.000", costPerUnit: "6.2000", supplier: "Caseificio Ferrara" },
+        { name: "Pomodoro San Marzano", category: "Conserve", qty: "80.000", unit: "kg", minStock: "30.000", costPerUnit: "2.8000", supplier: "Ortofrutticola Sud" },
+        { name: "Olio EVO", category: "Condimenti", qty: "45.000", unit: "L", minStock: "20.000", costPerUnit: "8.9000", supplier: "Oleificio Ferrante" },
+        { name: "Vino Rosso Casa", category: "Bevande", qty: "36.000", unit: "bt", minStock: "12.000", costPerUnit: "4.5000", supplier: "Cantina Colli" },
+      ] as const;
+      for (const item of stock) {
+        await tx.warehouseItem.upsert({
+          where: { tenantId_name: { tenantId, name: item.name } },
+          update: item,
+          create: { tenantId, ...item },
+        });
+      }
+      created.warehouseItems = stock.length;
+
+      const carbonara = await tx.recipe.upsert({
+        where: { tenantId_name: { tenantId, name: "Spaghetti alla Carbonara" } },
+        update: {
+          category: "Primi",
+          area: "cucina",
+          portions: 1,
+          sellingPrice: "14.00",
+          targetFcPct: "30.00",
+          ivaPct: "10.00",
+          overheadPct: "12.00",
+          packagingCost: "0.00",
+          laborCost: "1.20",
+          energyCost: "0.40",
+          notes: "Ricetta base carbonara",
+        },
+        create: {
+          tenantId,
+          name: "Spaghetti alla Carbonara",
+          category: "Primi",
+          area: "cucina",
+          portions: 1,
+          sellingPrice: "14.00",
+          targetFcPct: "30.00",
+          ivaPct: "10.00",
+          overheadPct: "12.00",
+          packagingCost: "0.00",
+          laborCost: "1.20",
+          energyCost: "0.40",
+          notes: "Ricetta base carbonara",
+        },
+      });
+      await tx.recipeIngredient.deleteMany({ where: { recipeId: carbonara.id } });
+      await tx.recipeIngredient.createMany({
+        data: [
+          { recipeId: carbonara.id, name: "Spaghetti", qty: "0.120", unit: "kg", unitCost: "1.8000", wastePct: "0.00" },
+          { recipeId: carbonara.id, name: "Guanciale", qty: "0.050", unit: "kg", unitCost: "12.5000", wastePct: "4.00" },
+          { recipeId: carbonara.id, name: "Pecorino", qty: "0.020", unit: "kg", unitCost: "14.0000", wastePct: "0.00" },
+        ],
+      });
+      await tx.recipeStep.deleteMany({ where: { recipeId: carbonara.id } });
+      await tx.recipeStep.createMany({
+        data: [
+          { recipeId: carbonara.id, stepOrder: 1, text: "Cuoci la pasta in acqua salata." },
+          { recipeId: carbonara.id, stepOrder: 2, text: "Rosola il guanciale e manteca con crema d'uovo e pecorino." },
+        ],
+      });
+      created.recipes = 1;
+
+      const menuExists = await tx.menuItem.findFirst({
+        where: { tenantId, code: "MNU-CARBONARA" },
+        select: { id: true },
+      });
+      if (!menuExists) {
+        await tx.menuItem.create({
+          data: {
+            tenantId,
+            name: "Spaghetti alla Carbonara",
+            category: "Primi",
+            area: "cucina",
+            price: "14.00",
+            code: "MNU-CARBONARA",
+            active: true,
+            recipeId: carbonara.id,
+            notes: "Specialità della casa",
+            foodCostPct: "29.50",
+          },
+        });
+      }
+      created.menuItems = await tx.menuItem.count({ where: { tenantId } });
+
+      const dailyExists = await tx.dailyDish.findFirst({
+        where: { tenantId, name: "Piatto del Giorno - Carbonara" },
+        select: { id: true },
+      });
+      if (!dailyExists) {
+        await tx.dailyDish.create({
+          data: {
+            tenantId,
+            name: "Piatto del Giorno - Carbonara",
+            description: "Versione premium con guanciale selezionato",
+            category: "Primi",
+            price: "15.00",
+            allergens: "uova, latte, glutine",
+            recipeId: carbonara.id,
+          },
+        });
+      }
+      created.dailyDishes = await tx.dailyDish.count({ where: { tenantId } });
+
+      const staffRows = [
+        { name: "Marta Reception", role: "Reception", email: "reception@baiaverde.local", phone: "+39 333 1010101", hireDate: new Date("2026-01-10T00:00:00Z"), salary: "1700.00", status: "attivo", hoursWeek: 40, notes: "" },
+        { name: "Luca Chef", role: "Chef", email: "chef@baiaverde.local", phone: "+39 333 2020202", hireDate: new Date("2025-10-01T00:00:00Z"), salary: "2400.00", status: "attivo", hoursWeek: 44, notes: "" },
+      ] as const;
+      for (const staff of staffRows) {
+        const exists = await tx.staffMember.findFirst({
+          where: { tenantId, email: staff.email },
+          select: { id: true },
+        });
+        if (!exists) await tx.staffMember.create({ data: { tenantId, ...staff } });
+      }
+      created.staffMembers = await tx.staffMember.count({ where: { tenantId } });
+
+      const customerRows = [
+        { name: "Alessio Verdi", email: "alessio.verdi@email.it", phone: "+39 333 3030303", type: "vip", visits: 3, totalSpent: "980.00", avgSpend: "326.67", allergies: "", preferences: "camera vista mare", notes: "", lastVisit: new Date("2026-04-12T00:00:00Z") },
+        { name: "Chiara Neri", email: "chiara.neri@email.it", phone: "+39 333 4040404", type: "new", visits: 1, totalSpent: "240.00", avgSpend: "240.00", allergies: "lattosio", preferences: "", notes: "", lastVisit: new Date("2026-04-14T00:00:00Z") },
+      ] as const;
+      for (const customer of customerRows) {
+        const exists = await tx.customer.findFirst({
+          where: { tenantId, email: customer.email },
+          select: { id: true },
+        });
+        if (!exists) await tx.customer.create({ data: { tenantId, ...customer } });
+      }
+      created.customers = await tx.customer.count({ where: { tenantId } });
+
+      const reportDate = new Date();
+      reportDate.setUTCHours(0, 0, 0, 0);
+      await tx.dailyClosureReport.upsert({
+        where: { tenantId_date: { tenantId, date: reportDate } },
+        update: {
+          foodSpend: "120.00",
+          staffSpend: "260.00",
+          revenue: "980.00",
+          notes: "Bootstrap operatività tenant",
+        },
+        create: {
+          tenantId,
+          date: reportDate,
+          foodSpend: "120.00",
+          staffSpend: "260.00",
+          revenue: "980.00",
+          notes: "Bootstrap operatività tenant",
+        },
+      });
+      created.reports = await tx.dailyClosureReport.count({ where: { tenantId } });
+    }, {
+      maxWait: 10_000,
+      timeout: 30_000,
+    });
+
+    return {
+      tenant,
+      created,
+    };
+  },
   async licenses() {
     const rows = await prisma.tenantLicense.findMany({
       include: { tenant: { select: { name: true } } },
