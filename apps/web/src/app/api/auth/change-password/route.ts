@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     username: changed.user.username,
     name: changed.user.name,
     email: changed.user.email,
+    sessionVersion: changed.user.sessionVersion,
     mustChangePassword: false,
   });
   return res;

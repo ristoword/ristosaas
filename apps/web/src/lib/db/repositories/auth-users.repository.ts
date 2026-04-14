@@ -9,6 +9,7 @@ type DbUser = {
   name: string;
   role: string;
   email: string;
+  sessionVersion: number;
   mustChangePassword: boolean;
   failedLoginAttempts: number;
   lockedUntil: Date | null;
@@ -25,6 +26,7 @@ function sanitizeUser(user: DbUser): PublicUser {
     name: user.name,
     role: user.role as UserRole,
     email: user.email,
+    sessionVersion: user.sessionVersion,
     mustChangePassword: user.mustChangePassword,
     failedLoginAttempts: user.failedLoginAttempts,
     lockedUntil: user.lockedUntil ? user.lockedUntil.getTime() : null,
@@ -48,6 +50,7 @@ export const authUsersRepository = {
         name: true,
         role: true,
         email: true,
+        sessionVersion: true,
         mustChangePassword: true,
         failedLoginAttempts: true,
         lockedUntil: true,
@@ -65,6 +68,7 @@ export const authUsersRepository = {
         name: true,
         role: true,
         email: true,
+        sessionVersion: true,
         mustChangePassword: true,
         failedLoginAttempts: true,
         lockedUntil: true,
@@ -107,6 +111,7 @@ export const authUsersRepository = {
         name: true,
         role: true,
         email: true,
+        sessionVersion: true,
         mustChangePassword: true,
         failedLoginAttempts: true,
         lockedUntil: true,
@@ -122,6 +127,7 @@ export const authUsersRepository = {
       where: { id: userId },
       data: {
         passwordHash: hashPassword(temporaryPassword),
+        sessionVersion: { increment: 1 },
         mustChangePassword: true,
         failedLoginAttempts: 0,
         lockedUntil: null,
@@ -133,6 +139,7 @@ export const authUsersRepository = {
         name: true,
         role: true,
         email: true,
+        sessionVersion: true,
         mustChangePassword: true,
         failedLoginAttempts: true,
         lockedUntil: true,
@@ -148,6 +155,7 @@ export const authUsersRepository = {
       where: { id: userId },
       data: {
         passwordHash: hashPassword(newPassword),
+        sessionVersion: { increment: 1 },
         mustChangePassword: false,
         failedLoginAttempts: 0,
         lockedUntil: null,
@@ -159,6 +167,7 @@ export const authUsersRepository = {
         name: true,
         role: true,
         email: true,
+        sessionVersion: true,
         mustChangePassword: true,
         failedLoginAttempts: true,
         lockedUntil: true,
@@ -176,6 +185,7 @@ export const authUsersRepository = {
         name: true,
         role: true,
         email: true,
+        sessionVersion: true,
         mustChangePassword: true,
         failedLoginAttempts: true,
         lockedUntil: true,
@@ -201,5 +211,13 @@ export const authUsersRepository = {
     }
 
     return user;
+  },
+  async isSessionVersionValid(userId: string, sessionVersion: number) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { sessionVersion: true },
+    });
+    if (!user) return false;
+    return user.sessionVersion === sessionVersion;
   },
 };

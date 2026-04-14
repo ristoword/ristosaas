@@ -249,6 +249,7 @@ model User {
   name         String
   email        String   @unique
   role         String
+  sessionVersion Int @default(0)
   mustChangePassword Boolean @default(false)
   failedLoginAttempts Int @default(0)
   lockedUntil   DateTime?

@@ -9,6 +9,7 @@ type SessionClaims = {
   username: string;
   name: string;
   email: string;
+  sessionVersion?: number;
   mustChangePassword?: boolean;
 };
 
@@ -25,9 +26,11 @@ export function verifySessionToken(token: string) {
     const username = "username" in decoded ? String(decoded.username) : null;
     const name = "name" in decoded ? String(decoded.name) : null;
     const email = "email" in decoded ? String(decoded.email) : null;
+    const sessionVersion = "sessionVersion" in decoded ? Number(decoded.sessionVersion) : 0;
     const mustChangePassword = "mustChangePassword" in decoded ? Boolean(decoded.mustChangePassword) : false;
     if (!userId || !role || !username || !name || !email) return null;
-    return { userId, role, username, name, email, mustChangePassword };
+    if (Number.isNaN(sessionVersion) || sessionVersion < 0) return null;
+    return { userId, role, username, name, email, sessionVersion, mustChangePassword };
   } catch {
     return null;
   }
@@ -44,6 +47,7 @@ export function getRequestUser(req: NextRequest) {
     username: claims.username,
     name: claims.name,
     email: claims.email,
+    sessionVersion: claims.sessionVersion ?? 0,
     mustChangePassword: !!claims.mustChangePassword,
     isLocked: false,
   };

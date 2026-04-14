@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
     username: validatedUser.username,
     name: validatedUser.name,
     email: validatedUser.email,
+    sessionVersion: validatedUser.sessionVersion,
     mustChangePassword: !!validatedUser.mustChangePassword,
   });
 

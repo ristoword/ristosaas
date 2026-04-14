@@ -11,9 +11,11 @@ export async function verifyEdgeSessionToken(token: string) {
     const username = payload.username ? String(payload.username) : null;
     const name = payload.name ? String(payload.name) : null;
     const email = payload.email ? String(payload.email) : null;
+    const sessionVersion = payload.sessionVersion ? Number(payload.sessionVersion) : 0;
     const mustChangePassword = payload.mustChangePassword ? Boolean(payload.mustChangePassword) : false;
+    if (Number.isNaN(sessionVersion) || sessionVersion < 0) return null;
     if (!userId || !role || !username || !name || !email) return null;
-    return { userId, role, username, name, email, mustChangePassword };
+    return { userId, role, username, name, email, sessionVersion, mustChangePassword };
   } catch {
     return null;
   }

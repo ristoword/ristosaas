@@ -19,6 +19,7 @@ export type PublicUser = {
   name: string;
   role: UserRole;
   email: string;
+  sessionVersion?: number;
   mustChangePassword?: boolean;
   failedLoginAttempts?: number;
   lockedUntil?: number | null;

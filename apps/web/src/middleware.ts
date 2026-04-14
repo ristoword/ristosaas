@@ -1,11 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { hasVerticalEnabled } from "@/core/tenant/platform-config";
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
+import type { UserRole } from "@/lib/auth/types";
 
 const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login"];
+const PUBLIC_API = ["/api/billing/stripe/webhook"];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/dev-access"];
 const RESTAURANT_ONLY = ["/rooms", "/sala-fullscreen", "/cucina", "/pizzeria", "/bar", "/cassa", "/chiusura", "/asporto", "/prenotazioni", "/magazzino", "/fornitori", "/menu-admin", "/daily-menu", "/food-cost", "/catering"];
 const HOTEL_ONLY = ["/hotel"];
+const API_ROLE_RULES: Array<{ prefix: string; roles: UserRole[] }> = [
+  { prefix: "/api/admin", roles: ["super_admin"] },
+  { prefix: "/api/billing/overview", roles: ["owner", "super_admin"] },
+  { prefix: "/api/reports", roles: ["owner", "super_admin", "supervisor", "cassa"] },
+];
+
+function canAccessWithRole(role: string, required: UserRole[]) {
+  if (role === "owner" || role === "super_admin") return true;
+  return required.includes(role as UserRole);
+}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -18,7 +30,14 @@ export async function middleware(req: NextRequest) {
   const user = session;
 
   if (pathname.startsWith("/api/")) {
+    if (PUBLIC_API.some((p) => pathname.startsWith(p))) return NextResponse.next();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const rule = API_ROLE_RULES.find((item) => pathname.startsWith(item.prefix));
+    if (rule && !canAccessWithRole(user.role, rule.roles)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     if (
       user.mustChangePassword &&
       !pathname.startsWith("/api/auth/change-password") &&
