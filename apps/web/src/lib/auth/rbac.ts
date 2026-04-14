@@ -5,7 +5,7 @@ type ApiRule = {
   roles: readonly UserRole[];
 };
 
-export const PUBLIC_API_PREFIXES = ["/api/billing/stripe/webhook"] as const;
+export const PUBLIC_API_PREFIXES = ["/api/billing/stripe/webhook", "/api/auth/session-valid", "/api/auth/license-valid"] as const;
 
 export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/admin", roles: ["super_admin"] },

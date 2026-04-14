@@ -1,6 +1,12 @@
 import jwt from "jsonwebtoken";
 import type { NextRequest, NextResponse } from "next/server";
-import { JWT_SECRET, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/constants";
+import {
+  JWT_SECRET,
+  SESSION_COOKIE,
+  SESSION_MAX_AGE_SECONDS,
+  SESSION_MAX_AGE_SUPERADMIN_SECONDS,
+  SESSION_MAX_AGE_SUPERVISOR_SECONDS,
+} from "@/lib/auth/constants";
 import type { PublicUser } from "@/lib/auth/types";
 
 type SessionClaims = {
@@ -14,7 +20,7 @@ type SessionClaims = {
 };
 
 export function createSessionToken(payload: SessionClaims) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: SESSION_MAX_AGE_SECONDS });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: getSessionMaxAgeSeconds(payload.role) });
 }
 
 export function verifySessionToken(token: string) {
@@ -55,12 +61,13 @@ export function getRequestUser(req: NextRequest) {
 }
 
 export function setSessionCookie(res: NextResponse, payload: SessionClaims) {
+  const maxAge = getSessionMaxAgeSeconds(payload.role);
   const token = createSessionToken(payload);
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
+    maxAge,
   });
 }
 
@@ -71,4 +78,10 @@ export function clearSessionCookie(res: NextResponse) {
     path: "/",
     maxAge: 0,
   });
+}
+
+function getSessionMaxAgeSeconds(role: string) {
+  if (role === "super_admin") return SESSION_MAX_AGE_SUPERADMIN_SECONDS;
+  if (role === "owner" || role === "supervisor") return SESSION_MAX_AGE_SUPERVISOR_SECONDS;
+  return SESSION_MAX_AGE_SECONDS;
 }
