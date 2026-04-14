@@ -3,6 +3,7 @@ import { err, ok, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
+import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository";
 
 type AiRole = "user" | "assistant";
 type AiMessage = { role: AiRole; content: string };
@@ -29,6 +30,47 @@ function systemPromptForContext(context: string) {
   };
 
   return `${base}\n${byContext[context] || byContext.default}`;
+}
+
+function kitchenSnapshotToPrompt(snapshot: Awaited<ReturnType<typeof aiKitchenRepository.snapshot>>) {
+  const topDishes = snapshot.topDishes
+    .slice(0, 8)
+    .map((d) => `- ${d.name}: ${d.qty} porzioni, EUR ${d.revenue.toFixed(2)}`)
+    .join("\n");
+  const lowStock = snapshot.lowStockItems
+    .slice(0, 8)
+    .map((i) => `- ${i.name}: ${i.qty} ${i.unit} (min ${i.minStock})`)
+    .join("\n");
+  const overStock = snapshot.overStockItems
+    .slice(0, 8)
+    .map((i) => `- ${i.name}: ${i.qty} ${i.unit} (min ${i.minStock})`)
+    .join("\n");
+  const feasible = snapshot.feasibleDishes
+    .slice(0, 10)
+    .map(
+      (f) =>
+        `- ${f.menuItem} (ricetta: ${f.recipeName}) -> porzioni possibili: ${f.possiblePortions}${
+          f.missingIngredients.length ? ` | mancanti: ${f.missingIngredients.join(", ")}` : ""
+        }`,
+    )
+    .join("\n");
+
+  return [
+    `Dati cucina reali (ultimi ${snapshot.periodDays} giorni, generatedAt=${snapshot.generatedAt}):`,
+    "Top vendite:",
+    topDishes || "- nessun dato vendite",
+    "Sotto scorta:",
+    lowStock || "- nessuna sotto scorta",
+    "Sovra-scorta:",
+    overStock || "- nessuna sovra-scorta",
+    "Piatti fattibili da stock attuale:",
+    feasible || "- nessun piatto fattibile",
+    "Quando rispondi, usa SOLO questi dati reali e fornisci SEMPRE:",
+    "1) 3-5 piatti consigliati oggi con motivazione quantitativa",
+    "2) prep list (mise en place) con priorita",
+    "3) azioni riordino urgenti",
+    "4) eventuali piatti da spingere per smaltire sovra-scorte",
+  ].join("\n");
 }
 
 export async function POST(req: NextRequest) {
@@ -66,6 +108,11 @@ export async function POST(req: NextRequest) {
       typeof item.content === "string" &&
       item.content.trim().length > 0,
   );
+  let systemPrompt = systemPromptForContext(context);
+  if (context === "cucina") {
+    const snapshot = await aiKitchenRepository.snapshot(tenantId, 14);
+    systemPrompt = `${systemPrompt}\n\n${kitchenSnapshotToPrompt(snapshot)}`;
+  }
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -78,7 +125,7 @@ export async function POST(req: NextRequest) {
       temperature: TEMPERATURE,
       max_tokens: MAX_TOKENS,
       messages: [
-        { role: "system", content: systemPromptForContext(context) },
+        { role: "system", content: systemPrompt },
         ...safeHistory,
         { role: "user", content: message },
       ],

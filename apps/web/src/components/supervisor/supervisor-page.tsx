@@ -40,6 +40,7 @@ import {
   integrationApi,
   hotelApi,
   reportsApi,
+  aiOpsApi,
   type Order,
   type MenuItem as ApiMenuItem,
   type FolioCharge,
@@ -53,6 +54,8 @@ import {
   type ReportTrendsSnapshot,
   type StaffShift,
   type WarehouseAlert,
+  type AiProposal,
+  type KitchenOperationalSnapshot,
 } from "@/lib/api-client";
 
 /* ------------------------------------------------------------------ */
@@ -136,6 +139,8 @@ export function SupervisorPage() {
   const [folioCharges, setFolioCharges] = useState<FolioCharge[]>([]);
   const [unifiedReport, setUnifiedReport] = useState<UnifiedReportSnapshot | null>(null);
   const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
+  const [aiProposals, setAiProposals] = useState<AiProposal[]>([]);
+  const [aiSnapshot, setAiSnapshot] = useState<KitchenOperationalSnapshot | null>(null);
   const [unifiedFrom, setUnifiedFrom] = useState("");
   const [unifiedTo, setUnifiedTo] = useState("");
 
@@ -164,8 +169,10 @@ export function SupervisorPage() {
       integrationApi.listCharges(),
       reportsApi.unified(),
       reportsApi.trends(),
+      aiOpsApi.proposals.list({ open: true, limit: 20 }),
+      aiOpsApi.kitchenOperationalInsights(14),
     ])
-      .then(([ordersData, menuData, warehouseData, staffData, shiftsData, archivioData, roomsData, reservationsData, foliosData, chargesData, unifiedData, trendsData]) => {
+      .then(([ordersData, menuData, warehouseData, staffData, shiftsData, archivioData, roomsData, reservationsData, foliosData, chargesData, unifiedData, trendsData, proposalsData, snapshotData]) => {
         setOrders(ordersData);
         setMenuItems(menuData);
         setStockItems(warehouseData.items);
@@ -181,6 +188,8 @@ export function SupervisorPage() {
         setFolioCharges(chargesData);
         setUnifiedReport(unifiedData);
         setTrends(trendsData);
+        setAiProposals(proposalsData.proposals);
+        setAiSnapshot(snapshotData);
       })
       .catch((err) => console.error("Failed to fetch supervisor data:", err))
       .finally(() => setLoading(false));
@@ -195,6 +204,45 @@ export function SupervisorPage() {
       .then(setUnifiedReport)
       .catch((error) => console.error("Failed to refresh unified report:", error));
   }, [unifiedFrom, unifiedTo]);
+
+  const refreshAi = useCallback(() => {
+    Promise.all([
+      aiOpsApi.proposals.list({ open: true, limit: 20 }),
+      aiOpsApi.kitchenOperationalInsights(14),
+    ])
+      .then(([proposalsData, snapshotData]) => {
+        setAiProposals(proposalsData.proposals);
+        setAiSnapshot(snapshotData);
+      })
+      .catch((error) => console.error("Failed to refresh AI ops data:", error));
+  }, []);
+
+  const generateProposals = useCallback(() => {
+    aiOpsApi.proposals
+      .generate({ days: 14, status: "pending_review" })
+      .then(() => refreshAi())
+      .catch((error) => console.error("Failed to generate proposals:", error));
+  }, [refreshAi]);
+
+  const reviewProposal = useCallback(
+    (id: string, action: "approve" | "reject" | "cancel") => {
+      aiOpsApi.proposals
+        .review(id, { action })
+        .then(() => refreshAi())
+        .catch((error) => console.error("Failed to review proposal:", error));
+    },
+    [refreshAi],
+  );
+
+  const applyProposal = useCallback(
+    (id: string) => {
+      aiOpsApi.proposals
+        .apply(id)
+        .then(() => refreshAi())
+        .catch((error) => console.error("Failed to apply proposal:", error));
+    },
+    [refreshAi],
+  );
 
   /* ---- derived KPIs ---- */
   const incassoLordo = useMemo(
@@ -360,6 +408,69 @@ export function SupervisorPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
+            <Card
+              title="AI Operativa - Queue approvazioni"
+              description="Bozze generate su dati reali: approva, rifiuta o applica."
+              headerRight={
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-rw-soft hover:bg-rw-surfaceAlt"
+                    onClick={refreshAi}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Refresh
+                  </button>
+                  <button type="button" className={btnPrimary} onClick={generateProposals}>
+                    <FileText className="h-4 w-4" /> Genera proposte
+                  </button>
+                </div>
+              }
+            >
+              <div className="space-y-3">
+                {aiSnapshot && (
+                  <div className="grid gap-2 sm:grid-cols-4">
+                    <Chip label="Loss dishes" value={aiSnapshot.kpi.lossDishes} tone={aiSnapshot.kpi.lossDishes > 0 ? "danger" : "default"} />
+                    <Chip label="Low margin" value={aiSnapshot.kpi.lowMarginDishes} tone={aiSnapshot.kpi.lowMarginDishes > 0 ? "warn" : "default"} />
+                    <Chip label="Scadenze" value={aiSnapshot.kpi.expiringLots} tone={aiSnapshot.kpi.expiringLots > 0 ? "danger" : "default"} />
+                    <Chip label="Prodotti fermi" value={aiSnapshot.kpi.stagnantProducts} tone={aiSnapshot.kpi.stagnantProducts > 0 ? "warn" : "default"} />
+                  </div>
+                )}
+                {aiSnapshot && (
+                  <div className="rounded-xl bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-soft">
+                    <span className="font-semibold text-rw-ink">Manager:</span> {aiSnapshot.managerReport.headline}
+                  </div>
+                )}
+                <div className="space-y-2">
+                  {(aiProposals.length > 0 ? aiProposals : []).slice(0, 8).map((proposal) => (
+                    <div key={proposal.id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-rw-ink">{proposal.title}</p>
+                          <p className="text-xs text-rw-muted">{proposal.type} • {proposal.status}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {proposal.status === "pending_review" && (
+                            <>
+                              <button type="button" className="rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-400" onClick={() => reviewProposal(proposal.id, "approve")}>Approva</button>
+                              <button type="button" className="rounded-lg bg-red-500/15 px-2 py-1 text-xs font-semibold text-red-400" onClick={() => reviewProposal(proposal.id, "reject")}>Rifiuta</button>
+                            </>
+                          )}
+                          {proposal.status === "approved" && (
+                            <button type="button" className="rounded-lg bg-rw-accent/15 px-2 py-1 text-xs font-semibold text-rw-accent" onClick={() => applyProposal(proposal.id)}>Applica</button>
+                          )}
+                        </div>
+                      </div>
+                      <p className="mt-1 text-xs text-rw-soft">{proposal.summary}</p>
+                    </div>
+                  ))}
+                  {aiProposals.length === 0 && (
+                    <p className="rounded-xl bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-muted">
+                      Nessuna proposta aperta. Genera un nuovo batch AI.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
             <Card title="Riepilogo staff" description="Personale e ruoli">
               <ul className="space-y-2">
                 {[

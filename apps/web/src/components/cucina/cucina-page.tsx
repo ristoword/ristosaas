@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, BookOpen, Clock, Flame, Minus, Plus, Printer, ThermometerSun, Trash2, Upload, Users, UtensilsCrossed } from "lucide-react";
 import { useOrders } from "@/components/orders/orders-context";
 import { useMenu, calcFoodCost } from "@/components/menu/menu-context";
@@ -15,6 +15,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { cn } from "@/lib/utils";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
+import { aiOpsApi, type KitchenOperationalSnapshot } from "@/lib/api-client";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -759,6 +760,14 @@ export function CucinaPage() {
   const { getOrdersForArea, patchStatus } = useOrders();
   const [activeTab, setActiveTab] = useState("comande");
   const [aiOpen, setAiOpen] = useState(false);
+  const [aiSnapshot, setAiSnapshot] = useState<KitchenOperationalSnapshot | null>(null);
+
+  useEffect(() => {
+    aiOpsApi
+      .kitchenOperationalInsights(14)
+      .then(setAiSnapshot)
+      .catch((error) => console.error("Failed to fetch kitchen operational insights:", error));
+  }, []);
 
   const kitchenOrders = getOrdersForArea("cucina");
 
@@ -794,48 +803,77 @@ export function CucinaPage() {
       <TabBar tabs={[...TABS]} active={activeTab} onChange={setActiveTab} />
 
       {activeTab === "comande" && (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <KdsColumn title="In attesa" tone="pending" count={classified.inAttesa.length}>
-            {classified.inAttesa.map(({ order, kds }) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                kds={kds}
-                onInPrep={() => patchStatus(order.id, "in_preparazione")}
-                onPronto={() => patchStatus(order.id, "pronto")}
-                onServito={() => patchStatus(order.id, "servito")}
-              />
-            ))}
-            {classified.inAttesa.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in attesa</p>}
-          </KdsColumn>
+        <div className="space-y-4">
+          {aiSnapshot && (
+            <Card title="AI Operativa Cucina" description="Margini, sprechi, riordino e suggerimenti live da DB">
+              <div className="grid gap-2 sm:grid-cols-4">
+                <Chip label="Piatti in perdita" value={aiSnapshot.kpi.lossDishes} tone={aiSnapshot.kpi.lossDishes > 0 ? "danger" : "default"} />
+                <Chip label="Margine basso" value={aiSnapshot.kpi.lowMarginDishes} tone={aiSnapshot.kpi.lowMarginDishes > 0 ? "warn" : "default"} />
+                <Chip label="Lotti in scadenza" value={aiSnapshot.kpi.expiringLots} tone={aiSnapshot.kpi.expiringLots > 0 ? "danger" : "default"} />
+                <Chip label="Prodotti fermi" value={aiSnapshot.kpi.stagnantProducts} tone={aiSnapshot.kpi.stagnantProducts > 0 ? "warn" : "default"} />
+              </div>
+              <div className="mt-3 space-y-2 text-sm text-rw-soft">
+                {aiSnapshot.foodCost
+                  .filter((dish) => dish.status !== "healthy")
+                  .slice(0, 3)
+                  .map((dish) => (
+                  <p key={dish.menuItem}>
+                    <span className="font-semibold text-rw-ink">{dish.menuItem}</span>
+                    {" -> costo "}
+                    {dish.plateCost.toFixed(2)} EUR, prezzo {dish.price.toFixed(2)} EUR, {dish.status === "loss" ? "in perdita" : "margine basso"}
+                  </p>
+                  ))}
+                {aiSnapshot.reorder.slice(0, 2).map((item) => (
+                  <p key={item.warehouseItemId}>
+                    Ordina {item.suggestedOrderQty} {item.unit} di {item.name} {item.eta}
+                  </p>
+                ))}
+              </div>
+            </Card>
+          )}
+          <div className="grid gap-4 lg:grid-cols-3">
+            <KdsColumn title="In attesa" tone="pending" count={classified.inAttesa.length}>
+              {classified.inAttesa.map(({ order, kds }) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  kds={kds}
+                  onInPrep={() => patchStatus(order.id, "in_preparazione")}
+                  onPronto={() => patchStatus(order.id, "pronto")}
+                  onServito={() => patchStatus(order.id, "servito")}
+                />
+              ))}
+              {classified.inAttesa.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in attesa</p>}
+            </KdsColumn>
 
-          <KdsColumn title="In preparazione" tone="prep" count={classified.inPrep.length}>
-            {classified.inPrep.map(({ order, kds }) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                kds={kds}
-                onInPrep={() => patchStatus(order.id, "in_preparazione")}
-                onPronto={() => patchStatus(order.id, "pronto")}
-                onServito={() => patchStatus(order.id, "servito")}
-              />
-            ))}
-            {classified.inPrep.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in prep</p>}
-          </KdsColumn>
+            <KdsColumn title="In preparazione" tone="prep" count={classified.inPrep.length}>
+              {classified.inPrep.map(({ order, kds }) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  kds={kds}
+                  onInPrep={() => patchStatus(order.id, "in_preparazione")}
+                  onPronto={() => patchStatus(order.id, "pronto")}
+                  onServito={() => patchStatus(order.id, "servito")}
+                />
+              ))}
+              {classified.inPrep.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in prep</p>}
+            </KdsColumn>
 
-          <KdsColumn title="Pronti" tone="ready" count={classified.pronti.length}>
-            {classified.pronti.map(({ order, kds }) => (
-              <OrderCard
-                key={order.id}
-                order={order}
-                kds={kds}
-                onInPrep={() => patchStatus(order.id, "in_preparazione")}
-                onPronto={() => patchStatus(order.id, "pronto")}
-                onServito={() => patchStatus(order.id, "servito")}
-              />
-            ))}
-            {classified.pronti.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda pronta</p>}
-          </KdsColumn>
+            <KdsColumn title="Pronti" tone="ready" count={classified.pronti.length}>
+              {classified.pronti.map(({ order, kds }) => (
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  kds={kds}
+                  onInPrep={() => patchStatus(order.id, "in_preparazione")}
+                  onPronto={() => patchStatus(order.id, "pronto")}
+                  onServito={() => patchStatus(order.id, "servito")}
+                />
+              ))}
+              {classified.pronti.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda pronta</p>}
+            </KdsColumn>
+          </div>
         </div>
       )}
 

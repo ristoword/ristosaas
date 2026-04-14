@@ -1,0 +1,36 @@
+name: AI Ops Daily Proposals
+
+on:
+  schedule:
+    - cron: "10 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  trigger-daily-ai-proposals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate required secrets
+        env:
+          APP_URL: ${{ secrets.RISTOSAAS_APP_URL }}
+          TOKEN: ${{ secrets.RISTOSAAS_AI_SCHEDULER_TOKEN }}
+        run: |
+          if [ -z "${APP_URL}" ]; then
+            echo "Missing secret: RISTOSAAS_APP_URL"
+            exit 1
+          fi
+          if [ -z "${TOKEN}" ]; then
+            echo "Missing secret: RISTOSAAS_AI_SCHEDULER_TOKEN"
+            exit 1
+          fi
+
+      - name: Trigger daily AI proposal generation
+        env:
+          APP_URL: ${{ secrets.RISTOSAAS_APP_URL }}
+          TOKEN: ${{ secrets.RISTOSAAS_AI_SCHEDULER_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl --fail --show-error --silent \
+            -X POST "${APP_URL}/api/ai/proposals/schedule/daily" \
+            -H "x-scheduler-token: ${TOKEN}" \
+            -H "content-type: application/json"

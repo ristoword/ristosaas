@@ -153,6 +153,25 @@ enum WarehouseMovementType {
   scarico_comanda
 }
 
+enum AiProposalType {
+  food_cost
+  warehouse
+  menu
+  pricing
+  manager_report
+  reorder
+  hotel_bridge
+}
+
+enum AiProposalStatus {
+  draft
+  pending_review
+  approved
+  rejected
+  applied
+  cancelled
+}
+
 enum RestaurantOrderArea {
   sala
   cucina
@@ -182,7 +201,10 @@ model Tenant {
   warehouseItems WarehouseItem[]
   warehouseMovements WarehouseMovement[]
   warehouseEquipments WarehouseEquipment[]
+  warehouseLots WarehouseLot[]
+  warehouseCostHistory WarehouseCostHistory[]
   aiChatLogs  AiChatLog[]
+  aiProposals AiProposal[]
   recipes     Recipe[]
   menuItems   MenuItem[]
   dailyDishes DailyDish[]
@@ -452,6 +474,9 @@ model WarehouseItem {
   updatedAt   DateTime @updatedAt
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   movements   WarehouseMovement[]
+  lots        WarehouseLot[]
+  costHistory WarehouseCostHistory[]
+  recipeIngredients RecipeIngredient[]
 
   @@unique([tenantId, name])
 }
@@ -504,6 +529,60 @@ model AiChatLog {
   @@index([tenantId, userId, createdAt])
 }
 
+model AiProposal {
+  id           String           @id @default(cuid())
+  tenantId     String
+  createdBy    String
+  type         AiProposalType
+  status       AiProposalStatus @default(draft)
+  title        String
+  summary      String
+  payload      Json
+  reviewedBy   String?
+  reviewedAt   DateTime?
+  reviewNotes  String?
+  appliedAt    DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, type, createdAt])
+}
+
+model WarehouseLot {
+  id              String   @id @default(cuid())
+  tenantId        String
+  warehouseItemId String
+  lotCode         String
+  qty             Decimal  @db.Decimal(12, 3)
+  qtyRemaining    Decimal  @db.Decimal(12, 3)
+  purchaseUnitCost Decimal @db.Decimal(12, 4)
+  receivedAt      DateTime
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item            WarehouseItem @relation(fields: [warehouseItemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, expiresAt])
+  @@index([tenantId, warehouseItemId, receivedAt])
+  @@unique([tenantId, warehouseItemId, lotCode])
+}
+
+model WarehouseCostHistory {
+  id              String   @id @default(cuid())
+  tenantId        String
+  warehouseItemId String
+  unitCost        Decimal  @db.Decimal(12, 4)
+  source          String
+  effectiveAt     DateTime
+  createdAt       DateTime @default(now())
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item            WarehouseItem @relation(fields: [warehouseItemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, warehouseItemId, effectiveAt])
+}
+
 model Recipe {
   id             String   @id @default(cuid())
   tenantId       String
@@ -533,12 +612,14 @@ model Recipe {
 model RecipeIngredient {
   id        String   @id @default(cuid())
   recipeId  String
+  warehouseItemId String?
   name      String
   qty       Decimal  @db.Decimal(12, 3)
   unit      String
   unitCost  Decimal  @db.Decimal(12, 4)
   wastePct  Decimal  @db.Decimal(5, 2)
   recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  warehouseItem WarehouseItem? @relation(fields: [warehouseItemId], references: [id], onDelete: SetNull)
 }
 
 model RecipeStep {
@@ -565,6 +646,7 @@ model MenuItem {
   updatedAt   DateTime @updatedAt
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   recipe      Recipe?  @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  restaurantOrderItems RestaurantOrderItem[]
 }
 
 model DailyDish {
@@ -602,6 +684,7 @@ model RestaurantOrder {
 model RestaurantOrderItem {
   id        String              @id @default(cuid())
   orderId   String
+  menuItemId String?
   name      String
   qty       Int
   category  String?
@@ -610,6 +693,7 @@ model RestaurantOrderItem {
   note      String?
   course    Int
   order     RestaurantOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem  MenuItem?           @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
 }
 
 model DailyClosureReport {

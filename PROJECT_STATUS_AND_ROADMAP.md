@@ -1,6 +1,6 @@
 # RistoSaaS Platform - Project Status and Final Roadmap
 
-Ultimo aggiornamento: 2026-04-14 (observability + backup automation baseline)
+Ultimo aggiornamento: 2026-04-14 (AI cucina data-driven + observability/backup baseline)
 
 ## 1) Stato Reale Attuale
 
@@ -38,6 +38,10 @@ Ultimo aggiornamento: 2026-04-14 (observability + backup automation baseline)
   - costi food da movimenti
   - costi staff da turni
   - margine operativo
+- AI operativa reale:
+  - chat OpenAI persistita su DB (`AiChatLog`)
+  - contesto cucina data-driven da PostgreSQL (top vendite, sotto-scorta, sovra-scorta, piatti fattibili)
+  - endpoint tecnico insight cucina (`/api/ai/kitchen/insights`)
 
 ### 1.2 Build/operativita tecnica
 

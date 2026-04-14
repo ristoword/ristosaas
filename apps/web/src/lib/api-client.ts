@@ -116,6 +116,14 @@ export const kitchenApi = {
   updateRecipe: (id: string, data: Partial<Recipe>) => put<{ recipe: Recipe; foodCost: FoodCostResult }>(`/kitchen/recipes/${id}`, data),
   deleteRecipe: (id: string) => del<{ deleted: boolean }>(`/kitchen/recipes/${id}`),
   getFoodCost: (recipeId: string) => get<FoodCostResult>(`/kitchen/food-cost/${recipeId}`),
+  pricingInsights: (days = 14) =>
+    get<{ generatedAt: string; periodDays: number; foodCost: KitchenOperationalSnapshot["foodCost"]; dynamicPricing: KitchenOperationalSnapshot["dynamicPricing"] }>(
+      `/kitchen/pricing?days=${days}`,
+    ),
+  generateMenu: (days = 14) =>
+    get<{ generatedAt: string; periodDays: number; menuGenerator: KitchenOperationalSnapshot["menuGenerator"]; hotelBridge: KitchenOperationalSnapshot["hotelBridge"] }>(
+      `/kitchen/menu-generator?days=${days}`,
+    ),
 };
 
 /* ─── Menu ───────────────────────────────────────── */
@@ -179,6 +187,13 @@ export const warehouseApi = {
   load: (productId: string, qty: number, reason?: string) => post<{ item: StockItem }>("/warehouse/load", { productId, qty, reason }),
   discharge: (productName: string, qty: number, reason: string) => post<{ item: StockItem }>("/warehouse/discharge", { productName, qty, reason }),
   movements: () => get<StockMovement[]>("/warehouse/movements"),
+  reorder: (days = 14) =>
+    get<{
+      generatedAt: string;
+      periodDays: number;
+      reorder: KitchenOperationalSnapshot["reorder"];
+      warehouse: KitchenOperationalSnapshot["warehouse"];
+    }>(`/warehouse/reorder?days=${days}`),
   listEquipment: () => get<WarehouseEquipment[]>("/warehouse/equipment"),
   createEquipment: (data: Omit<WarehouseEquipment, "id">) => post<WarehouseEquipment>("/warehouse/equipment", data),
   updateEquipment: (id: string, data: Partial<WarehouseEquipment>) =>
@@ -416,6 +431,146 @@ export const reportsApi = {
   trends: () => get<ReportTrendsSnapshot>("/reports/trends"),
 };
 
+export type AiProposalType =
+  | "food_cost"
+  | "warehouse"
+  | "menu"
+  | "pricing"
+  | "manager_report"
+  | "reorder"
+  | "hotel_bridge";
+export type AiProposalStatus =
+  | "draft"
+  | "pending_review"
+  | "approved"
+  | "rejected"
+  | "applied"
+  | "cancelled";
+export type AiProposal = {
+  id: string;
+  tenantId: string;
+  createdBy: string;
+  type: AiProposalType;
+  status: AiProposalStatus;
+  title: string;
+  summary: string;
+  payload: Record<string, unknown>;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewNotes: string | null;
+  appliedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+export type KitchenOperationalSnapshot = {
+  periodDays: number;
+  generatedAt: string;
+  foodCost: Array<{
+    menuItemId: string;
+    menuItem: string;
+    recipeId: string;
+    recipeName: string;
+    price: number;
+    plateCost: number;
+    marginValue: number;
+    marginPct: number;
+    actualFoodCostPct: number;
+    targetFoodCostPct: number;
+    suggestedPrice: number;
+    status: "healthy" | "low_margin" | "loss";
+    demandQty: number;
+    note: string;
+  }>;
+  warehouse: {
+    stagnantProducts: Array<{
+      warehouseItemId: string;
+      name: string;
+      qty: number;
+      unit: string;
+      daysWithoutMovement: number;
+      suggestion: string;
+    }>;
+    expiringProducts: Array<{
+      lotId: string;
+      warehouseItemId: string;
+      name: string;
+      qtyRemaining: number;
+      unit: string;
+      expiresAt: string;
+      daysToExpire: number;
+      suggestion: string;
+    }>;
+  };
+  menuGenerator: {
+    dailyMenu: Array<{ menuItemId: string; name: string; category: string; score: number; reason: string }>;
+    seasonalMenu: Array<{ menuItemId: string; name: string; category: string; score: number; reason: string }>;
+  };
+  dynamicPricing: Array<{
+    menuItemId: string;
+    menuItem: string;
+    currentPrice: number;
+    suggestedPrice: number;
+    deltaPct: number;
+    reason: string;
+  }>;
+  managerReport: {
+    estimatedRevenue: number;
+    averageMarginPct: number;
+    estimatedWasteValue: number;
+    topDishes: Array<{ name: string; qty: number; revenue: number }>;
+    dishesToRemove: Array<{ menuItem: string; demandQty: number; marginPct: number; reason: string }>;
+    dailyLossEstimate: number;
+    headline: string;
+  };
+  reorder: Array<{
+    warehouseItemId: string;
+    name: string;
+    qty: number;
+    unit: string;
+    minStock: number;
+    avgDailyConsumption: number;
+    suggestedOrderQty: number;
+    eta: string;
+    reason: string;
+  }>;
+  hotelBridge: {
+    breakfastCoversTomorrow: number;
+    halfBoardGuestsTomorrow: number;
+    fullBoardGuestsTomorrow: number;
+    notes: string[];
+  };
+  kpi: {
+    lowMarginDishes: number;
+    lossDishes: number;
+    expiringLots: number;
+    stagnantProducts: number;
+  };
+};
+
+export const aiOpsApi = {
+  kitchenOperationalInsights: (days = 14) =>
+    get<KitchenOperationalSnapshot>(`/ai/kitchen/insights?mode=operational&days=${days}`),
+  proposals: {
+    list: (params?: { status?: AiProposalStatus; type?: AiProposalType; limit?: number; open?: boolean }) => {
+      const qs = new URLSearchParams();
+      if (params?.status) qs.set("status", params.status);
+      if (params?.type) qs.set("type", params.type);
+      if (params?.limit) qs.set("limit", String(params.limit));
+      if (params?.open) qs.set("open", "true");
+      return get<{ proposals: AiProposal[] }>(`/ai/proposals${qs.toString() ? `?${qs.toString()}` : ""}`);
+    },
+    generate: (payload?: { days?: number; status?: "draft" | "pending_review" }) =>
+      post<{ snapshot: KitchenOperationalSnapshot; proposals: AiProposal[]; generated: number }>(
+        "/ai/proposals/generate",
+        payload || {},
+      ),
+    review: (id: string, payload: { action: "approve" | "reject" | "cancel"; notes?: string }) =>
+      patch<{ proposal: AiProposal }>(`/ai/proposals/${id}/review`, payload),
+    apply: (id: string, payload?: { notes?: string }) =>
+      post<{ proposal: AiProposal | null }>(`/ai/proposals/${id}/apply`, payload || {}),
+  },
+};
+
 export type BillingSubscription = {
   id: string;
   stripeCustomerId: string | null;
@@ -541,6 +696,7 @@ export const api = {
   hotel: hotelApi,
   integration: integrationApi,
   reports: reportsApi,
+  aiOps: aiOpsApi,
   billing: billingApi,
 };
 
