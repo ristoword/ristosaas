@@ -34,6 +34,13 @@ const prisma = new PrismaClient();
 const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || "tenant_demo";
 const TENANT_NAME = process.env.NEXT_PUBLIC_TENANT_NAME || "RistoSaaS Demo";
 const TENANT_PLAN = process.env.NEXT_PUBLIC_PRODUCT_PLAN || "all_included";
+const SEED_SUPERADMIN_PASSWORD = process.env.SEED_SUPERADMIN_PASSWORD;
+
+if (!SEED_SUPERADMIN_PASSWORD || SEED_SUPERADMIN_PASSWORD.trim().length < 12) {
+  throw new Error(
+    "SEED_SUPERADMIN_PASSWORD mancante o troppo corta. Impostala in .env/.env.local con almeno 12 caratteri prima di eseguire il seed.",
+  );
+}
 
 function hashPassword(plainTextPassword) {
   const salt = randomBytes(16).toString("hex");
@@ -88,7 +95,7 @@ async function upsertFeatures() {
 
 async function upsertUsers() {
   const users = [
-    { id: "usr_superadmin", username: "superadmin", password: "Temp#SA2026!", name: "Super Admin", email: "superadmin@ristosaas.local", role: "super_admin", mustChangePassword: true },
+    { id: "usr_superadmin", username: "superadmin", password: SEED_SUPERADMIN_PASSWORD, name: "Super Admin", email: "superadmin@ristosaas.local", role: "super_admin", mustChangePassword: true },
     { id: "usr_owner", username: "owner", password: "owner123", name: "Owner Demo", email: "owner@ristosaas.local", role: "owner", mustChangePassword: false },
     { id: "usr_sala", username: "sala", password: "sala123", name: "Marco Sala", email: "sala@ristosaas.local", role: "sala", mustChangePassword: false },
     { id: "usr_cucina", username: "cucina", password: "cucina123", name: "Chef Cucina", email: "cucina@ristosaas.local", role: "cucina", mustChangePassword: false },

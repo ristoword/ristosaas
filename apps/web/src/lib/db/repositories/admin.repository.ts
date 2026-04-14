@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { hashPassword } from "@/lib/auth/password";
 
 function mapLicense(row: {
   id: string;
@@ -59,6 +60,101 @@ export const adminRepository = {
     return prisma.tenant.findMany({
       orderBy: { name: "asc" },
       select: { id: true, name: true, plan: true, createdAt: true, users: { select: { id: true } } },
+    });
+  },
+  async createTenantWithLicense(payload: {
+    name: string;
+    slug: string;
+    plan: "restaurant_only" | "hotel_only" | "all_included";
+    billingCycle: "monthly" | "annual";
+    seats: number;
+    adminUser: {
+      username: string;
+      email: string;
+      name: string;
+      password: string;
+      role?: string;
+    };
+  }) {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    const enabledFeaturesByPlan: Record<"restaurant_only" | "hotel_only" | "all_included", Array<"restaurant" | "hotel" | "integration_room_charge" | "integration_unified_folio" | "integration_meal_plans">> = {
+      restaurant_only: ["restaurant"],
+      hotel_only: ["hotel"],
+      all_included: ["restaurant", "hotel", "integration_room_charge", "integration_unified_folio", "integration_meal_plans"],
+    };
+
+    return prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: {
+          name: payload.name,
+          slug: payload.slug,
+          plan: payload.plan,
+        },
+      });
+
+      const featureRows = enabledFeaturesByPlan[payload.plan];
+      if (featureRows.length > 0) {
+        await tx.tenantFeature.createMany({
+          data: featureRows.map((code) => ({
+            tenantId: tenant.id,
+            code,
+            enabled: true,
+          })),
+        });
+      }
+
+      const normalizedKey = payload.slug.replace(/[^a-z0-9]+/gi, "-").toUpperCase();
+      const license = await tx.tenantLicense.create({
+        data: {
+          tenantId: tenant.id,
+          licenseKey: `RW-${normalizedKey}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`,
+          status: "active",
+          plan: payload.plan,
+          billingCycle: payload.billingCycle,
+          seats: payload.seats,
+          usedSeats: 1,
+          activatedAt: now,
+          expiresAt,
+        },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          tenantId: tenant.id,
+          username: payload.adminUser.username,
+          email: payload.adminUser.email,
+          name: payload.adminUser.name,
+          role: payload.adminUser.role ?? "owner",
+          passwordHash: hashPassword(payload.adminUser.password),
+          mustChangePassword: true,
+        },
+      });
+
+      return {
+        tenant: {
+          id: tenant.id,
+          name: tenant.name,
+          slug: tenant.slug,
+          plan: tenant.plan,
+        },
+        license: {
+          id: license.id,
+          key: license.licenseKey,
+          status: license.status,
+          plan: license.plan,
+          seats: license.seats,
+          usedSeats: license.usedSeats,
+          expiresAt: license.expiresAt.toISOString(),
+        },
+        adminUser: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.role,
+          mustChangePassword: user.mustChangePassword,
+        },
+      };
     });
   },
   async licenses() {

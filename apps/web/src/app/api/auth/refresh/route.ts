@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
   const res = NextResponse.json({ user: safeUser });
   setAuthCookies(res, {
     userId: user.id,
+    tenantId: user.tenantId,
     role: user.role,
     username: user.username,
     name: user.name,

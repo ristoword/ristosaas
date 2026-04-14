@@ -13,6 +13,7 @@ import type { PublicUser } from "@/lib/auth/types";
 
 type SessionClaims = {
   userId: string;
+  tenantId?: string;
   role: string;
   username: string;
   name: string;
@@ -43,6 +44,7 @@ function verifyToken(token: string, expectedType: "access" | "refresh") {
     const decoded = jwt.verify(token, JWT_SECRET);
     if (!decoded || typeof decoded !== "object") return null;
     const userId = "userId" in decoded ? String(decoded.userId) : null;
+    const tenantId = "tenantId" in decoded ? String(decoded.tenantId) : null;
     const role = "role" in decoded ? String(decoded.role) : null;
     const username = "username" in decoded ? String(decoded.username) : null;
     const name = "name" in decoded ? String(decoded.name) : null;
@@ -56,7 +58,7 @@ function verifyToken(token: string, expectedType: "access" | "refresh") {
     if (!userId || !role || !username || !name || !email) return null;
     if (tokenType !== expectedType) return null;
     if (Number.isNaN(sessionVersion) || sessionVersion < 0) return null;
-    return { userId, role, username, name, email, tokenType, sessionVersion, mustChangePassword };
+    return { userId, tenantId, role, username, name, email, tokenType, sessionVersion, mustChangePassword };
   } catch {
     return null;
   }
@@ -69,6 +71,7 @@ export function getRequestUser(req: NextRequest) {
   if (!claims) return null;
   const user: PublicUser = {
     id: claims.userId,
+    tenantId: claims.tenantId ?? undefined,
     role: claims.role as PublicUser["role"],
     username: claims.username,
     name: claims.name,

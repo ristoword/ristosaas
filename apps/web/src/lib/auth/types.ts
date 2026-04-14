@@ -15,6 +15,7 @@ export type UserRole =
 
 export type PublicUser = {
   id: string;
+  tenantId?: string;
   username: string;
   name: string;
   role: UserRole;

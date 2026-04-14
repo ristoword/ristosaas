@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { err, ok } from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { getTenantIdFromRequest } from "@/lib/db/repositories/tenant-context";
 
 type LicenseStatus = "trial" | "active" | "expired" | "suspended";
 
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   // Super admin can always access to recover billing/license issues.
   if (user.role === "super_admin") return ok({ valid: true, status: "active" as LicenseStatus, bypass: true });
 
-  const tenantId = getTenantId();
+  const tenantId = getTenantIdFromRequest(req, user.tenantId);
   const license = await prisma.tenantLicense.findUnique({
     where: { tenantId },
     select: { status: true },

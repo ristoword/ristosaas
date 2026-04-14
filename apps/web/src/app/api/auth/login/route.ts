@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
 
   setAuthCookies(res, {
     userId: validatedUser.id,
+    tenantId: validatedUser.tenantId,
     role: validatedUser.role,
     username: validatedUser.username,
     name: validatedUser.name,

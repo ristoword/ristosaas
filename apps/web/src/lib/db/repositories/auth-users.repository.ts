@@ -4,6 +4,7 @@ import { hashPassword, isHashedPassword, verifyPassword } from "@/lib/auth/passw
 
 type DbUser = {
   id: string;
+  tenantId: string;
   username: string;
   passwordHash: string;
   name: string;
@@ -22,6 +23,7 @@ function isLocked(user: DbUser) {
 function sanitizeUser(user: DbUser): PublicUser {
   return {
     id: user.id,
+    tenantId: user.tenantId,
     username: user.username,
     name: user.name,
     role: user.role as UserRole,
@@ -45,6 +47,7 @@ export const authUsersRepository = {
       where: { id },
       select: {
         id: true,
+        tenantId: true,
         username: true,
         passwordHash: true,
         name: true,
@@ -63,6 +66,7 @@ export const authUsersRepository = {
       where: { username: { equals: username, mode: "insensitive" } },
       select: {
         id: true,
+        tenantId: true,
         username: true,
         passwordHash: true,
         name: true,
@@ -106,6 +110,7 @@ export const authUsersRepository = {
       data: { failedLoginAttempts: 0, lockedUntil: null },
       select: {
         id: true,
+        tenantId: true,
         username: true,
         passwordHash: true,
         name: true,
@@ -134,6 +139,7 @@ export const authUsersRepository = {
       },
       select: {
         id: true,
+        tenantId: true,
         username: true,
         passwordHash: true,
         name: true,
@@ -162,6 +168,7 @@ export const authUsersRepository = {
       },
       select: {
         id: true,
+        tenantId: true,
         username: true,
         passwordHash: true,
         name: true,
@@ -180,6 +187,7 @@ export const authUsersRepository = {
       orderBy: { username: "asc" },
       select: {
         id: true,
+        tenantId: true,
         username: true,
         passwordHash: true,
         name: true,

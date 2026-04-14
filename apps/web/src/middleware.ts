@@ -9,10 +9,14 @@ const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/d
 async function verifySessionVersion(req: NextRequest) {
   const cookie = req.headers.get("cookie");
   if (!cookie) return false;
+  const session = req.cookies.get(SESSION_COOKIE)?.value ? await verifyEdgeSessionToken(req.cookies.get(SESSION_COOKIE)!.value) : null;
   try {
     const response = await fetch(`${req.nextUrl.origin}/api/auth/session-valid`, {
       method: "GET",
-      headers: { cookie },
+      headers: {
+        cookie,
+        ...(session?.tenantId ? { "x-tenant-id": session.tenantId } : {}),
+      },
       cache: "no-store",
     });
     return response.ok;
@@ -35,10 +39,14 @@ function shouldCheckLicenseForPage(pathname: string) {
 async function verifyLicense(req: NextRequest) {
   const cookie = req.headers.get("cookie");
   if (!cookie) return false;
+  const session = req.cookies.get(SESSION_COOKIE)?.value ? await verifyEdgeSessionToken(req.cookies.get(SESSION_COOKIE)!.value) : null;
   try {
     const response = await fetch(`${req.nextUrl.origin}/api/auth/license-valid`, {
       method: "GET",
-      headers: { cookie },
+      headers: {
+        cookie,
+        ...(session?.tenantId ? { "x-tenant-id": session.tenantId } : {}),
+      },
       cache: "no-store",
     });
     return response.ok;
@@ -50,12 +58,16 @@ async function verifyLicense(req: NextRequest) {
 async function verifyEntitlements(req: NextRequest, pathname: string) {
   const cookie = req.headers.get("cookie");
   if (!cookie) return { ok: false, status: 401 };
+  const session = req.cookies.get(SESSION_COOKIE)?.value ? await verifyEdgeSessionToken(req.cookies.get(SESSION_COOKIE)!.value) : null;
   try {
     const url = new URL("/api/auth/entitlements-valid", req.nextUrl.origin);
     url.searchParams.set("path", pathname);
     const response = await fetch(url.toString(), {
       method: "GET",
-      headers: { cookie },
+      headers: {
+        cookie,
+        ...(session?.tenantId ? { "x-tenant-id": session.tenantId } : {}),
+      },
       cache: "no-store",
     });
     return { ok: response.ok, status: response.status };
@@ -125,9 +137,15 @@ export async function middleware(req: NextRequest) {
     ) {
       return jsonWithRequestId({ error: "Password change required" }, { status: 403 }, requestId);
     }
-    const res = nextWithRequestId(req, requestId);
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-request-id", requestId);
+    requestHeaders.set("x-user-id", user.userId);
+    requestHeaders.set("x-user-role", user.role);
+    if (user.tenantId) requestHeaders.set("x-tenant-id", user.tenantId);
+    const res = withRequestId(NextResponse.next({ request: { headers: requestHeaders } }), requestId);
     res.headers.set("x-user-id", user.userId);
     res.headers.set("x-user-role", user.role);
+    if (user.tenantId) res.headers.set("x-tenant-id", user.tenantId);
     return withRequestId(res, requestId);
   }
 

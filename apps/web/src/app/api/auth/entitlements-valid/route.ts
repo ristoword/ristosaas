@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { err, ok } from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
-import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { getTenantIdFromRequest } from "@/lib/db/repositories/tenant-context";
 
 type LicenseStatus = "trial" | "active" | "expired" | "suspended";
 type FeatureCode =
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     return ok({ valid: true, bypass: true, reason: "super_admin" as const });
   }
 
-  const tenantId = getTenantId();
+  const tenantId = getTenantIdFromRequest(req, user.tenantId);
   const requestedPath = req.nextUrl.searchParams.get("path") || "/";
 
   const tenant = await prisma.tenant.findUnique({

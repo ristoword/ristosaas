@@ -7,6 +7,7 @@ export async function verifyEdgeSessionToken(token: string) {
   try {
     const { payload } = await jwtVerify(token, secret);
     const userId = payload.userId ? String(payload.userId) : null;
+    const tenantId = payload.tenantId ? String(payload.tenantId) : null;
     const role = payload.role ? String(payload.role) : null;
     const username = payload.username ? String(payload.username) : null;
     const name = payload.name ? String(payload.name) : null;
@@ -17,7 +18,7 @@ export async function verifyEdgeSessionToken(token: string) {
     if (tokenType !== "access") return null;
     if (Number.isNaN(sessionVersion) || sessionVersion < 0) return null;
     if (!userId || !role || !username || !name || !email) return null;
-    return { userId, role, username, name, email, tokenType, sessionVersion, mustChangePassword };
+    return { userId, tenantId, role, username, name, email, tokenType, sessionVersion, mustChangePassword };
   } catch {
     return null;
   }
