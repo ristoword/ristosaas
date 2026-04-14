@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CreditCard,
   Eye,
@@ -21,6 +21,10 @@ import { billingApi, type BillingEvent, type BillingSubscription } from "@/lib/a
 export function StripePage() {
   const [showKey, setShowKey] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const [plan, setPlan] = useState<"restaurant_only" | "hotel_only" | "all_included">("all_included");
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+  const [loadingPortal, setLoadingPortal] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
   const [events, setEvents] = useState<BillingEvent[]>([]);
   const apiKey = "sk_test_demo_masked_key";
@@ -52,6 +56,32 @@ export function StripePage() {
     [events],
   );
 
+  const openCheckout = useCallback(async () => {
+    setActionError(null);
+    setLoadingCheckout(true);
+    try {
+      const session = await billingApi.checkout({ plan, billingCycle: billing });
+      window.location.href = session.url;
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Errore durante creazione checkout Stripe");
+    } finally {
+      setLoadingCheckout(false);
+    }
+  }, [billing, plan]);
+
+  const openPortal = useCallback(async () => {
+    setActionError(null);
+    setLoadingPortal(true);
+    try {
+      const session = await billingApi.portal();
+      window.location.href = session.url;
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Errore durante apertura portal Stripe");
+    } finally {
+      setLoadingPortal(false);
+    }
+  }, []);
+
   return (
     <div className="space-y-6">
       <PageHeader title="Integrazione Stripe" subtitle="Gestisci pagamenti e abbonamento" />
@@ -66,7 +96,24 @@ export function StripePage() {
             </span>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
+          {([
+            { value: "restaurant_only", label: "Solo Ristorante" },
+            { value: "hotel_only", label: "Solo Hotel" },
+            { value: "all_included", label: "All Included" },
+          ] as const).map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setPlan(item.value)}
+              className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${plan === item.value ? "bg-rw-accent/15 text-rw-accent" : "border border-rw-line bg-rw-surfaceAlt text-rw-muted"}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
           {(["monthly", "annual"] as const).map((p) => (
             <button
               key={p}
@@ -79,9 +126,25 @@ export function StripePage() {
           ))}
         </div>
 
-        <button type="button" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white shadow-rw transition hover:bg-rw-accent/90">
-          <CreditCard className="h-4 w-4" /> Aggiorna piano
-        </button>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={openCheckout}
+            disabled={loadingCheckout}
+            className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white shadow-rw transition hover:bg-rw-accent/90 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <CreditCard className="h-4 w-4" /> {loadingCheckout ? "Apro checkout..." : "Aggiorna piano"}
+          </button>
+          <button
+            type="button"
+            onClick={openPortal}
+            disabled={loadingPortal}
+            className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-5 py-2.5 text-sm font-semibold text-rw-ink transition hover:bg-rw-surface disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <ExternalLink className="h-4 w-4" /> {loadingPortal ? "Apro portal..." : "Apri customer portal"}
+          </button>
+        </div>
+        {actionError ? <p className="mt-2 text-sm font-medium text-red-400">{actionError}</p> : null}
       </Card>
 
       {/* API keys */}
@@ -126,7 +189,7 @@ export function StripePage() {
 
       {/* payment history */}
       <Card title="Storico pagamenti" headerRight={
-        <button type="button" className="inline-flex items-center gap-1.5 text-xs font-semibold text-rw-accent">
+        <button type="button" onClick={openPortal} className="inline-flex items-center gap-1.5 text-xs font-semibold text-rw-accent">
           <ExternalLink className="h-3.5 w-3.5" /> Dashboard Stripe
         </button>
       }>

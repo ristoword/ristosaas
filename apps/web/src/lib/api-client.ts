@@ -416,6 +416,9 @@ export const billingApi = {
       subscription: BillingSubscription | null;
       events: BillingEvent[];
     }>("/billing/overview"),
+  checkout: (payload: { plan: "restaurant_only" | "hotel_only" | "all_included"; billingCycle: "monthly" | "annual" }) =>
+    post<{ id: string; url: string }>("/billing/checkout", payload),
+  portal: () => post<{ id: string; url: string }>("/billing/portal", {}),
 };
 
 export const api = {

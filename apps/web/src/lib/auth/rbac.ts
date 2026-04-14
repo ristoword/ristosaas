@@ -9,7 +9,7 @@ export const PUBLIC_API_PREFIXES = ["/api/billing/stripe/webhook", "/api/auth/se
 
 export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/admin", roles: ["super_admin"] },
-  { prefix: "/api/billing/overview", roles: ["owner", "super_admin"] },
+  { prefix: "/api/billing", roles: ["owner", "super_admin"] },
   { prefix: "/api/reports", roles: ["owner", "super_admin", "supervisor", "cassa"] },
   { prefix: "/api/hotel/front-desk", roles: ["reception", "hotel_manager", "owner", "super_admin"] },
   { prefix: "/api/hotel/housekeeping", roles: ["housekeeping", "hotel_manager", "owner", "super_admin"] },
