@@ -151,16 +151,28 @@ function resolveEntitlement(object: any, itemPriceId: string | null): Entitlemen
   return null;
 }
 
-function envVar(name: string) {
-  const value = process.env[name];
-  return typeof value === "string" && value.trim().length > 0;
+function isPlaceholderValue(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return true;
+  return (
+    normalized.includes("da_inserire") ||
+    normalized.includes("replace-with") ||
+    normalized.includes("example") ||
+    normalized.includes("placeholder") ||
+    normalized.endsWith("_id") ||
+    normalized.includes("...")
+  );
 }
 
 function envValue(name: string) {
   const value = process.env[name];
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+  return trimmed.length > 0 && !isPlaceholderValue(trimmed) ? trimmed : null;
+}
+
+function envVar(name: string) {
+  return envValue(name) !== null;
 }
 
 async function applyTenantEntitlements(params: {
