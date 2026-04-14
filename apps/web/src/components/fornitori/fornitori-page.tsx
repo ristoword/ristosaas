@@ -51,7 +51,9 @@ export function FornitoriPage() {
     try {
       const data = await suppliersApi.list();
       setSuppliers(data);
-      if (!selectedId && data.length > 0) setSelectedId(data[0].id);
+      if (data.length > 0) {
+        setSelectedId((prev) => prev ?? data[0].id);
+      }
     } catch (err) {
       console.error("Failed to fetch suppliers:", err);
     } finally {

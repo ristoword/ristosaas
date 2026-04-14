@@ -1,3 +1,179 @@
+# RistoSaaS Platform - Project Status and Final Roadmap
+
+Ultimo aggiornamento: 2026-04-14
+
+## 1) Stato Reale Attuale
+
+### 1.1 Cosa e gia reale/persistente (DB PostgreSQL + Prisma)
+
+- Multi-tenant base (`Tenant`, `TenantFeature`) con piani:
+  - `restaurant_only`
+  - `hotel_only`
+  - `all_included`
+- Auth con JWT + cookie `httpOnly`, lockout, `mustChangePassword`, reset/sblocco account via superadmin.
+- API operative migrate su Prisma (niente store in-memory sulle route API principali):
+  - hotel: camere, prenotazioni, availability, check-in/out, housekeeping, keycards, rate plans
+  - integration: folio, charges, room charge con meal-plan credits
+  - restaurant: kitchen/recipes, menu/daily, orders/marcia/status
+  - warehouse: stock/load/discharge/movements con scarico automatico su comanda
+  - operations: staff, bookings, suppliers, catering, asporto, archivio
+  - rooms/tables ristorante
+  - reports: unified, daily, trends
+  - admin: tenants, licenses, email-config, users
+- Food cost reale:
+  - calcolo da ingredienti ricetta
+  - se presente articolo magazzino usa costo reale `WarehouseItem.costPerUnit`
+  - aggiornamento automatico `foodCostPct` su menu item collegato a recipe
+- Comande con corsi reali:
+  - avanzamento stato corso (`in_preparazione` -> `pronto` -> `servito`)
+  - scarico magazzino per corso
+  - protezione anti-doppio scarico
+- Alert scorte:
+  - warning/critical quando sotto soglia/minimo/esaurito
+- Timbrature personale persistenti:
+  - `StaffShift` + endpoint clock-in/clock-out
+  - ore reali aggregate nei KPI
+- KPI supervisor/owner su dati reali:
+  - revenue hotel/restaurant/integration
+  - costi food da movimenti
+  - costi staff da turni
+  - margine operativo
+
+### 1.2 Build/operativita tecnica
+
+- Build Next.js in stato verde.
+- Prisma generate/migrate/seed funzionanti.
+- Seed coerente con credenziali demo operative.
+
+## 2) Gap Residui per Essere "100% Operativo"
+
+Quello sotto e ordinato per priorita reale di go-live.
+
+## P0 - Bloccanti Produzione (da chiudere subito)
+
+1. **Password hashing vero** ✅
+   - `passwordHash` migrato da plain-text a hash `scrypt`.
+   - Login/change password/temp password migrati.
+   - Migrazione compatibile utenti legacy al primo login riuscito.
+
+2. **Sicurezza sessione**
+   - Rotazione/invalidazione sessioni (token version o session table).
+   - Opzionale refresh token con revoca.
+   - Policy durata sessioni per ruolo.
+
+3. **RBAC granulare finale**
+   - Permission matrix centralizzata per endpoint sensibili.
+   - Distinzione completa `owner` vs `super_admin` vs operativi.
+   - Audit su pagine/azioni interne.
+
+4. **Billing/licenze live**
+   - Stripe prodotti/prezzi reali.
+   - Webhook firmati e idempotenti.
+   - Enforcement automatico piano/feature/seats.
+
+5. **Backup + disaster recovery**
+   - Backup automatici DB.
+   - Test restore periodico.
+   - Procedura incidente documentata.
+
+## P1 - Operativita Completa Business
+
+6. **Forecasting + grafici manageriali** ✅ (baseline)
+   - Comparazione grafica KPI (day/week/month).
+   - Forecast 7/30 giorni su dati persistenti (`reports/trends`).
+   - Vista su dashboard/owner/supervisor/cassa.
+   - TODO: raffinamento modello forecast avanzato.
+
+7. **Fiscale/documentale reale**
+   - Flusso ricevute/fatture (integrazione provider fiscale dove richiesto).
+   - Tracciamento metodi pagamento e riconciliazione.
+
+8. **Hotel integrazione hardware reale**
+   - Layer adapter per vendor serrature (Salto/VingCard/Dormakaba/Onity).
+   - Stato card da evento hardware reale (non solo software).
+
+9. **Workflow operativi avanzati**
+   - Policy cancellazione/no-show con penali.
+   - Gestione ospiti multipli/documenti in soggiorno avanzata.
+   - Housekeeping board avanzato (SLA/assegnazioni/controlli).
+
+## P2 - Qualita Enterprise / Scalabilita
+
+10. **Test automation**
+    - Unit test repository/core.
+    - Integration test API critiche.
+    - E2E percorsi chiave:
+      - login
+      - ordine con corsi
+      - scarico magazzino
+      - room charge
+      - check-out + folio settlement
+      - clock-in/out staff
+
+11. **CI/CD robusta**
+    - Gate lint/type/test/build.
+    - Migrazioni verificate su staging prima di prod.
+    - Rollback strategy esplicita.
+
+12. **Observability**
+    - Error tracking (es. Sentry).
+    - Logging strutturato centralizzato.
+    - Metriche applicative e alerting uptime/performance.
+
+13. **Performance e hardening**
+    - Rate limiting persistente.
+    - Ottimizzazione query/report pesanti.
+    - Caching selettivo KPI.
+
+## 3) Checklist Finale "Pronto a Vendere"
+
+Per dire "finito al 100%" devono risultare tutti `DONE`:
+
+- [x] Moduli ristorante reali su DB
+- [x] Moduli hotel reali su DB
+- [x] Integrazione hotel+ristorante reale su DB
+- [x] KPI e report da dati persistenti
+- [x] Superadmin operativo reale
+- [x] Password hashing production-grade
+- [ ] Session invalidation/refresh completa
+- [ ] Stripe live + webhook + enforcement licenze
+- [ ] Fiscale/documentale reale
+- [ ] Backup/restore verificati
+- [ ] Monitoring/alerting produzione
+- [ ] Test automatici estesi + CI gate completo
+- [ ] Forecasting e comparazione grafica avanzata (modellistica avanzata)
+- [ ] Runbook operativo + documentazione go-live
+
+## 4) Piano Esecutivo Consigliato (Ordine Esatto)
+
+1. Security auth finale (hash + session invalidation + RBAC matrix).
+2. Billing/licenze live (Stripe + webhook + enforcement).
+3. Forecasting + grafici KPI (chiusura parte manageriale).
+4. Fiscale/documentale + riconciliazione pagamenti.
+5. Observability + backup/restore + runbook.
+6. Test automation + CI gate definitivo.
+7. Pilot cliente reale controllato.
+8. Go-live commerciale.
+
+## 5) Stima Completamento
+
+Stato complessivo piattaforma: **~91%**
+
+- Core prodotto: 92%
+- Operativita restaurant/hotel/integration: 90%
+- Security production-grade: 79%
+- Billing/licenze live: 55%
+- Qualita enterprise (test/obs/backup): 60%
+- Go-to-market readiness: 79%
+
+## 6) Nota Operativa
+
+Le basi applicative sono ora solide e persistenti. Il tratto finale per il 100% non e piu "costruire moduli", ma chiudere in modo professionale:
+
+- sicurezza,
+- monetizzazione live,
+- affidabilita operativa,
+- qualità enterprise.
 # RistoSaaS Platform - Stato Attuale e Roadmap Completa
 
 ## Stato Attuale
@@ -488,14 +664,14 @@ Nuova piattaforma:
 
 ### Cosa NON e ancora stato fatto
 
-- niente seed iniziale reale nel DB
-- API ancora in gran parte su store in-memory
-- repository Prisma non ancora introdotti
-- frontend non ancora alimentato da DB reale
+- API check-in/check-out, housekeeping e keycard ancora su store in-memory
+- integrazione room-charge/folio close ancora su store in-memory
+- frontend non ancora alimentato al 100% da DB reale (migrazione in corso)
+- AI non ancora collegata a provider LLM reale
 
 ### Primo task da cui ripartire
 
-1. creare seed iniziale per:
+1. completato: seed iniziale PostgreSQL per:
    - tenant
    - tenant features
    - utenti
@@ -503,11 +679,46 @@ Nuova piattaforma:
    - camere
    - prenotazioni
    - soggiorni
-   - folio
-2. introdurre repository Prisma per:
+   - folio + charge iniziale
+2. completato: repository Prisma introdotti per:
    - hotel rooms
    - hotel reservations
-   - guest folio
-3. spostare le prime API hotel dal mock/store in-memory a Prisma
-4. verificare che UI hotel legga dati reali dal DB
+   - guest folio / folio charges
+3. completato: prime API migrate a Prisma:
+   - `/api/hotel/rooms`
+   - `/api/hotel/reservations`
+   - `/api/hotel/availability`
+   - `/api/integration/folios`
+   - `/api/integration/charges`
+4. prossimo step immediato:
+   - completato: migrazione `/api/hotel/front-desk/check-in` e `/api/hotel/front-desk/check-out` su Prisma (transazione)
+   - completato: migrazione `/api/integration/room-charge` su Prisma con meal-plan credits
+   - completato: migrazione `/api/hotel/housekeeping` su DB reale
+   - completato: migrazione keycards su DB reale (`HotelKeycard` + `/api/hotel/keycards`)
+   - completato: smoke test end-to-end API persistenti (login -> check-in -> room-charge -> check-out -> housekeeping -> keycards)
+   - completato: allineamento pagine hotel core a dati live (`dashboard`, `rooms`, `housekeeping`, `keycards`)
+   - completato: integrazione OpenAI reale via API server-side (`/api/ai/chat`) e AI attiva su hotel dashboard/front-desk
+   - completato: eliminazione dipendenza mock per rate plans con persistenza DB (`HotelRatePlan`) + API `/api/hotel/rate-plans`
+   - completato: planner/disponibilita hotel ora alimentato da rate plans persistenti via repository Prisma
+   - completato: report unificati hotel+ristorante con endpoint DB reale `/api/reports/unified` e consumo UI supervisor
+   - completato: Blocco 1 migrazione warehouse su Prisma (`stock`, `load`, `discharge`, `movements`) con smoke test API reale
+   - completato: Blocco 2 migrazione `kitchen/menu` su Prisma (`recipes`, `food-cost`, `menu items`, `daily dishes`) con repository dedicato
+   - completato: Blocco 3 migrazione `orders` su Prisma (`orders`, `marcia`, `status`) con scarico magazzino reale su `WarehouseMovement` tipo `scarico_comanda`
+   - completato: filtri periodo `from/to` sui KPI unificati in Supervisor (query su `/api/reports/unified`)
+   - completato: KPI storici persistenti via `DailyClosureReport` + API `/api/reports/daily` con integrazione Cassa Report tab
+   - completato: trend multi-periodo (day/week/month) su report persistenti via endpoint `/api/reports/trends`
+   - completato: integrazione trend in `dashboard home`, `owner` e `cassa` con metriche revenue/costi/margine
+   - completato: superadmin operativo reale con `superadmin` forzato al cambio password primo accesso + recovery account (sblocco/reset provvisorio)
+   - completato: API admin reali per `tenants`, `licenses`, `email-config`, `users` con azioni operative
+   - completato: migrazione blocco caricamento `customers` da store in-memory a repository Prisma
+  - completato: migrazione blocco operativo core da store in-memory a Prisma per `staff`, `bookings`, `suppliers`, `catering`, `asporto`, `archivio` con API CRUD multi-tenant e RBAC
+  - completato: migrazione blocco `rooms` + `tables` da store in-memory a Prisma con API `/api/rooms` e `/api/tables/**` in persistenza reale
+  - completato: rimozione totale import `store/store-ext` da tutte le route `apps/web/src/app/api/**`
+  - completato: food cost reale da magazzino su ricette/menu (`/api/kitchen/food-cost/:recipeId` + auto `foodCostPct` su menu item da recipe)
+  - completato: logica comande per corsi reale (`in_preparazione`/`pronto`/`servito`) con scarico magazzino per singolo corso e prevenzione doppio scarico
+  - completato: alert sotto scorta/critico su API magazzino e feedback scarico ordine (`alerts` + soglia minima)
+  - completato: login/logout personale persistente via timbrature DB (`StaffShift`, `/api/staff/shifts`, `/api/staff/shifts/clock`)
+  - completato: KPI reali supervisor/owner su costi food+staff e ore/turni da dati persistenti
+  - completato: auth utenti persistita su Prisma (lockout, must-change-password, unlock/reset temp password admin) senza dipendenza runtime da store in-memory
+  - prossimo: comparazione grafica KPI e forecasting semplice su trend storici (proiezione 7/30 giorni) su dati persistenti
 

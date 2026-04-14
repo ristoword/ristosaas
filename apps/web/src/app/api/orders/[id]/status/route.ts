@@ -1,8 +1,12 @@
 import { NextRequest } from "next/server";
-import { db, uid } from "@/lib/api/store";
-import type { OrderStatus } from "@/lib/api/types/orders";
+import type { Order, OrderStatus } from "@/lib/api/types/orders";
 import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { ordersRepository } from "@/lib/db/repositories/orders.repository";
+import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.repository";
+import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
+import { prisma } from "@/lib/db/prisma";
 
 const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor"] as const;
 
@@ -18,7 +22,8 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const guard = requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  const order = db.orders.get(id);
+  const tenantId = getTenantId();
+  const order = await ordersRepository.get(tenantId, id);
   if (!order) return err("Order not found", 404);
 
   const { status } = await body<{ status: OrderStatus }>(req);
@@ -33,81 +38,125 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   if (current != null) {
     if (status === "in_preparazione") {
       cs[String(current)] = "in_preparazione";
+      newStatus = "in_preparazione";
     }
 
     if (status === "pronto") {
-      const lastN = nums[nums.length - 1];
-      if (current !== lastN) {
-        cs[String(current)] = "servito";
-        const next = nums.find((n) => cs[String(n)] !== "servito");
-        if (next != null) {
-          cs[String(next)] = "in_attesa";
-          newActiveCourse = next;
-        }
-        newStatus = "in_attesa";
-      } else {
-        cs[String(current)] = "pronto";
-        newStatus = "in_attesa";
-      }
+      cs[String(current)] = "pronto";
+      newStatus = "pronto";
     }
 
     if (status === "servito") {
-      const lastN = nums[nums.length - 1];
-      if (current === lastN && cs[String(current)] === "pronto") {
-        cs[String(current)] = "servito";
+      cs[String(current)] = "servito";
+      const next = nums.find((n) => cs[String(n)] !== "servito");
+      if (next != null) {
+        cs[String(next)] = "in_attesa";
+        newActiveCourse = next;
+        newStatus = "in_attesa";
+      } else {
         newStatus = "servito";
       }
     }
   }
 
-  const updated = { ...order, status: newStatus, courseStates: cs, activeCourse: newActiveCourse, updatedAt: new Date().toISOString() };
-  db.orders.set(id, updated);
+  const updated = await ordersRepository.update(tenantId, id, {
+    status: newStatus,
+    courseStates: cs,
+    activeCourse: newActiveCourse,
+  });
+  if (!updated) return err("Order not found", 404);
 
-  let discharge = null;
-  if (newStatus === "servito" || status === "chiuso") {
-    discharge = dischargeOrderFromWarehouse(updated);
+  let discharge = {
+    reports: [] as Array<{ course: number; dishName: string; totalCost: number; ingredients: { name: string; qty: number; unit: string; cost: number }[] }>,
+    alerts: [] as Array<{ itemId: string; itemName: string; qty: number; minStock: number; level: "warning" | "critical" }>,
+  };
+  const dischargedCourses = await getAlreadyDischargedCourses(tenantId, order.id);
+
+  if (status === "servito" && current != null && !dischargedCourses.has(current)) {
+    const courseDischarge = await dischargeCourseFromWarehouse(tenantId, updated, current);
+    discharge.reports.push(...courseDischarge.reports);
+    discharge.alerts.push(...courseDischarge.alerts);
+  }
+
+  if (status === "chiuso" && order.status !== "chiuso") {
+    const pendingCourses = nums.filter((courseNo) => !dischargedCourses.has(courseNo));
+    for (const courseNo of pendingCourses) {
+      const courseDischarge = await dischargeCourseFromWarehouse(tenantId, updated, courseNo);
+      discharge.reports.push(...courseDischarge.reports);
+      discharge.alerts.push(...courseDischarge.alerts);
+    }
   }
 
   return ok({ order: updated, discharge });
 }
 
-function dischargeOrderFromWarehouse(order: typeof db.orders extends { get: (id: string) => infer T | undefined } ? NonNullable<T> : never) {
-  const reports: { dishName: string; totalCost: number; ingredients: { name: string; qty: number; unit: string; cost: number }[] }[] = [];
+async function getAlreadyDischargedCourses(tenantId: string, orderId: string) {
+  const rows = await prisma.warehouseMovement.findMany({
+    where: {
+      tenantId,
+      orderId,
+      type: "scarico_comanda",
+    },
+    select: { reason: true },
+  });
+  const set = new Set<number>();
+  for (const row of rows) {
+    const match = row.reason.match(/course:(\d+)/);
+    if (match) set.add(Number(match[1]));
+  }
+  return set;
+}
 
-  for (const item of order.items) {
-    const recipe = db.recipes.all().find((r) => r.name.toLowerCase() === item.name.toLowerCase());
+async function dischargeCourseFromWarehouse(tenantId: string, order: Order, course: number) {
+  const reports: { course: number; dishName: string; totalCost: number; ingredients: { name: string; qty: number; unit: string; cost: number }[] }[] = [];
+  const alerts: Array<{ itemId: string; itemName: string; qty: number; minStock: number; level: "warning" | "critical" }> = [];
+
+  for (const item of order.items.filter((row) => row.course === course)) {
+    const recipe = await kitchenMenuRepository.findRecipeByName(tenantId, item.name);
     if (!recipe) continue;
 
-    const report = { dishName: item.name, totalCost: 0, ingredients: [] as { name: string; qty: number; unit: string; cost: number }[] };
+    const report = {
+      course,
+      dishName: item.name,
+      totalCost: 0,
+      ingredients: [] as { name: string; qty: number; unit: string; cost: number }[],
+    };
 
     for (const ing of recipe.ingredients) {
       const totalQty = ing.qty * item.qty;
-      const stockItem = db.stock.findByName(ing.name);
+      const stockItem = await warehouseRepository.findByName(tenantId, ing.name);
       const unitCost = stockItem ? stockItem.costPerUnit : ing.unitCost;
       const cost = totalQty * unitCost;
 
       if (stockItem) {
-        db.stock.set(stockItem.id, { ...stockItem, qty: Math.max(0, stockItem.qty - totalQty) });
+        const nextQty = Math.max(0, stockItem.qty - totalQty);
+        await warehouseRepository.updateItem(tenantId, stockItem.id, { qty: nextQty });
+        await warehouseRepository.createMovement({
+          tenantId,
+          warehouseItemId: stockItem.id,
+          type: "scarico_comanda",
+          qty: totalQty,
+          unit: ing.unit,
+          reason: `Scarico per ${item.name} x${item.qty} (order:${order.id};course:${course})`,
+          orderId: order.id,
+        });
+        if (nextQty <= stockItem.minStock) {
+          alerts.push({
+            itemId: stockItem.id,
+            itemName: stockItem.name,
+            qty: nextQty,
+            minStock: stockItem.minStock,
+            level: nextQty <= 0 ? "critical" : "warning",
+          });
+        }
       }
 
       report.ingredients.push({ name: ing.name, qty: totalQty, unit: ing.unit, cost });
       report.totalCost += cost;
-
-      db.stockMovements.push({
-        id: uid("mv"),
-        date: new Date().toISOString().slice(0, 10),
-        productId: stockItem?.id ?? "unknown",
-        productName: ing.name,
-        type: "scarico_comanda",
-        qty: totalQty,
-        unit: ing.unit,
-        reason: `Scarico per ${item.name} x${item.qty} (ordine ${order.id})`,
-        orderId: order.id,
-      });
     }
 
     reports.push(report);
   }
 
-  return reports;
+  return { reports, alerts };
 }

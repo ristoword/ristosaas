@@ -1,7 +1,8 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { ok, err, body } from "@/lib/api/helpers";
-import { changeUserPassword } from "@/lib/auth/users.store";
 import { getRequestUser } from "@/lib/auth/session";
+import { setSessionCookie } from "@/lib/auth/session";
+import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 
 export async function POST(req: NextRequest) {
   const user = getRequestUser(req);
@@ -11,9 +12,18 @@ export async function POST(req: NextRequest) {
   if (!currentPassword || !newPassword) return err("Both fields required");
   if (newPassword.length < 6) return err("La nuova password deve avere almeno 6 caratteri.");
 
-  const changed = changeUserPassword(user.id, currentPassword, newPassword);
+  const changed = await authUsersRepository.changePassword(user.id, currentPassword, newPassword);
   if (!changed.ok && changed.reason === "wrong_password") return err("Password attuale errata.");
   if (!changed.ok) return err("User not found", 404);
 
-  return ok({ success: true });
+  const res = NextResponse.json({ success: true });
+  setSessionCookie(res, {
+    userId: changed.user.id,
+    role: changed.user.role,
+    username: changed.user.username,
+    name: changed.user.name,
+    email: changed.user.email,
+    mustChangePassword: false,
+  });
+  return res;
 }

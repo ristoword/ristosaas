@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { hasVerticalEnabled } from "@/core/tenant/platform-config";
-import { findUserById } from "@/lib/auth/users.store";
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
 
 const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login"];
@@ -16,12 +15,20 @@ export async function middleware(req: NextRequest) {
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifyEdgeSessionToken(token) : null;
-  const user = session ? findUserById(session.userId) : null;
+  const user = session;
 
   if (pathname.startsWith("/api/")) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (
+      user.mustChangePassword &&
+      !pathname.startsWith("/api/auth/change-password") &&
+      !pathname.startsWith("/api/auth/me") &&
+      !pathname.startsWith("/api/auth/logout")
+    ) {
+      return NextResponse.json({ error: "Password change required" }, { status: 403 });
+    }
     const res = NextResponse.next();
-    res.headers.set("x-user-id", user.id);
+    res.headers.set("x-user-id", user.userId);
     res.headers.set("x-user-role", user.role);
     return res;
   }
@@ -31,6 +38,12 @@ export async function middleware(req: NextRequest) {
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (user.mustChangePassword && pathname !== "/change-password") {
+    const changeUrl = req.nextUrl.clone();
+    changeUrl.pathname = "/change-password";
+    return NextResponse.redirect(changeUrl);
   }
 
   if (INTERNAL_ONLY.some((p) => pathname.startsWith(p)) && user.role !== "super_admin") {

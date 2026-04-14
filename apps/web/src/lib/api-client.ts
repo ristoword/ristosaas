@@ -31,7 +31,51 @@ function del<T>(path: string) {
   return request<T>(path, { method: "DELETE" });
 }
 
-type AuthUser = { id: string; username: string; name: string; role: string; email: string };
+type AuthUser = {
+  id: string;
+  username: string;
+  name: string;
+  role: string;
+  email: string;
+  mustChangePassword?: boolean;
+  isLocked?: boolean;
+};
+export type AdminUser = AuthUser & {
+  failedLoginAttempts?: number;
+  lockedUntil?: number | null;
+};
+export type AdminTenant = {
+  id: string;
+  name: string;
+  plan: string;
+  users: number;
+  created: string;
+};
+export type AdminLicense = {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  key: string;
+  status: "trial" | "active" | "expired" | "suspended";
+  plan: string;
+  billingCycle: string;
+  seats: number;
+  usedSeats: number;
+  activatedAt: string;
+  expiresAt: string;
+};
+export type AdminEmailConfig = {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  host: string;
+  port: number;
+  username: string;
+  fromAddress: string;
+  secure: boolean;
+  lastTestStatus: string | null;
+  lastTestedAt: string | null;
+};
 
 /* ─── Kitchen / Recipes ──────────────────────────── */
 
@@ -98,7 +142,7 @@ export const roomsApi = {
 /* ─── Warehouse ──────────────────────────────────── */
 
 export const warehouseApi = {
-  list: () => get<{ items: StockItem[]; lowStock: StockItem[]; totalValue: number }>("/warehouse/stock"),
+  list: () => get<{ items: StockItem[]; lowStock: StockItem[]; alerts: WarehouseAlert[]; totalValue: number }>("/warehouse/stock"),
   create: (data: Omit<StockItem, "id">) => post<StockItem>("/warehouse/stock", data),
   update: (id: string, data: Partial<StockItem>) => put<StockItem>(`/warehouse/stock/${id}`, data),
   delete: (id: string) => del<{ deleted: boolean }>(`/warehouse/stock/${id}`),
@@ -115,6 +159,15 @@ export const staffApi = {
   create: (data: Omit<StaffMember, "id">) => post<StaffMember>("/staff", data),
   update: (id: string, data: Partial<StaffMember>) => put<StaffMember>(`/staff/${id}`, data),
   delete: (id: string) => del<{ deleted: boolean }>(`/staff/${id}`),
+  listShifts: (params?: { staffId?: string; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.staffId) qs.set("staffId", params.staffId);
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    return get<StaffShift[]>(`/staff/shifts${qs.toString() ? `?${qs.toString()}` : ""}`);
+  },
+  clock: (staffId: string, action: "clock_in" | "clock_out", notes?: string) =>
+    post<StaffShift>("/staff/shifts/clock", { staffId, action, notes }),
 };
 
 /* ─── Customers ──────────────────────────────────── */
@@ -208,6 +261,68 @@ export type HousekeepingTask = { id: string; roomId: string; assignedTo: string;
 export type HotelKeycard = { id: string; roomId: string; reservationId: string; validFrom: string; validUntil: string; status: "attiva" | "scaduta" | "annullata"; issuedBy: string };
 export type GuestFolio = { id: string; tenantId: string; customerId: string; stayId: string | null; currency: string; balance: number; status: "open" | "closed" };
 export type FolioCharge = { id: string; folioId: string; source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit"; sourceId: string | null; description: string; amount: number; postedAt: string };
+export type UnifiedReportSnapshot = {
+  range: { from: string | null; to: string | null };
+  occupancy: { occupiedRooms: number; totalRooms: number };
+  arrivalsToday: number;
+  departuresToday: number;
+  hotelRevenue: number;
+  restaurantRevenue: number;
+  integratedRoomChargeRevenue: number;
+  openFolios: number;
+  realCosts?: {
+    foodCost: number;
+    staffCost: number;
+    totalCost: number;
+    margin: number;
+  };
+  staffOps?: {
+    totalHours: number;
+    activeShifts: number;
+  };
+  boardMix: {
+    room_only: number;
+    bed_breakfast: number;
+    half_board: number;
+    full_board: number;
+  };
+};
+export type DailyClosureReport = {
+  id: string;
+  date: string;
+  foodSpend: number;
+  staffSpend: number;
+  revenue: number;
+  notes: string;
+};
+export type ReportTrendPeriod = {
+  revenue: number;
+  costs: number;
+  margin: number;
+  reportsCount: number;
+  deltaRevenuePct: number | null;
+};
+export type ReportTrendsSnapshot = {
+  day: ReportTrendPeriod;
+  week: ReportTrendPeriod;
+  month: ReportTrendPeriod;
+  forecast: {
+    next7: {
+      horizonDays: number;
+      projectedRevenue: number;
+      projectedCosts: number;
+      projectedMargin: number;
+      confidence: "low" | "medium" | "high";
+    };
+    next30: {
+      horizonDays: number;
+      projectedRevenue: number;
+      projectedCosts: number;
+      projectedMargin: number;
+      confidence: "low" | "medium" | "high";
+    };
+  };
+};
 
 export const hotelApi = {
   availability: (params: { roomType: string; checkInDate: string; checkOutDate: string }) => {
@@ -235,6 +350,8 @@ export const hotelApi = {
     }>("/hotel/front-desk/check-out", { reservationId, cityTaxAmount, paymentMethod }),
   listHousekeeping: () => get<HousekeepingTask[]>("/hotel/housekeeping"),
   listKeycards: () => get<HotelKeycard[]>("/hotel/keycards"),
+  listRatePlans: (roomType?: string) =>
+    get<RatePlan[]>(roomType ? `/hotel/rate-plans?roomType=${encodeURIComponent(roomType)}` : "/hotel/rate-plans"),
 };
 
 export const integrationApi = {
@@ -244,6 +361,54 @@ export const integrationApi = {
     post<{ folio: GuestFolio; charge: FolioCharge; credits: FolioCharge[] }>("/integration/room-charge", { reservationId, orderId, description, amount, serviceType }),
 };
 
+export const reportsApi = {
+  unified: (params?: { from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    return get<UnifiedReportSnapshot>(`/reports/unified${qs.toString() ? `?${qs.toString()}` : ""}`);
+  },
+  daily: {
+    list: (params?: { from?: string; to?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.from) qs.set("from", params.from);
+      if (params?.to) qs.set("to", params.to);
+      return get<DailyClosureReport[]>(`/reports/daily${qs.toString() ? `?${qs.toString()}` : ""}`);
+    },
+    upsert: (payload: { date: string; foodSpend: number; staffSpend: number; revenue: number; notes?: string }) =>
+      post<DailyClosureReport>("/reports/daily", payload),
+  },
+  trends: () => get<ReportTrendsSnapshot>("/reports/trends"),
+};
+
+export type BillingSubscription = {
+  id: string;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string;
+  priceId: string | null;
+  status: string;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+};
+
+export type BillingEvent = {
+  id: string;
+  stripeEventId: string;
+  type: string;
+  status: string;
+  createdAt: string;
+  processedAt: string | null;
+};
+
+export const billingApi = {
+  overview: () =>
+    get<{
+      subscription: BillingSubscription | null;
+      events: BillingEvent[];
+    }>("/billing/overview"),
+};
+
 export const api = {
   auth: {
     me: () => get<AuthUser>("/auth/me"),
@@ -251,6 +416,26 @@ export const api = {
     logout: () => post<{ ok: boolean }>("/auth/logout", {}),
     changePassword: (currentPassword: string, newPassword: string) =>
       post<{ success: boolean }>("/auth/change-password", { currentPassword, newPassword }),
+  },
+  admin: {
+    tenants: {
+      list: () => get<AdminTenant[]>("/admin/tenants"),
+    },
+    licenses: {
+      list: () => get<AdminLicense[]>("/admin/licenses"),
+      setStatus: (id: string, status: AdminLicense["status"]) => patch<AdminLicense>(`/admin/licenses/${id}`, { status }),
+    },
+    emailConfig: {
+      list: () => get<AdminEmailConfig[]>("/admin/email-config"),
+      save: (tenantId: string, payload: { host: string; port: number; username: string; password: string; fromAddress: string; secure: boolean }) =>
+        put<AdminEmailConfig>(`/admin/email-config/${tenantId}`, payload),
+      test: (tenantId: string) => post<AdminEmailConfig>(`/admin/email-config/${tenantId}/test`, {}),
+    },
+    users: {
+      list: () => get<AdminUser[]>("/admin/users"),
+      unlock: (id: string) => post<{ user: AdminUser }>(`/admin/users/${id}/unlock`, {}),
+      generateTempPassword: (id: string) => post<{ user: AdminUser; temporaryPassword: string }>(`/admin/users/${id}/temp-password`, {}),
+    },
   },
   kitchen: kitchenApi,
   menu: menuApi,
@@ -267,6 +452,8 @@ export const api = {
   archivio: archivioApi,
   hotel: hotelApi,
   integration: integrationApi,
+  reports: reportsApi,
+  billing: billingApi,
 };
 
 /* ─── Types re-exported for frontend convenience ─── */
@@ -292,7 +479,9 @@ export type SalaTable = { id: string; nome: string; posti: number; x: number; y:
 export type Room = { id: string; name: string; tables: number };
 export type StockItem = { id: string; name: string; category: string; qty: number; unit: string; minStock: number; costPerUnit: number; supplier: string };
 export type StockMovement = { id: string; date: string; productId: string; productName: string; type: "carico" | "scarico" | "scarico_comanda"; qty: number; unit: string; reason: string; orderId?: string };
+export type WarehouseAlert = { id: string; name: string; qty: number; minStock: number; level: "warning" | "critical"; message: string };
 export type StaffMember = { id: string; name: string; role: string; email: string; phone: string; hireDate: string; salary: number; status: "attivo" | "ferie" | "malattia" | "licenziato"; hoursWeek: number; notes: string };
+export type StaffShift = { id: string; staffId: string; clockInAt: string; clockOutAt: string | null; notes: string; durationHours: number | null };
 export type Customer = { id: string; name: string; email: string; phone: string; type: "vip" | "habitue" | "walk-in" | "new"; visits: number; totalSpent: number; avgSpend: number; allergies: string; preferences: string; notes: string; lastVisit: string };
 export type Booking = { id: string; customerName: string; phone: string; email: string; date: string; time: string; guests: number; table: string; notes: string; status: "confermata" | "in_attesa" | "annullata" | "completata"; allergies: string };
 export type Supplier = { id: string; name: string; category: string; email: string; phone: string; address: string; piva: string; paymentTerms: string; rating: number; notes: string; active: boolean };

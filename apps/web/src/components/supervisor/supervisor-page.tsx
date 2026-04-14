@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   ArrowDownRight,
   ArrowUpRight,
@@ -10,6 +10,7 @@ import {
   Box,
   ChefHat,
   ClipboardList,
+  Clock,
   CreditCard,
   DollarSign,
   FileText,
@@ -38,6 +39,7 @@ import {
   archivioApi,
   integrationApi,
   hotelApi,
+  reportsApi,
   type Order,
   type MenuItem as ApiMenuItem,
   type FolioCharge,
@@ -47,6 +49,10 @@ import {
   type StockItem,
   type StaffMember,
   type ArchivedOrder,
+  type UnifiedReportSnapshot,
+  type ReportTrendsSnapshot,
+  type StaffShift,
+  type WarehouseAlert,
 } from "@/lib/api-client";
 
 /* ------------------------------------------------------------------ */
@@ -119,13 +125,19 @@ export function SupervisorPage() {
   const [menuItems, setMenuItems] = useState<ApiMenuItem[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [lowStockItems, setLowStockItems] = useState<StockItem[]>([]);
+  const [warehouseAlerts, setWarehouseAlerts] = useState<WarehouseAlert[]>([]);
   const [totalStockValue, setTotalStockValue] = useState(0);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [staffShifts, setStaffShifts] = useState<StaffShift[]>([]);
   const [archivedOrders, setArchivedOrders] = useState<ArchivedOrder[]>([]);
   const [hotelRooms, setHotelRooms] = useState<HotelRoom[]>([]);
   const [hotelReservations, setHotelReservations] = useState<HotelReservation[]>([]);
   const [folios, setFolios] = useState<GuestFolio[]>([]);
   const [folioCharges, setFolioCharges] = useState<FolioCharge[]>([]);
+  const [unifiedReport, setUnifiedReport] = useState<UnifiedReportSnapshot | null>(null);
+  const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
+  const [unifiedFrom, setUnifiedFrom] = useState("");
+  const [unifiedTo, setUnifiedTo] = useState("");
 
   const [storicoFilter, setStoricoFilter] = useState("");
   const [menuFilter, setMenuFilter] = useState("");
@@ -144,28 +156,45 @@ export function SupervisorPage() {
       menuApi.listItems(),
       warehouseApi.list(),
       staffApi.list(),
+      staffApi.listShifts(),
       archivioApi.list(),
       hotelApi.listRooms(),
       hotelApi.listReservations(),
       integrationApi.listFolios(),
       integrationApi.listCharges(),
+      reportsApi.unified(),
+      reportsApi.trends(),
     ])
-      .then(([ordersData, menuData, warehouseData, staffData, archivioData, roomsData, reservationsData, foliosData, chargesData]) => {
+      .then(([ordersData, menuData, warehouseData, staffData, shiftsData, archivioData, roomsData, reservationsData, foliosData, chargesData, unifiedData, trendsData]) => {
         setOrders(ordersData);
         setMenuItems(menuData);
         setStockItems(warehouseData.items);
         setLowStockItems(warehouseData.lowStock);
+        setWarehouseAlerts(warehouseData.alerts);
         setTotalStockValue(warehouseData.totalValue);
         setStaffMembers(staffData);
+        setStaffShifts(shiftsData);
         setArchivedOrders(archivioData);
         setHotelRooms(roomsData);
         setHotelReservations(reservationsData);
         setFolios(foliosData);
         setFolioCharges(chargesData);
+        setUnifiedReport(unifiedData);
+        setTrends(trendsData);
       })
       .catch((err) => console.error("Failed to fetch supervisor data:", err))
       .finally(() => setLoading(false));
   }, []);
+
+  const refreshUnified = useCallback(() => {
+    reportsApi
+      .unified({
+        from: unifiedFrom || undefined,
+        to: unifiedTo || undefined,
+      })
+      .then(setUnifiedReport)
+      .catch((error) => console.error("Failed to refresh unified report:", error));
+  }, [unifiedFrom, unifiedTo]);
 
   /* ---- derived KPIs ---- */
   const incassoLordo = useMemo(
@@ -178,11 +207,14 @@ export function SupervisorPage() {
   const scontrinoMedio = ordiniCompletati > 0 ? incassoLordo / ordiniCompletati : 0;
   const ordiniAttivi = orders.filter((o) => o.status !== "chiuso" && o.status !== "annullato").length;
   const activeStaff = staffMembers.filter((s) => s.status === "attivo");
-  const occupiedRooms = hotelRooms.filter((room) => room.status === "occupata").length;
-  const hotelRevenue = hotelReservations.reduce((sum, reservation) => sum + reservation.rate, 0);
-  const integratedRevenue = folioCharges
-    .filter((charge) => charge.source === "restaurant")
-    .reduce((sum, charge) => sum + charge.amount, 0);
+  const occupiedRooms = unifiedReport?.occupancy.occupiedRooms ?? hotelRooms.filter((room) => room.status === "occupata").length;
+  const hotelRevenue = unifiedReport?.hotelRevenue ?? hotelReservations.reduce((sum, reservation) => sum + reservation.rate, 0);
+  const integratedRevenue =
+    unifiedReport?.integratedRoomChargeRevenue ??
+    folioCharges.filter((charge) => charge.source === "restaurant").reduce((sum, charge) => sum + charge.amount, 0);
+  const realFoodCost = unifiedReport?.realCosts?.foodCost ?? 0;
+  const realStaffCost = unifiedReport?.realCosts?.staffCost ?? 0;
+  const activeShifts = unifiedReport?.staffOps?.activeShifts ?? staffShifts.filter((s) => s.clockOutAt == null).length;
 
   const menuCategorie = useMemo(
     () => ["tutti", ...Array.from(new Set(menuItems.map((m) => m.category)))],
@@ -301,6 +333,10 @@ export function SupervisorPage() {
         <Chip label="Incasso netto" value={`€${incassoNetto.toFixed(2)}`} tone="accent" />
         <Chip label="Valore magazzino" value={`€${totalStockValue.toFixed(2)}`} />
         <Chip label="Sotto scorta" value={lowStockItems.length} tone={lowStockItems.length > 0 ? "danger" : "default"} />
+        <Chip label="Allarmi stock" value={warehouseAlerts.length} tone={warehouseAlerts.length > 0 ? "danger" : "default"} />
+        <Chip label="Turni attivi" value={activeShifts} tone={activeShifts > 0 ? "accent" : "default"} />
+        <Chip label="Forecast 7gg" value={`€ ${(trends?.forecast.next7.projectedRevenue ?? 0).toFixed(2)}`} />
+        <Chip label="Forecast 30gg" value={`€ ${(trends?.forecast.next30.projectedRevenue ?? 0).toFixed(2)}`} />
         <AiToggleButton onClick={() => setAiOpen(true)} label="AI Supervisor" />
       </PageHeader>
 
@@ -317,6 +353,7 @@ export function SupervisorPage() {
             <MetricCard icon={DollarSign} label="Incasso netto" value={`€${incassoNetto.toFixed(2)}`} trend="up" sub="Lordo − storni" />
             <MetricCard icon={TrendingUp} label="Scontrino medio" value={`€${scontrinoMedio.toFixed(2)}`} trend="up" sub="Per ordine completato" />
             <MetricCard icon={Users} label="Staff attivo" value={String(activeStaff.length)} sub={`su ${staffMembers.length} totali`} />
+            <MetricCard icon={Clock} label="Turni aperti" value={String(activeShifts)} sub="Login personale attivi" />
             <MetricCard icon={ShoppingCart} label="Ordini attivi" value={String(ordiniAttivi)} tone="accent" sub="In corso adesso" />
             <MetricCard icon={ClipboardList} label="Ordini archiviati" value={String(archivedOrders.length)} sub="Totale in archivio" />
             <MetricCard icon={UtensilsCrossed} label="Piatti attivi" value={String(menuItems.filter((m) => m.active).length)} sub={`su ${menuItems.length} totali`} />
@@ -349,6 +386,34 @@ export function SupervisorPage() {
                   <li key={r.l} className="flex items-center justify-between rounded-xl bg-rw-surfaceAlt px-3 py-2">
                     <span className="text-sm text-rw-soft">{r.l}</span>
                     <span className="font-semibold text-rw-ink">{r.v}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card title="Costi reali periodo" description="Calcolati da scarichi comande e turni staff.">
+              <ul className="space-y-2">
+                {[
+                  { l: "Food cost reale", v: `€${realFoodCost.toFixed(2)}` },
+                  { l: "Costo personale reale", v: `€${realStaffCost.toFixed(2)}` },
+                  { l: "Costo totale", v: `€${(realFoodCost + realStaffCost).toFixed(2)}` },
+                  { l: "Margine operativo", v: `€${(unifiedReport?.realCosts?.margin ?? 0).toFixed(2)}` },
+                ].map((r) => (
+                  <li key={r.l} className="flex items-center justify-between rounded-xl bg-rw-surfaceAlt px-3 py-2">
+                    <span className="text-sm text-rw-soft">{r.l}</span>
+                    <span className="font-semibold text-rw-ink">{r.v}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+            <Card title="Allarmi scorte" description="Prodotti sotto soglia o esauriti.">
+              <ul className="space-y-2">
+                {(warehouseAlerts.length > 0 ? warehouseAlerts.slice(0, 6) : [{ id: "none", name: "Nessun allarme", qty: 0, minStock: 0, level: "warning", message: "Scorte nei limiti." }]).map((alert) => (
+                  <li key={alert.id} className="rounded-xl bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-soft">
+                    <span className={cn("font-semibold", alert.level === "critical" ? "text-red-400" : "text-amber-400")}>{alert.name}</span>
+                    <span className="ml-2">{alert.message}</span>
                   </li>
                 ))}
               </ul>
@@ -494,8 +559,39 @@ export function SupervisorPage() {
 
       {tab === "unified" && (
         <div className="space-y-6">
+          <Card title="Filtro periodo" description="Applica range date ai KPI unificati hotel + ristorante.">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <div className="w-full sm:w-44">
+                <label className={labelCls}>Da</label>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={unifiedFrom}
+                  onChange={(event) => setUnifiedFrom(event.target.value)}
+                />
+              </div>
+              <div className="w-full sm:w-44">
+                <label className={labelCls}>A</label>
+                <input
+                  type="date"
+                  className={inputCls}
+                  value={unifiedTo}
+                  onChange={(event) => setUnifiedTo(event.target.value)}
+                />
+              </div>
+              <button type="button" className={btnPrimary} onClick={refreshUnified}>
+                <RefreshCw className="h-4 w-4" /> Aggiorna KPI
+              </button>
+            </div>
+          </Card>
+
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <MetricCard icon={BedDouble as typeof DollarSign} label="Camere occupate" value={String(occupiedRooms)} sub={`su ${hotelRooms.length} camere`} />
+            <MetricCard
+              icon={BedDouble as typeof DollarSign}
+              label="Camere occupate"
+              value={String(occupiedRooms)}
+              sub={`su ${unifiedReport?.occupancy.totalRooms ?? hotelRooms.length} camere`}
+            />
             <MetricCard icon={BadgeEuro} label="Revenue hotel" value={`€${hotelRevenue.toFixed(2)}`} sub="Totale soggiorni" />
             <MetricCard icon={CreditCard as typeof DollarSign} label="Room charge" value={`€${integratedRevenue.toFixed(2)}`} sub="Ristorante su camera" />
             <MetricCard icon={ClipboardList} label="Folios" value={String(folios.length)} sub="Conti ospite aperti/chiusi" />
@@ -524,7 +620,8 @@ export function SupervisorPage() {
                 <div key={boardType} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
                   <p className="text-sm font-medium text-rw-muted">{boardType}</p>
                   <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">
-                    {hotelReservations.filter((reservation) => reservation.boardType === boardType).length}
+                    {unifiedReport?.boardMix[boardType] ??
+                      hotelReservations.filter((reservation) => reservation.boardType === boardType).length}
                   </p>
                 </div>
               ))}

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
-import { hotelKeycards, hotelReservations, hotelRooms } from "@/modules/hotel/domain/mock-data";
+import { useHotel } from "@/components/hotel/hotel-context";
 
 const cardTone = {
   attiva: "success",
@@ -14,10 +14,12 @@ const cardTone = {
 } as const;
 
 export function HotelKeycardsPage() {
+  const { keycards, reservations, rooms } = useHotel();
+
   return (
     <div className="space-y-6">
       <PageHeader title="Keycard / Serrature" subtitle="Emissione, rinnovo, revoca e tracciamento card hotel.">
-        <Chip label="Card attive" value={hotelKeycards.filter((item) => item.status === "attiva").length} tone="success" />
+        <Chip label="Card attive" value={keycards.filter((item) => item.status === "attiva").length} tone="success" />
       </PageHeader>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -29,7 +31,7 @@ export function HotelKeycardsPage() {
                 key: "roomId",
                 header: "Camera",
                 render: (row) => {
-                  const room = hotelRooms.find((item) => item.id === row.roomId);
+                  const room = rooms.find((item) => item.id === row.roomId);
                   return <span className="text-rw-ink">{room?.code || row.roomId}</span>;
                 },
               },
@@ -37,7 +39,7 @@ export function HotelKeycardsPage() {
                 key: "reservationId",
                 header: "Prenotazione",
                 render: (row) => {
-                  const reservation = hotelReservations.find((item) => item.id === row.reservationId);
+                  const reservation = reservations.find((item) => item.id === row.reservationId);
                   return <span className="text-rw-soft">{reservation?.guestName || row.reservationId}</span>;
                 },
               },
@@ -45,7 +47,7 @@ export function HotelKeycardsPage() {
               { key: "status", header: "Stato", render: (row) => <Chip label={row.status} tone={cardTone[row.status]} /> },
               { key: "issuedBy", header: "Operatore", render: (row) => <span className="text-rw-soft">{row.issuedBy}</span> },
             ]}
-            data={hotelKeycards}
+            data={keycards}
             keyExtractor={(row) => row.id}
           />
         </Card>

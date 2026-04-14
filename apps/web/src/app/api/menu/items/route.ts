@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
-import { db, uid } from "@/lib/api/store";
-import { calcFoodCost } from "@/lib/api/types/kitchen";
 import type { MenuItem } from "@/lib/api/types/kitchen";
 import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.repository";
 
 const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor"] as const;
 
@@ -11,7 +11,7 @@ const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor"] as const;
 export async function GET(req: NextRequest) {
   const guard = requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
-  return ok(db.menuItems.all());
+  return ok(await kitchenMenuRepository.allMenuItems(getTenantId()));
 }
 
 /** POST /api/menu/items — add menu item (optionally from recipe) */
@@ -19,14 +19,13 @@ export async function POST(req: NextRequest) {
   const guard = requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   const data = await body<Omit<MenuItem, "id"> & { fromRecipeId?: string }>(req);
+  const tenantId = getTenantId();
 
   if (data.fromRecipeId) {
-    const recipe = db.recipes.get(data.fromRecipeId);
+    const recipe = await kitchenMenuRepository.getRecipe(tenantId, data.fromRecipeId);
     if (!recipe) return err("Recipe not found", 404);
-    const fc = calcFoodCost(recipe);
-    const id = uid("mi");
-    const item: MenuItem = {
-      id,
+    const fc = await kitchenMenuRepository.calcRecipeFoodCostRealtime(tenantId, recipe);
+    const item = await kitchenMenuRepository.createMenuItem(tenantId, {
       name: recipe.name,
       category: recipe.category,
       area: recipe.area.charAt(0).toUpperCase() + recipe.area.slice(1),
@@ -36,14 +35,29 @@ export async function POST(req: NextRequest) {
       recipeId: recipe.id,
       notes: data.notes || "",
       foodCostPct: Math.round(fc.fcPct * 10) / 10,
-    };
-    db.menuItems.set(id, item);
+    });
     return ok(item, 201);
   }
 
   if (!data.name?.trim()) return err("name is required");
-  const id = uid("mi");
-  const item: MenuItem = { ...data, id, fromRecipeId: undefined } as MenuItem;
-  db.menuItems.set(id, item);
+  let foodCostPct = data.foodCostPct;
+  if (data.recipeId) {
+    const recipe = await kitchenMenuRepository.getRecipe(tenantId, data.recipeId);
+    if (recipe) {
+      const fc = await kitchenMenuRepository.calcRecipeFoodCostRealtime(tenantId, recipe);
+      foodCostPct = Math.round(fc.fcPct * 10) / 10;
+    }
+  }
+  const item = await kitchenMenuRepository.createMenuItem(tenantId, {
+    name: data.name,
+    category: data.category,
+    area: data.area,
+    price: data.price,
+    code: data.code,
+    active: data.active,
+    recipeId: data.recipeId,
+    notes: data.notes,
+    foodCostPct,
+  });
   return ok(item, 201);
 }

@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
-import { bookingsCollection } from "@/lib/api/store-ext";
 import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { operationsRepository } from "@/lib/db/repositories/operations.repository";
 type Ctx = { params: Promise<{ id: string }> };
 const BOOKING_ROLES = ["sala", "cassa", "supervisor"] as const;
 
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const guard = requireApiUser(req, [...BOOKING_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  const i = bookingsCollection.get(id);
+  const i = await operationsRepository.bookings.get(getTenantId(), id);
   return i ? ok(i) : err("Not found", 404);
 }
 
@@ -17,19 +18,15 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const guard = requireApiUser(req, [...BOOKING_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  const ex = bookingsCollection.get(id);
-  if (!ex) return err("Not found", 404);
   const u = await body<any>(req);
-  const up = { ...ex, ...u, id };
-  bookingsCollection.set(id, up);
-  return ok(up);
+  const up = await operationsRepository.bookings.update(getTenantId(), id, u);
+  return up ? ok(up) : err("Not found", 404);
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const guard = requireApiUser(req, [...BOOKING_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  if (!bookingsCollection.get(id)) return err("Not found", 404);
-  bookingsCollection.delete(id);
-  return ok({ deleted: true });
+  const deleted = await operationsRepository.bookings.delete(getTenantId(), id);
+  return deleted ? ok({ deleted: true }) : err("Not found", 404);
 }

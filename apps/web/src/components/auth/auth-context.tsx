@@ -24,6 +24,7 @@ export type User = {
   role: UserRole;
   email: string;
   username?: string;
+  mustChangePassword?: boolean;
 };
 
 type AuthContextValue = {

@@ -26,6 +26,7 @@ export function ChangePasswordPage() {
       await api.auth.changePassword(current, newPw);
       setFlash({ type: "success", msg: "Password cambiata con successo." });
       setCurrent(""); setNewPw(""); setConfirm("");
+      setTimeout(() => router.push("/dashboard"), 500);
     } catch (error) {
       setFlash({ type: "error", msg: error instanceof Error ? error.message : "Errore di rete." });
     } finally {

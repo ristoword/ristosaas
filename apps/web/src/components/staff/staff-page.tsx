@@ -18,7 +18,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
-import { staffApi, type StaffMember } from "@/lib/api-client";
+import { staffApi, type StaffMember, type StaffShift } from "@/lib/api-client";
 
 type RichiestaAssenza = {
   id: string;
@@ -43,6 +43,7 @@ export function StaffPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [assenze, setAssenze] = useState<RichiestaAssenza[]>([]);
+  const [shifts, setShifts] = useState<StaffShift[]>([]);
 
   const [fName, setFName] = useState("");
   const [fRole, setFRole] = useState("sala");
@@ -64,7 +65,11 @@ export function StaffPage() {
   useEffect(() => {
     staffApi
       .list()
-      .then(setStaff)
+      .then(async (staffRows) => {
+        setStaff(staffRows);
+        const shiftRows = await staffApi.listShifts();
+        setShifts(shiftRows);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -112,6 +117,23 @@ export function StaffPage() {
       setStaff((p) => p.map((s) => (s.id === member.id ? updated : s)));
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Errore nell'aggiornamento");
+    }
+  }
+
+  async function clock(staffId: string, action: "clock_in" | "clock_out") {
+    try {
+      const updated = await staffApi.clock(staffId, action);
+      setShifts((prev) => {
+        const idx = prev.findIndex((row) => row.id === updated.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = updated;
+          return next;
+        }
+        return [updated, ...prev];
+      });
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : "Errore timbratura");
     }
   }
 
@@ -286,6 +308,71 @@ export function StaffPage() {
             }
           >
             <DataTable columns={staffCols} data={staff} keyExtractor={(r) => r.id} emptyMessage="Nessun dipendente" />
+          </Card>
+
+          <Card title="Timbrature reali" description="Login/logout personale persistente su DB.">
+            <DataTable
+              columns={[
+                {
+                  key: "staff",
+                  header: "Staff",
+                  render: (row: StaffMember) => <span className="font-medium text-rw-ink">{row.name}</span>,
+                },
+                {
+                  key: "shift",
+                  header: "Stato turno",
+                  render: (row: StaffMember) => {
+                    const open = shifts.find((s) => s.staffId === row.id && s.clockOutAt == null);
+                    return (
+                      <span className={cn("text-xs font-semibold", open ? "text-emerald-400" : "text-rw-muted")}>
+                        {open ? `In turno dalle ${new Date(open.clockInAt).toLocaleTimeString()}` : "Fuori turno"}
+                      </span>
+                    );
+                  },
+                },
+                {
+                  key: "hours",
+                  header: "Ore oggi",
+                  render: (row: StaffMember) => {
+                    const today = new Date().toISOString().slice(0, 10);
+                    const worked = shifts
+                      .filter((s) => s.staffId === row.id && s.clockInAt.slice(0, 10) === today)
+                      .reduce((sum, s) => sum + (s.durationHours ?? 0), 0);
+                    return <span className="text-rw-soft">{worked.toFixed(2)}h</span>;
+                  },
+                },
+                {
+                  key: "actionsClock",
+                  header: "Azioni",
+                  render: (row: StaffMember) => {
+                    const open = shifts.find((s) => s.staffId === row.id && s.clockOutAt == null);
+                    return (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className={cn("rounded-lg px-2 py-1 text-xs font-semibold", "bg-emerald-500/15 text-emerald-400")}
+                          onClick={() => clock(row.id, "clock_in")}
+                          disabled={!!open}
+                        >
+                          Login
+                        </button>
+                        <button
+                          type="button"
+                          className={cn("rounded-lg px-2 py-1 text-xs font-semibold", "bg-red-500/15 text-red-400")}
+                          onClick={() => clock(row.id, "clock_out")}
+                          disabled={!open}
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    );
+                  },
+                },
+              ]}
+              data={staff}
+              keyExtractor={(row) => row.id}
+              emptyMessage="Nessun dipendente disponibile"
+            />
           </Card>
 
           <Card

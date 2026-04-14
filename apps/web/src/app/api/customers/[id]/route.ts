@@ -1,7 +1,29 @@
 import { NextRequest } from "next/server";
-import { customersCollection } from "@/lib/api/store-ext";
 import { ok, err, body } from "@/lib/api/helpers";
+import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { customersRepository } from "@/lib/db/repositories/customers.repository";
 type Ctx = { params: Promise<{ id: string }> };
-export async function GET(_r: NextRequest, ctx: Ctx) { const { id } = await ctx.params; const i = customersCollection.get(id); return i ? ok(i) : err("Not found", 404); }
-export async function PUT(req: NextRequest, ctx: Ctx) { const { id } = await ctx.params; const ex = customersCollection.get(id); if (!ex) return err("Not found", 404); const u = await body<any>(req); const up = { ...ex, ...u, id }; customersCollection.set(id, up); return ok(up); }
-export async function DELETE(_r: NextRequest, ctx: Ctx) { const { id } = await ctx.params; if (!customersCollection.get(id)) return err("Not found", 404); customersCollection.delete(id); return ok({ deleted: true }); }
+const CUSTOMER_ROLES = ["owner", "supervisor", "sala", "cassa", "hotel_manager", "reception", "super_admin"] as const;
+export async function GET(req: NextRequest, ctx: Ctx) {
+  const guard = requireApiUser(req, CUSTOMER_ROLES);
+  if (guard.error) return guard.error;
+  const { id } = await ctx.params;
+  const i = await customersRepository.get(getTenantId(), id);
+  return i ? ok(i) : err("Not found", 404);
+}
+export async function PUT(req: NextRequest, ctx: Ctx) {
+  const guard = requireApiUser(req, CUSTOMER_ROLES);
+  if (guard.error) return guard.error;
+  const { id } = await ctx.params;
+  const u = await body<Record<string, unknown>>(req);
+  const up = await customersRepository.update(getTenantId(), id, u as never);
+  return up ? ok(up) : err("Not found", 404);
+}
+export async function DELETE(req: NextRequest, ctx: Ctx) {
+  const guard = requireApiUser(req, CUSTOMER_ROLES);
+  if (guard.error) return guard.error;
+  const { id } = await ctx.params;
+  const deleted = await customersRepository.delete(getTenantId(), id);
+  return deleted ? ok({ deleted: true }) : err("Not found", 404);
+}

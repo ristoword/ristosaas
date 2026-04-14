@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BedDouble,
@@ -19,6 +20,7 @@ import { tenantPlatformProfile } from "@/core/tenant/platform-config";
 import { useI18n } from "@/core/i18n/provider";
 import { useI10n } from "@/core/i10n/formatters";
 import { useOrders } from "@/components/orders/orders-context";
+import { reportsApi, type ReportTrendsSnapshot } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 export function DashboardHome() {
@@ -28,6 +30,7 @@ export function DashboardHome() {
   const { t } = useI18n();
   const { formatCurrency } = useI10n();
   const modules = getVisibleNavSections(user?.role).flatMap((s) => s.items).filter((i) => i.id !== "dashboard");
+  const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
   const isRestaurantEnabled = tenantPlatformProfile.enabledFeatures.includes("restaurant");
   const isHotelEnabled = tenantPlatformProfile.enabledFeatures.includes("hotel");
   const inHouseReservations = reservations.filter((reservation) => reservation.status === "in_casa");
@@ -97,6 +100,10 @@ export function DashboardHome() {
     },
   ];
 
+  useEffect(() => {
+    reportsApi.trends().then(setTrends).catch(() => setTrends(null));
+  }, []);
+
   return (
     <div className="space-y-10 md:space-y-12">
       <section className="relative overflow-hidden rounded-3xl border border-rw-line bg-rw-surface p-6 shadow-rw-sm md:p-10">
@@ -154,6 +161,67 @@ export function DashboardHome() {
             <p className="mt-2 text-sm text-rw-soft">{s.sub}</p>
           </article>
         ))}
+      </section>
+
+      <section aria-labelledby="trend-heading" className="space-y-4">
+        <div>
+          <h2 id="trend-heading" className="font-display text-xl font-semibold text-rw-ink">
+            Trend ricavi persistenti
+          </h2>
+          <p className="text-sm text-rw-muted">
+            KPI da report giornalieri DB (oggi, ultimi 7 giorni, ultimi 30 giorni).
+          </p>
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            { key: "day" as const, label: "Oggi" },
+            { key: "week" as const, label: "7 giorni" },
+            { key: "month" as const, label: "30 giorni" },
+          ].map((period) => {
+            const data = trends?.[period.key];
+            return (
+              <article key={period.key} className="rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
+                <p className="text-sm font-medium text-rw-muted">{period.label}</p>
+                <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">
+                  {formatCurrency(data?.revenue ?? 0)}
+                </p>
+                <p className="mt-2 text-sm text-rw-soft">
+                  Margine: {formatCurrency(data?.margin ?? 0)}
+                </p>
+                <p className="mt-1 text-xs text-rw-muted">
+                  Delta vs periodo precedente:{" "}
+                  {data?.deltaRevenuePct == null ? "n/d" : `${data.deltaRevenuePct.toFixed(1)}%`}
+                </p>
+              </article>
+            );
+          })}
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <article className="rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
+            <p className="text-sm font-medium text-rw-muted">Forecast prossimi 7 giorni</p>
+            <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">
+              {formatCurrency(trends?.forecast.next7.projectedRevenue ?? 0)}
+            </p>
+            <p className="mt-2 text-sm text-rw-soft">
+              Margine previsto: {formatCurrency(trends?.forecast.next7.projectedMargin ?? 0)}
+            </p>
+            <p className="mt-1 text-xs text-rw-muted">
+              Affidabilita: {trends?.forecast.next7.confidence ?? "low"}
+            </p>
+          </article>
+          <article className="rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
+            <p className="text-sm font-medium text-rw-muted">Forecast prossimi 30 giorni</p>
+            <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">
+              {formatCurrency(trends?.forecast.next30.projectedRevenue ?? 0)}
+            </p>
+            <p className="mt-2 text-sm text-rw-soft">
+              Margine previsto: {formatCurrency(trends?.forecast.next30.projectedMargin ?? 0)}
+            </p>
+            <p className="mt-1 text-xs text-rw-muted">
+              Affidabilita: {trends?.forecast.next30.confidence ?? "low"}
+            </p>
+          </article>
+        </div>
       </section>
 
       <section aria-labelledby="quick-heading" className="space-y-4">

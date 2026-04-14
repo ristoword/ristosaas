@@ -27,22 +27,16 @@ import { tenantPlatformProfile } from "@/core/tenant/platform-config";
 import {
   ordersApi,
   menuApi,
+  reportsApi,
   type Order,
   type MenuItem as ApiMenuItem,
+  type DailyClosureReport,
+  type ReportTrendsSnapshot,
 } from "@/lib/api-client";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
-
-type DailyReport = {
-  id: string;
-  date: string;
-  foodSpend: number;
-  staffSpend: number;
-  revenue: number;
-  notes: string;
-};
 
 const TABS = [
   { id: "cassa", label: "Cassa / Tavoli" },
@@ -72,6 +66,7 @@ export function CassaPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<ApiMenuItem[]>([]);
+  const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
 
   const fetchData = useCallback(() => {
     return Promise.all([ordersApi.list(), menuApi.listItems()])
@@ -84,6 +79,7 @@ export function CassaPage() {
 
   useEffect(() => {
     fetchData().finally(() => setLoading(false));
+    reportsApi.trends().then(setTrends).catch(() => setTrends(null));
   }, [fetchData]);
 
   const servedOrders = useMemo(() => orders.filter((o) => o.status === "servito"), [orders]);
@@ -123,6 +119,10 @@ export function CassaPage() {
         <Chip label="Tavoli da chiudere" value={tavoliDaChiudere} tone="warn" />
         <Chip label="Comande servite" value={servedOrders.length} tone="success" />
         <Chip label="Incasso simulato" value={`€ ${incassoSimulato.toFixed(2)}`} tone="accent" />
+        <Chip label="Trend 7gg" value={`€ ${(trends?.week.revenue ?? 0).toFixed(2)}`} />
+        <Chip label="Trend 30gg" value={`€ ${(trends?.month.revenue ?? 0).toFixed(2)}`} />
+        <Chip label="Forecast 7gg" value={`€ ${(trends?.forecast.next7.projectedRevenue ?? 0).toFixed(2)}`} />
+        <Chip label="Forecast 30gg" value={`€ ${(trends?.forecast.next30.projectedRevenue ?? 0).toFixed(2)}`} />
         <AiToggleButton onClick={() => setAiOpen(true)} label="AI Cassa" />
       </PageHeader>
 
@@ -543,9 +543,9 @@ function MenuTab({ menuItems, setMenuItems }: { menuItems: ApiMenuItem[]; setMen
 /* ================================================================== */
 
 function ReportTab({ orders }: { orders: Order[] }) {
-  const [reports, setReports] = useState<DailyReport[]>([]);
+  const [reports, setReports] = useState<DailyClosureReport[]>([]);
   const [form, setForm] = useState({ date: "", foodSpend: "", staffSpend: "", notes: "" });
-  const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<DailyClosureReport | null>(null);
 
   const todayRevenue = useMemo(
     () =>
@@ -555,18 +555,35 @@ function ReportTab({ orders }: { orders: Order[] }) {
     [orders],
   );
 
+  useEffect(() => {
+    reportsApi.daily
+      .list()
+      .then((rows) => {
+        setReports(rows);
+        setSelectedReport(rows[0] ?? null);
+      })
+      .catch((error) => console.error("Failed to fetch daily reports:", error));
+  }, []);
+
   function saveReport() {
     if (!form.date) return;
-    const nr: DailyReport = {
-      id: `r-${Date.now()}`,
-      date: form.date,
-      foodSpend: parseFloat(form.foodSpend) || 0,
-      staffSpend: parseFloat(form.staffSpend) || 0,
-      revenue: todayRevenue,
-      notes: form.notes,
-    };
-    setReports((prev) => [nr, ...prev]);
-    setForm({ date: "", foodSpend: "", staffSpend: "", notes: "" });
+    reportsApi.daily
+      .upsert({
+        date: form.date,
+        foodSpend: parseFloat(form.foodSpend) || 0,
+        staffSpend: parseFloat(form.staffSpend) || 0,
+        revenue: todayRevenue,
+        notes: form.notes,
+      })
+      .then((saved) => {
+        setReports((prev) => {
+          const next = prev.filter((report) => report.id !== saved.id);
+          return [saved, ...next];
+        });
+        setSelectedReport(saved);
+        setForm({ date: "", foodSpend: "", staffSpend: "", notes: "" });
+      })
+      .catch((error) => console.error("Failed to save daily report:", error));
   }
 
   return (

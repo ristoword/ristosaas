@@ -1,11 +1,15 @@
 import jwt from "jsonwebtoken";
 import type { NextRequest, NextResponse } from "next/server";
-import { findUserById, sanitizeUser } from "@/lib/auth/users.store";
 import { JWT_SECRET, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/constants";
+import type { PublicUser } from "@/lib/auth/types";
 
 type SessionClaims = {
   userId: string;
   role: string;
+  username: string;
+  name: string;
+  email: string;
+  mustChangePassword?: boolean;
 };
 
 export function createSessionToken(payload: SessionClaims) {
@@ -18,8 +22,12 @@ export function verifySessionToken(token: string) {
     if (!decoded || typeof decoded !== "object") return null;
     const userId = "userId" in decoded ? String(decoded.userId) : null;
     const role = "role" in decoded ? String(decoded.role) : null;
-    if (!userId || !role) return null;
-    return { userId, role };
+    const username = "username" in decoded ? String(decoded.username) : null;
+    const name = "name" in decoded ? String(decoded.name) : null;
+    const email = "email" in decoded ? String(decoded.email) : null;
+    const mustChangePassword = "mustChangePassword" in decoded ? Boolean(decoded.mustChangePassword) : false;
+    if (!userId || !role || !username || !name || !email) return null;
+    return { userId, role, username, name, email, mustChangePassword };
   } catch {
     return null;
   }
@@ -30,9 +38,16 @@ export function getRequestUser(req: NextRequest) {
   if (!token) return null;
   const claims = verifySessionToken(token);
   if (!claims) return null;
-  const user = findUserById(claims.userId);
-  if (!user) return null;
-  return sanitizeUser(user);
+  const user: PublicUser = {
+    id: claims.userId,
+    role: claims.role as PublicUser["role"],
+    username: claims.username,
+    name: claims.name,
+    email: claims.email,
+    mustChangePassword: !!claims.mustChangePassword,
+    isLocked: false,
+  };
+  return user;
 }
 
 export function setSessionCookie(res: NextResponse, payload: SessionClaims) {

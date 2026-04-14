@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { err } from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
-import type { PublicUser, UserRole } from "@/lib/auth/users.store";
+import type { PublicUser, UserRole } from "@/lib/auth/types";
 
 export function hasRole(userRole: UserRole, requiredRoles: readonly string[]) {
   if (userRole === "owner" || userRole === "super_admin") return true;

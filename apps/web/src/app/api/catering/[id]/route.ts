@@ -1,7 +1,29 @@
 import { NextRequest } from "next/server";
-import { cateringCollection } from "@/lib/api/store-ext";
 import { ok, err, body } from "@/lib/api/helpers";
+import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { operationsRepository } from "@/lib/db/repositories/operations.repository";
 type Ctx = { params: Promise<{ id: string }> };
-export async function GET(_r: NextRequest, ctx: Ctx) { const { id } = await ctx.params; const i = cateringCollection.get(id); return i ? ok(i) : err("Not found", 404); }
-export async function PUT(req: NextRequest, ctx: Ctx) { const { id } = await ctx.params; const ex = cateringCollection.get(id); if (!ex) return err("Not found", 404); const u = await body<any>(req); const up = { ...ex, ...u, id }; cateringCollection.set(id, up); return ok(up); }
-export async function DELETE(_r: NextRequest, ctx: Ctx) { const { id } = await ctx.params; if (!cateringCollection.get(id)) return err("Not found", 404); cateringCollection.delete(id); return ok({ deleted: true }); }
+const CATERING_ROLES = ["owner", "supervisor", "sala", "cassa", "super_admin"] as const;
+export async function GET(req: NextRequest, ctx: Ctx) {
+  const guard = requireApiUser(req, CATERING_ROLES);
+  if (guard.error) return guard.error;
+  const { id } = await ctx.params;
+  const i = await operationsRepository.catering.get(getTenantId(), id);
+  return i ? ok(i) : err("Not found", 404);
+}
+export async function PUT(req: NextRequest, ctx: Ctx) {
+  const guard = requireApiUser(req, CATERING_ROLES);
+  if (guard.error) return guard.error;
+  const { id } = await ctx.params;
+  const u = await body<any>(req);
+  const up = await operationsRepository.catering.update(getTenantId(), id, u);
+  return up ? ok(up) : err("Not found", 404);
+}
+export async function DELETE(req: NextRequest, ctx: Ctx) {
+  const guard = requireApiUser(req, CATERING_ROLES);
+  if (guard.error) return guard.error;
+  const { id } = await ctx.params;
+  const deleted = await operationsRepository.catering.delete(getTenantId(), id);
+  return deleted ? ok({ deleted: true }) : err("Not found", 404);
+}

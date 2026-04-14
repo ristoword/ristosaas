@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CreditCard,
   Eye,
@@ -16,20 +16,41 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
-
-const mockPayments = [
-  { id: "pi_1", data: "2026-04-11", importo: 49.0, stato: "riuscito", descrizione: "Piano Pro mensile" },
-  { id: "pi_2", data: "2026-03-11", importo: 49.0, stato: "riuscito", descrizione: "Piano Pro mensile" },
-  { id: "pi_3", data: "2026-02-11", importo: 49.0, stato: "riuscito", descrizione: "Piano Pro mensile" },
-  { id: "pi_4", data: "2026-01-11", importo: 49.0, stato: "fallito", descrizione: "Piano Pro mensile" },
-  { id: "pi_5", data: "2025-12-11", importo: 490.0, stato: "riuscito", descrizione: "Piano Pro annuale" },
-];
+import { billingApi, type BillingEvent, type BillingSubscription } from "@/lib/api-client";
 
 export function StripePage() {
   const [showKey, setShowKey] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
+  const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
+  const [events, setEvents] = useState<BillingEvent[]>([]);
   const apiKey = "sk_test_demo_masked_key";
   const webhookUrl = "https://api.ristodemo.it/webhooks/stripe";
+  const isConnected = !!subscription;
+
+  useEffect(() => {
+    billingApi
+      .overview()
+      .then((data) => {
+        setSubscription(data.subscription);
+        setEvents(data.events);
+      })
+      .catch(() => {
+        setSubscription(null);
+        setEvents([]);
+      });
+  }, []);
+
+  const payments = useMemo(
+    () =>
+      events.map((event) => ({
+        id: event.id,
+        data: event.createdAt.slice(0, 10),
+        importo: 0,
+        stato: event.status === "processed" ? "riuscito" : "fallito",
+        descrizione: event.type,
+      })),
+    [events],
+  );
 
   return (
     <div className="space-y-6">
@@ -38,9 +59,11 @@ export function StripePage() {
       {/* subscription status */}
       <Card title="Stato abbonamento">
         <div className="flex flex-wrap items-center gap-4">
-          <Chip label="Piano Pro" tone="accent" />
-          <Chip label="Attivo" tone="success" />
-          <span className="text-sm text-rw-muted">Prossimo rinnovo: 11 maggio 2026</span>
+            <Chip label={subscription?.priceId || "Piano non collegato"} tone="accent" />
+            <Chip label={subscription?.status || "Da configurare"} tone={subscription?.status === "active" ? "success" : "warn"} />
+            <span className="text-sm text-rw-muted">
+              Prossimo rinnovo: {subscription?.currentPeriodEnd ? subscription.currentPeriodEnd.slice(0, 10) : "n/d"}
+            </span>
         </div>
 
         <div className="mt-4 flex gap-2">
@@ -92,9 +115,11 @@ export function StripePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
-            <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-            <span className="text-sm font-semibold text-emerald-300">Webhook verificato e attivo</span>
+          <div className={`flex items-center gap-3 rounded-xl px-4 py-3 ${isConnected ? "border border-emerald-500/30 bg-emerald-500/10" : "border border-amber-500/30 bg-amber-500/10"}`}>
+            {isConnected ? <CheckCircle2 className="h-5 w-5 text-emerald-400" /> : <XCircle className="h-5 w-5 text-amber-300" />}
+            <span className={`text-sm font-semibold ${isConnected ? "text-emerald-300" : "text-amber-200"}`}>
+              {isConnected ? "Webhook attivo e subscription tracciata su DB" : "Webhook non ancora collegato in produzione"}
+            </span>
           </div>
         </div>
       </Card>
@@ -119,7 +144,7 @@ export function StripePage() {
               ),
             },
           ]}
-          data={mockPayments}
+          data={payments}
           keyExtractor={(r) => r.id}
         />
       </Card>

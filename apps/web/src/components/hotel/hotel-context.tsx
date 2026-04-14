@@ -44,14 +44,14 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const [roomsData, reservationsData, housekeepingData, keycardsData, foliosData, chargesData, availabilityData] = await Promise.all([
+      const [roomsData, reservationsData, housekeepingData, keycardsData, foliosData, chargesData, ratePlansData] = await Promise.all([
         hotelApi.listRooms(),
         hotelApi.listReservations(),
         hotelApi.listHousekeeping(),
         hotelApi.listKeycards(),
         integrationApi.listFolios(),
         integrationApi.listCharges(),
-        hotelApi.availability({ roomType: "Classic", checkInDate: "2026-04-12", checkOutDate: "2026-04-13" }),
+        hotelApi.listRatePlans(),
       ]);
       setRooms(roomsData);
       setReservations(reservationsData);
@@ -59,7 +59,7 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
       setKeycards(keycardsData);
       setFolios(foliosData);
       setCharges(chargesData);
-      setRatePlans(availabilityData.ratePlans);
+      setRatePlans(ratePlansData);
     } finally {
       setLoading(false);
     }

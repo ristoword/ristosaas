@@ -22,7 +22,11 @@ export function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      await api.auth.login(username.trim(), password);
+      const result = await api.auth.login(username.trim(), password);
+      if (result.user.mustChangePassword) {
+        router.push("/change-password");
+        return;
+      }
       const redirect = searchParams.get("redirect") || "/dashboard";
       router.push(redirect);
     } catch (error) {

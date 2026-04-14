@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
-import { db, uid } from "@/lib/api/store";
 import type { Order, OrderItem } from "@/lib/api/types/orders";
 import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { ordersRepository } from "@/lib/db/repositories/orders.repository";
 
 const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor"] as const;
 
@@ -11,20 +12,12 @@ export async function GET(req: NextRequest) {
   const guard = requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { searchParams } = req.nextUrl;
-  let results = db.orders.all();
-
-  const status = searchParams.get("status");
-  if (status) results = results.filter((o) => o.status === status);
-
-  const area = searchParams.get("area");
-  if (area) results = results.filter((o) => o.area === area || o.items.some((i) => i.area === area));
-
-  const table = searchParams.get("table");
-  if (table) results = results.filter((o) => o.table === table);
-
-  const active = searchParams.get("active");
-  if (active === "true") results = results.filter((o) => !["chiuso", "annullato", "servito"].includes(o.status));
-
+  const results = await ordersRepository.all(getTenantId(), {
+    status: searchParams.get("status"),
+    area: searchParams.get("area"),
+    table: searchParams.get("table"),
+    active: searchParams.get("active"),
+  });
   return ok(results);
 }
 
@@ -35,21 +28,25 @@ export async function POST(req: NextRequest) {
   const data = await body<Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status">>(req);
   if (!data.items?.length) return err("items are required");
 
-  const id = uid("ord");
-  const now = new Date().toISOString();
-  const courseStates = db.orders.buildCourseStates(data.items);
+  const courseStates = buildCourseStates(data.items);
   const nums = [...new Set(data.items.map((i: OrderItem) => i.course))].sort((a, b) => a - b);
 
-  const order: Order = {
+  const orderPayload: Omit<Order, "id" | "createdAt" | "updatedAt"> = {
     ...data,
-    id,
     activeCourse: nums[0] ?? 1,
     courseStates,
     status: "in_attesa",
-    createdAt: now,
-    updatedAt: now,
   };
-
-  db.orders.set(id, order);
+  const order = await ordersRepository.create(getTenantId(), orderPayload);
   return ok(order, 201);
+}
+
+function buildCourseStates(items: OrderItem[]): Record<string, "queued" | "in_attesa" | "in_preparazione" | "pronto" | "servito"> {
+  const courseNums = [...new Set(items.map((item) => item.course))].sort((a, b) => a - b);
+  const states: Record<string, "queued" | "in_attesa" | "in_preparazione" | "pronto" | "servito"> = {};
+  for (let idx = 0; idx < courseNums.length; idx += 1) {
+    const course = courseNums[idx];
+    states[String(course)] = idx === 0 ? "in_attesa" : "queued";
+  }
+  return states;
 }

@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/api/store";
-import { calcFoodCost } from "@/lib/api/types/kitchen";
 import { ok, err } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.repository";
 
 const KITCHEN_ROLES = ["cucina", "supervisor"] as const;
 
@@ -13,7 +13,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
   const guard = requireApiUser(req, [...KITCHEN_ROLES]);
   if (guard.error) return guard.error;
   const { recipeId } = await ctx.params;
-  const recipe = db.recipes.get(recipeId);
+  const tenantId = getTenantId();
+  const recipe = await kitchenMenuRepository.getRecipe(tenantId, recipeId);
   if (!recipe) return err("Recipe not found", 404);
-  return ok(calcFoodCost(recipe));
+  return ok(await kitchenMenuRepository.calcRecipeFoodCostRealtime(tenantId, recipe));
 }

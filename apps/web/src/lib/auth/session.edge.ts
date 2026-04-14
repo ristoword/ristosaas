@@ -8,8 +8,12 @@ export async function verifyEdgeSessionToken(token: string) {
     const { payload } = await jwtVerify(token, secret);
     const userId = payload.userId ? String(payload.userId) : null;
     const role = payload.role ? String(payload.role) : null;
-    if (!userId || !role) return null;
-    return { userId, role };
+    const username = payload.username ? String(payload.username) : null;
+    const name = payload.name ? String(payload.name) : null;
+    const email = payload.email ? String(payload.email) : null;
+    const mustChangePassword = payload.mustChangePassword ? Boolean(payload.mustChangePassword) : false;
+    if (!userId || !role || !username || !name || !email) return null;
+    return { userId, role, username, name, email, mustChangePassword };
   } catch {
     return null;
   }

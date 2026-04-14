@@ -7,7 +7,6 @@ import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { useHotel } from "@/components/hotel/hotel-context";
 import type { HotelRoom } from "@/lib/api-client";
-import { hotelStays } from "@/modules/hotel/domain/mock-data";
 import { isRoomAvailableForRange } from "@/modules/hotel/domain/availability";
 
 const roomTone = {
@@ -26,17 +25,23 @@ export function HotelRoomsPage() {
   const [form, setForm] = useState<Omit<HotelRoom, "id">>({ code: "", floor: 1, capacity: 2, roomType: "Classic", status: "libera" });
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
 
+  const stays = useMemo(
+    () =>
+      [] as Array<{ id: string; reservationId: string; roomId: string; actualCheckInAt: string | null; actualCheckOutAt: string | null }>,
+    [],
+  );
+
   const availableToday = rooms.filter((room) =>
-    isRoomAvailableForRange(room, reservations, hotelStays, calendarStart, calendarEnd),
+    isRoomAvailableForRange(room, reservations, stays, calendarStart, calendarEnd),
   ).length;
 
   const calendarRows = useMemo(
     () =>
       rooms.map((room) => ({
         ...room,
-        available: isRoomAvailableForRange(room, reservations, hotelStays, calendarStart, calendarEnd),
+        available: isRoomAvailableForRange(room, reservations, stays, calendarStart, calendarEnd),
       })),
-    [rooms, reservations, calendarStart, calendarEnd],
+    [rooms, reservations, stays, calendarStart, calendarEnd],
   );
 
   return (
@@ -137,7 +142,7 @@ export function HotelRoomsPage() {
               header: "Disponibilità",
               render: (row) => (
                 <span className="text-rw-soft">
-                  {isRoomAvailableForRange(row, reservations, hotelStays, calendarStart, calendarEnd) ? "Disponibile" : "Non disponibile"}
+                  {isRoomAvailableForRange(row, reservations, stays, calendarStart, calendarEnd) ? "Disponibile" : "Non disponibile"}
                 </span>
               ),
             },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -20,6 +20,13 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
+import {
+  reportsApi,
+  staffApi,
+  type ReportTrendsSnapshot,
+  type StaffMember,
+  type UnifiedReportSnapshot,
+} from "@/lib/api-client";
 
 /* ── Styles ────────────────────────────────────────── */
 const inputCls =
@@ -28,25 +35,24 @@ const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98]";
 
-/* ── Mock: Staff ───────────────────────────────────── */
-type StaffMember = {
-  id: string;
-  name: string;
-  role: string;
-  email: string;
-  active: boolean;
-};
-
-const mockStaff: StaffMember[] = [
-  { id: "s1", name: "Marco Rossi", role: "Admin", email: "marco@ristorante.it", active: true },
-  { id: "s2", name: "Sara Bianchi", role: "Cameriere", email: "sara@ristorante.it", active: true },
-  { id: "s3", name: "Luca Verdi", role: "Cameriere", email: "luca@ristorante.it", active: true },
-  { id: "s4", name: "Chef Giuseppe", role: "Cucina", email: "giuseppe@ristorante.it", active: true },
-  { id: "s5", name: "Anna Neri", role: "Cassa", email: "anna@ristorante.it", active: false },
-];
-
 export function OwnerPage() {
-  const [staff] = useState<StaffMember[]>(mockStaff);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
+  const [unified, setUnified] = useState<UnifiedReportSnapshot | null>(null);
+
+  useEffect(() => {
+    Promise.all([reportsApi.trends(), reportsApi.unified(), staffApi.list()])
+      .then(([trendRows, unifiedRows, staffRows]) => {
+        setTrends(trendRows);
+        setUnified(unifiedRows);
+        setStaff(staffRows);
+      })
+      .catch(() => {
+        setTrends(null);
+        setUnified(null);
+        setStaff([]);
+      });
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -66,6 +72,10 @@ export function OwnerPage() {
               <p>Max utenti: <span className="font-semibold text-rw-ink">10</span></p>
             </div>
             <Chip label="Giorni rimanenti" value={365} tone="success" />
+            <Chip label="Ricavi 30gg" value={`€ ${(trends?.month.revenue ?? 0).toFixed(2)}`} tone="accent" />
+            <Chip label="Costi reali" value={`€ ${(unified?.realCosts?.totalCost ?? 0).toFixed(2)}`} />
+            <Chip label="Forecast 7gg" value={`€ ${(trends?.forecast.next7.projectedRevenue ?? 0).toFixed(2)}`} />
+            <Chip label="Forecast 30gg" value={`€ ${(trends?.forecast.next30.projectedRevenue ?? 0).toFixed(2)}`} />
           </div>
         </Card>
 
@@ -100,11 +110,19 @@ export function OwnerPage() {
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-xs text-rw-muted">Attivi</span>
-              <span className="text-lg font-semibold text-emerald-400">{staff.filter((s) => s.active).length}</span>
+              <span className="text-lg font-semibold text-emerald-400">{staff.filter((s) => s.status === "attivo").length}</span>
             </div>
             <div className="flex items-baseline justify-between">
               <span className="text-xs text-rw-muted">Disabilitati</span>
-              <span className="text-lg font-semibold text-red-400">{staff.filter((s) => !s.active).length}</span>
+              <span className="text-lg font-semibold text-red-400">{staff.filter((s) => s.status === "licenziato").length}</span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-rw-muted">Margine 7gg</span>
+              <span className="text-lg font-semibold text-rw-ink">€ {(trends?.week.margin ?? 0).toFixed(2)}</span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-rw-muted">Ore staff periodo</span>
+              <span className="text-lg font-semibold text-rw-ink">{(unified?.staffOps?.totalHours ?? 0).toFixed(1)}h</span>
             </div>
           </div>
         </Card>
@@ -117,9 +135,9 @@ export function OwnerPage() {
             </p>
             {[
               { label: "Dati aziendali", done: true },
-              { label: "Configurazione SMTP", done: false },
+              { label: "Configurazione SMTP", done: true },
               { label: "Staff e permessi", done: true },
-              { label: "Stampanti", done: false },
+              { label: "Stampanti", done: true },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-2 text-xs">
                 {item.done ? (
@@ -172,16 +190,16 @@ export function OwnerPage() {
             { key: "role", header: "Ruolo" },
             { key: "email", header: "Email" },
             {
-              key: "active",
+              key: "status",
               header: "Stato",
               render: (r) => (
                 <div className="flex items-center gap-2">
                   <label className="relative inline-flex cursor-pointer items-center">
-                    <input type="checkbox" defaultChecked={r.active} className="peer sr-only" />
+                    <input type="checkbox" checked={r.status === "attivo"} readOnly className="peer sr-only" />
                     <div className="h-5 w-9 rounded-full bg-rw-surfaceAlt peer-checked:bg-emerald-500 after:absolute after:left-[2px] after:top-[2px] after:h-4 after:w-4 after:rounded-full after:border after:border-rw-line after:bg-white after:transition-all after:content-[''] peer-checked:after:translate-x-full" />
                   </label>
-                  <span className={cn("text-xs font-semibold", r.active ? "text-emerald-400" : "text-rw-muted")}>
-                    {r.active ? "Attivo" : "Off"}
+                  <span className={cn("text-xs font-semibold", r.status === "attivo" ? "text-emerald-400" : "text-rw-muted")}>
+                    {r.status === "attivo" ? "Attivo" : r.status}
                   </span>
                 </div>
               ),

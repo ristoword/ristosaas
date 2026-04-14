@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
-import { housekeepingTasks, hotelRooms } from "@/modules/hotel/domain/mock-data";
+import { useHotel } from "@/components/hotel/hotel-context";
 
 const taskTone = {
   todo: "warn",
@@ -13,10 +13,12 @@ const taskTone = {
 } as const;
 
 export function HotelHousekeepingPage() {
+  const { housekeeping, rooms } = useHotel();
+
   return (
     <div className="space-y-6">
       <PageHeader title="Housekeeping" subtitle="Pulizie, ispezioni e camere bloccate per manutenzione.">
-        <Chip label="Task aperti" value={housekeepingTasks.filter((item) => item.status !== "done").length} tone="warn" />
+        <Chip label="Task aperti" value={housekeeping.filter((item) => item.status !== "done").length} tone="warn" />
       </PageHeader>
 
       <Card title="Coda housekeeping" description="Vista operativa per camere da pulire, pronte o in manutenzione.">
@@ -26,7 +28,7 @@ export function HotelHousekeepingPage() {
               key: "roomId",
               header: "Camera",
               render: (row) => {
-                const room = hotelRooms.find((item) => item.id === row.roomId);
+                const room = rooms.find((item) => item.id === row.roomId);
                 return <span className="font-semibold text-rw-ink">{room?.code || row.roomId}</span>;
               },
             },
@@ -35,7 +37,7 @@ export function HotelHousekeepingPage() {
             { key: "status", header: "Stato", render: (row) => <Chip label={row.status.replace("_", " ")} tone={taskTone[row.status]} /> },
             { key: "inspected", header: "Ispezione", render: (row) => <span className="text-rw-soft">{row.inspected ? "OK" : "Da verificare"}</span> },
           ]}
-          data={housekeepingTasks}
+          data={housekeeping}
           keyExtractor={(row) => row.id}
         />
       </Card>

@@ -6,10 +6,12 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
-import { hotelRatePlans } from "@/modules/hotel/domain/mock-data";
+import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
+import { useState } from "react";
 
 export function HotelDashboardPage() {
-  const { rooms, reservations, housekeeping, folios, charges } = useHotel();
+  const [aiOpen, setAiOpen] = useState(false);
+  const { rooms, reservations, housekeeping, folios, charges, ratePlans } = useHotel();
   const hotelStats = [
     {
       label: "Occupazione",
@@ -51,6 +53,7 @@ export function HotelDashboardPage() {
       >
         <Chip label="Verticale" value="Hotel" tone="info" />
         <Chip label="Piano" value="All Included Ready" tone="accent" />
+        <AiToggleButton onClick={() => setAiOpen(true)} label="AI Hotel" />
         <Link href="/hotel/folio" className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white">
           <CreditCard className="h-4 w-4" /> Guest Folio
         </Link>
@@ -110,7 +113,7 @@ export function HotelDashboardPage() {
             <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 sm:col-span-2">
               <p className="font-semibold text-rw-ink">Rate plans attivi</p>
               <div className="mt-3 grid gap-2 md:grid-cols-2">
-                {hotelRatePlans.map((plan) => (
+                {ratePlans.map((plan) => (
                   <div key={plan.id} className="rounded-xl border border-rw-line bg-rw-surface px-3 py-2 text-sm">
                     <p className="font-semibold text-rw-ink">{plan.name}</p>
                     <p className="text-xs text-rw-muted">
@@ -137,6 +140,7 @@ export function HotelDashboardPage() {
           </div>
         </Card>
       </div>
+      <AiChat context="hotel" open={aiOpen} onClose={() => setAiOpen(false)} title="AI Hotel Front Desk" />
     </div>
   );
 }

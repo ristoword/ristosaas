@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
-import { db } from "@/lib/api/store";
 import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { ordersRepository } from "@/lib/db/repositories/orders.repository";
 
 const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor"] as const;
 
@@ -17,7 +18,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const guard = requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  const order = db.orders.get(id);
+  const tenantId = getTenantId();
+  const order = await ordersRepository.get(tenantId, id);
   if (!order) return err("Order not found", 404);
 
   const { course } = await body<{ course: number }>(req);
@@ -28,8 +30,11 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     cs[String(course)] = "in_attesa";
   }
 
-  const updated = { ...order, activeCourse: course, courseStates: cs, updatedAt: new Date().toISOString() };
-  db.orders.set(id, updated);
+  const updated = await ordersRepository.update(tenantId, id, {
+    activeCourse: course,
+    courseStates: cs,
+  });
+  if (!updated) return err("Order not found", 404);
 
   return ok(updated);
 }

@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
-import { db, uid } from "@/lib/api/store";
 import type { DailyDish } from "@/lib/api/types/kitchen";
 import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
+import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.repository";
 
 const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor"] as const;
 
@@ -10,7 +11,7 @@ const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor"] as const;
 export async function GET(req: NextRequest) {
   const guard = requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
-  return ok(db.dailyDishes.all());
+  return ok(await kitchenMenuRepository.allDailyDishes(getTenantId()));
 }
 
 /** POST /api/menu/daily — add daily dish (optionally from recipe) */
@@ -18,27 +19,30 @@ export async function POST(req: NextRequest) {
   const guard = requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   const data = await body<Omit<DailyDish, "id"> & { fromRecipeId?: string }>(req);
+  const tenantId = getTenantId();
 
   if (data.fromRecipeId) {
-    const recipe = db.recipes.get(data.fromRecipeId);
+    const recipe = await kitchenMenuRepository.getRecipe(tenantId, data.fromRecipeId);
     if (!recipe) return err("Recipe not found", 404);
-    const id = uid("dd");
-    const dish: DailyDish = {
-      id,
+    const dish = await kitchenMenuRepository.createDailyDish(tenantId, {
       name: recipe.name,
       description: data.description || "",
       category: recipe.category,
       price: recipe.sellingPrice,
       allergens: data.allergens || "",
       recipeId: recipe.id,
-    };
-    db.dailyDishes.set(id, dish);
+    });
     return ok(dish, 201);
   }
 
   if (!data.name?.trim()) return err("name is required");
-  const id = uid("dd");
-  const dish: DailyDish = { ...data, id, fromRecipeId: undefined } as DailyDish;
-  db.dailyDishes.set(id, dish);
+  const dish = await kitchenMenuRepository.createDailyDish(tenantId, {
+    name: data.name,
+    description: data.description,
+    category: data.category,
+    price: data.price,
+    allergens: data.allergens,
+    recipeId: data.recipeId,
+  });
   return ok(dish, 201);
 }

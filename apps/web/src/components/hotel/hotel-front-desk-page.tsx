@@ -6,9 +6,11 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
+import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 
 export function HotelFrontDeskPage() {
   const { reservations, finalizeCheckout } = useHotel();
+  const [aiOpen, setAiOpen] = useState(false);
   const [selectedCheckout, setSelectedCheckout] = useState("");
   const [cityTax, setCityTax] = useState("6");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "card" | "room_charge_settlement">("card");
@@ -20,6 +22,7 @@ export function HotelFrontDeskPage() {
       <PageHeader title="Check-in / Check-out" subtitle="Flusso operativo principale reception: arrivo, permanenza, partenza.">
         <Chip label="Da check-in" value={arrivals.length} tone="info" />
         <Chip label="In casa" value={inHouse.length} tone="success" />
+        <AiToggleButton onClick={() => setAiOpen(true)} label="AI Check-in/out" />
       </PageHeader>
 
       <div className="grid gap-6 xl:grid-cols-2">
@@ -111,6 +114,7 @@ export function HotelFrontDeskPage() {
           </div>
         </Card>
       </div>
+      <AiChat context="hotel" open={aiOpen} onClose={() => setAiOpen(false)} title="AI Hotel Check-in/out e Pagamenti" />
     </div>
   );
 }

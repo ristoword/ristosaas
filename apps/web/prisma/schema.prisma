@@ -13,6 +13,79 @@ enum ProductPlan {
   all_included
 }
 
+enum CustomerType {
+  vip
+  habitue
+  walk_in
+  new
+}
+
+enum LicenseStatus {
+  trial
+  active
+  expired
+  suspended
+}
+
+enum StaffStatus {
+  attivo
+  ferie
+  malattia
+  licenziato
+}
+
+enum BookingStatus {
+  confermata
+  in_attesa
+  annullata
+  completata
+}
+
+enum CateringStatus {
+  preventivo
+  confermato
+  completato
+  annullato
+}
+
+enum TakeawayOrderStatus {
+  nuovo
+  in_preparazione
+  pronto
+  ritirato
+  consegnato
+  annullato
+}
+
+enum TakeawayOrderType {
+  asporto
+  delivery
+}
+
+enum ArchivedOrderStatus {
+  completato
+  annullato
+  stornato
+}
+
+enum ArchivedPaymentMethod {
+  contanti
+  carta
+  misto
+}
+
+enum RestaurantTableShape {
+  tondo
+  quadrato
+}
+
+enum RestaurantTableStatus {
+  libero
+  aperto
+  conto
+  sporco
+}
+
 enum TenantFeatureCode {
   restaurant
   hotel
@@ -68,6 +141,25 @@ enum FolioChargeSource {
   meal_plan_credit
 }
 
+enum KeycardStatus {
+  attiva
+  scaduta
+  annullata
+}
+
+enum WarehouseMovementType {
+  carico
+  scarico
+  scarico_comanda
+}
+
+enum RestaurantOrderArea {
+  sala
+  cucina
+  bar
+  pizzeria
+}
+
 model Tenant {
   id          String          @id @default(cuid())
   name        String
@@ -78,11 +170,65 @@ model Tenant {
   features    TenantFeature[]
   users       User[]
   customers   Customer[]
+  license    TenantLicense?
+  emailConfig TenantEmailConfig?
+  hotelRatePlans HotelRatePlan[]
   hotelRooms  HotelRoom[]
   reservations HotelReservation[]
   stays       Stay[]
   folios      GuestFolio[]
   housekeepingTasks HousekeepingTask[]
+  keycards    HotelKeycard[]
+  warehouseItems WarehouseItem[]
+  warehouseMovements WarehouseMovement[]
+  recipes     Recipe[]
+  menuItems   MenuItem[]
+  dailyDishes DailyDish[]
+  restaurantOrders RestaurantOrder[]
+  dailyClosureReports DailyClosureReport[]
+  staffMembers StaffMember[]
+  bookings Booking[]
+  suppliers Supplier[]
+  cateringEvents CateringEvent[]
+  takeawayOrders TakeawayOrder[]
+  archivedOrders ArchivedOrder[]
+  restaurantRooms RestaurantRoom[]
+  restaurantTables RestaurantTable[]
+  staffShifts StaffShift[]
+  billingSubscriptions BillingSubscription[]
+  billingEvents BillingEvent[]
+}
+
+model BillingSubscription {
+  id                   String   @id @default(cuid())
+  tenantId             String
+  stripeCustomerId     String?
+  stripeSubscriptionId String   @unique
+  priceId              String?
+  status               String
+  cancelAtPeriodEnd    Boolean  @default(false)
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  tenant               Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+}
+
+model BillingEvent {
+  id            String   @id @default(cuid())
+  tenantId      String?
+  stripeEventId String   @unique
+  type          String
+  status        String
+  payload       Json
+  createdAt     DateTime @default(now())
+  processedAt   DateTime?
+  tenant        Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, type])
+  @@index([createdAt])
 }
 
 model TenantFeature {
@@ -103,6 +249,10 @@ model User {
   name         String
   email        String   @unique
   role         String
+  mustChangePassword Boolean @default(false)
+  failedLoginAttempts Int @default(0)
+  lockedUntil   DateTime?
+  lastLoginAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -114,6 +264,11 @@ model Customer {
   name        String
   email       String?
   phone       String?
+  type        CustomerType @default(new)
+  visits      Int @default(0)
+  totalSpent  Decimal @db.Decimal(10, 2) @default(0)
+  avgSpend    Decimal @db.Decimal(10, 2) @default(0)
+  lastVisit   DateTime?
   allergies   String?
   preferences String?
   notes       String?
@@ -122,6 +277,38 @@ model Customer {
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   reservations HotelReservation[]
   folios      GuestFolio[]
+}
+
+model TenantLicense {
+  id           String        @id @default(cuid())
+  tenantId     String        @unique
+  licenseKey   String        @unique
+  status       LicenseStatus @default(active)
+  plan         ProductPlan
+  billingCycle String
+  seats        Int
+  usedSeats    Int
+  activatedAt  DateTime
+  expiresAt    DateTime
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model TenantEmailConfig {
+  id             String   @id @default(cuid())
+  tenantId       String   @unique
+  host           String
+  port           Int
+  username       String
+  password       String
+  fromAddress    String
+  secure         Boolean  @default(false)
+  lastTestStatus String?
+  lastTestedAt   DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 }
 
 model HotelRoom {
@@ -136,8 +323,27 @@ model HotelRoom {
   tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   reservations HotelReservation[]
   tasks        HousekeepingTask[]
+  keycards     HotelKeycard[]
 
   @@unique([tenantId, code])
+}
+
+model HotelRatePlan {
+  id          String   @id @default(cuid())
+  tenantId    String
+  code        String
+  name        String
+  roomType    String
+  boardType   BoardType
+  nightlyRate Decimal  @db.Decimal(10, 2)
+  refundable  Boolean  @default(true)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, code])
+  @@index([tenantId, roomType, active])
 }
 
 model HotelReservation {
@@ -161,6 +367,7 @@ model HotelReservation {
   customer     Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
   room         HotelRoom?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
   stay         Stay?
+  keycards     HotelKeycard[]
 }
 
 model Stay {
@@ -208,4 +415,334 @@ model FolioCharge {
   amount      Decimal           @db.Decimal(10, 2)
   postedAt    DateTime          @default(now())
   folio       GuestFolio        @relation(fields: [folioId], references: [id], onDelete: Cascade)
+}
+
+model HotelKeycard {
+  id            String           @id @default(cuid())
+  tenantId      String
+  roomId        String
+  reservationId String
+  validFrom     DateTime
+  validUntil    DateTime
+  status        KeycardStatus
+  issuedBy      String
+  createdAt     DateTime         @default(now())
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room          HotelRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  reservation   HotelReservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, reservationId])
+  @@index([tenantId, roomId])
+}
+
+model WarehouseItem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  category    String
+  qty         Decimal  @db.Decimal(12, 3)
+  unit        String
+  minStock    Decimal  @db.Decimal(12, 3)
+  costPerUnit Decimal  @db.Decimal(12, 4)
+  supplier    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  movements   WarehouseMovement[]
+
+  @@unique([tenantId, name])
+}
+
+model WarehouseMovement {
+  id              String                @id @default(cuid())
+  tenantId        String
+  warehouseItemId String
+  date            DateTime
+  type            WarehouseMovementType
+  qty             Decimal               @db.Decimal(12, 3)
+  unit            String
+  reason          String
+  orderId         String?
+  createdAt       DateTime              @default(now())
+  tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  item            WarehouseItem         @relation(fields: [warehouseItemId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, date])
+}
+
+model Recipe {
+  id             String   @id @default(cuid())
+  tenantId       String
+  name           String
+  category       String
+  area           RestaurantOrderArea
+  portions       Int
+  sellingPrice   Decimal  @db.Decimal(10, 2)
+  targetFcPct    Decimal  @db.Decimal(5, 2)
+  ivaPct         Decimal  @db.Decimal(5, 2)
+  overheadPct    Decimal  @db.Decimal(5, 2)
+  packagingCost  Decimal  @db.Decimal(10, 2)
+  laborCost      Decimal  @db.Decimal(10, 2)
+  energyCost     Decimal  @db.Decimal(10, 2)
+  notes          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  ingredients    RecipeIngredient[]
+  steps          RecipeStep[]
+  menuItems      MenuItem[]
+  dailyDishes    DailyDish[]
+
+  @@unique([tenantId, name])
+}
+
+model RecipeIngredient {
+  id        String   @id @default(cuid())
+  recipeId  String
+  name      String
+  qty       Decimal  @db.Decimal(12, 3)
+  unit      String
+  unitCost  Decimal  @db.Decimal(12, 4)
+  wastePct  Decimal  @db.Decimal(5, 2)
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
+
+model RecipeStep {
+  id        String   @id @default(cuid())
+  recipeId  String
+  stepOrder Int
+  text      String
+  recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  category    String
+  area        String
+  price       Decimal  @db.Decimal(10, 2)
+  code        String
+  active      Boolean
+  recipeId    String?
+  notes       String
+  foodCostPct Decimal? @db.Decimal(5, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipe      Recipe?  @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+}
+
+model DailyDish {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String
+  category    String
+  price       Decimal  @db.Decimal(10, 2)
+  allergens   String
+  recipeId    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipe      Recipe?  @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+}
+
+model RestaurantOrder {
+  id           String                @id @default(cuid())
+  tenantId     String
+  table        String?
+  covers       Int?
+  area         RestaurantOrderArea
+  waiter       String
+  notes        String
+  activeCourse Int
+  courseStates Json
+  status       RestaurantOrderStatus
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  items        RestaurantOrderItem[]
+}
+
+model RestaurantOrderItem {
+  id        String              @id @default(cuid())
+  orderId   String
+  name      String
+  qty       Int
+  category  String?
+  area      RestaurantOrderArea
+  price     Decimal?            @db.Decimal(10, 2)
+  note      String?
+  course    Int
+  order     RestaurantOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model DailyClosureReport {
+  id         String   @id @default(cuid())
+  tenantId   String
+  date       DateTime
+  foodSpend  Decimal  @db.Decimal(10, 2)
+  staffSpend Decimal  @db.Decimal(10, 2)
+  revenue    Decimal  @db.Decimal(10, 2)
+  notes      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date])
+  @@index([tenantId, date])
+}
+
+model StaffMember {
+  id        String      @id @default(cuid())
+  tenantId  String
+  name      String
+  role      String
+  email     String
+  phone     String
+  hireDate  DateTime
+  salary    Decimal     @db.Decimal(10, 2)
+  status    StaffStatus
+  hoursWeek Int
+  notes     String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shifts    StaffShift[]
+}
+
+model StaffShift {
+  id          String      @id @default(cuid())
+  tenantId    String
+  staffId     String
+  clockInAt   DateTime
+  clockOutAt  DateTime?
+  notes       String      @default("")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staffMember StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, staffId, clockInAt])
+}
+
+model Booking {
+  id           String        @id @default(cuid())
+  tenantId     String
+  customerName String
+  phone        String
+  email        String
+  date         DateTime
+  time         String
+  guests       Int
+  table        String
+  notes        String
+  status       BookingStatus
+  allergies    String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Supplier {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  category     String
+  email        String
+  phone        String
+  address      String
+  piva         String
+  paymentTerms String
+  rating       Int
+  notes        String
+  active       Boolean
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model CateringEvent {
+  id          String         @id @default(cuid())
+  tenantId    String
+  name        String
+  date        DateTime
+  guests      Int
+  venue       String
+  budget      Decimal        @db.Decimal(10, 2)
+  status      CateringStatus
+  contact     String
+  phone       String
+  menu        String
+  notes       String
+  depositPaid Boolean
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model TakeawayOrder {
+  id           String              @id @default(cuid())
+  tenantId     String
+  customerName String
+  phone        String
+  items        Json
+  total        Decimal             @db.Decimal(10, 2)
+  status       TakeawayOrderStatus
+  pickupTime   String
+  notes        String
+  type         TakeawayOrderType
+  address      String
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model ArchivedOrder {
+  id            String                @id @default(cuid())
+  tenantId      String
+  date          DateTime
+  table         String
+  waiter        String
+  items         Json
+  total         Decimal               @db.Decimal(10, 2)
+  status        ArchivedOrderStatus
+  paymentMethod ArchivedPaymentMethod
+  closedAt      DateTime
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  tenant        Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model RestaurantRoom {
+  id        String            @id @default(cuid())
+  tenantId  String
+  name      String
+  tables    Int
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roomTables RestaurantTable[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model RestaurantTable {
+  id        String               @id @default(cuid())
+  tenantId  String
+  roomId    String
+  nome      String
+  posti     Int
+  x         Int
+  y         Int
+  forma     RestaurantTableShape
+  stato     RestaurantTableStatus
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  tenant    Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room      RestaurantRoom       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, roomId])
 }

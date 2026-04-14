@@ -1,4 +1,4 @@
-import type { UserRole } from "@/lib/auth/users.store";
+import type { UserRole } from "@/lib/auth/types";
 
 export type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
 export type AppVertical = "core" | "restaurant" | "hotel" | "integration";
