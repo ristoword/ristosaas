@@ -72,7 +72,8 @@ Quello sotto e ordinato per priorita reale di go-live.
    - Webhook firmati e idempotenti.
    - ✅ Enforcement base licenza attiva/trial su middleware (API + pagine) con bypass tecnico per auth/billing/licenze.
    - ✅ Enforcement avanzato plan/feature/seats su middleware tramite `auth/entitlements-valid`.
-   - ⏳ Enforcement commerciale finale su eventi Stripe live (upgrade/downgrade automatici in produzione).
+   - ✅ Upgrade/downgrade automatici su webhook subscription con allineamento `Tenant.plan`, `TenantFeature[]` e `TenantLicense.seats`.
+   - ⏳ Resta da completare la parte commerciale finale (catalogo prezzi live definitivo + customer portal/checkout live).
 
 5. **Backup + disaster recovery**
    - Backup automatici DB.
@@ -160,12 +161,12 @@ Per dire "finito al 100%" devono risultare tutti `DONE`:
 
 ## 5) Stima Completamento
 
-Stato complessivo piattaforma: **~95%**
+Stato complessivo piattaforma: **~96%**
 
 - Core prodotto: 92%
 - Operativita restaurant/hotel/integration: 90%
 - Security production-grade: 90%
-- Billing/licenze live: 68%
+- Billing/licenze live: 76%
 - Qualita enterprise (test/obs/backup): 60%
 - Go-to-market readiness: 79%
 
