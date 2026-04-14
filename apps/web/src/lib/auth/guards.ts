@@ -1,11 +1,11 @@
 import type { NextRequest } from "next/server";
 import { err } from "@/lib/api/helpers";
+import { canAccessWithRole } from "@/lib/auth/rbac";
 import { getRequestUser } from "@/lib/auth/session";
 import type { PublicUser, UserRole } from "@/lib/auth/types";
 
 export function hasRole(userRole: UserRole, requiredRoles: readonly string[]) {
-  if (userRole === "owner" || userRole === "super_admin") return true;
-  return requiredRoles.includes(userRole);
+  return canAccessWithRole(userRole, requiredRoles as readonly UserRole[]);
 }
 
 export function requireApiUser(req: NextRequest, requiredRoles?: readonly string[]) {

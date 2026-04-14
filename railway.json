@@ -15,7 +15,7 @@
     "numReplicas": 1,
     "startCommand": "pnpm --filter web exec next start -p $PORT -H 0.0.0.0",
     "healthcheckPath": "/login",
-    "sleepApplication": true,
+    "sleepApplication": false,
     "useLegacyStacker": false,
     "ipv6EgressEnabled": false,
     "multiRegionConfig": {
