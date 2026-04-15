@@ -14,7 +14,7 @@
     "runtime": "V2",
     "numReplicas": 1,
     "startCommand": "pnpm --filter web exec next start -p $PORT -H 0.0.0.0",
-    "healthcheckPath": "/api/health",
+    "healthcheckPath": "/api/health/live",
     "sleepApplication": false,
     "useLegacyStacker": false,
     "ipv6EgressEnabled": false,
