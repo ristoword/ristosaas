@@ -1,6 +1,6 @@
 # RistoSaaS Platform - Project Status and Final Roadmap
 
-Ultimo aggiornamento: 2026-04-14 (AI cucina data-driven + observability/backup baseline)
+Ultimo aggiornamento: 2026-04-15 (allineamento env example + pulizia backlog operativo)
 
 ## 1) Stato Reale Attuale
 
@@ -48,6 +48,7 @@ Ultimo aggiornamento: 2026-04-14 (AI cucina data-driven + observability/backup b
 - Build Next.js in stato verde.
 - Prisma generate/migrate/seed funzionanti.
 - Seed coerente con credenziali demo operative.
+- `.env.example` (root + `apps/web`) allineati alle variabili realmente usate a runtime, senza duplicati e con placeholder sicuri.
 
 ## 2) Gap Residui per Essere "100% Operativo"
 
@@ -188,3 +189,26 @@ Le basi applicative sono ora solide e persistenti. Il tratto finale per il 100% 
 - monetizzazione live,
 - affidabilita operativa,
 - qualità enterprise.
+
+## 7) Cose da Fare (Prossimi step operativi)
+
+### P0 (questa settimana)
+
+- [ ] Chiudere catalogo prezzi Stripe live (prodotti/prezzi definitivi) e validare mapping finale per piano.
+- [ ] Eseguire test end-to-end reale del flusso billing (`checkout` -> webhook -> `Tenant.plan/features/seats` -> `portal`).
+- [ ] Configurare `OPS_ALERT_WEBHOOK_URL` in ambiente deploy e verificare alert reali su errori critici.
+- [ ] Completare audit RBAC pagina-per-pagina su route e UI residue (owner/supervisor/super_admin).
+- [ ] Eseguire checklist go-live su env produzione (secret reali, no placeholder, rotate token sensibili).
+
+### P1 (prossimo sprint)
+
+- [ ] Introdurre test automatici minimi per percorsi critici: login, ordine con corsi, room charge, checkout Stripe.
+- [ ] Aggiungere gate CI obbligatorio su lint + typecheck + build + test base.
+- [ ] Definire runbook incident response operativo (alert -> triage -> restore -> post-mortem).
+- [ ] Chiudere monitoraggio produzione con metriche uptime/performance e soglie di allarme.
+
+### P2 (stabilizzazione)
+
+- [ ] Avviare integrazione fiscale/documentale reale (provider + riconciliazione pagamenti).
+- [ ] Raffinare forecasting manageriale (modello avanzato + validazione qualità previsioni).
+- [ ] Eseguire pilot cliente controllato con feedback strutturato e criteri di uscita a go-live.
