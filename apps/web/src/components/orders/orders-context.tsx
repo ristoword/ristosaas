@@ -67,7 +67,13 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       orders.filter(
         (o) =>
           !["chiuso", "annullato"].includes(o.status) &&
-          (o.area === area || o.items.some((i) => i.area === area)),
+          (o.area === area ||
+            o.items.some((i) => {
+              if (i.area !== area) return false;
+              // Keep an order visible only while the selected area still has
+              // items in the active (or upcoming) courses.
+              return i.course >= o.activeCourse;
+            })),
       ),
     [orders],
   );

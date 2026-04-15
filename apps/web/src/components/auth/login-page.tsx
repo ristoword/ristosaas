@@ -27,7 +27,8 @@ export function LoginPage() {
         router.push("/change-password");
         return;
       }
-      const redirect = searchParams.get("redirect") || "/dashboard";
+      const defaultRedirect = result.user.role === "super_admin" ? "/super-admin" : "/dashboard";
+      const redirect = searchParams.get("redirect") || defaultRedirect;
       router.push(redirect);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Errore di rete. Riprova.");
