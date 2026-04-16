@@ -182,8 +182,13 @@ export const authUsersRepository = {
     });
     return { ok: true as const, user: sanitizeUser(updated) };
   },
-  async listUsers() {
+  async listUsers(params?: { tenantId?: string; limit?: number; offset?: number }) {
+    const limit = Math.max(1, Math.min(200, Math.floor(params?.limit ?? 100)));
+    const offset = Math.max(0, Math.floor(params?.offset ?? 0));
     const users = await prisma.user.findMany({
+      where: params?.tenantId ? { tenantId: params.tenantId } : undefined,
+      skip: offset,
+      take: limit,
       orderBy: { username: "asc" },
       select: {
         id: true,

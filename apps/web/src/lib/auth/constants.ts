@@ -1,6 +1,25 @@
 export const SESSION_COOKIE = "ristosaas_session";
 export const REFRESH_COOKIE = "ristosaas_refresh";
-export const JWT_SECRET = process.env.JWT_SECRET || "ristosaas-dev-secret-change-me";
+const DEV_JWT_FALLBACK = "ristosaas-dev-secret-change-me";
+
+function isWeakSecret(secret: string) {
+  return secret.trim().length < 32 || secret === DEV_JWT_FALLBACK;
+}
+
+export function getJwtSecret() {
+  const secret = process.env.JWT_SECRET?.trim() || "";
+  if (!secret || isWeakSecret(secret)) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("JWT_SECRET is required and must be strong in production");
+    }
+    return DEV_JWT_FALLBACK;
+  }
+  return secret;
+}
+
+export function isSecureCookieEnvironment() {
+  return process.env.NODE_ENV === "production";
+}
 
 const DEFAULT_SESSION_MAX_AGE = 60 * 60 * 24;
 const SUPERVISOR_SESSION_MAX_AGE = 60 * 60 * 12;

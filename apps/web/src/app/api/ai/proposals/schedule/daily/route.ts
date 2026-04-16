@@ -4,12 +4,22 @@ import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository
 import { aiProposalsRepository } from "@/lib/db/repositories/ai-proposals.repository";
 import { prisma } from "@/lib/db/prisma";
 import { sendOperationalAlert } from "@/lib/observability/alerts";
+import { verifyInternalSignature } from "@/lib/security/internal-signature";
 
 export async function POST(req: NextRequest) {
-  const expectedToken = process.env.AI_SCHEDULER_TOKEN;
-  if (!expectedToken) return err("AI_SCHEDULER_TOKEN non configurato", 500);
-  const providedToken = req.headers.get("x-scheduler-token") || "";
-  if (providedToken !== expectedToken) return err("Forbidden", 403);
+  const sharedSecret = process.env.AI_SCHEDULER_TOKEN?.trim();
+  if (!sharedSecret) return err("AI_SCHEDULER_TOKEN non configurato", 500);
+  const signature = req.headers.get("x-scheduler-signature") || "";
+  const timestampHeader = req.headers.get("x-scheduler-ts") || "";
+  const timestampMs = Number(timestampHeader);
+  const isValid = verifyInternalSignature({
+    secret: sharedSecret,
+    timestampMs,
+    providedSignature: signature,
+    method: req.method,
+    pathname: req.nextUrl.pathname,
+  });
+  if (!isValid) return err("Forbidden", 403);
 
   const tenants = await prisma.tenant.findMany({
     select: { id: true },

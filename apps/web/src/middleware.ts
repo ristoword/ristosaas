@@ -9,13 +9,11 @@ const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/d
 async function verifySessionVersion(req: NextRequest) {
   const cookie = req.headers.get("cookie");
   if (!cookie) return false;
-  const session = req.cookies.get(SESSION_COOKIE)?.value ? await verifyEdgeSessionToken(req.cookies.get(SESSION_COOKIE)!.value) : null;
   try {
     const response = await fetch(`${req.nextUrl.origin}/api/auth/session-valid`, {
       method: "GET",
       headers: {
         cookie,
-        ...(session?.tenantId ? { "x-tenant-id": session.tenantId } : {}),
       },
       cache: "no-store",
     });
@@ -39,13 +37,11 @@ function shouldCheckLicenseForPage(pathname: string) {
 async function verifyLicense(req: NextRequest) {
   const cookie = req.headers.get("cookie");
   if (!cookie) return false;
-  const session = req.cookies.get(SESSION_COOKIE)?.value ? await verifyEdgeSessionToken(req.cookies.get(SESSION_COOKIE)!.value) : null;
   try {
     const response = await fetch(`${req.nextUrl.origin}/api/auth/license-valid`, {
       method: "GET",
       headers: {
         cookie,
-        ...(session?.tenantId ? { "x-tenant-id": session.tenantId } : {}),
       },
       cache: "no-store",
     });
@@ -58,7 +54,6 @@ async function verifyLicense(req: NextRequest) {
 async function verifyEntitlements(req: NextRequest, pathname: string) {
   const cookie = req.headers.get("cookie");
   if (!cookie) return { ok: false, status: 401 };
-  const session = req.cookies.get(SESSION_COOKIE)?.value ? await verifyEdgeSessionToken(req.cookies.get(SESSION_COOKIE)!.value) : null;
   try {
     const url = new URL("/api/auth/entitlements-valid", req.nextUrl.origin);
     url.searchParams.set("path", pathname);
@@ -66,7 +61,6 @@ async function verifyEntitlements(req: NextRequest, pathname: string) {
       method: "GET",
       headers: {
         cookie,
-        ...(session?.tenantId ? { "x-tenant-id": session.tenantId } : {}),
       },
       cache: "no-store",
     });
@@ -142,11 +136,7 @@ export async function middleware(req: NextRequest) {
     requestHeaders.set("x-user-id", user.userId);
     requestHeaders.set("x-user-role", user.role);
     if (user.tenantId) requestHeaders.set("x-tenant-id", user.tenantId);
-    const res = withRequestId(NextResponse.next({ request: { headers: requestHeaders } }), requestId);
-    res.headers.set("x-user-id", user.userId);
-    res.headers.set("x-user-role", user.role);
-    if (user.tenantId) res.headers.set("x-tenant-id", user.tenantId);
-    return withRequestId(res, requestId);
+    return withRequestId(NextResponse.next({ request: { headers: requestHeaders } }), requestId);
   }
 
   if (!user) {
