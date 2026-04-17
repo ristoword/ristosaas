@@ -387,18 +387,20 @@ export const navSections: NavSection[] = [
       {
         id: "hardware",
         label: "Hardware / Stampa",
-        hint: "Stampanti, rotte, coda.",
+        hint: "Preview. Backend in preparazione.",
         href: "/hardware",
         icon: Monitor,
-        ready: true,
+        ready: false,
+        visibleFor: ["super_admin"],
       },
       {
         id: "qr-tables",
         label: "QR Tavoli",
-        hint: "Codici QR per ogni tavolo.",
+        hint: "Preview. Backend in preparazione.",
         href: "/qr-tables",
         icon: QrCode,
-        ready: true,
+        ready: false,
+        visibleFor: ["super_admin"],
       },
       {
         id: "owner",
@@ -420,10 +422,11 @@ export const navSections: NavSection[] = [
       {
         id: "sessions",
         label: "Sessioni",
-        hint: "Sessioni attive, logout remoto.",
+        hint: "Preview. Listing sessioni attive in preparazione.",
         href: "/sessions",
         icon: Shield,
-        ready: true,
+        ready: false,
+        visibleFor: ["super_admin"],
       },
     ],
   },
@@ -442,18 +445,19 @@ export const navSections: NavSection[] = [
       {
         id: "email-settings",
         label: "Email / SMTP",
-        hint: "Configurazione email e template.",
+        hint: "Preview. Configurazione SMTP reale in arrivo.",
         href: "/email-settings",
         icon: Mail,
-        ready: true,
+        ready: false,
+        visibleFor: ["super_admin"],
       },
       {
         id: "websocket",
         label: "WebSocket",
-        hint: "Monitor connessioni real-time.",
+        hint: "Preview. Server WS non ancora esposto in produzione.",
         href: "/websocket",
         icon: Plug,
-        ready: true,
+        ready: false,
         visibleFor: ["super_admin"],
       },
     ],
@@ -484,12 +488,14 @@ export const navSections: NavSection[] = [
 ];
 
 export function getVisibleNavSections(userRole?: UserRole | null) {
+  const isSuperAdmin = userRole === "super_admin";
   return navSections
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
         if (!hasVerticalEnabled(item.vertical)) return false;
         if (!hasFeatureEnabled(item.feature)) return false;
+        if (!item.ready && !isSuperAdmin) return false;
         if (!item.visibleFor) return true;
         if (!userRole) return false;
         return item.visibleFor.includes(userRole);
