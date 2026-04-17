@@ -1,13 +1,14 @@
 import jwt from "jsonwebtoken";
 import type { NextRequest, NextResponse } from "next/server";
 import {
-  JWT_SECRET,
   REFRESH_COOKIE,
   REFRESH_MAX_AGE_SECONDS,
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
   SESSION_MAX_AGE_SUPERADMIN_SECONDS,
   SESSION_MAX_AGE_SUPERVISOR_SECONDS,
+  getJwtSecret,
+  isSecureCookieEnvironment,
 } from "@/lib/auth/constants";
 import type { PublicUser } from "@/lib/auth/types";
 
@@ -24,11 +25,11 @@ type SessionClaims = {
 };
 
 export function createSessionToken(payload: SessionClaims) {
-  return jwt.sign({ ...payload, tokenType: "access" }, JWT_SECRET, { expiresIn: getSessionMaxAgeSeconds(payload.role) });
+  return jwt.sign({ ...payload, tokenType: "access" }, getJwtSecret(), { expiresIn: getSessionMaxAgeSeconds(payload.role) });
 }
 
 export function createRefreshToken(payload: SessionClaims) {
-  return jwt.sign({ ...payload, tokenType: "refresh" }, JWT_SECRET, { expiresIn: REFRESH_MAX_AGE_SECONDS });
+  return jwt.sign({ ...payload, tokenType: "refresh" }, getJwtSecret(), { expiresIn: REFRESH_MAX_AGE_SECONDS });
 }
 
 export function verifySessionToken(token: string) {
@@ -41,7 +42,7 @@ export function verifyRefreshToken(token: string) {
 
 function verifyToken(token: string, expectedType: "access" | "refresh") {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
     if (!decoded || typeof decoded !== "object") return null;
     const userId = "userId" in decoded ? String(decoded.userId) : null;
     const tenantId = "tenantId" in decoded ? String(decoded.tenantId) : null;
@@ -52,11 +53,11 @@ function verifyToken(token: string, expectedType: "access" | "refresh") {
     const tokenType =
       "tokenType" in decoded && (decoded.tokenType === "access" || decoded.tokenType === "refresh")
         ? decoded.tokenType
-        : "access";
+        : null;
     const sessionVersion = "sessionVersion" in decoded ? Number(decoded.sessionVersion) : 0;
     const mustChangePassword = "mustChangePassword" in decoded ? Boolean(decoded.mustChangePassword) : false;
     if (!userId || !role || !username || !name || !email) return null;
-    if (tokenType !== expectedType) return null;
+    if (!tokenType || tokenType !== expectedType) return null;
     if (Number.isNaN(sessionVersion) || sessionVersion < 0) return null;
     return { userId, tenantId, role, username, name, email, tokenType, sessionVersion, mustChangePassword };
   } catch {
@@ -89,6 +90,7 @@ export function setSessionCookie(res: NextResponse, payload: SessionClaims) {
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
+    secure: isSecureCookieEnvironment(),
     path: "/",
     maxAge,
   });
@@ -99,6 +101,7 @@ export function setRefreshCookie(res: NextResponse, payload: SessionClaims) {
   res.cookies.set(REFRESH_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
+    secure: isSecureCookieEnvironment(),
     path: "/",
     maxAge: REFRESH_MAX_AGE_SECONDS,
   });
@@ -113,6 +116,7 @@ export function clearSessionCookie(res: NextResponse) {
   res.cookies.set(SESSION_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
+    secure: isSecureCookieEnvironment(),
     path: "/",
     maxAge: 0,
   });
@@ -122,6 +126,7 @@ export function clearRefreshCookie(res: NextResponse) {
   res.cookies.set(REFRESH_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
+    secure: isSecureCookieEnvironment(),
     path: "/",
     maxAge: 0,
   });

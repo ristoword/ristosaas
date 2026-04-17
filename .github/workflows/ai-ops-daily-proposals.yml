@@ -30,7 +30,11 @@ jobs:
           TOKEN: ${{ secrets.RISTOSAAS_AI_SCHEDULER_TOKEN }}
         run: |
           set -euo pipefail
+          TS_MS="$(($(date +%s) * 1000))"
+          CANONICAL="${TS_MS}.POST./api/ai/proposals/schedule/daily."
+          SIGNATURE="$(printf '%s' "${CANONICAL}" | openssl dgst -sha256 -hmac "${TOKEN}" -binary | xxd -p -c 256)"
           curl --fail --show-error --silent \
             -X POST "${APP_URL}/api/ai/proposals/schedule/daily" \
-            -H "x-scheduler-token: ${TOKEN}" \
+            -H "x-scheduler-ts: ${TS_MS}" \
+            -H "x-scheduler-signature: ${SIGNATURE}" \
             -H "content-type: application/json"

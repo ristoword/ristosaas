@@ -679,6 +679,10 @@ model RestaurantOrder {
   updatedAt    DateTime              @updatedAt
   tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   items        RestaurantOrderItem[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, table, createdAt])
 }
 
 model RestaurantOrderItem {
@@ -694,6 +698,8 @@ model RestaurantOrderItem {
   course    Int
   order     RestaurantOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItem  MenuItem?           @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId, area])
 }
 
 model DailyClosureReport {

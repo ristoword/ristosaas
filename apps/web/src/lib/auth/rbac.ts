@@ -5,7 +5,13 @@ type ApiRule = {
   roles: readonly UserRole[];
 };
 
-export const PUBLIC_API_PREFIXES = ["/api/billing/stripe/webhook", "/api/auth/session-valid", "/api/auth/license-valid", "/api/auth/entitlements-valid"] as const;
+export const PUBLIC_API_PREFIXES = [
+  "/api/billing/stripe/webhook",
+  "/api/auth/session-valid",
+  "/api/auth/license-valid",
+  "/api/auth/entitlements-valid",
+  "/api/ai/proposals/schedule/daily",
+] as const;
 
 export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/admin", roles: ["super_admin"] },
@@ -41,7 +47,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
 ] as const;
 
 export function canAccessWithRole(role: string, required: readonly UserRole[]) {
-  if (role === "owner" || role === "super_admin") return true;
+  if (role === "super_admin") return true;
   return required.includes(role as UserRole);
 }
 

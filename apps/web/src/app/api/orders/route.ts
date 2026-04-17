@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
     area: searchParams.get("area"),
     table: searchParams.get("table"),
     active: searchParams.get("active"),
+    limit: Number(searchParams.get("limit") || 100),
+    offset: Number(searchParams.get("offset") || 0),
   });
   return ok(results);
 }

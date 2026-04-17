@@ -8,5 +8,14 @@ const ADMIN_ROLES = ["super_admin"] as const;
 export async function GET(req: NextRequest) {
   const guard = requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
-  return ok(await authUsersRepository.listUsers());
+  const limit = Number(req.nextUrl.searchParams.get("limit") || 100);
+  const offset = Number(req.nextUrl.searchParams.get("offset") || 0);
+  const tenantId = req.nextUrl.searchParams.get("tenantId") || undefined;
+  return ok(
+    await authUsersRepository.listUsers({
+      tenantId,
+      limit: Number.isFinite(limit) ? limit : 100,
+      offset: Number.isFinite(offset) ? offset : 0,
+    }),
+  );
 }

@@ -6,6 +6,8 @@ type OrderFilters = {
   table?: string | null;
   area?: string | null;
   active?: string | null;
+  limit?: number;
+  offset?: number;
 };
 
 function toCourseStates(input: unknown): Record<string, CourseStatus> {
@@ -78,26 +80,27 @@ function mapOrder(row: {
 
 export const ordersRepository = {
   async all(tenantId: string, filters?: OrderFilters) {
+    const limit = Math.max(1, Math.min(200, Math.floor(filters?.limit ?? 100)));
+    const offset = Math.max(0, Math.floor(filters?.offset ?? 0));
     const rows = await prisma.restaurantOrder.findMany({
       where: {
         tenantId,
         ...(filters?.status ? { status: filters.status as OrderStatus } : {}),
         ...(filters?.table ? { table: filters.table } : {}),
+        ...(filters?.active === "true" ? { status: { notIn: ["chiuso", "annullato", "servito"] } } : {}),
+        ...(filters?.area
+          ? {
+              OR: [{ area: filters.area as Order["area"] }, { items: { some: { area: filters.area as OrderItem["area"] } } }],
+            }
+          : {}),
       },
+      skip: offset,
+      take: limit,
       include: { items: true },
       orderBy: { createdAt: "desc" },
     });
 
-    let mapped = rows.map(mapOrder);
-    if (filters?.area) {
-      mapped = mapped.filter(
-        (order) => order.area === filters.area || order.items.some((item) => item.area === filters.area),
-      );
-    }
-    if (filters?.active === "true") {
-      mapped = mapped.filter((order) => !["chiuso", "annullato", "servito"].includes(order.status));
-    }
-    return mapped;
+    return rows.map(mapOrder);
   },
   async get(tenantId: string, id: string) {
     const row = await prisma.restaurantOrder.findFirst({

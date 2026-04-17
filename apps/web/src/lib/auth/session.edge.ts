@@ -1,10 +1,9 @@
 import { jwtVerify } from "jose/jwt/verify";
-import { JWT_SECRET, REFRESH_COOKIE, SESSION_COOKIE } from "@/lib/auth/constants";
-
-const secret = new TextEncoder().encode(JWT_SECRET);
+import { REFRESH_COOKIE, SESSION_COOKIE, getJwtSecret } from "@/lib/auth/constants";
 
 export async function verifyEdgeSessionToken(token: string) {
   try {
+    const secret = new TextEncoder().encode(getJwtSecret());
     const { payload } = await jwtVerify(token, secret);
     const userId = payload.userId ? String(payload.userId) : null;
     const tenantId = payload.tenantId ? String(payload.tenantId) : null;
@@ -12,10 +11,10 @@ export async function verifyEdgeSessionToken(token: string) {
     const username = payload.username ? String(payload.username) : null;
     const name = payload.name ? String(payload.name) : null;
     const email = payload.email ? String(payload.email) : null;
-    const tokenType = payload.tokenType === "refresh" ? "refresh" : "access";
+    const tokenType = payload.tokenType === "access" || payload.tokenType === "refresh" ? payload.tokenType : null;
     const sessionVersion = payload.sessionVersion ? Number(payload.sessionVersion) : 0;
     const mustChangePassword = payload.mustChangePassword ? Boolean(payload.mustChangePassword) : false;
-    if (tokenType !== "access") return null;
+    if (!tokenType || tokenType !== "access") return null;
     if (Number.isNaN(sessionVersion) || sessionVersion < 0) return null;
     if (!userId || !role || !username || !name || !email) return null;
     return { userId, tenantId, role, username, name, email, tokenType, sessionVersion, mustChangePassword };
