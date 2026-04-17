@@ -10,9 +10,5 @@
     "db:test:connection": "pnpm --filter web db:test:connection",
     "db:backup": "bash ./infra/scripts/db-backup.sh",
     "db:restore:dryrun": "bash ./infra/scripts/db-restore-dryrun.sh ./storage/backups/latest.dump"
-  },
-  "dependencies": {
-    "@prisma/client": "^6.19.3",
-    "prisma": "^6.19.3"
   }
 }
