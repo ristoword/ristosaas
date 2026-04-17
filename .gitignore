@@ -8,6 +8,10 @@ node_modules/
 .env.*.local
 !.env.example
 
+# Segreti temporanei (non committare mai)
+railway-variables.tmp.json
+*.tmp.json
+
 # Build e cache
 dist/
 build/
