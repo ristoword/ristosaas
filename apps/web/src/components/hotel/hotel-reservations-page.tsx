@@ -8,6 +8,7 @@ import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { hotelApi, type HotelReservation, type HotelReservationStatus, type HotelRoom, type RatePlan } from "@/lib/api-client";
+import { todayIso, addDaysIso } from "@/lib/date-utils";
 
 const statusTone = {
   confermata: "info",
@@ -20,14 +21,15 @@ const statusTone = {
 export function HotelReservationsPage() {
   const { reservations, createReservation, updateReservation, deleteReservation } = useHotel();
   const [availability, setAvailability] = useState<{ availableCount: number; rooms: HotelRoom[]; ratePlans: RatePlan[] } | null>(null);
+  const today = todayIso();
   const [form, setForm] = useState<Omit<HotelReservation, "id">>({
     customerId: "cst_new",
     guestName: "",
     phone: "",
     email: "",
     roomId: "",
-    checkInDate: "2026-04-15",
-    checkOutDate: "2026-04-17",
+    checkInDate: today,
+    checkOutDate: addDaysIso(today, 2),
     guests: 2,
     status: "confermata" as HotelReservationStatus,
     roomType: "Classic",
@@ -37,8 +39,8 @@ export function HotelReservationsPage() {
     documentCode: "",
   });
 
-  const arrivals = reservations.filter((item) => item.checkInDate === "2026-04-12").length;
-  const departures = reservations.filter((item) => item.checkOutDate === "2026-04-12").length;
+  const arrivals = reservations.filter((item) => item.checkInDate === today).length;
+  const departures = reservations.filter((item) => item.checkOutDate === today).length;
   const boardLabels = {
     room_only: "room only",
     bed_breakfast: "B&B",

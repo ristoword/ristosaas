@@ -1,31 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { Minus, Plus, Send, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Minus, Plus, Search, Send, Trash2 } from "lucide-react";
 import { Modal } from "@/components/shared/modal";
 import { useOrders } from "@/components/orders/orders-context";
+import { useAuth } from "@/components/auth/auth-context";
+import { menuApi, type MenuItem, type OrderArea } from "@/lib/api-client";
 import type { SalaTable } from "./types";
-import type { CourseDraft, OrderArea } from "@/components/orders/types";
-
-const menuItems = [
-  { name: "Bruschetta mista", category: "antipasti", area: "cucina" as OrderArea, price: 8 },
-  { name: "Supplì al telefono", category: "antipasti", area: "cucina" as OrderArea, price: 3 },
-  { name: "Tagliere toscano", category: "antipasti", area: "cucina" as OrderArea, price: 14 },
-  { name: "Caprese", category: "antipasti", area: "cucina" as OrderArea, price: 9 },
-  { name: "Carbonara", category: "primi", area: "cucina" as OrderArea, price: 12 },
-  { name: "Amatriciana", category: "primi", area: "cucina" as OrderArea, price: 11 },
-  { name: "Cacio e pepe", category: "primi", area: "cucina" as OrderArea, price: 11 },
-  { name: "Risotto ai funghi", category: "primi", area: "cucina" as OrderArea, price: 13 },
-  { name: "Tagliata", category: "secondi", area: "cucina" as OrderArea, price: 18 },
-  { name: "Griglia mista", category: "secondi", area: "cucina" as OrderArea, price: 22 },
-  { name: "Margherita", category: "pizze", area: "pizzeria" as OrderArea, price: 8 },
-  { name: "Diavola", category: "pizze", area: "pizzeria" as OrderArea, price: 10 },
-  { name: "Quattro formaggi", category: "pizze", area: "pizzeria" as OrderArea, price: 11 },
-  { name: "Negroni", category: "cocktail", area: "bar" as OrderArea, price: 9 },
-  { name: "Aperol Spritz", category: "cocktail", area: "bar" as OrderArea, price: 7 },
-  { name: "Birra media", category: "bevande", area: "bar" as OrderArea, price: 5 },
-  { name: "Tiramisù", category: "dolci", area: "cucina" as OrderArea, price: 7 },
-];
+import type { CourseDraft } from "@/components/orders/types";
 
 type Props = {
   table: SalaTable | null;
@@ -33,13 +15,57 @@ type Props = {
   onClose: () => void;
 };
 
+const VALID_AREAS: OrderArea[] = ["sala", "cucina", "bar", "pizzeria"];
+
+function normalizeArea(raw: string): OrderArea {
+  const lower = (raw || "").toLowerCase();
+  return (VALID_AREAS as string[]).includes(lower) ? (lower as OrderArea) : "cucina";
+}
+
 export function OrderSendModal({ table, open, onClose }: Props) {
   const { createOrder } = useOrders();
+  const { user } = useAuth();
   const [courses, setCourses] = useState<CourseDraft[]>([{ n: 1, items: [] }]);
   const [activeCourse, setActiveCourse] = useState(1);
   const [covers, setCovers] = useState(2);
-  const [waiter, setWaiter] = useState("Marco");
+  const [waiter, setWaiter] = useState<string>(user?.name || user?.username || "");
   const [notes, setNotes] = useState("");
+  const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [loadingMenu, setLoadingMenu] = useState(false);
+  const [menuError, setMenuError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (!open) return;
+    setLoadingMenu(true);
+    menuApi
+      .listItems()
+      .then((items) => {
+        setMenu(items.filter((item) => item.active !== false));
+        setMenuError(null);
+      })
+      .catch((err) => setMenuError((err as Error).message || "Errore caricamento menu"))
+      .finally(() => setLoadingMenu(false));
+  }, [open]);
+
+  useEffect(() => {
+    if (user && !waiter) setWaiter(user.name || user.username || "");
+  }, [user, waiter]);
+
+  const categories = useMemo(() => {
+    const all = new Set(menu.map((item) => item.category).filter(Boolean));
+    return ["all", ...Array.from(all)];
+  }, [menu]);
+
+  const filteredMenu = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return menu.filter((item) => {
+      const matchCategory = categoryFilter === "all" || item.category === categoryFilter;
+      const matchSearch = q === "" || item.name.toLowerCase().includes(q);
+      return matchCategory && matchSearch;
+    });
+  }, [menu, search, categoryFilter]);
 
   if (!table) return null;
 
@@ -49,22 +75,43 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     setActiveCourse(next);
   }
 
-  function addItem(item: (typeof menuItems)[0]) {
+  function addItem(item: MenuItem) {
+    const area = normalizeArea(item.area);
     setCourses((prev) =>
       prev.map((c) => {
         if (c.n !== activeCourse) return c;
         const existing = c.items.find((i) => i.name === item.name);
         if (existing) {
-          return { ...c, items: c.items.map((i) => (i.name === item.name ? { ...i, qty: i.qty + 1 } : i)) };
+          return {
+            ...c,
+            items: c.items.map((i) =>
+              i.name === item.name ? { ...i, qty: i.qty + 1 } : i,
+            ),
+          };
         }
-        return { ...c, items: [...c.items, { ...item, qty: 1, note: null }] };
+        return {
+          ...c,
+          items: [
+            ...c.items,
+            {
+              name: item.name,
+              qty: 1,
+              category: item.category,
+              area,
+              price: item.price,
+              note: null,
+            },
+          ],
+        };
       }),
     );
   }
 
   function removeItem(courseN: number, name: string) {
     setCourses((prev) =>
-      prev.map((c) => (c.n === courseN ? { ...c, items: c.items.filter((i) => i.name !== name) } : c)),
+      prev.map((c) =>
+        c.n === courseN ? { ...c, items: c.items.filter((i) => i.name !== name) } : c,
+      ),
     );
   }
 
@@ -101,7 +148,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
       table: table!.nome,
       covers,
       area: "sala",
-      waiter,
+      waiter: waiter || "—",
       notes,
       items: allItems,
     });
@@ -112,21 +159,37 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     onClose();
   }
 
-  const totalItems = courses.reduce((sum, c) => sum + c.items.reduce((s, i) => s + i.qty, 0), 0);
+  const totalItems = courses.reduce(
+    (sum, c) => sum + c.items.reduce((s, i) => s + i.qty, 0),
+    0,
+  );
 
   return (
-    <Modal open={open} onClose={onClose} title={`Nuova comanda — Tav. ${table.nome}`} subtitle={`${covers} coperti · ${waiter}`} wide>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Nuova comanda — Tav. ${table.nome}`}
+      subtitle={`${covers} coperti · ${waiter || "—"}`}
+      wide
+    >
       <div className="space-y-4">
-        {/* Covers + waiter */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-rw-muted">Coperti</label>
             <div className="mt-1 flex items-center gap-2">
-              <button type="button" onClick={() => setCovers((n) => Math.max(1, n - 1))} className="h-10 w-10 rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink">
+              <button
+                type="button"
+                onClick={() => setCovers((n) => Math.max(1, n - 1))}
+                className="h-10 w-10 rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
+              >
                 <Minus className="mx-auto h-4 w-4" />
               </button>
               <span className="w-8 text-center font-bold text-rw-ink">{covers}</span>
-              <button type="button" onClick={() => setCovers((n) => n + 1)} className="h-10 w-10 rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink">
+              <button
+                type="button"
+                onClick={() => setCovers((n) => n + 1)}
+                className="h-10 w-10 rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
+              >
                 <Plus className="mx-auto h-4 w-4" />
               </button>
             </div>
@@ -141,7 +204,6 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           </div>
         </div>
 
-        {/* Course tabs */}
         <div className="flex items-center gap-2">
           {courses.map((c) => (
             <button
@@ -168,46 +230,114 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           </button>
         </div>
 
-        {/* Menu items */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">
-            Aggiungi al {activeCourse}° corso
-          </p>
-          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 max-h-48 overflow-y-auto">
-            {menuItems.map((item) => (
-              <button
-                key={item.name}
-                type="button"
-                onClick={() => addItem(item)}
-                className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-left text-xs transition hover:border-rw-accent/30"
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
+              Aggiungi al {activeCourse}° corso · {menu.length} voci menu
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-rw-muted" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Cerca..."
+                  className="h-8 rounded-lg border border-rw-line bg-rw-surfaceAlt pl-7 pr-2 text-xs text-rw-ink"
+                />
+              </div>
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="h-8 rounded-lg border border-rw-line bg-rw-surfaceAlt px-2 text-xs text-rw-ink"
               >
-                <span className="block font-semibold text-rw-ink">{item.name}</span>
-                <span className="text-rw-muted">€{item.price} · {item.area}</span>
-              </button>
-            ))}
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c === "all" ? "Tutte le categorie" : c}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {loadingMenu && (
+            <div className="flex items-center gap-2 rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-4 text-sm text-rw-muted">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Carico il menu dal database...
+            </div>
+          )}
+          {menuError && !loadingMenu && (
+            <div className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {menuError}
+            </div>
+          )}
+          {!loadingMenu && !menuError && (
+            <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3">
+              {filteredMenu.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => addItem(item)}
+                  className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-left text-xs transition hover:border-rw-accent/30"
+                >
+                  <span className="block font-semibold text-rw-ink">{item.name}</span>
+                  <span className="text-rw-muted">
+                    €{item.price.toFixed(2)} · {item.area || "cucina"}
+                  </span>
+                </button>
+              ))}
+              {filteredMenu.length === 0 && (
+                <p className="col-span-full py-6 text-center text-sm text-rw-muted">
+                  Nessuna voce menu corrisponde ai filtri.
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Course contents */}
         {courses.map((c) => {
           if (c.items.length === 0) return null;
           return (
             <div key={c.n} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-              <p className={`text-xs font-bold uppercase tracking-wide mb-2 ${c.n === 1 ? "text-emerald-400" : "text-red-400"}`}>
+              <p
+                className={`text-xs font-bold uppercase tracking-wide mb-2 ${
+                  c.n === 1 ? "text-emerald-400" : "text-red-400"
+                }`}
+              >
                 {c.n}° corso — {c.n === 1 ? "ATTIVO" : "IN ATTESA"}
               </p>
               <div className="space-y-1">
                 {c.items.map((it) => (
-                  <div key={it.name} className="flex items-center justify-between rounded-lg bg-rw-surface px-3 py-2">
+                  <div
+                    key={it.name}
+                    className="flex items-center justify-between rounded-lg bg-rw-surface px-3 py-2"
+                  >
                     <div>
                       <span className="text-sm font-semibold text-rw-ink">{it.name}</span>
-                      <span className="ml-2 text-xs text-rw-muted">€{it.price}</span>
+                      <span className="ml-2 text-xs text-rw-muted">
+                        €{(it.price ?? 0).toFixed(2)}
+                      </span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <button type="button" onClick={() => updateQty(c.n, it.name, -1)} className="h-7 w-7 rounded-lg border border-rw-line text-rw-ink text-xs">−</button>
+                      <button
+                        type="button"
+                        onClick={() => updateQty(c.n, it.name, -1)}
+                        className="h-7 w-7 rounded-lg border border-rw-line text-rw-ink text-xs"
+                      >
+                        −
+                      </button>
                       <span className="w-6 text-center text-sm font-bold text-rw-ink">{it.qty}</span>
-                      <button type="button" onClick={() => updateQty(c.n, it.name, 1)} className="h-7 w-7 rounded-lg border border-rw-line text-rw-ink text-xs">+</button>
-                      <button type="button" onClick={() => removeItem(c.n, it.name)} className="ml-1 h-7 w-7 rounded-lg border border-red-500/30 text-red-400 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => updateQty(c.n, it.name, 1)}
+                        className="h-7 w-7 rounded-lg border border-rw-line text-rw-ink text-xs"
+                      >
+                        +
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeItem(c.n, it.name)}
+                        className="ml-1 h-7 w-7 rounded-lg border border-red-500/30 text-red-400 text-xs"
+                      >
                         <Trash2 className="mx-auto h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -218,7 +348,6 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           );
         })}
 
-        {/* Notes */}
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
@@ -227,7 +356,6 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-ink placeholder:text-rw-muted"
         />
 
-        {/* Send */}
         <button
           type="button"
           onClick={handleSend}
@@ -235,7 +363,8 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 py-4 text-base font-bold text-emerald-300 transition hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Send className="h-5 w-5" />
-          Invia comanda ({totalItems} piatti, {courses.length} {courses.length === 1 ? "corso" : "corsi"})
+          Invia comanda ({totalItems} piatti, {courses.length}{" "}
+          {courses.length === 1 ? "corso" : "corsi"})
         </button>
       </div>
     </Modal>

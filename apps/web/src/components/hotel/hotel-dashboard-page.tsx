@@ -8,10 +8,12 @@ import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { useState } from "react";
+import { todayIso } from "@/lib/date-utils";
 
 export function HotelDashboardPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const { rooms, reservations, housekeeping, folios, charges, ratePlans } = useHotel();
+  const today = todayIso();
   const hotelStats = [
     {
       label: "Occupazione",
@@ -21,13 +23,13 @@ export function HotelDashboardPage() {
     },
     {
       label: "Arrivi",
-      value: String(reservations.filter((reservation) => reservation.checkInDate === "2026-04-12").length),
+      value: String(reservations.filter((reservation) => reservation.checkInDate === today).length),
       note: "Check-in previsti oggi.",
       icon: DoorOpen,
     },
     {
       label: "Partenze",
-      value: String(reservations.filter((reservation) => reservation.checkOutDate === "2026-04-12").length),
+      value: String(reservations.filter((reservation) => reservation.checkOutDate === today).length),
       note: "Checkout da chiudere alla reception.",
       icon: CreditCard,
     },

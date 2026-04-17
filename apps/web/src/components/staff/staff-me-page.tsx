@@ -1,175 +1,274 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  CalendarDays,
   Clock,
-  FileText,
+  Info,
   Loader2,
   LogIn,
   LogOut,
-  Send,
   User,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
+import { useAuth } from "@/components/auth/auth-context";
+import { staffApi, type StaffMember, type StaffShift } from "@/lib/api-client";
+import { addDaysIso, formatHumanDate, todayIso } from "@/lib/date-utils";
 
-const profile = {
-  name: "Marco Rossi",
-  role: "Cameriere",
-  email: "marco.rossi@ristoword.it",
-  avatar: "MR",
-  phone: "+39 333 1234567",
-  hireDate: "2024-03-01",
-};
+function formatTime(iso: string | null | undefined) {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleTimeString("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
-const days = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
-
-const shifts = [
-  { day: "Lun", shift: "11:00–15:00", type: "Pranzo" },
-  { day: "Mar", shift: "18:00–23:00", type: "Cena" },
-  { day: "Mer", shift: "—", type: "Riposo" },
-  { day: "Gio", shift: "11:00–15:00", type: "Pranzo" },
-  { day: "Ven", shift: "18:00–23:00", type: "Cena" },
-  { day: "Sab", shift: "11:00–15:00 / 18:00–23:30", type: "Doppio" },
-  { day: "Dom", shift: "—", type: "Riposo" },
-];
-
-type LeaveRequest = { id: string; type: string; from: string; to: string; status: "approved" | "pending" | "denied"; note: string };
-
-const leaveRequests: LeaveRequest[] = [
-  { id: "lr1", type: "Ferie", from: "2026-05-01", to: "2026-05-07", status: "approved", note: "Vacanza" },
-  { id: "lr2", type: "Permesso", from: "2026-04-18", to: "2026-04-18", status: "pending", note: "Visita medica" },
-  { id: "lr3", type: "Ferie", from: "2026-08-10", to: "2026-08-24", status: "pending", note: "Ferie estive" },
-  { id: "lr4", type: "Malattia", from: "2026-03-02", to: "2026-03-03", status: "approved", note: "Influenza" },
-];
-
-type AttendanceEntry = { id: string; date: string; clockIn: string; clockOut: string; hours: string };
-
-const attendance: AttendanceEntry[] = [
-  { id: "a1", date: "2026-04-11", clockIn: "10:55", clockOut: "15:05", hours: "4h 10m" },
-  { id: "a2", date: "2026-04-10", clockIn: "17:50", clockOut: "23:15", hours: "5h 25m" },
-  { id: "a3", date: "2026-04-08", clockIn: "10:58", clockOut: "15:02", hours: "4h 04m" },
-  { id: "a4", date: "2026-04-07", clockIn: "17:45", clockOut: "23:30", hours: "5h 45m" },
-  { id: "a5", date: "2026-04-05", clockIn: "10:50", clockOut: "15:10", hours: "4h 20m" },
-];
-
-const leaveStatusTone = { approved: "success", pending: "warn", denied: "danger" } as const;
+function computeDuration(shift: StaffShift): number {
+  if (shift.durationHours !== null) return shift.durationHours;
+  if (!shift.clockOutAt) return 0;
+  const ms = new Date(shift.clockOutAt).getTime() - new Date(shift.clockInAt).getTime();
+  return ms > 0 ? ms / 3_600_000 : 0;
+}
 
 export function StaffMePage() {
-  const [leaveType, setLeaveType] = useState("Ferie");
-  const [leaveFrom, setLeaveFrom] = useState("");
-  const [leaveTo, setLeaveTo] = useState("");
-  const [leaveNote, setLeaveNote] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const { user } = useAuth();
+  const [member, setMember] = useState<StaffMember | null>(null);
+  const [shifts, setShifts] = useState<StaffShift[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [clocking, setClocking] = useState<"in" | "out" | null>(null);
 
-  function handleSubmitLeave() {
-    if (!leaveFrom) return;
-    setSubmitting(true);
-    setTimeout(() => { setSubmitting(false); setLeaveFrom(""); setLeaveTo(""); setLeaveNote(""); }, 1200);
+  const today = todayIso();
+  const monthStart = today.slice(0, 7) + "-01";
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const all = await staffApi.list();
+      const mine =
+        all.find((s) => s.email.toLowerCase() === (user.email || "").toLowerCase()) ??
+        all.find((s) => s.name.toLowerCase() === (user.name || user.username || "").toLowerCase()) ??
+        null;
+      setMember(mine);
+
+      if (mine) {
+        const myShifts = await staffApi.listShifts({
+          staffId: mine.id,
+          from: monthStart,
+          to: addDaysIso(today, 1),
+        });
+        setShifts(myShifts);
+      } else {
+        setShifts([]);
+      }
+    } catch (err) {
+      setError((err as Error).message || "Errore caricamento profilo");
+    } finally {
+      setLoading(false);
+    }
+  }, [user, monthStart, today]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const openShift = useMemo(() => shifts.find((s) => !s.clockOutAt) ?? null, [shifts]);
+  const monthHours = shifts.reduce((s, sh) => s + computeDuration(sh), 0);
+
+  async function handleClock(action: "clock_in" | "clock_out") {
+    if (!member) return;
+    setClocking(action === "clock_in" ? "in" : "out");
+    try {
+      await staffApi.clock(member.id, action);
+      await load();
+    } catch (err) {
+      setError((err as Error).message || "Errore timbratura");
+    } finally {
+      setClocking(null);
+    }
+  }
+
+  if (!user) {
+    return (
+      <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-6 text-sm text-rw-muted">
+        Devi essere autenticato per vedere questa pagina.
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Il mio profilo" subtitle="Gestisci i tuoi dati, turni e richieste" />
+      <PageHeader
+        title="Il mio profilo"
+        subtitle={`Dati reali dal tuo account — ${formatHumanDate(today)}`}
+      />
+
+      {error && (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-muted">
+          <Loader2 className="h-4 w-4 animate-spin" /> Carico profilo e turni…
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <div className="flex flex-col items-center gap-3 text-center">
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-rw-accent/15 font-display text-2xl font-bold text-rw-accent ring-2 ring-rw-accent/30">
-              {profile.avatar}
+              {(user.name || user.username || "").slice(0, 2).toUpperCase() || "U"}
             </div>
             <div>
-              <p className="font-display text-lg font-semibold text-rw-ink">{profile.name}</p>
-              <Chip label={profile.role} tone="accent" className="mt-1" />
+              <p className="font-display text-lg font-semibold text-rw-ink">
+                {user.name || user.username}
+              </p>
+              <Chip label={member?.role || user.role} tone="accent" className="mt-1" />
             </div>
             <div className="mt-2 w-full space-y-2 text-left">
-              {[
-                { icon: User, label: profile.email },
-                { icon: Clock, label: `Assunto il ${profile.hireDate}` },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-soft">
-                  <item.icon className="h-3.5 w-3.5 text-rw-accent" />
-                  {item.label}
-                </div>
-              ))}
+              <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-soft">
+                <User className="h-3.5 w-3.5 text-rw-accent" />
+                {user.email || "—"}
+              </div>
+              {member && (
+                <>
+                  <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-soft">
+                    <Clock className="h-3.5 w-3.5 text-rw-accent" />
+                    Assunto il {formatHumanDate(member.hireDate)}
+                  </div>
+                  <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-soft">
+                    <Clock className="h-3.5 w-3.5 text-rw-accent" />
+                    {member.hoursWeek}h contrattuali / settimana
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </Card>
 
-        <Card title="I miei turni — Settimana corrente" className="lg:col-span-2">
-          <div className="grid grid-cols-7 gap-1">
-            {shifts.map((s) => (
-              <div
-                key={s.day}
-                className={`flex flex-col items-center rounded-xl border p-2 text-center ${s.type === "Riposo" ? "border-rw-line bg-rw-surfaceAlt" : "border-rw-accent/20 bg-rw-accent/5"}`}
-              >
-                <span className="text-[11px] font-semibold uppercase text-rw-muted">{s.day}</span>
-                <span className="mt-1 text-[11px] font-semibold text-rw-ink">{s.shift}</span>
-                <Chip label={s.type} tone={s.type === "Riposo" ? "default" : s.type === "Doppio" ? "warn" : "accent"} className="mt-1 scale-[0.8]" />
+        <Card title="Timbratura" className="lg:col-span-2">
+          {!member ? (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+              Il tuo account utente non è ancora collegato ad un record staff. Chiedi
+              all&apos;owner di aggiungerti da <code>/owner</code> con la stessa email.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
+                    Turno corrente
+                  </p>
+                  <p className="mt-1 font-display text-xl font-semibold text-rw-ink">
+                    {openShift ? `Entrato alle ${formatTime(openShift.clockInAt)}` : "Nessun turno aperto"}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
+                    Ore totali del mese
+                  </p>
+                  <p className="mt-1 font-display text-xl font-semibold text-rw-accent">
+                    {monthHours.toFixed(1)}h
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleClock("clock_in")}
+                  disabled={clocking !== null || openShift !== null}
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 px-4 py-2.5 text-sm font-semibold text-emerald-300 disabled:opacity-50"
+                >
+                  {clocking === "in" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogIn className="h-4 w-4" />
+                  )}
+                  Timbra entrata
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleClock("clock_out")}
+                  disabled={clocking !== null || openShift === null}
+                  className="inline-flex items-center gap-2 rounded-xl bg-red-500/15 border border-red-500/30 px-4 py-2.5 text-sm font-semibold text-red-300 disabled:opacity-50"
+                >
+                  {clocking === "out" ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <LogOut className="h-4 w-4" />
+                  )}
+                  Timbra uscita
+                </button>
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
-      <Card title="Richiesta ferie / permesso">
-        <div className="grid gap-3 sm:grid-cols-4">
-          <select value={leaveType} onChange={(e) => setLeaveType(e.target.value)} className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink">
-            <option>Ferie</option>
-            <option>Permesso</option>
-            <option>Malattia</option>
-          </select>
-          <input type="date" value={leaveFrom} onChange={(e) => setLeaveFrom(e.target.value)} className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" />
-          <input type="date" value={leaveTo} onChange={(e) => setLeaveTo(e.target.value)} className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" />
-          <button type="button" onClick={handleSubmitLeave} disabled={submitting || !leaveFrom} className="inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-            Invia
-          </button>
+      <Card
+        title="Mie presenze del mese"
+        headerRight={<Chip label="Questo mese" value={`${monthHours.toFixed(1)}h`} tone="accent" />}
+      >
+        <DataTable
+          columns={[
+            {
+              key: "clockInAt",
+              header: "Data",
+              render: (r) => (
+                <span className="font-semibold text-rw-ink">
+                  {formatHumanDate(r.clockInAt.slice(0, 10))}
+                </span>
+              ),
+            },
+            {
+              key: "clockIn",
+              header: "Entrata",
+              render: (r) => (
+                <span className="inline-flex items-center gap-1 text-emerald-400">
+                  <LogIn className="h-3.5 w-3.5" /> {formatTime(r.clockInAt)}
+                </span>
+              ),
+            },
+            {
+              key: "clockOut",
+              header: "Uscita",
+              render: (r) => (
+                <span className="inline-flex items-center gap-1 text-red-400">
+                  <LogOut className="h-3.5 w-3.5" /> {formatTime(r.clockOutAt)}
+                </span>
+              ),
+            },
+            {
+              key: "hours",
+              header: "Ore",
+              render: (r) => <span className="tabular-nums">{computeDuration(r).toFixed(2)}h</span>,
+            },
+          ]}
+          data={[...shifts].sort((a, b) => b.clockInAt.localeCompare(a.clockInAt))}
+          keyExtractor={(r) => r.id}
+          emptyMessage="Nessuna timbratura questo mese."
+        />
+      </Card>
+
+      <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
+        <div className="flex items-start gap-2">
+          <Info className="mt-0.5 h-4 w-4 text-rw-accent" />
+          <div>
+            <p className="font-semibold text-rw-ink">Ferie, permessi, paghe e documenti</p>
+            <p className="text-xs text-rw-muted">
+              Saranno disponibili quando il modulo payroll/HR avanzato verrà integrato con il
+              gestionale. In attesa mostriamo solo dati reali (profilo, contratto, turni e
+              timbrature).
+            </p>
+          </div>
         </div>
-        <input value={leaveNote} onChange={(e) => setLeaveNote(e.target.value)} placeholder="Note (opzionale)" className="mt-3 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted" />
-      </Card>
-
-      <Card title="Le mie richieste">
-        <DataTable
-          columns={[
-            { key: "type", header: "Tipo" },
-            { key: "from", header: "Dal" },
-            { key: "to", header: "Al" },
-            { key: "status", header: "Stato", render: (r) => <Chip label={r.status} tone={leaveStatusTone[r.status]} /> },
-            { key: "note", header: "Note" },
-          ]}
-          data={leaveRequests}
-          keyExtractor={(r) => r.id}
-        />
-      </Card>
-
-      <Card title="Presenze recenti" headerRight={<div className="flex gap-2"><Chip label="Questo mese" value="19h 44m" tone="accent" /></div>}>
-        <DataTable
-          columns={[
-            { key: "date", header: "Data" },
-            { key: "clockIn", header: "Entrata", render: (r) => <span className="inline-flex items-center gap-1 text-emerald-400"><LogIn className="h-3.5 w-3.5" />{r.clockIn}</span> },
-            { key: "clockOut", header: "Uscita", render: (r) => <span className="inline-flex items-center gap-1 text-red-400"><LogOut className="h-3.5 w-3.5" />{r.clockOut}</span> },
-            { key: "hours", header: "Ore" },
-          ]}
-          data={attendance}
-          keyExtractor={(r) => r.id}
-        />
-      </Card>
-
-      <Card title="Documenti" headerRight={<Chip label="3 file" tone="info" />}>
-        <ul className="space-y-2">
-          {["Contratto di assunzione.pdf", "Busta paga — Marzo 2026.pdf", "Certificato HACCP.pdf"].map((doc) => (
-            <li key={doc} className="flex items-center gap-3 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3">
-              <FileText className="h-4 w-4 text-rw-accent" />
-              <span className="flex-1 text-sm text-rw-ink">{doc}</span>
-              <button type="button" className="text-xs font-semibold text-rw-accent">Scarica</button>
-            </li>
-          ))}
-        </ul>
-      </Card>
+      </div>
     </div>
   );
 }

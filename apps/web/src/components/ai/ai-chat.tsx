@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Bot, Loader2, Send, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { aiApi } from "@/lib/api-client";
 
 export type AiMessage = { role: "user" | "assistant"; content: string; ts: number };
 
@@ -14,7 +15,7 @@ type Props = {
   onAction?: (action: string, data: Record<string, unknown>) => void;
 };
 
-export function AiChat({ context, open, onClose, title, onAction }: Props) {
+export function AiChat({ context, open, onClose, title }: Props) {
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,14 +37,9 @@ export function AiChat({ context, open, onClose, title, onAction }: Props) {
       .slice(-8)
       .map((m) => ({ role: m.role, content: m.content }));
 
-    fetch("/api/ai/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ context, message: text, history }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    aiApi
+      .chat({ context, message: text, history })
+      .then((data) => {
         const reply = String(data.reply || "").trim();
         if (!reply) throw new Error("Risposta AI vuota");
         setMessages((p) => [...p, { role: "assistant", content: reply, ts: Date.now() }]);
@@ -61,10 +57,6 @@ export function AiChat({ context, open, onClose, title, onAction }: Props) {
       })
       .finally(() => setLoading(false));
   }, [input, loading, context, messages]);
-
-  const addVoiceText = useCallback((text: string) => {
-    setInput(text);
-  }, []);
 
   if (!open) return null;
 

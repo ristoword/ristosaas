@@ -275,6 +275,32 @@ export const asportoApi = {
 export const archivioApi = {
   list: () => get<ArchivedOrder[]>("/archivio"),
   get: (id: string) => get<ArchivedOrder>(`/archivio/${id}`),
+  create: (data: Omit<ArchivedOrder, "id">) => post<ArchivedOrder>("/archivio", data),
+  update: (id: string, data: Partial<ArchivedOrder>) => put<ArchivedOrder>(`/archivio/${id}`, data),
+  delete: (id: string) => del<{ deleted: boolean }>(`/archivio/${id}`),
+};
+
+/* ─── AI chat ─────────────────────────────────────── */
+
+export type AiChatLog = {
+  id: string;
+  context: string;
+  userMessage: string;
+  assistantMessage: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+};
+
+export const aiApi = {
+  chat: (payload: {
+    context: string;
+    message: string;
+    history?: Array<{ role: "user" | "assistant"; content: string }>;
+  }) => post<{ reply: string }>("/ai/chat", payload),
+  history: (context?: string) => {
+    const qs = context ? `?context=${encodeURIComponent(context)}` : "";
+    return get<AiChatLog[]>(`/ai/history${qs}`);
+  },
 };
 
 export type HotelRoomStatus = "libera" | "occupata" | "da_pulire" | "pulita" | "fuori_servizio" | "manutenzione";
@@ -697,6 +723,7 @@ export const api = {
   integration: integrationApi,
   reports: reportsApi,
   aiOps: aiOpsApi,
+  ai: aiApi,
   billing: billingApi,
 };
 

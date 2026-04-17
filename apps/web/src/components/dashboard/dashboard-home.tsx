@@ -22,6 +22,7 @@ import { useI10n } from "@/core/i10n/formatters";
 import { useOrders } from "@/components/orders/orders-context";
 import { reportsApi, type ReportTrendsSnapshot } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { todayIso } from "@/lib/date-utils";
 
 export function DashboardHome() {
   const { user } = useAuth();
@@ -34,6 +35,7 @@ export function DashboardHome() {
   const isRestaurantEnabled = tenantPlatformProfile.enabledFeatures.includes("restaurant");
   const isHotelEnabled = tenantPlatformProfile.enabledFeatures.includes("hotel");
   const inHouseReservations = reservations.filter((reservation) => reservation.status === "in_casa");
+  const today = todayIso();
 
   const stats = [
     ...(isRestaurantEnabled
@@ -62,7 +64,7 @@ export function DashboardHome() {
           },
           {
             label: "Arrivi / partenze",
-            value: `${reservations.filter((reservation) => reservation.checkInDate === "2026-04-12").length}/${reservations.filter((reservation) => reservation.checkOutDate === "2026-04-12").length}`,
+            value: `${reservations.filter((reservation) => reservation.checkInDate === today).length}/${reservations.filter((reservation) => reservation.checkOutDate === today).length}`,
             sub: "Reception, soggiorni e housekeeping nello stesso sistema.",
             tone: "from-amber-400/20 to-amber-300/5",
           },

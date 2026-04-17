@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Mic, Pizza } from "lucide-react";
+import { Mic } from "lucide-react";
 import { useOrders } from "@/components/orders/orders-context";
 import type { Order } from "@/components/orders/types";
 import { PageHeader } from "@/components/shared/page-header";
@@ -9,19 +9,7 @@ import { TabBar } from "@/components/shared/tab-bar";
 import { KdsColumn } from "@/components/shared/kds-column";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
-import { DataTable } from "@/components/shared/data-table";
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-type PizzaRecipe = {
-  id: string;
-  name: string;
-  category: string;
-  size: string;
-  notes: string;
-};
+import { RecipesTab } from "@/components/shared/recipes-tab";
 
 type VoiceNote = { id: string; text: string; createdAt: string };
 
@@ -99,53 +87,6 @@ function PizzeriaOrderCard({
 /* ------------------------------------------------------------------ */
 /*  Tabs                                                               */
 /* ------------------------------------------------------------------ */
-
-function RicettePizzaTab() {
-  const [recipes, setRecipes] = useState<PizzaRecipe[]>([]);
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [size, setSize] = useState("");
-  const [notes, setNotes] = useState("");
-
-  function save() {
-    if (!name.trim()) return;
-    setRecipes((prev) => [...prev, { id: `pr-${Date.now()}`, name, category, size, notes }]);
-    setName("");
-    setCategory("");
-    setSize("");
-    setNotes("");
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card title="Nuova ricetta pizza" headerRight={<Pizza className="h-5 w-5 text-rw-accent" />}>
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome pizza" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Categoria" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <input value={size} onChange={(e) => setSize(e.target.value)} placeholder="Formato (es. normale, maxi)" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-          </div>
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note e ingredienti…" rows={4} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-          <button type="button" onClick={save} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85">Salva ricetta</button>
-        </div>
-      </Card>
-
-      {recipes.length > 0 && (
-        <DataTable
-          columns={[
-            { key: "name", header: "Nome" },
-            { key: "category", header: "Categoria" },
-            { key: "size", header: "Formato" },
-            { key: "notes", header: "Note" },
-          ]}
-          data={recipes}
-          keyExtractor={(r) => r.id}
-          emptyMessage="Nessuna ricetta"
-        />
-      )}
-    </div>
-  );
-}
 
 function NoteVocaliTab() {
   const [notes, setNotes] = useState<VoiceNote[]>([]);
@@ -264,7 +205,13 @@ export function PizzeriaPage() {
         </div>
       )}
 
-      {activeTab === "ricette" && <RicettePizzaTab />}
+      {activeTab === "ricette" && (
+        <RecipesTab
+          area="pizzeria"
+          title="Ricette pizzeria"
+          description="Ricette persistenti sul DB tenant. Disponibili anche per menu e food cost."
+        />
+      )}
       {activeTab === "note" && <NoteVocaliTab />}
     </div>
   );

@@ -8,6 +8,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { useHotel } from "@/components/hotel/hotel-context";
 import type { HotelRoom } from "@/lib/api-client";
 import { isRoomAvailableForRange } from "@/modules/hotel/domain/availability";
+import { todayIso, addDaysIso } from "@/lib/date-utils";
 
 const roomTone = {
   libera: "success",
@@ -20,8 +21,8 @@ const roomTone = {
 
 export function HotelRoomsPage() {
   const { rooms, reservations, housekeeping, createRoom, updateRoom, deleteRoom } = useHotel();
-  const [calendarStart, setCalendarStart] = useState("2026-04-12");
-  const [calendarEnd, setCalendarEnd] = useState("2026-04-13");
+  const [calendarStart, setCalendarStart] = useState(() => todayIso());
+  const [calendarEnd, setCalendarEnd] = useState(() => addDaysIso(todayIso(), 1));
   const [form, setForm] = useState<Omit<HotelRoom, "id">>({ code: "", floor: 1, capacity: 2, roomType: "Classic", status: "libera" });
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
 

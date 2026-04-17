@@ -1,27 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { GlassWater, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
 import { useOrders } from "@/components/orders/orders-context";
-import type { Order, OrderStatus } from "@/components/orders/types";
+import type { Order } from "@/components/orders/types";
 import { PageHeader } from "@/components/shared/page-header";
 import { TabBar } from "@/components/shared/tab-bar";
 import { KdsColumn } from "@/components/shared/kds-column";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
-import { DataTable } from "@/components/shared/data-table";
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
-
-type CocktailRecipe = {
-  id: string;
-  name: string;
-  category: string;
-  glass: string;
-  procedure: string;
-};
+import { RecipesTab } from "@/components/shared/recipes-tab";
 
 type VoiceNote = { id: string; text: string; createdAt: string };
 
@@ -99,52 +87,6 @@ function BarOrderCard({
 /* ------------------------------------------------------------------ */
 /*  Tabs                                                               */
 /* ------------------------------------------------------------------ */
-
-function RicetteCocktailTab() {
-  const [recipes, setRecipes] = useState<CocktailRecipe[]>([]);
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
-  const [glass, setGlass] = useState("");
-  const [procedure, setProcedure] = useState("");
-
-  function save() {
-    if (!name.trim()) return;
-    setRecipes((prev) => [...prev, { id: `cr-${Date.now()}`, name, category, glass, procedure }]);
-    setName("");
-    setCategory("");
-    setGlass("");
-    setProcedure("");
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card title="Nuova ricetta cocktail" headerRight={<GlassWater className="h-5 w-5 text-rw-accent" />}>
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <input value={category} onChange={(e) => setCategory(e.target.value)} placeholder="Categoria" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <input value={glass} onChange={(e) => setGlass(e.target.value)} placeholder="Tipo bicchiere" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-          </div>
-          <textarea value={procedure} onChange={(e) => setProcedure(e.target.value)} placeholder="Procedimento…" rows={4} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-          <button type="button" onClick={save} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85">Salva ricetta</button>
-        </div>
-      </Card>
-
-      {recipes.length > 0 && (
-        <DataTable
-          columns={[
-            { key: "name", header: "Nome" },
-            { key: "category", header: "Categoria" },
-            { key: "glass", header: "Bicchiere" },
-          ]}
-          data={recipes}
-          keyExtractor={(r) => r.id}
-          emptyMessage="Nessuna ricetta"
-        />
-      )}
-    </div>
-  );
-}
 
 function NoteVocaliTab() {
   const [notes, setNotes] = useState<VoiceNote[]>([]);
@@ -263,7 +205,13 @@ export function BarPage() {
         </div>
       )}
 
-      {activeTab === "ricette" && <RicetteCocktailTab />}
+      {activeTab === "ricette" && (
+        <RecipesTab
+          area="bar"
+          title="Ricette cocktail"
+          description="Ricette cocktail persistenti sul DB tenant."
+        />
+      )}
       {activeTab === "note" && <NoteVocaliTab />}
     </div>
   );
