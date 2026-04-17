@@ -6,70 +6,6 @@ import { getOrCreateRequestId } from "@/lib/observability/request-context";
 const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login", "/api/auth/refresh", "/api/health"];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/dev-access"];
 
-async function verifySessionVersion(req: NextRequest) {
-  const cookie = req.headers.get("cookie");
-  if (!cookie) return false;
-  try {
-    const response = await fetch(`${req.nextUrl.origin}/api/auth/session-valid`, {
-      method: "GET",
-      headers: {
-        cookie,
-      },
-      cache: "no-store",
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-const LICENSE_API_BYPASS = ["/api/auth/", "/api/billing/", "/api/admin/licenses"];
-const LICENSE_PAGE_BYPASS = ["/login", "/change-password", "/licenses", "/stripe", "/super-admin"];
-
-function shouldCheckLicenseForApi(pathname: string) {
-  return !LICENSE_API_BYPASS.some((prefix) => pathname.startsWith(prefix));
-}
-
-function shouldCheckLicenseForPage(pathname: string) {
-  return !LICENSE_PAGE_BYPASS.some((prefix) => pathname.startsWith(prefix));
-}
-
-async function verifyLicense(req: NextRequest) {
-  const cookie = req.headers.get("cookie");
-  if (!cookie) return false;
-  try {
-    const response = await fetch(`${req.nextUrl.origin}/api/auth/license-valid`, {
-      method: "GET",
-      headers: {
-        cookie,
-      },
-      cache: "no-store",
-    });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-async function verifyEntitlements(req: NextRequest, pathname: string) {
-  const cookie = req.headers.get("cookie");
-  if (!cookie) return { ok: false, status: 401 };
-  try {
-    const url = new URL("/api/auth/entitlements-valid", req.nextUrl.origin);
-    url.searchParams.set("path", pathname);
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        cookie,
-      },
-      cache: "no-store",
-    });
-    return { ok: response.ok, status: response.status };
-  } catch {
-    return { ok: false, status: 500 };
-  }
-}
-
 function withRequestId(res: NextResponse, requestId: string) {
   res.headers.set("x-request-id", requestId);
   return res;
@@ -104,20 +40,6 @@ export async function middleware(req: NextRequest) {
     if (isPublicApiPath(pathname)) return nextWithRequestId(req, requestId);
     if (!user) return jsonWithRequestId({ error: "Unauthorized" }, { status: 401 }, requestId);
 
-    const validSession = await verifySessionVersion(req);
-    if (!validSession) return jsonWithRequestId({ error: "Session expired. Please login again." }, { status: 401 }, requestId);
-
-    if (shouldCheckLicenseForApi(pathname)) {
-      const validLicense = await verifyLicense(req);
-      if (!validLicense) return jsonWithRequestId({ error: "License inactive" }, { status: 402 }, requestId);
-      const entitlements = await verifyEntitlements(req, pathname);
-      if (!entitlements.ok) {
-        const status = entitlements.status === 403 ? 403 : 402;
-        const error = status === 403 ? "Feature not enabled by license plan" : "License limits exceeded";
-        return jsonWithRequestId({ error }, { status }, requestId);
-      }
-    }
-
     const requiredRoles = getApiRequiredRoles(pathname);
     if (requiredRoles && !canAccessWithRole(user.role, requiredRoles)) {
       return jsonWithRequestId({ error: "Forbidden" }, { status: 403 }, requestId);
@@ -144,28 +66,6 @@ export async function middleware(req: NextRequest) {
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("redirect", pathname);
     return redirectWithRequestId(loginUrl, requestId);
-  }
-
-  const validSession = await verifySessionVersion(req);
-  if (!validSession) {
-    const loginUrl = req.nextUrl.clone();
-    loginUrl.pathname = "/login";
-    return redirectWithRequestId(loginUrl, requestId);
-  }
-
-  if (shouldCheckLicenseForPage(pathname)) {
-    const validLicense = await verifyLicense(req);
-    if (!validLicense) {
-      const licenseUrl = req.nextUrl.clone();
-      licenseUrl.pathname = "/licenses";
-      return redirectWithRequestId(licenseUrl, requestId);
-    }
-    const entitlements = await verifyEntitlements(req, pathname);
-    if (!entitlements.ok) {
-      const fallbackUrl = req.nextUrl.clone();
-      fallbackUrl.pathname = entitlements.status === 403 ? "/dashboard" : "/licenses";
-      return redirectWithRequestId(fallbackUrl, requestId);
-    }
   }
 
   if (user.mustChangePassword && pathname !== "/change-password") {
