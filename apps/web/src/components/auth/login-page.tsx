@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Sparkles, User } from "lucide-react";
 import { api } from "@/lib/api-client";
 
 const inputCls = "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 pl-11 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none focus:ring-1 focus:ring-rw-accent";
 
+/** Only same-origin relative paths; avoids open redirects. */
+function safeRelativeRedirect(candidate: string | null, fallback: string) {
+  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) return fallback;
+  return candidate;
+}
+
 export function LoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -23,13 +28,10 @@ export function LoginPage() {
     setError("");
     try {
       const result = await api.auth.login(username.trim(), password);
-      if (result.user.mustChangePassword) {
-        router.push("/change-password");
-        return;
-      }
       const defaultRedirect = result.user.role === "super_admin" ? "/super-admin" : "/dashboard";
-      const redirect = searchParams.get("redirect") || defaultRedirect;
-      router.push(redirect);
+      const next = safeRelativeRedirect(searchParams.get("redirect"), defaultRedirect);
+      const target = result.user.mustChangePassword ? "/change-password" : next;
+      window.location.assign(target);
     } catch (error) {
       setError(error instanceof Error ? error.message : "Errore di rete. Riprova.");
       setLoading(false);
