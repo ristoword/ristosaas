@@ -291,9 +291,12 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
                   value={ownerUsername}
                   onChange={(e) => setOwnerUsername(e.target.value)}
                   className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
-                  placeholder="owner"
+                  placeholder="owner-miostruttura"
                   autoComplete="username"
                 />
+                <p className="mt-1 text-[11px] leading-snug text-rw-muted">
+                  Univoco su tutta la piattaforma (non per tenant). Il demo usa già spesso <code className="text-rw-soft">owner</code>: scegli un altro nome.
+                </p>
               </label>
               <label className="mt-3 block">
                 <span className="text-xs font-semibold text-rw-muted">Password iniziale (min 8 caratteri)</span>

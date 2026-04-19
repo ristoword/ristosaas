@@ -6,6 +6,38 @@ import { adminRepository } from "@/lib/db/repositories/admin.repository";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 
+function uniqueConstraintUserMessage(error: unknown): string | null {
+  const msg = error instanceof Error ? error.message : "";
+  const prismaMeta =
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
+      ? (error.meta as { modelName?: string; target?: string | string[] } | undefined)
+      : undefined;
+  const targets = prismaMeta?.target
+    ? Array.isArray(prismaMeta.target)
+      ? prismaMeta.target
+      : [prismaMeta.target]
+    : [];
+  const joined = targets.join(" ").toLowerCase();
+  const model = (prismaMeta?.modelName ?? "").toLowerCase();
+
+  if (model === "tenant" || joined.includes("slug")) {
+    return "Slug tenant (URL) già in uso da un'altra struttura. Modifica lo slug.";
+  }
+  if (model === "user" || joined.includes("username") || /fields:\s*\(`username`\)/i.test(msg)) {
+    return 'Username già in uso in tutta la piattaforma (è unico globale, non per tenant). Il demo ha spesso già "owner": usa es. owner-hotelceleste o gc.owner.';
+  }
+  if (model === "user" || joined.includes("email") || /fields:\s*\(`email`\)/i.test(msg)) {
+    return "Email già registrata per un altro utente. Usa un'indirizzo diverso.";
+  }
+  if (joined.includes("licensekey") || /fields:\s*\(`licenseKey`\)/i.test(msg)) {
+    return "Chiave licenza duplicata: riprova la creazione.";
+  }
+  if (msg.toLowerCase().includes("unique")) {
+    return "Slug tenant, username o email già in uso (vincolo univoco sul database).";
+  }
+  return null;
+}
+
 function tenantDbMigrationHint(error: unknown): string | null {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2022") {
@@ -106,7 +138,10 @@ export async function POST(req: NextRequest) {
     const unique =
       message.toLowerCase().includes("unique") ||
       (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002");
-    if (unique) return err("Slug tenant, username o email già in uso.", 409);
+    if (unique) {
+      const specific = uniqueConstraintUserMessage(error);
+      return err(specific ?? "Slug tenant, username o email già in uso.", 409);
+    }
     const hint = tenantDbMigrationHint(error);
     const dev = process.env.NODE_ENV === "development";
     if (hint) return err(dev ? `${hint} (${message})` : hint, 500);
