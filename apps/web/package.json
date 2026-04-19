@@ -10,6 +10,7 @@
     "test": "vitest run",
     "postinstall": "prisma generate",
     "db:test:connection": "node scripts/test-db-connection.mjs",
+    "db:cleanup-celeste": "node scripts/cleanup-celeste-targets.mjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
