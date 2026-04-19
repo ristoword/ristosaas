@@ -4,7 +4,7 @@ import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge"
 import { getOrCreateRequestId } from "@/lib/observability/request-context";
 
 const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login", "/api/auth/refresh", "/api/health"];
-const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/super-admin", "/dev-access"];
+const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/email-settings", "/super-admin", "/dev-access"];
 
 function withRequestId(res: NextResponse, requestId: string) {
   res.headers.set("x-request-id", requestId);

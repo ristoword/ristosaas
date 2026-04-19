@@ -19,5 +19,10 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     secure: boolean;
   }>(req);
   if (!payload.host || !payload.username || !payload.fromAddress) return err("invalid payload");
-  return ok(await adminRepository.upsertEmailConfig(tenantId, payload));
+  try {
+    return ok(await adminRepository.upsertEmailConfig(tenantId, payload));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Save failed";
+    return err(message, 400);
+  }
 }

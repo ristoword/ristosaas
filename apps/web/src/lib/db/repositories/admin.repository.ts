@@ -429,10 +429,27 @@ export const adminRepository = {
     fromAddress: string;
     secure: boolean;
   }) {
+    const existing = await prisma.tenantEmailConfig.findUnique({ where: { tenantId } });
+    const incomingPwd = typeof payload.password === "string" ? payload.password.trim() : "";
+    const password = incomingPwd.length > 0 ? incomingPwd : existing?.password ?? "";
+    if (!password) {
+      throw new Error("SMTP password required when creating a new email configuration");
+    }
+    const data = {
+      host: payload.host.trim(),
+      port: Math.floor(Number(payload.port)),
+      username: payload.username.trim(),
+      password,
+      fromAddress: payload.fromAddress.trim(),
+      secure: !!payload.secure,
+    };
+    if (!Number.isFinite(data.port) || data.port <= 0 || data.port > 65535) {
+      throw new Error("Invalid SMTP port");
+    }
     const row = await prisma.tenantEmailConfig.upsert({
       where: { tenantId },
-      update: payload,
-      create: { tenantId, ...payload },
+      update: data,
+      create: { tenantId, ...data },
       include: { tenant: { select: { name: true } } },
     });
     return mapEmailConfig(row);
