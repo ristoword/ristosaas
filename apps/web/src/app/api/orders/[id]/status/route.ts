@@ -19,7 +19,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * Handles course progression logic + warehouse discharge on "servito"/"chiuso".
  */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...ORDER_ROLES]);
+  const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const tenantId = getTenantId();

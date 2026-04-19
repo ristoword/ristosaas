@@ -161,7 +161,7 @@ function mapCard(row: {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
   const { reservationId, cityTaxAmount = 0, paymentMethod = "card" } = await body<{

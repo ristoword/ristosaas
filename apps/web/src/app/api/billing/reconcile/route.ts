@@ -7,7 +7,7 @@ import { billingRepository } from "@/lib/db/repositories/billing.repository";
 const BILLING_ROLES = ["owner", "super_admin"] as const;
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, BILLING_ROLES);
+  const guard = await requireApiUser(req, BILLING_ROLES);
   if (guard.error) return guard.error;
   return ok(await billingRepository.reconcileTenantFromLatestSubscription(getTenantId()));
 }

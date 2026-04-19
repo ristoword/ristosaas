@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ recipeId: string }> };
 
 /** GET /api/kitchen/food-cost/:recipeId — calculate food cost for recipe */
 export async function GET(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...KITCHEN_ROLES]);
+  const guard = await requireApiUser(req, [...KITCHEN_ROLES]);
   if (guard.error) return guard.error;
   const { recipeId } = await ctx.params;
   const tenantId = getTenantId();

@@ -7,7 +7,7 @@ import { getTenantId } from "@/lib/db/repositories/tenant-context";
 const INTEGRATION_ROLES = ["hotel_manager", "reception", "cassa", "supervisor", "owner", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, INTEGRATION_ROLES);
+  const guard = await requireApiUser(req, INTEGRATION_ROLES);
   if (guard.error) return guard.error;
   const folios = await guestFolioRepository.allFolios(getTenantId());
   return ok(folios);

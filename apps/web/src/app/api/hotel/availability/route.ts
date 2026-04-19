@@ -12,7 +12,7 @@ import type { HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 const HOTEL_ROLES = ["hotel_manager", "reception", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
   const roomType = req.nextUrl.searchParams.get("roomType");

@@ -6,6 +6,33 @@ import { getOrCreateRequestId } from "@/lib/observability/request-context";
 const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login", "/api/auth/refresh", "/api/health"];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/email-settings", "/super-admin", "/dev-access"];
 
+type Gates = { maintenanceMode: boolean; tenantBlocked: boolean };
+let gatesCache: { key: string; value: Gates; exp: number } = {
+  key: "",
+  value: { maintenanceMode: false, tenantBlocked: false },
+  exp: 0,
+};
+
+async function fetchPlatformGates(origin: string, tenantId: string | null): Promise<Gates> {
+  const key = tenantId ?? "";
+  const now = Date.now();
+  if (gatesCache.key === key && now < gatesCache.exp) return gatesCache.value;
+  try {
+    const url = new URL("/api/health/gates", origin);
+    if (tenantId) url.searchParams.set("tenantId", tenantId);
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    const data = (await res.json()) as Partial<Gates>;
+    const value: Gates = {
+      maintenanceMode: !!data.maintenanceMode,
+      tenantBlocked: !!data.tenantBlocked,
+    };
+    gatesCache = { key, value, exp: now + 5000 };
+    return value;
+  } catch {
+    return { maintenanceMode: false, tenantBlocked: false };
+  }
+}
+
 function withRequestId(res: NextResponse, requestId: string) {
   res.headers.set("x-request-id", requestId);
   return res;
@@ -53,6 +80,26 @@ export async function middleware(req: NextRequest) {
     ) {
       return jsonWithRequestId({ error: "Password change required" }, { status: 403 }, requestId);
     }
+
+    if (user.role !== "super_admin") {
+      const gates = await fetchPlatformGates(req.nextUrl.origin, user.tenantId);
+      if (gates.maintenanceMode) {
+        const allow =
+          pathname.startsWith("/api/auth/logout") ||
+          pathname.startsWith("/api/auth/change-password") ||
+          pathname.startsWith("/api/auth/me");
+        if (!allow) {
+          return jsonWithRequestId({ error: "Piattaforma in manutenzione." }, { status: 503 }, requestId);
+        }
+      }
+      if (gates.tenantBlocked) {
+        const allow = pathname.startsWith("/api/auth/logout") || pathname.startsWith("/api/auth/me");
+        if (!allow) {
+          return jsonWithRequestId({ error: "Struttura sospesa." }, { status: 403 }, requestId);
+        }
+      }
+    }
+
     const requestHeaders = new Headers(req.headers);
     requestHeaders.set("x-request-id", requestId);
     requestHeaders.set("x-user-id", user.userId);
@@ -78,6 +125,22 @@ export async function middleware(req: NextRequest) {
     const dashboardUrl = req.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     return redirectWithRequestId(dashboardUrl, requestId);
+  }
+
+  if (user.role !== "super_admin") {
+    const gates = await fetchPlatformGates(req.nextUrl.origin, user.tenantId);
+    if (gates.maintenanceMode && !pathname.startsWith("/maintenance")) {
+      const u = req.nextUrl.clone();
+      u.pathname = "/maintenance";
+      u.searchParams.delete("reason");
+      return redirectWithRequestId(u, requestId);
+    }
+    if (gates.tenantBlocked && !pathname.startsWith("/maintenance")) {
+      const u = req.nextUrl.clone();
+      u.pathname = "/maintenance";
+      u.searchParams.set("reason", "tenant");
+      return redirectWithRequestId(u, requestId);
+    }
   }
 
   return nextWithRequestId(req, requestId);

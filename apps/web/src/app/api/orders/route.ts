@@ -9,7 +9,7 @@ const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor"]
 
 /** GET /api/orders?status=in_attesa&area=cucina&table=5 */
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, [...ORDER_ROLES]);
+  const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { searchParams } = req.nextUrl;
   const results = await ordersRepository.all(getTenantId(), {
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/orders — create order */
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, [...ORDER_ROLES]);
+  const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const data = await body<Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status">>(req);
   if (!data.items?.length) return err("items are required");

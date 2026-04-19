@@ -8,7 +8,7 @@ import type { StockItem } from "@/lib/api/types/warehouse";
 const WAREHOUSE_ROLES = ["magazzino", "supervisor"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const items = await warehouseRepository.listItems(getTenantId());
   const lowStock = items.filter((s) => s.qty <= s.minStock);
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const data = await body<Omit<StockItem, "id">>(req);
   if (!data.name?.trim()) return err("name is required");

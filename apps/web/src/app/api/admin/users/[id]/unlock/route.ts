@@ -7,7 +7,7 @@ const ADMIN_ROLES = ["super_admin"] as const;
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function POST(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, ADMIN_ROLES);
+  const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const user = await authUsersRepository.unlockUser(id);

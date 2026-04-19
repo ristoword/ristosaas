@@ -48,6 +48,14 @@ function hashPassword(plainTextPassword) {
   return `scrypt$${salt}$${hash}`;
 }
 
+async function ensurePlatformConfig() {
+  await prisma.platformConfig.upsert({
+    where: { id: "default" },
+    create: { id: "default", maintenanceMode: false },
+    update: {},
+  });
+}
+
 async function upsertTenant() {
   return prisma.tenant.upsert({
     where: { id: TENANT_ID },
@@ -1038,6 +1046,7 @@ async function upsertStaffShifts() {
 }
 
 async function main() {
+  await ensurePlatformConfig();
   await upsertTenant();
   await upsertFeatures();
   await upsertTenantLicenseAndEmailConfig();

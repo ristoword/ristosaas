@@ -7,7 +7,7 @@ import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository"
 const WAREHOUSE_ROLES = ["magazzino", "supervisor"] as const;
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const { productName, qty, reason } = await body<{ productName: string; qty: number; reason: string }>(req);
   if (!productName || !qty) return err("productName and qty required");

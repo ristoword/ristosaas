@@ -7,7 +7,7 @@ import { reportTrendsRepository } from "@/lib/db/repositories/report-trends.repo
 const REPORT_ROLES = ["supervisor", "owner", "cassa", "hotel_manager", "super_admin", "reception"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, REPORT_ROLES);
+  const guard = await requireApiUser(req, REPORT_ROLES);
   if (guard.error) return guard.error;
 
   const snapshot = await reportTrendsRepository.snapshot(getTenantId());

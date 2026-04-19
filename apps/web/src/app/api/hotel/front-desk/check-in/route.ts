@@ -104,7 +104,7 @@ function mapCard(row: {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
   const { reservationId, roomId } = await body<{ reservationId: string; roomId: string }>(req);

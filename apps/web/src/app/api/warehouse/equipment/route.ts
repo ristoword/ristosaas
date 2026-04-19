@@ -8,14 +8,14 @@ import type { WarehouseEquipment } from "@/lib/api/types/warehouse";
 const WAREHOUSE_ROLES = ["magazzino", "supervisor"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const rows = await warehouseRepository.listEquipment(getTenantId());
   return ok(rows);
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const data = await body<Omit<WarehouseEquipment, "id">>(req);
   if (!data.name?.trim()) return err("name is required");

@@ -10,7 +10,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const guard = requireApiUser(req, APPLY_ROLES);
+  const guard = await requireApiUser(req, APPLY_ROLES);
   if (guard.error) return guard.error;
   const tenantId = guard.user.tenantId || getTenantId();
   const { id } = await params;

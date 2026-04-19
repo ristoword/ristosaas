@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /** GET /api/kitchen/recipes/:id — single recipe + food cost */
 export async function GET(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...KITCHEN_ROLES]);
+  const guard = await requireApiUser(req, [...KITCHEN_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const recipe = await kitchenMenuRepository.getRecipe(getTenantId(), id);
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
 /** PUT /api/kitchen/recipes/:id — update recipe, recalculate food cost */
 export async function PUT(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...KITCHEN_ROLES]);
+  const guard = await requireApiUser(req, [...KITCHEN_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const updates = await body<Partial<Recipe>>(req);
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 
 /** DELETE /api/kitchen/recipes/:id */
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...KITCHEN_ROLES]);
+  const guard = await requireApiUser(req, [...KITCHEN_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await kitchenMenuRepository.deleteRecipe(getTenantId(), id);

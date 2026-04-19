@@ -7,12 +7,12 @@ import { operationsRepository } from "@/lib/db/repositories/operations.repositor
 const ARCHIVIO_ROLES = ["owner", "supervisor", "cassa", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, ARCHIVIO_ROLES);
+  const guard = await requireApiUser(req, ARCHIVIO_ROLES);
   if (guard.error) return guard.error;
   return ok(await operationsRepository.archivio.list(getTenantId()));
 }
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, ARCHIVIO_ROLES);
+  const guard = await requireApiUser(req, ARCHIVIO_ROLES);
   if (guard.error) return guard.error;
   const data = await body<any>(req);
   const item = await operationsRepository.archivio.create(getTenantId(), data);

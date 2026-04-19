@@ -10,7 +10,7 @@ const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor"]
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...ORDER_ROLES]);
+  const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const order = await ordersRepository.get(getTenantId(), id);
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 }
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...ORDER_ROLES]);
+  const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const updates = await body<Partial<Order>>(req);
@@ -29,7 +29,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...ORDER_ROLES]);
+  const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await ordersRepository.delete(getTenantId(), id);

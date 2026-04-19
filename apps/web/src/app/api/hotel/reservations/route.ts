@@ -8,14 +8,14 @@ import type { HotelReservation } from "@/modules/hotel/domain/types";
 const HOTEL_ROLES = ["hotel_manager", "reception", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
   const reservations = await hotelReservationsRepository.all(getTenantId());
   return ok(reservations);
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
   const data = await body<Omit<HotelReservation, "id">>(req);

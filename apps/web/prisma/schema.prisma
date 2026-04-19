@@ -27,6 +27,11 @@ enum LicenseStatus {
   suspended
 }
 
+enum TenantAccessStatus {
+  active
+  blocked
+}
+
 enum StaffStatus {
   attivo
   ferie
@@ -180,12 +185,13 @@ enum RestaurantOrderArea {
 }
 
 model Tenant {
-  id          String          @id @default(cuid())
-  name        String
-  slug        String          @unique
-  plan        ProductPlan
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id           String              @id @default(cuid())
+  name         String
+  slug         String              @unique
+  plan         ProductPlan
+  accessStatus TenantAccessStatus  @default(active)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
   features    TenantFeature[]
   users       User[]
   customers   Customer[]
@@ -253,6 +259,12 @@ model BillingEvent {
 
   @@index([tenantId, type])
   @@index([createdAt])
+}
+
+model PlatformConfig {
+  id               String   @id
+  maintenanceMode  Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
 }
 
 model TenantFeature {

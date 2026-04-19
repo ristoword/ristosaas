@@ -48,7 +48,7 @@ function mapCharge(row: {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, INTEGRATION_ROLES);
+  const guard = await requireApiUser(req, INTEGRATION_ROLES);
   if (guard.error) return guard.error;
 
   const { reservationId, orderId, description, amount, serviceType } = await body<{

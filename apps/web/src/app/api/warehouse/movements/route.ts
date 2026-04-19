@@ -7,7 +7,7 @@ import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository"
 const WAREHOUSE_ROLES = ["magazzino", "supervisor"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const movements = await warehouseRepository.listMovements(getTenantId());
   return ok(movements);

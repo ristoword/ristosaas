@@ -9,7 +9,7 @@ const TABLE_ROLES = ["owner", "supervisor", "sala", "cassa", "super_admin"] as c
 
 /** GET /api/tables?roomId=room1 */
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, TABLE_ROLES);
+  const guard = await requireApiUser(req, TABLE_ROLES);
   if (guard.error) return guard.error;
   const roomId = req.nextUrl.searchParams.get("roomId");
   return ok(await operationsRepository.tables.list(getTenantId(), roomId ?? undefined));
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
 /** POST /api/tables — create table */
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, TABLE_ROLES);
+  const guard = await requireApiUser(req, TABLE_ROLES);
   if (guard.error) return guard.error;
   const data = await body<Omit<SalaTable, "id">>(req);
   if (!data.nome?.trim()) return err("nome is required");

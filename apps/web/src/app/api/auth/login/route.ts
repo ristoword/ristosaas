@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { err, body } from "@/lib/api/helpers";
 import { setAuthCookies } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
+import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 
 export async function POST(req: NextRequest) {
   const { username, password } = await body<{ username: string; password: string }>(req);
@@ -24,6 +25,16 @@ export async function POST(req: NextRequest) {
   }
 
   await authUsersRepository.clearLoginFailures(validatedUser.id);
+
+  if (validatedUser.role !== "super_admin") {
+    if (await isMaintenanceMode()) {
+      return err("Piattaforma in manutenzione. Riprova più tardi.", 503);
+    }
+    if (await isTenantBlocked(validatedUser.tenantId)) {
+      return err("Struttura sospesa. Contatta l'assistenza.", 403);
+    }
+  }
+
   const safeUser = authUsersRepository.sanitizeUser(validatedUser);
 
   const res = NextResponse.json({

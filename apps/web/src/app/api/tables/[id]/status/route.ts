@@ -10,7 +10,7 @@ const TABLE_ROLES = ["owner", "supervisor", "sala", "cassa", "super_admin"] as c
 
 /** PATCH /api/tables/:id/status — change table status */
 export async function PATCH(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, TABLE_ROLES);
+  const guard = await requireApiUser(req, TABLE_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
 

@@ -7,7 +7,7 @@ import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository
 const KITCHEN_PRICING_ROLES = ["cucina", "supervisor", "owner", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, KITCHEN_PRICING_ROLES);
+  const guard = await requireApiUser(req, KITCHEN_PRICING_ROLES);
   if (guard.error) return guard.error;
   const tenantId = guard.user.tenantId || getTenantId();
   const daysRaw = Number(req.nextUrl.searchParams.get("days") || "14");

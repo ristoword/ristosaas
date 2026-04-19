@@ -7,7 +7,7 @@ import { operationsRepository } from "@/lib/db/repositories/operations.repositor
 const STAFF_SHIFT_ROLES = ["owner", "supervisor", "staff", "super_admin"] as const;
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, STAFF_SHIFT_ROLES);
+  const guard = await requireApiUser(req, STAFF_SHIFT_ROLES);
   if (guard.error) return guard.error;
 
   const payload = await body<{ staffId: string; action: "clock_in" | "clock_out"; notes?: string }>(req);

@@ -59,6 +59,17 @@ export type AdminTenant = {
   plan: string;
   users: number;
   created: string;
+  status: "active" | "blocked";
+};
+export type AdminPlatformConfig = {
+  maintenanceMode: boolean;
+  updatedAt: string;
+};
+export type AdminSystemSnapshot = {
+  appVersion: string;
+  processUptimeSec: number;
+  dbOk: boolean;
+  serverTime: string;
 };
 export type AdminTenantOnboardingResult = {
   tenant: { id: string; name: string; slug: string; plan: string };
@@ -672,8 +683,16 @@ export const api = {
       post<{ success: boolean }>("/auth/change-password", { currentPassword, newPassword }),
   },
   admin: {
+    platform: {
+      get: () => get<AdminPlatformConfig>("/admin/platform"),
+      setMaintenanceMode: (maintenanceMode: boolean) => patch<AdminPlatformConfig>("/admin/platform", { maintenanceMode }),
+    },
+    system: {
+      get: () => get<AdminSystemSnapshot>("/admin/system"),
+    },
     tenants: {
       list: () => get<AdminTenant[]>("/admin/tenants"),
+      setAccess: (tenantId: string, status: "active" | "blocked") => patch<AdminTenant>(`/admin/tenants/${tenantId}`, { status }),
       create: (payload: {
         name: string;
         slug: string;

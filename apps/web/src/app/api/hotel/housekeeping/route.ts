@@ -8,7 +8,7 @@ import type { HousekeepingTask } from "@/modules/hotel/domain/types";
 const HOTEL_ROLES = ["hotel_manager", "reception", "housekeeping", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
   const rows = await prisma.housekeepingTask.findMany({

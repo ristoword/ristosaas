@@ -6,7 +6,7 @@ import { adminRepository } from "@/lib/db/repositories/admin.repository";
 const ADMIN_ROLES = ["super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, ADMIN_ROLES);
+  const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
 
   const rows = await adminRepository.tenants();
@@ -17,12 +17,13 @@ export async function GET(req: NextRequest) {
       plan: tenant.plan,
       users: tenant.users.length,
       created: tenant.createdAt.toISOString().slice(0, 10),
+      status: tenant.accessStatus === "blocked" ? "blocked" : "active",
     })),
   );
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, ADMIN_ROLES);
+  const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
 
   const payload = await body<{

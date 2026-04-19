@@ -74,7 +74,7 @@ function kitchenSnapshotToPrompt(snapshot: Awaited<ReturnType<typeof aiKitchenRe
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req);
+  const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   const user = guard.user;
   const tenantId = user?.tenantId || getTenantId();

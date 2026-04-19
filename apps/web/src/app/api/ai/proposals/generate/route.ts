@@ -9,7 +9,7 @@ import { sendOperationalAlert } from "@/lib/observability/alerts";
 const ALLOWED_ROLES = ["owner", "supervisor", "cucina", "magazzino", "super_admin"] as const;
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, ALLOWED_ROLES);
+  const guard = await requireApiUser(req, ALLOWED_ROLES);
   if (guard.error) return guard.error;
   const tenantId = guard.user.tenantId || getTenantId();
   const payload = await body<{ days?: number; status?: "draft" | "pending_review" }>(req);

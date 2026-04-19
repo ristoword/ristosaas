@@ -3,6 +3,7 @@ import { err } from "@/lib/api/helpers";
 import { REFRESH_COOKIE } from "@/lib/auth/constants";
 import { clearRefreshCookie, clearSessionCookie, setAuthCookies, verifyRefreshToken } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
+import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 
 export async function POST(req: NextRequest) {
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
@@ -18,6 +19,21 @@ export async function POST(req: NextRequest) {
     clearSessionCookie(res);
     clearRefreshCookie(res);
     return res;
+  }
+
+  if (user.role !== "super_admin") {
+    if (await isMaintenanceMode()) {
+      const res = NextResponse.json({ error: "Piattaforma in manutenzione. Riprova più tardi." }, { status: 503 });
+      clearSessionCookie(res);
+      clearRefreshCookie(res);
+      return res;
+    }
+    if (await isTenantBlocked(user.tenantId)) {
+      const res = NextResponse.json({ error: "Struttura sospesa. Contatta l'assistenza." }, { status: 403 });
+      clearSessionCookie(res);
+      clearRefreshCookie(res);
+      return res;
+    }
   }
 
   const safeUser = authUsersRepository.sanitizeUser(user);

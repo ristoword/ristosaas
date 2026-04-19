@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 const TABLE_ROLES = ["owner", "supervisor", "sala", "cassa", "super_admin"] as const;
 
 export async function GET(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, TABLE_ROLES);
+  const guard = await requireApiUser(req, TABLE_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const table = await operationsRepository.tables.get(getTenantId(), id);
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 }
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, TABLE_ROLES);
+  const guard = await requireApiUser(req, TABLE_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const updates = await body<Partial<SalaTable>>(req);
@@ -28,7 +28,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, TABLE_ROLES);
+  const guard = await requireApiUser(req, TABLE_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await operationsRepository.tables.delete(getTenantId(), id);

@@ -7,12 +7,12 @@ import { operationsRepository } from "@/lib/db/repositories/operations.repositor
 const SUPPLIER_ROLES = ["owner", "supervisor", "magazzino", "cassa", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, SUPPLIER_ROLES);
+  const guard = await requireApiUser(req, SUPPLIER_ROLES);
   if (guard.error) return guard.error;
   return ok(await operationsRepository.suppliers.list(getTenantId()));
 }
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, SUPPLIER_ROLES);
+  const guard = await requireApiUser(req, SUPPLIER_ROLES);
   if (guard.error) return guard.error;
   const data = await body<any>(req);
   if (!data.name?.trim()) return err("name required");

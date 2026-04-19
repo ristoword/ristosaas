@@ -8,14 +8,14 @@ import type { HotelRoom } from "@/modules/hotel/domain/types";
 const HOTEL_ROLES = ["hotel_manager", "reception", "housekeeping", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
   const rooms = await hotelRoomsRepository.all(getTenantId());
   return ok(rooms);
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
   const data = await body<Omit<HotelRoom, "id">>(req);
   if (!data.code?.trim()) return err("code required");

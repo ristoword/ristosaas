@@ -10,7 +10,7 @@ const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor"] as const;
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...MENU_ROLES]);
+  const guard = await requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const item = await kitchenMenuRepository.getMenuItem(getTenantId(), id);
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 }
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...MENU_ROLES]);
+  const guard = await requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const updates = await body<Partial<MenuItem>>(req);
@@ -40,7 +40,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...MENU_ROLES]);
+  const guard = await requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await kitchenMenuRepository.deleteMenuItem(getTenantId(), id);

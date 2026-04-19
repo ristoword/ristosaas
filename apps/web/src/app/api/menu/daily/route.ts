@@ -9,14 +9,14 @@ const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor"] as const;
 
 /** GET /api/menu/daily */
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, [...MENU_ROLES]);
+  const guard = await requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   return ok(await kitchenMenuRepository.allDailyDishes(getTenantId()));
 }
 
 /** POST /api/menu/daily — add daily dish (optionally from recipe) */
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, [...MENU_ROLES]);
+  const guard = await requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   const data = await body<Omit<DailyDish, "id"> & { fromRecipeId?: string }>(req);
   const tenantId = getTenantId();

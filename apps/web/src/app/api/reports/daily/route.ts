@@ -7,7 +7,7 @@ import { dailyClosureReportsRepository } from "@/lib/db/repositories/daily-closu
 const REPORT_ROLES = ["supervisor", "owner", "cassa", "hotel_manager", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, REPORT_ROLES);
+  const guard = await requireApiUser(req, REPORT_ROLES);
   if (guard.error) return guard.error;
 
   const from = req.nextUrl.searchParams.get("from");
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, REPORT_ROLES);
+  const guard = await requireApiUser(req, REPORT_ROLES);
   if (guard.error) return guard.error;
 
   const payload = await body<{

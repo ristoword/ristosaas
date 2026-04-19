@@ -9,7 +9,7 @@ const HOTEL_ROLES = ["hotel_manager", "reception", "super_admin"] as const;
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const updates = await body<Partial<HotelReservation>>(req);
@@ -19,7 +19,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, HOTEL_ROLES);
+  const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await hotelReservationsRepository.delete(getTenantId(), id);

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
+import { invalidateTenantAccessCache } from "@/lib/db/repositories/platform.repository";
 
 function mapLicense(row: {
   id: string;
@@ -59,8 +60,35 @@ export const adminRepository = {
   async tenants() {
     return prisma.tenant.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, name: true, plan: true, createdAt: true, users: { select: { id: true } } },
+      select: {
+        id: true,
+        name: true,
+        plan: true,
+        accessStatus: true,
+        createdAt: true,
+        users: { select: { id: true } },
+      },
     });
+  },
+  async setTenantAccessStatus(tenantId: string, accessStatus: "active" | "blocked") {
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { accessStatus },
+    });
+    invalidateTenantAccessCache(tenantId);
+    const row = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: {
+        id: true,
+        name: true,
+        plan: true,
+        accessStatus: true,
+        createdAt: true,
+        users: { select: { id: true } },
+      },
+    });
+    if (!row) throw new Error("tenant_not_found");
+    return row;
   },
   async createTenantWithLicense(payload: {
     name: string;
@@ -472,5 +500,21 @@ export const adminRepository = {
       include: { tenant: { select: { name: true } } },
     });
     return mapEmailConfig(row);
+  },
+  async systemSnapshot() {
+    const appVersion = process.env.APP_VERSION || process.env.NEXT_PUBLIC_APP_VERSION || "unknown";
+    let dbOk = false;
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      dbOk = true;
+    } catch {
+      dbOk = false;
+    }
+    return {
+      appVersion,
+      processUptimeSec: Math.floor(process.uptime()),
+      dbOk,
+      serverTime: new Date().toISOString(),
+    };
   },
 };

@@ -7,12 +7,12 @@ import { customersRepository } from "@/lib/db/repositories/customers.repository"
 const CUSTOMER_ROLES = ["owner", "supervisor", "sala", "cassa", "hotel_manager", "reception", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req, CUSTOMER_ROLES);
+  const guard = await requireApiUser(req, CUSTOMER_ROLES);
   if (guard.error) return guard.error;
   return ok(await customersRepository.all(getTenantId()));
 }
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, CUSTOMER_ROLES);
+  const guard = await requireApiUser(req, CUSTOMER_ROLES);
   if (guard.error) return guard.error;
   const data = await body<{
     name: string;

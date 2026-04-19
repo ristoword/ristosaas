@@ -37,7 +37,7 @@ function validCycle(value: unknown): value is BillingCycle {
 }
 
 export async function POST(req: NextRequest) {
-  const guard = requireApiUser(req, BILLING_ROLES);
+  const guard = await requireApiUser(req, BILLING_ROLES);
   if (guard.error) return guard.error;
 
   const payload = await body<{ plan?: ProductPlan; billingCycle?: BillingCycle }>(req);

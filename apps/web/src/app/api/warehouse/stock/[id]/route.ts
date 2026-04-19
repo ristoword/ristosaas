@@ -10,7 +10,7 @@ const WAREHOUSE_ROLES = ["magazzino", "supervisor"] as const;
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const existing = await warehouseRepository.getItem(getTenantId(), id);
@@ -22,7 +22,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const guard = requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await warehouseRepository.deleteItem(getTenantId(), id);

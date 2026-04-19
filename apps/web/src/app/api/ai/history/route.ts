@@ -5,7 +5,7 @@ import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 
 export async function GET(req: NextRequest) {
-  const guard = requireApiUser(req);
+  const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   const user = guard.user;
   const context = req.nextUrl.searchParams.get("context")?.trim().toLowerCase();
