@@ -68,6 +68,8 @@ export const adminRepository = {
     plan: "restaurant_only" | "hotel_only" | "all_included";
     billingCycle: "monthly" | "annual";
     seats: number;
+    /** Months until license expires (default 12). Clamped 1–120. */
+    licenseDurationMonths?: number;
     adminUser: {
       username: string;
       email: string;
@@ -77,7 +79,13 @@ export const adminRepository = {
     };
   }) {
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+    const rawMonths =
+      payload.licenseDurationMonths != null && Number.isFinite(Number(payload.licenseDurationMonths))
+        ? Math.floor(Number(payload.licenseDurationMonths))
+        : 12;
+    const months = Math.min(120, Math.max(1, rawMonths));
+    const expiresAt = new Date(now);
+    expiresAt.setMonth(expiresAt.getMonth() + months);
     const enabledFeaturesByPlan: Record<"restaurant_only" | "hotel_only" | "all_included", Array<"restaurant" | "hotel" | "integration_room_charge" | "integration_unified_folio" | "integration_meal_plans">> = {
       restaurant_only: ["restaurant"],
       hotel_only: ["hotel"],

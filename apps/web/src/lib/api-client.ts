@@ -680,6 +680,7 @@ export const api = {
         plan: "restaurant_only" | "hotel_only" | "all_included";
         billingCycle?: "monthly" | "annual";
         seats?: number;
+        licenseDurationMonths?: number;
         adminUser: {
           username: string;
           email: string;

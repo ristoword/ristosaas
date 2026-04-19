@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -25,6 +25,7 @@ import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { api, type AdminUser } from "@/lib/api-client";
+import { CreateTenantLicenseModal } from "@/components/super-admin/create-tenant-license-modal";
 
 const tabs = [
   { id: "dashboard", label: "Dashboard" },
@@ -61,8 +62,9 @@ export function SuperAdminPage() {
   }>>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [tempPasswordFlash, setTempPasswordFlash] = useState("");
+  const [createTenantModalOpen, setCreateTenantModalOpen] = useState(false);
 
-  useEffect(() => {
+  const refreshLists = useCallback(() => {
     Promise.all([api.admin.users.list(), api.admin.tenants.list(), api.admin.licenses.list(), api.admin.emailConfig.list()])
       .then(([usersRows, tenantRows, licenseRows, emailRows]) => {
         setUsers(usersRows);
@@ -89,11 +91,20 @@ export function SuperAdminPage() {
       });
   }, []);
 
+  useEffect(() => {
+    refreshLists();
+  }, [refreshLists]);
+
   const filteredTenants = tenants.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
   const filteredLicenses = licenses.filter((l) => l.key.toLowerCase().includes(search.toLowerCase()) || l.tenant.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-6">
+      <CreateTenantLicenseModal
+        open={createTenantModalOpen}
+        onClose={() => setCreateTenantModalOpen(false)}
+        onCreated={() => refreshLists()}
+      />
       <PageHeader title="Super Admin" subtitle="Pannello di controllo globale della piattaforma">
         <button type="button" className="inline-flex items-center gap-2 rounded-2xl border border-rw-accent/30 bg-rw-accent/10 px-4 py-2.5 text-sm font-semibold text-rw-accent transition hover:bg-rw-accent/20">
           <Sparkles className="h-4 w-4" /> AI Assistant
@@ -149,8 +160,12 @@ export function SuperAdminPage() {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca tenant…" className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2.5 pl-10 pr-4 text-sm text-rw-ink placeholder:text-rw-muted" />
             </div>
-            <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white">
-              <Plus className="h-4 w-4" /> Nuovo tenant
+            <button
+              type="button"
+              onClick={() => setCreateTenantModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              <Plus className="h-4 w-4" /> Nuovo tenant + licenza
             </button>
           </div>
           <DataTable
@@ -175,6 +190,16 @@ export function SuperAdminPage() {
 
       {tab === "licenses" && (
         <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setCreateTenantModalOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white"
+            >
+              <Plus className="h-4 w-4" /> Nuovo tenant + licenza
+            </button>
+            <p className="text-xs text-rw-muted">Crea struttura, chiave RW-…, scadenza (1 / 6 / 12 mesi) e utente owner.</p>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca chiave o tenant…" className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2.5 pl-10 pr-4 text-sm text-rw-ink placeholder:text-rw-muted" />

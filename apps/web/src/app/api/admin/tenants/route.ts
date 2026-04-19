@@ -31,6 +31,8 @@ export async function POST(req: NextRequest) {
     plan: "restaurant_only" | "hotel_only" | "all_included";
     billingCycle?: "monthly" | "annual";
     seats?: number;
+    /** Whole months until license expiry (e.g. 1, 6, 12). Default 12. Max 120. */
+    licenseDurationMonths?: number;
     adminUser: {
       username: string;
       email: string;
@@ -50,6 +52,12 @@ export async function POST(req: NextRequest) {
   const normalizedSlug = payload.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-{2,}/g, "-");
   const billingCycle = payload.billingCycle === "annual" ? "annual" : "monthly";
   const seats = Number.isFinite(Number(payload.seats)) && Number(payload.seats) > 0 ? Math.floor(Number(payload.seats)) : 25;
+  let licenseDurationMonths: number | undefined;
+  if (payload.licenseDurationMonths != null) {
+    const m = Math.floor(Number(payload.licenseDurationMonths));
+    if (!Number.isFinite(m) || m < 1 || m > 120) return err("licenseDurationMonths must be between 1 and 120");
+    licenseDurationMonths = m;
+  }
 
   try {
     const created = await adminRepository.createTenantWithLicense({
@@ -58,6 +66,7 @@ export async function POST(req: NextRequest) {
       plan: payload.plan,
       billingCycle,
       seats,
+      licenseDurationMonths,
       adminUser: {
         username: payload.adminUser.username.trim(),
         email: payload.adminUser.email.trim().toLowerCase(),
