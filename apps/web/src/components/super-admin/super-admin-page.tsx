@@ -76,12 +76,14 @@ export function SuperAdminPage() {
   const [maintenanceError, setMaintenanceError] = useState<string | null>(null);
   const [systemSnapshot, setSystemSnapshot] = useState<AdminSystemSnapshot | null>(null);
   const [tenantActionId, setTenantActionId] = useState<string | null>(null);
+  const [listLoadError, setListLoadError] = useState<string | null>(null);
 
   const assistantUrl = process.env.NEXT_PUBLIC_SUPERADMIN_ASSISTANT_URL?.trim() ?? "";
 
   const refreshLists = useCallback(() => {
     Promise.all([api.admin.users.list(), api.admin.tenants.list(), api.admin.licenses.list(), api.admin.emailConfig.list()])
       .then(([usersRows, tenantRows, licenseRows, emailRows]) => {
+        setListLoadError(null);
         setUsers(usersRows);
         setTenants(tenantRows);
         setLicenses(
@@ -98,11 +100,8 @@ export function SuperAdminPage() {
         );
         setEmailConfigs(emailRows);
       })
-      .catch(() => {
-        setUsers([]);
-        setTenants([]);
-        setLicenses([]);
-        setEmailConfigs([]);
+      .catch((err) => {
+        setListLoadError(err instanceof Error ? err.message : "Caricamento dati fallito. I dati nel database non sono stati cancellati: verifica la connessione o le migrazioni.");
       });
 
     Promise.all([api.admin.platform.get(), api.admin.system.get()])
@@ -126,6 +125,16 @@ export function SuperAdminPage() {
 
   return (
     <div className="space-y-6">
+      {listLoadError ? (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          <p className="font-semibold text-amber-200">Errore caricamento Super Admin</p>
+          <p className="mt-1 text-xs text-rw-soft">{listLoadError}</p>
+          <p className="mt-2 text-xs text-rw-muted">
+            Se hai aggiornato il codice senza aggiornare il database, esegui sul PostgreSQL lo script{" "}
+            <code className="rounded bg-rw-surfaceAlt px-1">apps/web/prisma/migrations_add_platform_and_tenant_access.sql</code> poi ricarica.
+          </p>
+        </div>
+      ) : null}
       <CreateTenantLicenseModal
         open={createTenantModalOpen}
         onClose={() => setCreateTenantModalOpen(false)}

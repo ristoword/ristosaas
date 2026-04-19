@@ -1,25 +1,48 @@
 import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { adminRepository } from "@/lib/db/repositories/admin.repository";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 
+function tenantDbMigrationHint(error: unknown): string | null {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2022") {
+      return "Il database non ha le colonne/tabelle previste dal codice (es. accessStatus o PlatformConfig). Esegui sul PostgreSQL lo script apps/web/prisma/migrations_add_platform_and_tenant_access.sql, poi riavvia.";
+    }
+  }
+  const msg = error instanceof Error ? error.message : "";
+  if (/accessStatus|PlatformConfig|TenantAccessStatus|does not exist|Unknown arg|column.*does not exist/i.test(msg)) {
+    return "Aggiorna il database con lo script prisma/migrations_add_platform_and_tenant_access.sql (manca una migrazione rispetto al codice attuale).";
+  }
+  return null;
+}
+
 export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
 
-  const rows = await adminRepository.tenants();
-  return ok(
-    rows.map((tenant) => ({
-      id: tenant.id,
-      name: tenant.name,
-      plan: tenant.plan,
-      users: tenant.users.length,
-      created: tenant.createdAt.toISOString().slice(0, 10),
-      status: tenant.accessStatus === "blocked" ? "blocked" : "active",
-    })),
-  );
+  try {
+    const rows = await adminRepository.tenants();
+    return ok(
+      rows.map((tenant) => ({
+        id: tenant.id,
+        name: tenant.name,
+        plan: tenant.plan,
+        users: tenant.users.length,
+        created: tenant.createdAt.toISOString().slice(0, 10),
+        status: tenant.accessStatus === "blocked" ? "blocked" : "active",
+      })),
+    );
+  } catch (error) {
+    console.error("[admin/tenants GET]", error);
+    const hint = tenantDbMigrationHint(error);
+    const dev = process.env.NODE_ENV === "development";
+    const detail = error instanceof Error ? error.message : "";
+    if (hint) return err(dev ? `${hint} (${detail})` : hint, 500);
+    return err("Impossibile caricare l'elenco tenant.", 500);
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -78,8 +101,16 @@ export async function POST(req: NextRequest) {
     });
     return ok(created, 201);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create tenant";
-    if (message.toLowerCase().includes("unique")) return err("Tenant slug, username or email already exists", 409);
-    return err("Unable to create tenant", 500);
+    console.error("[admin/tenants POST]", error);
+    const message = error instanceof Error ? error.message : "";
+    const unique =
+      message.toLowerCase().includes("unique") ||
+      (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002");
+    if (unique) return err("Slug tenant, username o email già in uso.", 409);
+    const hint = tenantDbMigrationHint(error);
+    const dev = process.env.NODE_ENV === "development";
+    if (hint) return err(dev ? `${hint} (${message})` : hint, 500);
+    if (message && message.length > 0 && message.length < 280 && dev) return err(`Impossibile creare il tenant: ${message}`, 500);
+    return err("Impossibile creare il tenant. Controlla i log del server o applica le migrazioni SQL se mancanti.", 500);
   }
 }
