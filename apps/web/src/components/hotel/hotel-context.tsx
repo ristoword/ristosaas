@@ -22,6 +22,7 @@ type HotelContextValue = {
   updateReservation: (id: string, data: Partial<HotelReservation>) => Promise<void>;
   deleteReservation: (id: string) => Promise<void>;
   roomCharge: (reservationId: string, orderId: string, description: string, amount: number, serviceType: "breakfast" | "lunch" | "dinner") => Promise<FolioCharge>;
+  processCheckIn: (reservationId: string, roomId: string) => Promise<void>;
   finalizeCheckout: (reservationId: string, cityTaxAmount: number, paymentMethod: "cash" | "card" | "room_charge_settlement") => Promise<void>;
 };
 
@@ -121,6 +122,25 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
     setReservations((prev) => prev.filter((reservation) => reservation.id !== id));
   }, []);
 
+  const processCheckIn = useCallback(
+    async (reservationId: string, roomId: string) => {
+      const result = await hotelApi.checkIn(reservationId, roomId);
+      setReservations((prev) =>
+        prev.map((reservation) =>
+          reservation.id === result.reservation.id ? result.reservation : reservation,
+        ),
+      );
+      setRooms((prev) => prev.map((room) => (room.id === result.room.id ? result.room : room)));
+      setKeycards((prev) => {
+        const next = prev.filter((card) => card.id !== result.card.id);
+        return [result.card, ...next];
+      });
+      // Lo stay/folio creati dal check-in verranno riallineati al prossimo refresh
+      // di integrationApi.listFolios; per adesso evitiamo di forzarlo se non serve.
+    },
+    [],
+  );
+
   const finalizeCheckout = useCallback(async (reservationId: string, cityTaxAmount: number, paymentMethod: "cash" | "card" | "room_charge_settlement") => {
     const result = await hotelApi.checkOut(reservationId, cityTaxAmount, paymentMethod);
     setReservations((prev) => prev.map((reservation) => (reservation.id === result.reservation.id ? result.reservation : reservation)));
@@ -145,7 +165,7 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ rooms, reservations, housekeeping, keycards, folios, charges, ratePlans, loading, failedSlices, refresh, createRoom, updateRoom, deleteRoom, createReservation, updateReservation, deleteReservation, roomCharge, finalizeCheckout }}>
+    <Ctx.Provider value={{ rooms, reservations, housekeeping, keycards, folios, charges, ratePlans, loading, failedSlices, refresh, createRoom, updateRoom, deleteRoom, createReservation, updateReservation, deleteReservation, roomCharge, processCheckIn, finalizeCheckout }}>
       {children}
     </Ctx.Provider>
   );
