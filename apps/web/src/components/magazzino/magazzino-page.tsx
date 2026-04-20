@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ArrowDownUp, Download, Plus, Search, ShoppingCart, Sparkles, Trash2 } from "lucide-react";
+import { ArrowDownUp, Download, Loader2, Plus, Save, Search, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
@@ -12,7 +12,13 @@ import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
 import { useWarehouse } from "@/components/warehouse/warehouse-context";
 import type { StockItem } from "@/components/warehouse/warehouse-context";
-import { warehouseApi, type WarehouseEquipment as Equipment } from "@/lib/api-client";
+import {
+  suppliersApi,
+  warehouseApi,
+  type Supplier,
+  type WarehouseEquipment as Equipment,
+} from "@/lib/api-client";
+import { Modal } from "@/components/shared/modal";
 
 type ShoppingItem = { id: string; product: string; qty: number; unit: string; supplier: string; done: boolean };
 
@@ -190,13 +196,14 @@ function MovimentiTab() {
 }
 
 function ListaSpesaTab() {
-  const { lowStockItems } = useWarehouse();
+  const { lowStockItems, stock, refresh } = useWarehouse();
   const low = lowStockItems();
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [product, setProduct] = useState("");
   const [qty, setQty] = useState("");
   const [unit, setUnit] = useState("kg");
   const [supplier, setSupplier] = useState("");
+  const [suggestOpen, setSuggestOpen] = useState(false);
 
   function addItem() {
     if (!product.trim()) return;
@@ -259,7 +266,20 @@ function ListaSpesaTab() {
         )}
       </div>
 
-      <Card title="Lista della spesa" description={`${items.length} prodotti`}>
+      <Card
+        title="Lista della spesa"
+        description={`${items.length} prodotti`}
+        headerRight={
+          <button
+            type="button"
+            onClick={() => setSuggestOpen(true)}
+            className={cn(BTN_PRIMARY, "px-3 py-2 text-xs")}
+            disabled={low.length === 0 && stock.length === 0}
+          >
+            <Sparkles className="h-3.5 w-3.5" /> Suggerisci ordine fornitore
+          </button>
+        }
+      >
         {items.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-rw-muted"><ShoppingCart className="h-10 w-10 opacity-40" /><p className="text-sm">Lista vuota</p></div>
         ) : (
@@ -279,7 +299,356 @@ function ListaSpesaTab() {
           </div>
         )}
       </Card>
+
+      <SuggerisciOrdineModal
+        open={suggestOpen}
+        onClose={() => setSuggestOpen(false)}
+        onCreated={async () => {
+          setSuggestOpen(false);
+          await refresh();
+        }}
+      />
     </div>
+  );
+}
+
+type SuggestedLine = {
+  warehouseItemId: string;
+  name: string;
+  unit: string;
+  supplierHint: string;
+  suggestedQty: number;
+  unitCost: number;
+  qtyOrdered: number;
+};
+
+type SupplierGroup = {
+  supplierName: string;
+  lines: SuggestedLine[];
+};
+
+function SuggerisciOrdineModal({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void | Promise<void>;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [groups, setGroups] = useState<SupplierGroup[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [assignedSupplierId, setAssignedSupplierId] = useState<Record<string, string>>({});
+  const [status, setStatus] = useState<"bozza" | "inviato">("inviato");
+  const [creatingFor, setCreatingFor] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const [reorderRes, stockRes, suppliersRes] = await Promise.all([
+          warehouseApi.reorder(14),
+          warehouseApi.list(),
+          suppliersApi.list(),
+        ]);
+        if (cancelled) return;
+        const stockIndex = new Map(stockRes.items.map((it) => [it.id, it]));
+        const bySupplier = new Map<string, SupplierGroup>();
+
+        for (const row of reorderRes.reorder) {
+          const stockItem = stockIndex.get(row.warehouseItemId);
+          if (!stockItem) continue;
+          const supplierHint = stockItem.supplier?.trim() || "Senza fornitore";
+          const qty = row.suggestedOrderQty > 0 ? row.suggestedOrderQty : Math.max(0, row.minStock * 2 - row.qty);
+          const line: SuggestedLine = {
+            warehouseItemId: stockItem.id,
+            name: stockItem.name,
+            unit: stockItem.unit,
+            supplierHint,
+            suggestedQty: Number(qty.toFixed(3)),
+            unitCost: stockItem.costPerUnit,
+            qtyOrdered: Number(qty.toFixed(3)),
+          };
+          const key = supplierHint.toLowerCase();
+          if (!bySupplier.has(key)) {
+            bySupplier.set(key, { supplierName: supplierHint, lines: [line] });
+          } else {
+            bySupplier.get(key)!.lines.push(line);
+          }
+        }
+
+        const groupsArr = Array.from(bySupplier.values());
+        setGroups(groupsArr);
+        setSuppliers(suppliersRes);
+
+        // Pre-assegna il fornitore anagrafico via match per nome (case-insensitive)
+        const prefill: Record<string, string> = {};
+        for (const group of groupsArr) {
+          const match = suppliersRes.find(
+            (s) => s.name.trim().toLowerCase() === group.supplierName.trim().toLowerCase(),
+          );
+          if (match) prefill[group.supplierName] = match.id;
+        }
+        setAssignedSupplierId(prefill);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Caricamento suggerimenti fallito.");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  function updateLine(supplierName: string, lineIndex: number, patch: Partial<SuggestedLine>) {
+    setGroups((prev) =>
+      prev.map((group) => {
+        if (group.supplierName !== supplierName) return group;
+        return {
+          ...group,
+          lines: group.lines.map((line, i) => (i === lineIndex ? { ...line, ...patch } : line)),
+        };
+      }),
+    );
+  }
+
+  function removeLine(supplierName: string, lineIndex: number) {
+    setGroups((prev) =>
+      prev
+        .map((group) => {
+          if (group.supplierName !== supplierName) return group;
+          return { ...group, lines: group.lines.filter((_, i) => i !== lineIndex) };
+        })
+        .filter((group) => group.lines.length > 0),
+    );
+  }
+
+  async function handleCreateGroup(group: SupplierGroup) {
+    const supplierId = assignedSupplierId[group.supplierName];
+    if (!supplierId) {
+      setError(`Seleziona un fornitore dall anagrafica per "${group.supplierName}".`);
+      return;
+    }
+    const lines = group.lines.filter((line) => line.qtyOrdered > 0);
+    if (lines.length === 0) {
+      setError("Nessuna riga con quantità > 0 per questo fornitore.");
+      return;
+    }
+    setError(null);
+    setCreatingFor(group.supplierName);
+    try {
+      await suppliersApi.createOrder(supplierId, {
+        status,
+        items: lines.map((line) => ({
+          warehouseItemId: line.warehouseItemId,
+          qtyOrdered: line.qtyOrdered,
+          unit: line.unit,
+          unitCost: line.unitCost,
+        })),
+      });
+      setFlash(`Ordine creato per ${group.supplierName}.`);
+      setGroups((prev) => prev.filter((g) => g.supplierName !== group.supplierName));
+      setTimeout(() => setFlash(null), 2500);
+      if (onCreated) void onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Creazione ordine fallita.");
+    } finally {
+      setCreatingFor(null);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Suggerisci ordine fornitore"
+      subtitle="Genera ordini d acquisto raggruppati per fornitore a partire dalle scorte sotto soglia."
+      wide
+    >
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <label className={LABEL}>Stato</label>
+          <select
+            className={INPUT}
+            value={status}
+            onChange={(e) => setStatus(e.target.value as typeof status)}
+            style={{ maxWidth: 180 }}
+          >
+            <option value="bozza">Bozza</option>
+            <option value="inviato">Inviato</option>
+          </select>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center gap-2 py-8 text-rw-muted">
+            <Loader2 className="h-4 w-4 animate-spin" /> Calcolo suggerimenti…
+          </div>
+        ) : null}
+
+        {error ? (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300"
+          >
+            {error}
+          </p>
+        ) : null}
+        {flash ? (
+          <p
+            role="status"
+            className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm text-emerald-300"
+          >
+            {flash}
+          </p>
+        ) : null}
+
+        {!loading && groups.length === 0 ? (
+          <p className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-6 text-center text-sm text-rw-muted">
+            Nessun prodotto da riordinare al momento.
+          </p>
+        ) : null}
+
+        {groups.map((group) => {
+          const supplierId = assignedSupplierId[group.supplierName] ?? "";
+          const total = group.lines.reduce((sum, l) => sum + l.qtyOrdered * l.unitCost, 0);
+          const supplierOptions = suppliers;
+          const unassigned = !supplierId;
+          return (
+            <div
+              key={group.supplierName}
+              className={cn(
+                "rounded-2xl border bg-rw-surfaceAlt p-4",
+                unassigned ? "border-amber-500/40" : "border-rw-line",
+              )}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-rw-ink">{group.supplierName}</p>
+                  <p className="text-xs text-rw-muted">
+                    {group.lines.length} articoli • totale stimato €{total.toFixed(2)}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    className={INPUT}
+                    style={{ maxWidth: 260 }}
+                    value={supplierId}
+                    onChange={(e) =>
+                      setAssignedSupplierId((prev) => ({
+                        ...prev,
+                        [group.supplierName]: e.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">Seleziona fornitore da anagrafica…</option>
+                    {supplierOptions.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={cn(BTN_PRIMARY, "whitespace-nowrap")}
+                    onClick={() => void handleCreateGroup(group)}
+                    disabled={creatingFor === group.supplierName || unassigned || group.lines.length === 0}
+                  >
+                    {creatingFor === group.supplierName ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    Crea ordine
+                  </button>
+                </div>
+              </div>
+
+              {unassigned ? (
+                <p className="mt-2 text-xs text-amber-300">
+                  Collega questo nome fornitore (&quot;{group.supplierName}&quot;) a un record d anagrafica
+                  per poter creare l ordine.
+                </p>
+              ) : null}
+
+              <div className="mt-3 space-y-2">
+                {group.lines.map((line, index) => {
+                  const lineTotal = line.qtyOrdered * line.unitCost;
+                  return (
+                    <div
+                      key={`${line.warehouseItemId}-${index}`}
+                      className="grid gap-2 rounded-xl border border-rw-line bg-rw-surface p-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-rw-ink">{line.name}</p>
+                        <p className="text-xs text-rw-muted">Unità {line.unit}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-rw-muted">Qtà da ordinare</p>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.001}
+                          className={INPUT}
+                          value={line.qtyOrdered}
+                          onChange={(e) =>
+                            updateLine(group.supplierName, index, {
+                              qtyOrdered: Math.max(0, Number(e.target.value) || 0),
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <p className="text-xs text-rw-muted">Costo unitario</p>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          className={INPUT}
+                          value={line.unitCost}
+                          onChange={(e) =>
+                            updateLine(group.supplierName, index, {
+                              unitCost: Math.max(0, Number(e.target.value) || 0),
+                            })
+                          }
+                        />
+                      </div>
+                      <div>
+                        <p className="text-xs text-rw-muted">Subtotale</p>
+                        <p className="text-sm font-semibold text-rw-ink">€{lineTotal.toFixed(2)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        aria-label="Rimuovi riga"
+                        className="inline-flex items-center justify-center rounded-lg border border-red-500/30 bg-red-500/10 px-2 text-xs font-semibold text-red-400"
+                        onClick={() => removeLine(group.supplierName, index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="flex justify-end pt-2">
+          <button type="button" className={cn(BTN_PRIMARY, "bg-rw-surfaceAlt text-rw-ink")} onClick={onClose}>
+            Chiudi
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
