@@ -16,6 +16,7 @@ import { Card } from "@/components/shared/card";
 import { TabBar } from "@/components/shared/tab-bar";
 import { DataTable } from "@/components/shared/data-table";
 import { archivioApi, type ArchivedOrder } from "@/lib/api-client";
+import { Info } from "lucide-react";
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
@@ -32,9 +33,6 @@ const tabs = [
 
 type ReportRow = { id: string; period: string; orders: number; revenue: number; average: number };
 
-type FatturaEntrata = { id: string; date: string; supplier: string; number: string; amount: number; iva: string; status: string };
-
-type FatturaCassa = { id: string; date: string; number: string; customer: string; amount: number; iva: string; type: string };
 
 /* ── Tab panels ────────────────────────────────────── */
 
@@ -133,112 +131,27 @@ function ReportPanel({ orders, loading }: { orders: ArchivedOrder[]; loading: bo
   );
 }
 
-function FattureEntrataPanel() {
-  const [fatture, setFatture] = useState<FatturaEntrata[]>([]);
-
+function FiscalPlaceholderPanel({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
-    <div className="space-y-4">
-      <Card title="Registra fattura fornitore" headerRight={<Plus className="h-4 w-4 text-rw-accent" />}>
-        <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" onSubmit={(e) => e.preventDefault()}>
-          <div>
-            <label className={labelCls}>Data</label>
-            <input type="date" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Fornitore</label>
-            <input type="text" placeholder="Nome fornitore" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Numero fattura</label>
-            <input type="text" placeholder="FE-2026/..." className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Importo (€)</label>
-            <input type="number" step="0.01" placeholder="0.00" className={inputCls} />
-          </div>
-          <div>
-            <label className={labelCls}>Aliquota IVA</label>
-            <select className={inputCls}>
-              <option>4%</option>
-              <option>10%</option>
-              <option>22%</option>
-            </select>
-          </div>
-          <div className="flex items-end sm:col-span-1 lg:col-span-3">
-            <button type="submit" className={btnPrimary}>
-              <Plus className="h-4 w-4" />
-              Registra
-            </button>
-          </div>
-        </form>
-      </Card>
-
-      <DataTable<FatturaEntrata>
-        columns={[
-          { key: "date", header: "Data" },
-          { key: "supplier", header: "Fornitore" },
-          { key: "number", header: "N° Fattura" },
-          { key: "amount", header: "Importo", className: "text-right", render: (r) => `€${r.amount.toFixed(2)}` },
-          { key: "iva", header: "IVA" },
-          {
-            key: "status",
-            header: "Stato",
-            render: (r) => (
-              <span className={cn(
-                "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
-                r.status === "Pagata" && "bg-emerald-500/15 text-emerald-400",
-                r.status === "Registrata" && "bg-blue-500/15 text-blue-400",
-                r.status === "Da verificare" && "bg-amber-500/15 text-amber-400",
-              )}>
-                {r.status}
-              </span>
-            ),
-          },
-        ]}
-        data={fatture}
-        keyExtractor={(r) => r.id}
-        emptyMessage="Nessuna fattura registrata"
-      />
-    </div>
-  );
-}
-
-function FattureCassaPanel() {
-  const [fatture] = useState<FatturaCassa[]>([]);
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-rw-muted">Fatture e ricevute emesse dalla cassa</p>
-        <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft hover:text-rw-ink">
-          <Download className="h-4 w-4" />
-          Esporta
-        </button>
+    <Card title={title} headerRight={<FileText className="h-4 w-4 text-rw-accent" />}>
+      <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-amber-200">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <div>
+          <p className="font-semibold text-amber-100">Modulo fiscale non incluso in questo piano</p>
+          <p className="mt-1 text-amber-200/90">{description}</p>
+          <p className="mt-2 text-xs text-amber-200/70">
+            Quando il modulo fiscale sarà attivo (RT cloud o provider simile), questa sezione gestirà
+            automaticamente registrazione, IVA, stampa e conservazione.
+          </p>
+        </div>
       </div>
-
-      <DataTable<FatturaCassa>
-        columns={[
-          { key: "date", header: "Data" },
-          { key: "number", header: "Numero" },
-          { key: "customer", header: "Cliente" },
-          { key: "amount", header: "Importo", className: "text-right", render: (r) => `€${r.amount.toFixed(2)}` },
-          { key: "iva", header: "IVA" },
-          {
-            key: "type",
-            header: "Tipo",
-            render: (r) => (
-              <span className="inline-flex items-center gap-1 text-rw-soft">
-                {r.type === "Fattura" ? <FileText className="h-3.5 w-3.5" /> : <Receipt className="h-3.5 w-3.5" />}
-                {r.type}
-              </span>
-            ),
-          },
-        ]}
-        data={fatture}
-        keyExtractor={(r) => r.id}
-        emptyMessage="Nessuna fattura emessa"
-      />
-    </div>
+    </Card>
   );
 }
 
@@ -273,10 +186,6 @@ function ComandePanel({ orders, loading }: { orders: ArchivedOrder[]; loading: b
           <label className={labelCls}>A</label>
           <input type="date" className={inputCls} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
         </div>
-        <button type="button" className={btnPrimary} onClick={() => {}}>
-          <CalendarDays className="h-4 w-4" />
-          Filtra
-        </button>
       </div>
 
       <DataTable<ArchivedOrder>
@@ -331,8 +240,18 @@ export function ArchivioPage() {
 
       <div>
         {activeTab === "report" && <ReportPanel orders={orders} loading={loading} />}
-        {activeTab === "fatture-entrata" && <FattureEntrataPanel />}
-        {activeTab === "fatture-cassa" && <FattureCassaPanel />}
+        {activeTab === "fatture-entrata" && (
+          <FiscalPlaceholderPanel
+            title="Fatture in entrata"
+            description="Registrazione fatture fornitori non disponibile. L'archivio acquisti va fatto con il tuo gestionale fiscale attuale o con il modulo RT cloud quando attivato."
+          />
+        )}
+        {activeTab === "fatture-cassa" && (
+          <FiscalPlaceholderPanel
+            title="Fatture da cassa"
+            description="L'emissione di fatture o ricevute fiscali richiede il collegamento a un registratore telematico o a un provider RT cloud. Gli incassi restano comunque tracciati su Archivio comande."
+          />
+        )}
         {activeTab === "comande" && <ComandePanel orders={orders} loading={loading} />}
       </div>
     </div>
