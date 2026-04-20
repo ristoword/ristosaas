@@ -2,6 +2,143 @@ import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { invalidateTenantAccessCache } from "@/lib/db/repositories/platform.repository";
 
+type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
+
+/**
+ * Griglia percentuale per i tavoli di sala (UI usa left:%/top:%).
+ */
+function tableGridPositions(count: number) {
+  const cols = 5;
+  const leftPad = 12;
+  const rightPad = 12;
+  const topPad = 18;
+  const rowGap = 24;
+  const usableWidth = 100 - leftPad - rightPad;
+  const colStep = usableWidth / (cols - 1);
+  const out: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < count; i++) {
+    const row = Math.floor(i / cols);
+    const col = i % cols;
+    out.push({
+      x: Math.round(leftPad + col * colStep),
+      y: Math.round(topPad + row * rowGap),
+    });
+  }
+  return out;
+}
+
+/**
+ * Crea le risorse minime necessarie al tenant appena nato per usare il
+ * gestionale senza dover configurare nulla. Idempotente: se il tenant ha
+ * gia sale/camere configurate non tocca nulla.
+ *
+ * Include:
+ *  - piano ristorante: 1 sala "Sala 1" + 10 tavoli `T1..T10` in griglia.
+ *  - piano hotel:      5 camere esempio con rate plan base.
+ *
+ * Volutamente NON crea ricette, menu item, staff, clienti, ordini finti:
+ * sono dati editoriali del cliente.
+ */
+async function bootstrapMinimalTenantResources(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  tenantId: string,
+  plan: ProductPlan,
+) {
+  const hasRestaurant = plan === "restaurant_only" || plan === "all_included";
+  const hasHotel = plan === "hotel_only" || plan === "all_included";
+  const summary = {
+    restaurantRooms: 0,
+    restaurantTables: 0,
+    hotelRooms: 0,
+    hotelRatePlans: 0,
+  };
+
+  if (hasRestaurant) {
+    const existingTables = await tx.restaurantTable.count({ where: { tenantId } });
+    const existingRooms = await tx.restaurantRoom.count({ where: { tenantId } });
+    if (existingRooms === 0 && existingTables === 0) {
+      const sala = await tx.restaurantRoom.create({
+        data: { tenantId, name: "Sala 1", tables: 10 },
+      });
+      const positions = tableGridPositions(10);
+      await tx.restaurantTable.createMany({
+        data: positions.map((p, idx) => ({
+          tenantId,
+          roomId: sala.id,
+          nome: `T${idx + 1}`,
+          posti: 4,
+          x: p.x,
+          y: p.y,
+          forma: idx % 2 === 0 ? "quadrato" : "tondo",
+          stato: "libero",
+        })),
+      });
+      summary.restaurantRooms = 1;
+      summary.restaurantTables = 10;
+    }
+  }
+
+  if (hasHotel) {
+    const existingHotel = await tx.hotelRoom.count({ where: { tenantId } });
+    if (existingHotel === 0) {
+      const ratePlan = await tx.hotelRatePlan.upsert({
+        where: { tenantId_code: { tenantId, code: "RP_CLASSIC_BB" } },
+        update: {
+          name: "Classic B&B",
+          roomType: "Classic",
+          boardType: "bed_breakfast",
+          nightlyRate: "109.00",
+          refundable: true,
+          active: true,
+        },
+        create: {
+          tenantId,
+          code: "RP_CLASSIC_BB",
+          name: "Classic B&B",
+          roomType: "Classic",
+          boardType: "bed_breakfast",
+          nightlyRate: "109.00",
+          refundable: true,
+          active: true,
+        },
+      });
+      summary.hotelRatePlans = 1;
+
+      const hotelSeeds = [
+        { code: "101", floor: 1, capacity: 2 },
+        { code: "102", floor: 1, capacity: 2 },
+        { code: "201", floor: 2, capacity: 2 },
+        { code: "202", floor: 2, capacity: 2 },
+        { code: "301", floor: 3, capacity: 2 },
+      ] as const;
+      for (const room of hotelSeeds) {
+        await tx.hotelRoom.upsert({
+          where: { tenantId_code: { tenantId, code: room.code } },
+          update: {
+            floor: room.floor,
+            roomType: "Classic",
+            capacity: room.capacity,
+            status: "libera",
+            ratePlanCode: ratePlan.code,
+          },
+          create: {
+            tenantId,
+            code: room.code,
+            floor: room.floor,
+            roomType: "Classic",
+            capacity: room.capacity,
+            status: "libera",
+            ratePlanCode: ratePlan.code,
+          },
+        });
+      }
+      summary.hotelRooms = hotelSeeds.length;
+    }
+  }
+
+  return summary;
+}
+
 function mapLicense(row: {
   id: string;
   tenantId: string;
@@ -167,6 +304,8 @@ export const adminRepository = {
         },
       });
 
+      const bootstrap = await bootstrapMinimalTenantResources(tx, tenant.id, payload.plan);
+
       return {
         tenant: {
           id: tenant.id,
@@ -190,6 +329,7 @@ export const adminRepository = {
           role: user.role,
           mustChangePassword: user.mustChangePassword,
         },
+        bootstrap,
       };
     });
   },

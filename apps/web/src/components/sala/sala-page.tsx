@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CreditCard, Info, Minus, Plus, Send } from "lucide-react";
+import { CreditCard, Info, Minus, Move, Plus, Send } from "lucide-react";
 import { roomsApi, tablesApi } from "@/lib/api-client";
 import type { SalaTable } from "@/lib/api-client";
 import { useHotel } from "@/components/hotel/hotel-context";
@@ -67,6 +67,28 @@ export function SalaPage() {
   const MAX_TABLES = 30;
   const [tablesBusy, setTablesBusy] = useState(false);
   const [tablesError, setTablesError] = useState<string | null>(null);
+  const [editLayout, setEditLayout] = useState(false);
+
+  const handleLocalMove = useCallback((id: string, x: number, y: number) => {
+    setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
+  }, []);
+
+  const handleCommitMove = useCallback(
+    async (id: string, x: number, y: number) => {
+      try {
+        await tablesApi.update(id, { x, y });
+      } catch (err) {
+        setTablesError(
+          err instanceof Error
+            ? `Spostamento tavolo non salvato: ${err.message}`
+            : "Spostamento tavolo non salvato",
+        );
+        // ricarica la verità dal server
+        await refreshTables();
+      }
+    },
+    [refreshTables],
+  );
 
   // Distribuzione percentuale in griglia 5 x N, coerente col seed.
   function percentPositionForIndex(index: number) {
@@ -260,8 +282,22 @@ export function SalaPage() {
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
+            onClick={() => setEditLayout((v) => !v)}
+            aria-pressed={editLayout}
+            className={`inline-flex h-10 items-center gap-1.5 rounded-xl border px-3 text-sm font-semibold transition ${
+              editLayout
+                ? "border-rw-accent bg-rw-accent text-white shadow-rw-sm"
+                : "border-rw-line bg-rw-surfaceAlt text-rw-ink hover:border-rw-accent/40 hover:bg-rw-accent/10"
+            }`}
+            aria-label="Attiva modalità layout per spostare i tavoli"
+          >
+            <Move className="h-4 w-4" aria-hidden />
+            {editLayout ? "Esci dal layout" : "Sposta tavoli"}
+          </button>
+          <button
+            type="button"
             onClick={handleRemoveTable}
-            disabled={tablesBusy || tables.length === 0}
+            disabled={tablesBusy || tables.length === 0 || editLayout}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 text-sm font-semibold text-rw-ink transition hover:border-red-500/40 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Rimuovi tavolo libero"
           >
@@ -271,7 +307,7 @@ export function SalaPage() {
           <button
             type="button"
             onClick={handleAddTable}
-            disabled={tablesBusy || tables.length >= MAX_TABLES}
+            disabled={tablesBusy || tables.length >= MAX_TABLES || editLayout}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-rw-accent px-3 text-sm font-semibold text-white shadow-rw-sm transition hover:bg-rw-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Aggiungi tavolo"
           >
@@ -368,6 +404,9 @@ export function SalaPage() {
         tables={tables}
         selectedId={modalOpen ? selectedId : null}
         onSelect={openTable}
+        editMode={editLayout}
+        onLocalMove={handleLocalMove}
+        onCommitMove={handleCommitMove}
       />
 
       <TableActionsModal
