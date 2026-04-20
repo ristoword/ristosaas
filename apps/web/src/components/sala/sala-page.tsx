@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CreditCard, Info, Send } from "lucide-react";
 import { tablesApi } from "@/lib/api-client";
 import type { SalaTable } from "@/lib/api-client";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { useTenantFeatures } from "@/components/auth/auth-context";
 import { SalaFloor } from "./sala-floor";
-import { TableActionsModal } from "./table-actions-modal";
+import { TableActionsModal, type AzioneId } from "./table-actions-modal";
 import { OrderSendModal } from "./order-send-modal";
 import { useOrders } from "@/components/orders/orders-context";
 import type { Order } from "@/components/orders/types";
@@ -19,7 +19,7 @@ export function SalaPage() {
   const [orderModalOpen, setOrderModalOpen] = useState(false);
   const [orderModalTable, setOrderModalTable] = useState<SalaTable | null>(null);
   const [chargeReservationId, setChargeReservationId] = useState<Record<string, string>>({});
-  const { getOrdersForTable, patchActiveCourse, activeOrders } = useOrders();
+  const { getOrdersForTable, patchActiveCourse, patchStatus, activeOrders } = useOrders();
   const { reservations, roomCharge } = useHotel();
   const { isRestaurantEnabled, isHotelEnabled, isRoomChargeEnabled } = useTenantFeatures();
   const roomChargeEnabled = isRestaurantEnabled && isHotelEnabled && isRoomChargeEnabled;
@@ -55,11 +55,80 @@ export function SalaPage() {
     setModalOpen(false);
   }
 
-  function handleMarcia(order: Order) {
+  const refreshTables = useCallback(async () => {
+    try {
+      const list = await tablesApi.list();
+      setTables(list);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  async function handleTableAction(id: AzioneId, t: SalaTable) {
+    const ordersForTable = getOrdersForTable(t.nome);
+    switch (id) {
+      case "apri-tavolo": {
+        await tablesApi.patchStatus(t.id, "aperto").catch(console.error);
+        await refreshTables();
+        break;
+      }
+      case "tavolo-libero": {
+        await tablesApi.patchStatus(t.id, "libero").catch(console.error);
+        await refreshTables();
+        break;
+      }
+      case "chiedi-conto": {
+        await tablesApi.patchStatus(t.id, "conto").catch(console.error);
+        await refreshTables();
+        break;
+      }
+      case "marcia-portata": {
+        for (const order of ordersForTable) {
+          await handleMarcia(order);
+        }
+        break;
+      }
+      case "chiudi-tavolo": {
+        for (const order of ordersForTable) {
+          await patchStatus(order.id, "chiuso").catch(console.error);
+        }
+        await tablesApi.patchStatus(t.id, "sporco").catch(console.error);
+        await refreshTables();
+        break;
+      }
+      case "cancella-tavolo": {
+        for (const order of ordersForTable) {
+          await patchStatus(order.id, "annullato").catch(console.error);
+        }
+        await tablesApi.patchStatus(t.id, "libero").catch(console.error);
+        await refreshTables();
+        break;
+      }
+    }
+  }
+
+  async function handleMarcia(order: Order) {
     const courseNums = [...new Set(order.items.map((i) => i.course))].sort((a, b) => a - b);
-    const currentIdx = courseNums.indexOf(order.activeCourse);
-    if (currentIdx < courseNums.length - 1) {
-      patchActiveCourse(order.id, courseNums[currentIdx + 1]);
+    const currentCourse = order.activeCourse;
+    const currentState = order.courseStates[String(currentCourse)];
+    const isLastCourse =
+      courseNums.indexOf(currentCourse) === courseNums.length - 1;
+
+    // Portata corrente non ancora pronta: avviamo la preparazione.
+    if (currentState === "queued" || currentState === "in_attesa") {
+      await patchActiveCourse(order.id, currentCourse).catch(console.error);
+      return;
+    }
+    // Portata già in preparazione o pronta: chiudi come servita
+    // (l'API /status avanza automaticamente al corso successivo in_attesa).
+    if (currentState === "pronto" || currentState === "in_preparazione") {
+      if (!isLastCourse) {
+        await patchStatus(order.id, "servito").catch(console.error);
+        return;
+      }
+      // Ultima portata già pronta: la sala la marca servita (tavolo da chiudere).
+      await patchStatus(order.id, "servito").catch(console.error);
+      return;
     }
   }
 
@@ -185,6 +254,7 @@ export function SalaPage() {
         open={modalOpen}
         onClose={closeModal}
         onSendOrder={openOrderModal}
+        onAction={handleTableAction}
       />
 
       <OrderSendModal

@@ -164,7 +164,7 @@ function OrderCard({
             Pronto
           </button>
         )}
-        {kds.status === "pronto" && kds.isLast && (
+        {kds.status === "pronto" && (
           <button type="button" onClick={onServito} className="flex-1 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-400 transition hover:bg-blue-500/25">
             Servito
           </button>

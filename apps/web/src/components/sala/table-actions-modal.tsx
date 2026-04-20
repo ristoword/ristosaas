@@ -29,9 +29,11 @@ type TableActionsModalProps = {
   open: boolean;
   onClose: () => void;
   onSendOrder?: (table: SalaTable) => void;
+  /** Invoked for wired actions (close, cancel, marcia, chiedi conto, libera). */
+  onAction?: (id: AzioneId, table: SalaTable) => void | Promise<void>;
 };
 
-type AzioneId =
+export type AzioneId =
   | "apri-tavolo"
   | "cancella-tavolo"
   | "prendi-ordine"
@@ -80,6 +82,7 @@ export function TableActionsModal({
   open,
   onClose,
   onSendOrder,
+  onAction,
 }: TableActionsModalProps) {
   const titleId = useId();
   const [coperti, setCoperti] = useState(2);
@@ -122,9 +125,26 @@ export function TableActionsModal({
           ? "Conto"
           : "Da pulire";
 
-  function simulaAzione(id: AzioneId, label: string) {
+  async function simulaAzione(id: AzioneId, label: string) {
     if (id === "prendi-ordine" && onSendOrder) {
       onSendOrder(table!);
+      return;
+    }
+    const wiredActions: AzioneId[] = [
+      "marcia-portata",
+      "chiudi-tavolo",
+      "cancella-tavolo",
+      "chiedi-conto",
+      "tavolo-libero",
+      "apri-tavolo",
+    ];
+    if (onAction && wiredActions.includes(id)) {
+      try {
+        await onAction(id, table!);
+        setFlash(`«${label}» eseguita.`);
+      } catch (error) {
+        setFlash(`Errore su «${label}»: ${error instanceof Error ? error.message : "operazione fallita"}`);
+      }
       return;
     }
     setFlash(`«${label}» — collegamento al backend in arrivo.`);
