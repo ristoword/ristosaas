@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api-client";
+import { applyServerTenantProfile, tenantPlatformProfile } from "@/core/tenant/platform-config";
 
 export type UserRole =
   | "owner"
@@ -18,6 +19,25 @@ export type UserRole =
   | "housekeeping"
   | "super_admin";
 
+export type TenantLicenseSummary = {
+  status: "trial" | "active" | "expired" | "suspended";
+  plan: "restaurant_only" | "hotel_only" | "all_included";
+  billingCycle?: string;
+  seats?: number;
+  usedSeats?: number;
+  expiresAt?: string | null;
+};
+
+export type TenantSummary = {
+  id: string;
+  name: string;
+  slug?: string;
+  plan: "restaurant_only" | "hotel_only" | "all_included";
+  accessStatus: "active" | "blocked";
+  features: string[];
+  license?: TenantLicenseSummary | null;
+};
+
 export type User = {
   id: string;
   name: string;
@@ -25,10 +45,13 @@ export type User = {
   email: string;
   username?: string;
   mustChangePassword?: boolean;
+  tenantId?: string;
+  tenant?: TenantSummary | null;
 };
 
 type AuthContextValue = {
   user: User | null;
+  tenant: TenantSummary | null;
   isAuthenticated: boolean;
   loading: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -44,6 +67,10 @@ export function useAuth() {
   return ctx;
 }
 
+function syncTenantProfile(tenant: TenantSummary | null | undefined) {
+  applyServerTenantProfile(tenant ?? null);
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     api.auth
       .me()
-      .then((data) => { if (data) setUser(data as User); })
+      .then((data) => {
+        if (data) {
+          setUser(data as User);
+          syncTenantProfile((data as User).tenant ?? null);
+        }
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -59,7 +91,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (username: string, password: string) => {
     try {
       const data = await api.auth.login(username, password);
-      setUser(data.user as User);
+      const nextUser = data.user as User;
+      setUser(nextUser);
+      // After login, pull fresh profile (auth/login response may not include tenant/features)
+      try {
+        const me = await api.auth.me();
+        if (me) {
+          setUser(me as User);
+          syncTenantProfile((me as User).tenant ?? null);
+        }
+      } catch {
+        /* non-fatal: keep shallow user */
+      }
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Errore di rete";
@@ -70,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await api.auth.logout().catch(() => {});
     setUser(null);
+    syncTenantProfile(null);
     window.location.href = "/login";
   }, []);
 
@@ -81,8 +125,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <Ctx.Provider value={{ user, isAuthenticated: !!user, loading, login, logout, hasRole }}>
+    <Ctx.Provider
+      value={{
+        user,
+        tenant: user?.tenant ?? null,
+        isAuthenticated: !!user,
+        loading,
+        login,
+        logout,
+        hasRole,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );
+}
+
+// Convenience hooks
+export function useTenant() {
+  const { tenant } = useAuth();
+  return tenant;
+}
+
+export function useTenantFeatures() {
+  const tenant = useTenant();
+  // Fall back to planToFeatures when license data is missing but plan is known.
+  const features = tenant?.features ?? tenantPlatformProfile.enabledFeatures;
+  return {
+    plan: tenant?.plan ?? tenantPlatformProfile.plan,
+    features,
+    has(code: string) {
+      return features.includes(code);
+    },
+    isRestaurantEnabled: features.includes("restaurant"),
+    isHotelEnabled: features.includes("hotel"),
+    isRoomChargeEnabled: features.includes("integration_room_charge"),
+    isUnifiedFolioEnabled: features.includes("integration_unified_folio"),
+    isMealPlansEnabled: features.includes("integration_meal_plans"),
+  };
 }

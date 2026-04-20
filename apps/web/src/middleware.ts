@@ -3,7 +3,7 @@ import { canAccessWithRole, getApiRequiredRoles, isPublicApiPath } from "@/lib/a
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
 import { getOrCreateRequestId } from "@/lib/observability/request-context";
 
-const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/api/auth/login", "/api/auth/refresh", "/api/health"];
+const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/signup", "/t/", "/api/auth/login", "/api/auth/refresh", "/api/health"];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/email-settings", "/super-admin", "/dev-access"];
 
 type Gates = { maintenanceMode: boolean; tenantBlocked: boolean };
@@ -55,6 +55,20 @@ function redirectWithRequestId(url: URL, requestId: string) {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const requestId = getOrCreateRequestId(req.headers);
+
+  // Public landing at "/" — if the user is already authenticated, send them
+  // straight to the dashboard to preserve the old `Home → redirect("/dashboard")`
+  // UX for signed-in traffic. Anonymous visitors see the marketing page.
+  if (pathname === "/") {
+    const token = req.cookies.get(SESSION_COOKIE)?.value;
+    const session = token ? await verifyEdgeSessionToken(token) : null;
+    if (session) {
+      const dashUrl = req.nextUrl.clone();
+      dashUrl.pathname = "/dashboard";
+      return redirectWithRequestId(dashUrl, requestId);
+    }
+    return nextWithRequestId(req, requestId);
+  }
 
   if (PUBLIC.some((p) => pathname.startsWith(p))) return nextWithRequestId(req, requestId);
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) return nextWithRequestId(req, requestId);

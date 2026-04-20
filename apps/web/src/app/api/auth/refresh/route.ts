@@ -4,10 +4,26 @@ import { REFRESH_COOKIE } from "@/lib/auth/constants";
 import { clearRefreshCookie, clearSessionCookie, setAuthCookies, verifyRefreshToken } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
+import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 
 export async function POST(req: NextRequest) {
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
   if (!refreshToken) return err("Refresh token missing", 401);
+
+  const ip = clientIpFromRequest(req);
+  const rl = await applyRateLimit(ip, {
+    bucket: "auth:refresh",
+    limit: 60,
+    windowMs: 60_000,
+  });
+  if (!rl.allowed) {
+    const res = NextResponse.json(
+      { error: `Troppi refresh. Riprova tra ${Math.ceil(rl.resetInMs / 1000)}s.` },
+      { status: 429 },
+    );
+    for (const [k, v] of Object.entries(rateLimitHeaders(rl))) res.headers.set(k, v);
+    return res;
+  }
 
   const refreshClaims = verifyRefreshToken(refreshToken);
   if (!refreshClaims) return err("Invalid refresh token", 401);

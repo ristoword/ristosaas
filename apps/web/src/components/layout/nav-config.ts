@@ -387,7 +387,7 @@ export const navSections: NavSection[] = [
       {
         id: "hardware",
         label: "Hardware / Stampa",
-        hint: "Preview. Backend in preparazione.",
+        hint: "Preview interno. Dati di esempio, nessun backend stampanti.",
         href: "/hardware",
         icon: Monitor,
         ready: false,
@@ -396,7 +396,7 @@ export const navSections: NavSection[] = [
       {
         id: "qr-tables",
         label: "QR Tavoli",
-        hint: "Preview. Backend in preparazione.",
+        hint: "Preview interno. Layout fittizio, non legato a RestaurantTable.",
         href: "/qr-tables",
         icon: QrCode,
         ready: false,
@@ -422,7 +422,7 @@ export const navSections: NavSection[] = [
       {
         id: "sessions",
         label: "Sessioni",
-        hint: "Preview. Listing sessioni attive in preparazione.",
+        hint: "Preview interno. Listing sessioni reali non ancora implementato.",
         href: "/sessions",
         icon: Shield,
         ready: false,

@@ -3,9 +3,12 @@ import { fileURLToPath } from "node:url";
 
 export default defineConfig({
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     environment: "node",
     globals: true,
+    typecheck: {
+      tsconfig: "./tsconfig.test.json",
+    },
   },
   resolve: {
     alias: {

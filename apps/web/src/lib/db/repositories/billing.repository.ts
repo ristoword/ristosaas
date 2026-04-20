@@ -226,6 +226,97 @@ async function applyTenantEntitlements(params: {
   });
 }
 
+async function tryProvisionSignupTenant(event: StripeLikeEvent): Promise<{ tenantId: string } | null> {
+  if (!event?.type?.startsWith("customer.subscription.")) return null;
+
+  const object = event.data?.object ?? {};
+  const metadata = object?.metadata ?? {};
+  if (String(metadata?.signup ?? "") !== "1") return null;
+
+  const tenantName = typeof metadata.tenantName === "string" ? metadata.tenantName.trim() : "";
+  const slug = typeof metadata.tenantSlug === "string" ? metadata.tenantSlug.trim().toLowerCase() : "";
+  const ownerEmail = typeof metadata.ownerEmail === "string" ? metadata.ownerEmail.trim().toLowerCase() : "";
+  const ownerName = typeof metadata.ownerName === "string" ? metadata.ownerName.trim() : "";
+  const ownerUsername = typeof metadata.ownerUsername === "string" ? metadata.ownerUsername.trim() : "";
+
+  const itemPriceId = object?.items?.data?.[0]?.price?.id ? String(object.items.data[0].price.id) : null;
+  const entitlement = resolveEntitlement(object, itemPriceId);
+  if (!entitlement || !tenantName || !slug || !ownerEmail || !ownerName || !ownerUsername) {
+    return null;
+  }
+
+  const existing = await prisma.tenant.findUnique({ where: { slug } });
+  if (existing) return { tenantId: existing.id };
+
+  const tempPassword = `Temp#${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
+  // Lazy import to avoid a repo→repo circular dependency at module init.
+  const { adminRepository } = await import("@/lib/db/repositories/admin.repository");
+  const created = await adminRepository.createTenantWithLicense({
+    name: tenantName,
+    slug,
+    plan: entitlement.plan,
+    billingCycle: entitlement.billingCycle === "annual" ? "annual" : "monthly",
+    seats: entitlement.seats,
+    adminUser: {
+      username: ownerUsername,
+      email: ownerEmail,
+      name: ownerName,
+      password: tempPassword,
+      role: "owner",
+    },
+  });
+  const tenantId = (created as { tenant?: { id: string } })?.tenant?.id ?? (created as { id?: string })?.id;
+  if (!tenantId) return null;
+
+  // The owner user was created with a temp password; force password change on
+  // first login. We don't re-hash here, just flag the user.
+  await prisma.user
+    .updateMany({ where: { tenantId, role: "owner" }, data: { mustChangePassword: true } })
+    .catch(() => {});
+
+  // Fire-and-forget email with temp credentials. Never block provisioning.
+  void sendSignupWelcomeEmail({
+    tenantName,
+    ownerName,
+    ownerEmail,
+    ownerUsername,
+    tempPassword,
+  }).catch(() => {});
+
+  return { tenantId };
+}
+
+async function sendSignupWelcomeEmail(params: {
+  tenantName: string;
+  ownerName: string;
+  ownerEmail: string;
+  ownerUsername: string;
+  tempPassword: string;
+}) {
+  // Minimal hook. Real SMTP is tenant-scoped in this project, and the tenant
+  // has just been created — so we use platform-level ops alert as a fallback
+  // channel if an ops webhook is configured. This ensures the credentials
+  // never disappear silently even if no email provider is wired yet.
+  try {
+    const { sendOperationalAlert } = await import("@/lib/observability/alerts");
+    await sendOperationalAlert({
+      key: `signup_credentials_${params.ownerUsername}`,
+      title: `Nuovo signup self-service: ${params.tenantName}`,
+      message: [
+        `Tenant: ${params.tenantName}`,
+        `Owner: ${params.ownerName} <${params.ownerEmail}>`,
+        `Username: ${params.ownerUsername}`,
+        `Password temporanea: ${params.tempPassword}`,
+        `L'utente dovrà cambiare password al primo login.`,
+      ].join("\n"),
+      severity: "warning",
+      metadata: { ownerEmail: params.ownerEmail },
+    });
+  } catch {
+    /* non-fatal */
+  }
+}
+
 export const billingRepository = {
   async recordRawEvent(event: StripeLikeEvent, status: "received" | "processed" | "failed", tenantId?: string | null) {
     return prisma.billingEvent.upsert({
@@ -249,6 +340,17 @@ export const billingRepository = {
   },
 
   async processStripeEvent(event: StripeLikeEvent) {
+    if (!event?.id || typeof event.id !== "string") {
+      return { processed: false as const, reason: "missing_event_id" as const };
+    }
+
+    // Idempotency: if we already processed this Stripe event.id, return now and
+    // don't re-run side effects (plan upgrade, license changes, etc.).
+    const prior = await prisma.billingEvent.findUnique({ where: { stripeEventId: event.id } });
+    if (prior?.status === "processed") {
+      return { processed: true as const, duplicate: true as const, eventId: event.id };
+    }
+
     let tenantId = inferTenantId(event);
     const object = event.data?.object ?? {};
 
@@ -257,6 +359,16 @@ export const billingRepository = {
         where: { stripeSubscriptionId: object.subscription },
       });
       tenantId = existing?.tenantId ?? null;
+    }
+
+    // Self-service signup: if the subscription metadata says `signup=1` and no
+    // tenant can yet be resolved, provision tenant + owner + license now. The
+    // rest of the webhook handler runs unchanged on the freshly created tenant.
+    if (!tenantId) {
+      const signupResult = await tryProvisionSignupTenant(event);
+      if (signupResult) {
+        tenantId = signupResult.tenantId;
+      }
     }
 
     await this.recordRawEvent(event, "received", tenantId);

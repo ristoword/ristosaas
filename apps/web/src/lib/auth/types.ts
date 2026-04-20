@@ -13,6 +13,26 @@ export type UserRole =
   | "housekeeping"
   | "super_admin";
 
+export type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
+export type LicenseStatus = "trial" | "active" | "expired" | "suspended";
+
+export type TenantProfile = {
+  id: string;
+  name: string;
+  slug?: string;
+  plan: ProductPlan;
+  accessStatus: "active" | "blocked";
+  features: string[];
+  license?: {
+    status: LicenseStatus;
+    plan: ProductPlan;
+    billingCycle?: string;
+    seats?: number;
+    usedSeats?: number;
+    expiresAt?: string | null;
+  } | null;
+};
+
 export type PublicUser = {
   id: string;
   tenantId?: string;
@@ -25,4 +45,5 @@ export type PublicUser = {
   failedLoginAttempts?: number;
   lockedUntil?: number | null;
   isLocked?: boolean;
+  tenant?: TenantProfile | null;
 };

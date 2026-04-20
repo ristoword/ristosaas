@@ -1,15 +1,31 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { stripePostForm } from "@/lib/billing/stripe-client";
+import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 
 const BILLING_ROLES = ["owner", "super_admin"] as const;
 
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, BILLING_ROLES);
   if (guard.error) return guard.error;
+
+  const tenantIdForLimit = guard.user?.tenantId ?? "no-tenant";
+  const rl = await applyRateLimit(`${clientIpFromRequest(req)}|${tenantIdForLimit}`, {
+    bucket: "billing:portal",
+    limit: 20,
+    windowMs: 60_000,
+  });
+  if (!rl.allowed) {
+    const res = NextResponse.json(
+      { error: `Troppe richieste portal. Riprova tra ${Math.ceil(rl.resetInMs / 1000)}s.` },
+      { status: 429 },
+    );
+    for (const [k, v] of Object.entries(rateLimitHeaders(rl))) res.headers.set(k, v);
+    return res;
+  }
 
   const tenantId = getTenantId();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;

@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
+import { MockPreviewBanner } from "@/components/shared/mock-preview-banner";
 
 type Session = {
   id: string;
@@ -74,6 +75,11 @@ export function SessionsPage() {
           <Trash2 className="h-4 w-4" /> Disconnetti tutte
         </button>
       </PageHeader>
+
+      <MockPreviewBanner>
+        Dati di esempio: il sistema di auth usa JWT + `sessionVersion`, non una tabella “sessioni”.
+        Per una lista reale servirebbe un modello `UserSession` dedicato.
+      </MockPreviewBanner>
 
       {/* stats */}
       <div className="grid gap-3 sm:grid-cols-4">

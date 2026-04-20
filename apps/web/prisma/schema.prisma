@@ -267,6 +267,16 @@ model PlatformConfig {
   updatedAt        DateTime @updatedAt
 }
 
+model RateLimitHit {
+  id        BigInt   @id @default(autoincrement())
+  bucket    String
+  keyHash   String
+  createdAt DateTime @default(now())
+
+  @@index([bucket, keyHash, createdAt])
+  @@index([createdAt])
+}
+
 model TenantFeature {
   id       String            @id @default(cuid())
   tenantId String

@@ -7,10 +7,13 @@ type ApiRule = {
 
 export const PUBLIC_API_PREFIXES = [
   "/api/billing/stripe/webhook",
+  "/api/public/signup",
+  "/api/public/table",
   "/api/auth/session-valid",
   "/api/auth/license-valid",
   "/api/auth/entitlements-valid",
   "/api/ai/proposals/schedule/daily",
+  "/api/jobs/",
 ] as const;
 
 export const API_ROLE_RULES: readonly ApiRule[] = [

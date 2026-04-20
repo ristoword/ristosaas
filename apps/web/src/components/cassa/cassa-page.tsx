@@ -23,7 +23,7 @@ import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { useHotel } from "@/components/hotel/hotel-context";
-import { tenantPlatformProfile } from "@/core/tenant/platform-config";
+import { useTenantFeatures } from "@/components/auth/auth-context";
 import {
   ordersApi,
   menuApi,
@@ -160,10 +160,8 @@ function CassaTab({
   const [reservationId, setReservationId] = useState("");
   const [serviceType, setServiceType] = useState<"breakfast" | "lunch" | "dinner">("dinner");
   const { reservations, roomCharge } = useHotel();
-  const roomChargeEnabled =
-    tenantPlatformProfile.enabledFeatures.includes("restaurant") &&
-    tenantPlatformProfile.enabledFeatures.includes("hotel") &&
-    tenantPlatformProfile.enabledFeatures.includes("integration_room_charge");
+  const { isRestaurantEnabled, isHotelEnabled, isRoomChargeEnabled } = useTenantFeatures();
+  const roomChargeEnabled = isRestaurantEnabled && isHotelEnabled && isRoomChargeEnabled;
 
   const grouped = useMemo(() => {
     const map = new Map<string, Order[]>();

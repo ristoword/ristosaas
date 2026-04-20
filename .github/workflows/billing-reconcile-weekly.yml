@@ -1,0 +1,40 @@
+name: Billing Reconcile Weekly
+
+on:
+  schedule:
+    - cron: "30 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  trigger-billing-reconcile-all:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Validate required secrets
+        env:
+          APP_URL: ${{ secrets.RISTOSAAS_APP_URL }}
+          TOKEN: ${{ secrets.RISTOSAAS_AI_SCHEDULER_TOKEN }}
+        run: |
+          if [ -z "${APP_URL}" ]; then
+            echo "Missing secret: RISTOSAAS_APP_URL"
+            exit 1
+          fi
+          if [ -z "${TOKEN}" ]; then
+            echo "Missing secret: RISTOSAAS_AI_SCHEDULER_TOKEN"
+            exit 1
+          fi
+
+      - name: Trigger weekly billing reconcile
+        env:
+          APP_URL: ${{ secrets.RISTOSAAS_APP_URL }}
+          TOKEN: ${{ secrets.RISTOSAAS_AI_SCHEDULER_TOKEN }}
+        run: |
+          set -euo pipefail
+          TS_MS="$(($(date +%s) * 1000))"
+          CANONICAL="${TS_MS}.POST./api/jobs/billing/reconcile-all."
+          SIGNATURE="$(printf '%s' "${CANONICAL}" | openssl dgst -sha256 -hmac "${TOKEN}" -binary | xxd -p -c 256)"
+          curl --fail --show-error --silent \
+            -X POST "${APP_URL}/api/jobs/billing/reconcile-all" \
+            -H "x-scheduler-ts: ${TS_MS}" \
+            -H "x-scheduler-signature: ${SIGNATURE}" \
+            -H "content-type: application/json"

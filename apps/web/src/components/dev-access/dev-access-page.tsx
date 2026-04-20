@@ -1,54 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Terminal,
   Activity,
   Server,
-  Shield,
   Unlock,
   RotateCcw,
   Trash2,
   LogOut,
   CheckCircle2,
   XCircle,
-  Cpu,
-  HardDrive,
-  Clock,
   Key,
   Zap,
+  Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
+import { useAuth } from "@/components/auth/auth-context";
 
-/** preview/mock page: operational diagnostics panel */
+type HealthStatus = "ok" | "warn" | "error";
 
-const diagnostics = {
-  version: "2.4.1-beta",
-  env: "production",
-  uptime: "14d 7h 23m",
-  memoryUsed: 412,
-  memoryTotal: 1024,
-  cpuPercent: 23,
-  nodeVersion: "20.12.2",
-  dbLatency: "4ms",
-  tenantId: "tenant_ristodemo_01",
-  tenantPlan: "Pro",
-  tenantUsers: 8,
+type HealthRow = {
+  id: string;
+  name: string;
+  status: HealthStatus;
+  latencyLabel: string;
+  detail?: string;
 };
-
-const healthChecks = [
-  { id: "h1", name: "API Gateway", status: "ok" as const, latency: "12ms" },
-  { id: "h2", name: "Database PostgreSQL", status: "ok" as const, latency: "4ms" },
-  { id: "h3", name: "Redis cache", status: "ok" as const, latency: "1ms" },
-  { id: "h4", name: "WebSocket server", status: "ok" as const, latency: "3ms" },
-  { id: "h5", name: "Stripe webhook", status: "ok" as const, latency: "180ms" },
-  { id: "h6", name: "SMTP service", status: "warn" as const, latency: "420ms" },
-  { id: "h7", name: "Storage S3", status: "ok" as const, latency: "45ms" },
-  { id: "h8", name: "Background jobs", status: "error" as const, latency: "—" },
-];
 
 type ActionId = "unlock-user" | "reset-license" | "clear-cache" | "force-logout";
 const quickActions: { id: ActionId; label: string; icon: typeof Unlock; tone: "accent" | "danger" | "warn" }[] = [
@@ -67,22 +48,116 @@ const toneBtn: Record<string, string> = {
 const statusIcon = { ok: CheckCircle2, warn: Activity, error: XCircle };
 const statusColor = { ok: "text-emerald-400", warn: "text-amber-400", error: "text-red-400" };
 
+async function timedFetch(url: string): Promise<{ ok: boolean; status: number; ms: number; body?: unknown }> {
+  const t0 = performance.now();
+  try {
+    const res = await fetch(url, { cache: "no-store", credentials: "same-origin" });
+    const ms = Math.round(performance.now() - t0);
+    let body: unknown;
+    try {
+      body = await res.json();
+    } catch {
+      body = undefined;
+    }
+    return { ok: res.ok, status: res.status, ms, body };
+  } catch {
+    return { ok: false, status: 0, ms: Math.round(performance.now() - t0) };
+  }
+}
+
 export function DevAccessPage() {
+  const { user } = useAuth();
   const [flash, setFlash] = useState<string | null>(null);
   const [devToken, setDevToken] = useState("");
+  const [healthRows, setHealthRows] = useState<HealthRow[]>([]);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
+
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "n/d";
+  const nodeEnv = process.env.NODE_ENV === "production" ? "production" : "development";
+  const tenantId = user && "tenantId" in user ? (user as { tenantId?: string }).tenantId : undefined;
+
+  const loadHealth = useCallback(async () => {
+    setHealthLoading(true);
+    setHealthError(null);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const rows: HealthRow[] = [];
+
+    const deep = await timedFetch(`${origin}/api/health`);
+    const deepOk = deep.ok && deep.status === 200 && (deep.body as { status?: string } | undefined)?.status === "ok";
+    rows.push({
+      id: "health",
+      name: "API + database (/api/health)",
+      status: deepOk ? "ok" : "error",
+      latencyLabel: `${deep.ms} ms`,
+      detail:
+        deep.body && typeof deep.body === "object" && "db" in deep.body
+          ? `db: ${String((deep.body as { db?: string }).db)}`
+          : deep.status ? `HTTP ${deep.status}` : "rete / errore",
+    });
+
+    const live = await timedFetch(`${origin}/api/health/live`);
+    const liveOk = live.ok && live.status === 200 && (live.body as { status?: string } | undefined)?.status === "ok";
+    rows.push({
+      id: "live",
+      name: "Liveness (/api/health/live)",
+      status: liveOk ? "ok" : "error",
+      latencyLabel: `${live.ms} ms`,
+    });
+
+    if (tenantId) {
+      const gates = await timedFetch(`${origin}/api/health/gates?tenantId=${encodeURIComponent(tenantId)}`);
+      const g = gates.body as { maintenanceMode?: boolean; tenantBlocked?: boolean } | undefined;
+      const blocked = !!g?.tenantBlocked;
+      const maint = !!g?.maintenanceMode;
+      rows.push({
+        id: "gates",
+        name: "Piattaforma / tenant (gates)",
+        status: gates.ok && gates.status === 200 ? (blocked ? "error" : maint ? "warn" : "ok") : "error",
+        latencyLabel: `${gates.ms} ms`,
+        detail: gates.ok && g
+          ? `manutenzione: ${maint ? "sì" : "no"} · tenant sospeso: ${blocked ? "sì" : "no"}`
+          : gates.status ? `HTTP ${gates.status}` : "rete / errore",
+      });
+    } else {
+      rows.push({
+        id: "gates",
+        name: "Piattaforma / tenant (gates)",
+        status: "warn",
+        latencyLabel: "—",
+        detail: "Nessun tenant nella sessione (es. super_admin): query gates tenant-specifica non eseguita.",
+      });
+    }
+
+    setHealthRows(rows);
+    setHealthLoading(false);
+  }, [tenantId]);
+
+  useEffect(() => {
+    void loadHealth();
+  }, [loadHealth]);
 
   function runAction(label: string) {
     setFlash(`«${label}» eseguito con successo.`);
     setTimeout(() => setFlash(null), 3000);
   }
 
-  const memPct = Math.round((diagnostics.memoryUsed / diagnostics.memoryTotal) * 100);
+  async function copyHealthSummary() {
+    const text = healthRows.map((r) => `${r.name}: ${r.status} (${r.latencyLabel})${r.detail ? ` — ${r.detail}` : ""}`).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setFlash("Riepilogo health copiato negli appunti.");
+      setTimeout(() => setFlash(null), 3000);
+    } catch {
+      setHealthError("Impossibile copiare negli appunti.");
+    }
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader title="Dev Access" subtitle="Ponte di emergenza e strumenti di diagnostica">
-        <Chip label="ENV" value={diagnostics.env} tone="accent" />
-        <Chip label="v" value={diagnostics.version} tone="info" />
+        <Chip label="NODE_ENV" value={nodeEnv} tone="accent" />
+        <Chip label="version" value={appVersion} tone="info" />
       </PageHeader>
 
       {flash && (
@@ -91,7 +166,7 @@ export function DevAccessPage() {
         </div>
       )}
 
-      {/* technical login */}
+      {/* technical login — unchanged behaviour (no backend) */}
       <Card title="Accesso tecnico" description="Login di emergenza con token dev">
         <div className="flex flex-wrap items-end gap-3">
           <label className="block flex-1">
@@ -107,42 +182,14 @@ export function DevAccessPage() {
         </div>
       </Card>
 
-      {/* system diagnostics */}
-      <Card title="Diagnostica sistema">
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rw-muted"><Clock className="h-3.5 w-3.5" />Uptime</div>
-            <p className="mt-1 font-display text-lg font-bold text-rw-ink">{diagnostics.uptime}</p>
-          </div>
-          <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rw-muted"><HardDrive className="h-3.5 w-3.5" />Memoria</div>
-            <p className="mt-1 font-display text-lg font-bold text-rw-ink">{diagnostics.memoryUsed}MB / {diagnostics.memoryTotal}MB</p>
-            <div className="mt-1 h-1.5 w-full rounded-full bg-rw-line">
-              <div className={cn("h-full rounded-full", memPct > 80 ? "bg-red-500" : "bg-emerald-500")} style={{ width: `${memPct}%` }} />
-            </div>
-          </div>
-          <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rw-muted"><Cpu className="h-3.5 w-3.5" />CPU</div>
-            <p className="mt-1 font-display text-lg font-bold text-rw-ink">{diagnostics.cpuPercent}%</p>
-          </div>
-          <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-rw-muted"><Server className="h-3.5 w-3.5" />Node / DB</div>
-            <p className="mt-1 text-sm font-semibold text-rw-ink">v{diagnostics.nodeVersion}</p>
-            <p className="text-xs text-rw-muted">DB latency: {diagnostics.dbLatency}</p>
-          </div>
-        </div>
-      </Card>
-
-      {/* tenant info */}
-      <Card title="Info tenant">
+      <Card title="Ambiente client" description="Dati reali da build e sessione; niente metriche server inventate.">
         <div className="flex flex-wrap gap-3">
-          <Chip label="ID" value={diagnostics.tenantId} />
-          <Chip label="Piano" value={diagnostics.tenantPlan} tone="accent" />
-          <Chip label="Utenti" value={diagnostics.tenantUsers} tone="info" />
+          <Chip label="Utente" value={user?.email ?? "—"} />
+          <Chip label="Ruolo" value={user?.role ?? "—"} tone="accent" />
+          <Chip label="Tenant" value={tenantId ?? "—"} />
         </div>
       </Card>
 
-      {/* quick actions */}
       <Card title="Azioni rapide" description="Operazioni di emergenza — usare con cautela">
         <div className="grid gap-3 sm:grid-cols-2">
           {quickActions.map((a) => {
@@ -159,25 +206,53 @@ export function DevAccessPage() {
         </div>
       </Card>
 
-      {/* health checks */}
-      <Card title="API Health check" headerRight={
-        <button type="button" className="inline-flex items-center gap-1.5 text-xs font-semibold text-rw-accent">
-          <Zap className="h-3.5 w-3.5" /> Riesegui
-        </button>
-      }>
+      <Card
+        title="Health check (reale)"
+        description="Chiamate HTTP agli endpoint pubblici dell’app. Altri servizi (Redis, WS, SMTP, S3) non espongono health qui."
+        headerRight={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => void copyHealthSummary()}
+              disabled={!healthRows.length}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-rw-muted disabled:opacity-50"
+            >
+              <Copy className="h-3.5 w-3.5" /> Copia riepilogo
+            </button>
+            <button
+              type="button"
+              disabled={healthLoading}
+              onClick={() => void loadHealth()}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-rw-accent disabled:opacity-50"
+            >
+              <Zap className="h-3.5 w-3.5" /> {healthLoading ? "Aggiorno…" : "Riesegui"}
+            </button>
+          </div>
+        }
+      >
+        {healthError ? <p className="mb-2 text-sm text-red-400">{healthError}</p> : null}
         <div className="space-y-1.5">
-          {healthChecks.map((h) => {
+          {healthRows.map((h) => {
             const SIcon = statusIcon[h.status];
             return (
-              <div key={h.id} className="flex items-center gap-3 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5">
-                <SIcon className={cn("h-4 w-4 shrink-0", statusColor[h.status])} />
-                <span className="flex-1 text-sm font-semibold text-rw-ink">{h.name}</span>
-                <span className="text-xs text-rw-muted">{h.latency}</span>
-                <Chip label={h.status} tone={h.status === "ok" ? "success" : h.status === "warn" ? "warn" : "danger"} />
+              <div key={h.id} className="flex flex-col gap-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <SIcon className={cn("h-4 w-4 shrink-0", statusColor[h.status])} />
+                  <span className="text-sm font-semibold text-rw-ink">{h.name}</span>
+                </div>
+                {h.detail ? <span className="text-xs text-rw-muted sm:max-w-[40%] sm:text-right">{h.detail}</span> : null}
+                <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
+                  <span className="text-xs text-rw-muted">{h.latencyLabel}</span>
+                  <Chip label={h.status} tone={h.status === "ok" ? "success" : h.status === "warn" ? "warn" : "danger"} />
+                </div>
               </div>
             );
           })}
         </div>
+        <p className="mt-3 text-xs text-rw-muted">
+          <Server className="mr-1 inline h-3.5 w-3.5 align-text-bottom" />
+          In produzione verifica anche bilanciamento, TLS e variabili d’ambiente sul provider di hosting.
+        </p>
       </Card>
     </div>
   );

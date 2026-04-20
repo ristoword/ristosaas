@@ -5,7 +5,7 @@ import { CreditCard, Info, Send } from "lucide-react";
 import { tablesApi } from "@/lib/api-client";
 import type { SalaTable } from "@/lib/api-client";
 import { useHotel } from "@/components/hotel/hotel-context";
-import { tenantPlatformProfile } from "@/core/tenant/platform-config";
+import { useTenantFeatures } from "@/components/auth/auth-context";
 import { SalaFloor } from "./sala-floor";
 import { TableActionsModal } from "./table-actions-modal";
 import { OrderSendModal } from "./order-send-modal";
@@ -21,10 +21,8 @@ export function SalaPage() {
   const [chargeReservationId, setChargeReservationId] = useState<Record<string, string>>({});
   const { getOrdersForTable, patchActiveCourse, activeOrders } = useOrders();
   const { reservations, roomCharge } = useHotel();
-  const roomChargeEnabled =
-    tenantPlatformProfile.enabledFeatures.includes("restaurant") &&
-    tenantPlatformProfile.enabledFeatures.includes("hotel") &&
-    tenantPlatformProfile.enabledFeatures.includes("integration_room_charge");
+  const { isRestaurantEnabled, isHotelEnabled, isRoomChargeEnabled } = useTenantFeatures();
+  const roomChargeEnabled = isRestaurantEnabled && isHotelEnabled && isRoomChargeEnabled;
 
   useEffect(() => {
     tablesApi.list().then(setTables).catch(console.error);

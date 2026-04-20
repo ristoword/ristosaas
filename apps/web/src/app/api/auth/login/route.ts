@@ -3,10 +3,28 @@ import { err, body } from "@/lib/api/helpers";
 import { setAuthCookies } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
+import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 
 export async function POST(req: NextRequest) {
   const { username, password } = await body<{ username: string; password: string }>(req);
   if (!username || !password) return err("username and password required");
+
+  // Rate limit by (IP + username): mitigates credential stuffing/brute force
+  // independently of user account lockout (which only applies to existing users).
+  const ip = clientIpFromRequest(req);
+  const rl = await applyRateLimit(`${ip}|${username.toLowerCase()}`, {
+    bucket: "auth:login",
+    limit: 10,
+    windowMs: 60_000,
+  });
+  if (!rl.allowed) {
+    const res = NextResponse.json(
+      { error: `Troppi tentativi. Riprova tra ${Math.ceil(rl.resetInMs / 1000)}s.` },
+      { status: 429 },
+    );
+    for (const [k, v] of Object.entries(rateLimitHeaders(rl))) res.headers.set(k, v);
+    return res;
+  }
 
   const existing = await authUsersRepository.findByUsername(username);
   if (existing && existing.lockedUntil && existing.lockedUntil.getTime() > Date.now()) {

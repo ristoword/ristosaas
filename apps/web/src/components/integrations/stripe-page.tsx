@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CreditCard,
-  Eye,
-  EyeOff,
   Link2,
   CheckCircle2,
   XCircle,
@@ -18,8 +16,13 @@ import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { billingApi, type BillingEvent, type BillingReadiness, type BillingSubscription } from "@/lib/api-client";
 
+function maskPublishableKey(key: string): string {
+  const t = key.trim();
+  if (t.length <= 12) return "••••••••";
+  return `${t.slice(0, 8)}…${t.slice(-4)}`;
+}
+
 export function StripePage() {
-  const [showKey, setShowKey] = useState(false);
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");
   const [plan, setPlan] = useState<"restaurant_only" | "hotel_only" | "all_included">("all_included");
   const [loadingCheckout, setLoadingCheckout] = useState(false);
@@ -29,9 +32,25 @@ export function StripePage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
   const [events, setEvents] = useState<BillingEvent[]>([]);
-  const apiKey = "sk_test_demo_masked_key";
-  const webhookUrl = "https://api.ristodemo.it/webhooks/stripe";
+  const [appOrigin, setAppOrigin] = useState("");
+  const publishableFromEnv = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY?.trim() ?? "";
+
+  useEffect(() => {
+    const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
+    setAppOrigin(fromEnv || (typeof window !== "undefined" ? window.location.origin : ""));
+  }, []);
+
+  const webhookUrl = appOrigin ? `${appOrigin}/api/billing/stripe/webhook` : "";
+  const stripeSecretConfigured = readiness?.envChecks?.find((c) => c.key === "stripe_secret")?.ok ?? false;
   const isConnected = !!subscription;
+
+  async function copyText(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      /* ignore */
+    }
+  }
 
   const loadBilling = useCallback(async () => {
     const [overview, readinessSnapshot] = await Promise.all([
@@ -207,32 +226,65 @@ export function StripePage() {
         {actionError ? <p className="mt-2 text-sm font-medium text-red-400">{actionError}</p> : null}
       </Card>
 
-      {/* API keys */}
-      <Card title="Chiavi API" description="Le chiavi sono mascherate per sicurezza">
+      {/* API keys — secret never leaves the server; webhook from app origin */}
+      <Card
+        title="Chiavi e webhook"
+        description="STRIPE_SECRET_KEY resta solo sul server. L’URL webhook è quello da registrare in Stripe Dashboard."
+      >
         <div className="space-y-4">
           <div>
-            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-rw-muted">Secret key</label>
-            <div className="flex items-center gap-2">
-              <input
-                type={showKey ? "text" : "password"}
-                readOnly
-                value={showKey ? "sk_test_demo_example_key" : apiKey}
-                className="flex-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 font-mono text-sm text-rw-ink"
+            <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-rw-muted">Secret key (server)</label>
+            <p className="mb-2 text-sm text-rw-muted">
+              Non è mai inviata al browser. Configura <span className="font-mono text-xs">STRIPE_SECRET_KEY</span> in{" "}
+              <span className="font-mono text-xs">.env</span>.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Chip
+                label={readiness ? (stripeSecretConfigured ? "STRIPE_SECRET_KEY presente" : "STRIPE_SECRET_KEY mancante") : "Verifica readiness…"}
+                tone={readiness ? (stripeSecretConfigured ? "success" : "warn") : "default"}
               />
-              <button type="button" onClick={() => setShowKey((v) => !v)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-muted">
-                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-              <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-muted">
-                <Copy className="h-4 w-4" />
-              </button>
             </div>
           </div>
+
+          {publishableFromEnv ? (
+            <div>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-rw-muted">Publishable key (client)</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={maskPublishableKey(publishableFromEnv)}
+                  className="flex-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 font-mono text-sm text-rw-ink"
+                />
+                <button
+                  type="button"
+                  onClick={() => void copyText(publishableFromEnv)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-muted"
+                  title="Copia publishable key"
+                >
+                  <Copy className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="mt-1 text-xs text-rw-muted">Opzionale: imposta NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY se la usi lato client.</p>
+            </div>
+          ) : null}
 
           <div>
             <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-rw-muted">Webhook URL</label>
             <div className="flex items-center gap-2">
-              <input type="text" readOnly value={webhookUrl} className="flex-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 font-mono text-sm text-rw-ink" />
-              <button type="button" className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-muted">
+              <input
+                type="text"
+                readOnly
+                value={webhookUrl || "Imposta NEXT_PUBLIC_APP_URL oppure apri questa pagina dal dominio pubblico."}
+                className="flex-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 font-mono text-sm text-rw-ink"
+              />
+              <button
+                type="button"
+                disabled={!webhookUrl}
+                onClick={() => void copyText(webhookUrl)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-muted disabled:cursor-not-allowed disabled:opacity-50"
+                title="Copia URL webhook"
+              >
                 <Copy className="h-4 w-4" />
               </button>
             </div>

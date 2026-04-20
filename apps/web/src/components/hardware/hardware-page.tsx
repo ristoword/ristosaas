@@ -19,6 +19,7 @@ import { Card } from "@/components/shared/card";
 import { TabBar } from "@/components/shared/tab-bar";
 import { DataTable } from "@/components/shared/data-table";
 import { Chip } from "@/components/shared/chip";
+import { MockPreviewBanner } from "@/components/shared/mock-preview-banner";
 
 /* ── Styles ────────────────────────────────────────── */
 const inputCls =
@@ -332,6 +333,11 @@ export function HardwarePage() {
           </span>
         </div>
       </PageHeader>
+
+      <MockPreviewBanner>
+        Dati di esempio: dispositivi, rotte e coda di stampa non sono collegati a un backend
+        stampanti reale. Utile solo come anteprima di layout.
+      </MockPreviewBanner>
 
       <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
 

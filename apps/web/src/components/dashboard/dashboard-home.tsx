@@ -14,9 +14,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { getVisibleNavSections } from "@/components/layout/nav-config";
-import { useAuth } from "@/components/auth/auth-context";
+import { useAuth, useTenantFeatures } from "@/components/auth/auth-context";
 import { useHotel } from "@/components/hotel/hotel-context";
-import { tenantPlatformProfile } from "@/core/tenant/platform-config";
 import { useI18n } from "@/core/i18n/provider";
 import { useI10n } from "@/core/i10n/formatters";
 import { useOrders } from "@/components/orders/orders-context";
@@ -32,8 +31,7 @@ export function DashboardHome() {
   const { formatCurrency } = useI10n();
   const modules = getVisibleNavSections(user?.role).flatMap((s) => s.items).filter((i) => i.id !== "dashboard");
   const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
-  const isRestaurantEnabled = tenantPlatformProfile.enabledFeatures.includes("restaurant");
-  const isHotelEnabled = tenantPlatformProfile.enabledFeatures.includes("hotel");
+  const { plan, isRestaurantEnabled, isHotelEnabled } = useTenantFeatures();
   const inHouseReservations = reservations.filter((reservation) => reservation.status === "in_casa");
   const today = todayIso();
 
@@ -131,7 +129,7 @@ export function DashboardHome() {
             <div className="inline-flex items-center gap-2 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-muted">
               <Clock3 className="h-5 w-5 text-rw-accent" aria-hidden />
               <span>
-                {t("dashboard.plan")}: <strong className="text-rw-ink">{tenantPlatformProfile.plan}</strong>
+                {t("dashboard.plan")}: <strong className="text-rw-ink">{plan}</strong>
               </span>
             </div>
             {isRestaurantEnabled && isHotelEnabled ? (

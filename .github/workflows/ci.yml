@@ -10,6 +10,14 @@ jobs:
   web-quality:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      # Build/test don't hit real DB; use safe placeholders so Next build does
+      # not fail on env-guarded module init.
+      DATABASE_URL: postgresql://user:pass@localhost:5432/db?schema=public
+      JWT_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      NEXT_PUBLIC_APP_URL: https://example.test
+      NEXT_PUBLIC_APP_VERSION: ci
+      NODE_ENV: test
 
     steps:
       - name: Checkout
@@ -34,6 +42,12 @@ jobs:
 
       - name: Lint
         run: pnpm --filter web lint
+
+      - name: Typecheck (prod tsconfig)
+        run: pnpm --filter web typecheck
+
+      - name: Typecheck (tests tsconfig)
+        run: pnpm --filter web typecheck:test
 
       - name: Test
         run: pnpm --filter web test
