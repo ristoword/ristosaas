@@ -185,4 +185,62 @@ export const ordersRepository = {
     await prisma.restaurantOrder.delete({ where: { id } });
     return true;
   },
+
+  /**
+   * Promote a just-closed (or cancelled) restaurant order into the
+   * `ArchivedOrder` table. Idempotent: relies on the unique index on
+   * `sourceOrderId`, so calling it twice for the same order is a no-op.
+   *
+   * Returns the archived row (or `null` if the source order does not exist).
+   */
+  async archiveFromClosedOrder(
+    tenantId: string,
+    orderId: string,
+    opts?: {
+      paymentMethod?: "contanti" | "carta" | "misto";
+      archivedStatus?: "completato" | "annullato" | "stornato";
+    },
+  ) {
+    const source = await prisma.restaurantOrder.findFirst({
+      where: { tenantId, id: orderId },
+      include: { items: true },
+    });
+    if (!source) return null;
+
+    const total = source.items.reduce(
+      (sum, item) => sum + (item.price ? item.price.toNumber() : 0) * item.qty,
+      0,
+    );
+
+    const archivedStatus =
+      opts?.archivedStatus ??
+      (source.status === "annullato" ? "annullato" : "completato");
+    const paymentMethod = opts?.paymentMethod ?? "contanti";
+
+    return prisma.archivedOrder.upsert({
+      where: { sourceOrderId: orderId },
+      update: {
+        total,
+        status: archivedStatus,
+        paymentMethod,
+        closedAt: new Date(),
+      },
+      create: {
+        tenantId,
+        sourceOrderId: orderId,
+        date: source.createdAt,
+        table: source.table ?? "—",
+        waiter: source.waiter,
+        items: source.items.map((item) => ({
+          name: item.name,
+          qty: item.qty,
+          price: item.price ? item.price.toNumber() : 0,
+        })),
+        total,
+        status: archivedStatus,
+        paymentMethod,
+        closedAt: new Date(),
+      },
+    });
+  },
 };

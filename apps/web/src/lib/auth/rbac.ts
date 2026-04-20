@@ -5,6 +5,16 @@ type ApiRule = {
   roles: readonly UserRole[];
 };
 
+/**
+ * Paths whose prefix match bypasses JWT check in middleware.
+ *
+ * Keep this list TIGHT and EXPLICIT. Every entry must have its own
+ * auth story (HMAC signature, Stripe webhook secret, etc.).
+ *
+ * New cron / scheduler endpoints must be ADDED here one by one; do NOT
+ * add a broad prefix like `/api/jobs/` because it would silently expose
+ * any future job route that someone forgets to HMAC-sign.
+ */
 export const PUBLIC_API_PREFIXES = [
   "/api/billing/stripe/webhook",
   "/api/public/signup",
@@ -13,7 +23,7 @@ export const PUBLIC_API_PREFIXES = [
   "/api/auth/license-valid",
   "/api/auth/entitlements-valid",
   "/api/ai/proposals/schedule/daily",
-  "/api/jobs/",
+  "/api/jobs/billing/reconcile-all",
 ] as const;
 
 export const API_ROLE_RULES: readonly ApiRule[] = [

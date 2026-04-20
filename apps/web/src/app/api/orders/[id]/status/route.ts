@@ -87,7 +87,22 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
   }
 
-  return ok({ order: updated, discharge });
+  // Auto-archive on transition to a terminal state. Idempotent at the
+  // repository level (unique index on sourceOrderId).
+  let archived: { id: string } | null = null;
+  if (status === "chiuso" && order.status !== "chiuso") {
+    const row = await ordersRepository.archiveFromClosedOrder(tenantId, updated.id, {
+      archivedStatus: "completato",
+    });
+    archived = row ? { id: row.id } : null;
+  } else if (status === "annullato" && order.status !== "annullato") {
+    const row = await ordersRepository.archiveFromClosedOrder(tenantId, updated.id, {
+      archivedStatus: "annullato",
+    });
+    archived = row ? { id: row.id } : null;
+  }
+
+  return ok({ order: updated, discharge, archived });
 }
 
 async function getAlreadyDischargedCourses(tenantId: string, orderId: string) {

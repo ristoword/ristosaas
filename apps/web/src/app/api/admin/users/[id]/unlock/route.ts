@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
+import { recordAdminAudit } from "@/lib/observability/admin-audit";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 type Ctx = { params: Promise<{ id: string }> };
@@ -12,5 +13,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
   const user = await authUsersRepository.unlockUser(id);
   if (!user) return err("User not found", 404);
+  void recordAdminAudit({
+    action: "user.unlock",
+    actor: guard.user,
+    targetId: id,
+    metadata: { targetEmail: user.email ?? null },
+    req,
+  });
   return ok({ user });
 }

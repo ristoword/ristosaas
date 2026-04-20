@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { adminRepository } from "@/lib/db/repositories/admin.repository";
+import { recordAdminAudit } from "@/lib/observability/admin-audit";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 
@@ -19,6 +20,13 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
   try {
     const row = await adminRepository.setTenantAccessStatus(tenantId, status);
+    void recordAdminAudit({
+      action: status === "blocked" ? "tenant.access.block" : "tenant.access.unblock",
+      actor: guard.user,
+      tenantId,
+      metadata: { previousStatus: row.accessStatus, requestedStatus: status },
+      req,
+    });
     return ok({
       id: row.id,
       name: row.name,

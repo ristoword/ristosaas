@@ -267,6 +267,23 @@ model PlatformConfig {
   updatedAt        DateTime @updatedAt
 }
 
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  actorId    String
+  actorRole  String
+  actorEmail String?
+  action     String
+  tenantId   String?
+  targetId   String?
+  metadata   Json?
+  ipAddress  String?
+
+  @@index([createdAt])
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+}
+
 model RateLimitHit {
   id        BigInt   @id @default(autoincrement())
   bucket    String
@@ -848,6 +865,7 @@ model TakeawayOrder {
 model ArchivedOrder {
   id            String                @id @default(cuid())
   tenantId      String
+  sourceOrderId String?               @unique
   date          DateTime
   table         String
   waiter        String
@@ -859,6 +877,8 @@ model ArchivedOrder {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   tenant        Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, closedAt])
 }
 
 model RestaurantRoom {

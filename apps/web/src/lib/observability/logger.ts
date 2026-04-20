@@ -52,7 +52,11 @@ function emit(level: LogLevel, event: string, metadata?: Metadata) {
     console.warn(serialized);
     return;
   }
-  console.log(serialized);
+  if (level === "debug") {
+    console.debug(serialized);
+    return;
+  }
+  console.info(serialized);
 }
 
 export const logger = {

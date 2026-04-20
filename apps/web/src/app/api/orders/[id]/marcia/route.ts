@@ -12,7 +12,12 @@ type Ctx = { params: Promise<{ id: string }> };
  * POST /api/orders/:id/marcia
  * Body: { course: number }
  *
- * Advance to next course ("marcia" mechanic).
+ * "Marcia" mechanic: start preparing the given course. Semantics:
+ *  - queued       → in_preparazione (marcia = partiamo)
+ *  - in_attesa    → in_preparazione (partiamo davvero)
+ *  - in_preparazione / pronto / servito → no-op (already running or done)
+ *
+ * Also sets this course as the current `activeCourse`, so KDS columns align.
  */
 export async function POST(req: NextRequest, ctx: Ctx) {
   const guard = await requireApiUser(req, [...ORDER_ROLES]);
@@ -26,13 +31,15 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if (course == null) return err("course is required");
 
   const cs = { ...order.courseStates };
-  if (cs[String(course)] === "queued") {
-    cs[String(course)] = "in_attesa";
+  const prior = cs[String(course)];
+  if (prior === "queued" || prior === "in_attesa") {
+    cs[String(course)] = "in_preparazione";
   }
 
   const updated = await ordersRepository.update(tenantId, id, {
     activeCourse: course,
     courseStates: cs,
+    status: "in_preparazione",
   });
   if (!updated) return err("Order not found", 404);
 

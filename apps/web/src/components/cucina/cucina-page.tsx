@@ -66,19 +66,37 @@ const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 /*  Sub-components                                                     */
 /* ------------------------------------------------------------------ */
 
+const COURSE_STATUS_COLORS: Record<CourseStatus, string> = {
+  queued: "bg-rw-muted/50",
+  in_attesa: "bg-amber-400",
+  in_preparazione: "bg-sky-400",
+  pronto: "bg-emerald-400",
+  servito: "bg-rw-muted/30 opacity-60",
+};
+
+const COURSE_STATUS_LABELS: Record<CourseStatus, string> = {
+  queued: "in coda",
+  in_attesa: "in attesa",
+  in_preparazione: "in preparazione",
+  pronto: "pronto da servire",
+  servito: "servito",
+};
+
 function CourseIndicators({ order }: { order: Order }) {
   const nums = getSortedCourses(order.items);
   return (
     <span className="flex items-center gap-1">
       {nums.map((n) => {
-        const st = order.courseStates[String(n)];
-        const color =
-          st === "servito"
-            ? "bg-rw-muted/40"
-            : st === "in_attesa" || st === "in_preparazione" || st === "pronto"
-              ? "bg-emerald-400"
-              : "bg-red-400";
-        return <span key={n} className={`h-2 w-2 rounded-full ${color}`} title={`Portata ${n}: ${st}`} />;
+        const st = order.courseStates[String(n)] as CourseStatus | undefined;
+        const safe: CourseStatus = st ?? "queued";
+        return (
+          <span
+            key={n}
+            className={`h-2 w-2 rounded-full ${COURSE_STATUS_COLORS[safe]}`}
+            title={`Portata ${n}: ${COURSE_STATUS_LABELS[safe]}`}
+            aria-label={`Portata ${n}: ${COURSE_STATUS_LABELS[safe]}`}
+          />
+        );
       })}
     </span>
   );

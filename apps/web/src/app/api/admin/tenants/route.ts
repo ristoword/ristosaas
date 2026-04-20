@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { adminRepository } from "@/lib/db/repositories/admin.repository";
+import { recordAdminAudit } from "@/lib/observability/admin-audit";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 
@@ -130,6 +131,24 @@ export async function POST(req: NextRequest) {
         password: payload.adminUser.password,
         role: payload.adminUser.role,
       },
+    });
+    const newTenantId =
+      (created as { tenant?: { id?: string } })?.tenant?.id ??
+      (created as { id?: string })?.id ??
+      null;
+    void recordAdminAudit({
+      action: "tenant.create",
+      actor: guard.user,
+      tenantId: newTenantId,
+      metadata: {
+        name: payload.name.trim(),
+        slug: normalizedSlug,
+        plan: payload.plan,
+        billingCycle,
+        seats,
+        licenseDurationMonths,
+      },
+      req,
     });
     return ok(created, 201);
   } catch (error) {

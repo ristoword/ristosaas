@@ -1,9 +1,10 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { err, ok, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository";
+import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 
 type AiRole = "user" | "assistant";
 type AiMessage = { role: AiRole; content: string };
@@ -78,6 +79,35 @@ export async function POST(req: NextRequest) {
   if (guard.error) return guard.error;
   const user = guard.user;
   const tenantId = user?.tenantId || getTenantId();
+
+  // Protect OpenAI budget: per-minute burst + per-day quota, scoped to user+tenant.
+  const limitKey = `${clientIpFromRequest(req)}|${user?.id ?? "anon"}|${tenantId ?? "none"}`;
+  const minute = await applyRateLimit(limitKey, {
+    bucket: "ai:chat:minute",
+    limit: 30,
+    windowMs: 60_000,
+  });
+  if (!minute.allowed) {
+    const res = NextResponse.json(
+      { error: `Troppe richieste AI. Riprova tra ${Math.ceil(minute.resetInMs / 1000)}s.` },
+      { status: 429 },
+    );
+    for (const [k, v] of Object.entries(rateLimitHeaders(minute))) res.headers.set(k, v);
+    return res;
+  }
+  const daily = await applyRateLimit(limitKey, {
+    bucket: "ai:chat:day",
+    limit: 500,
+    windowMs: 24 * 60 * 60 * 1000,
+  });
+  if (!daily.allowed) {
+    const res = NextResponse.json(
+      { error: "Hai raggiunto il limite giornaliero AI. Riprova domani." },
+      { status: 429 },
+    );
+    for (const [k, v] of Object.entries(rateLimitHeaders(daily))) res.headers.set(k, v);
+    return res;
+  }
 
   const payload = await body<{
     context?: string;
