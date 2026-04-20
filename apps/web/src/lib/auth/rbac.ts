@@ -61,6 +61,13 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
 
 export function canAccessWithRole(role: string, required: readonly UserRole[]) {
   if (role === "super_admin") return true;
+  // Owner e una vista trasversale sul proprio tenant: se una route NON e'
+  // esplicitamente super_admin-only (es. ADMIN_ROLES = ["super_admin"]),
+  // l'owner puo' sempre accedere. Evita che dimenticanze in una costante
+  // locale su una singola route blocchino il proprietario del tenant.
+  if (role === "owner" && !(required.length === 1 && required[0] === "super_admin")) {
+    return true;
+  }
   return required.includes(role as UserRole);
 }
 

@@ -4,7 +4,7 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { operationsRepository } from "@/lib/db/repositories/operations.repository";
 type Ctx = { params: Promise<{ id: string }> };
-const BOOKING_ROLES = ["sala", "cassa", "supervisor"] as const;
+const BOOKING_ROLES = ["sala", "cassa", "supervisor", "owner", "super_admin"] as const;
 
 export async function GET(req: NextRequest, ctx: Ctx) {
   const guard = await requireApiUser(req, [...BOOKING_ROLES]);

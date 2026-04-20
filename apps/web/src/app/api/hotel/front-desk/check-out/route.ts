@@ -6,7 +6,7 @@ import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
-const HOTEL_ROLES = ["hotel_manager", "reception", "super_admin"] as const;
+const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
 
 function toDateString(value: Date) {
   return value.toISOString().slice(0, 10);

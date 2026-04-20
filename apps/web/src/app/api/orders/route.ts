@@ -5,7 +5,7 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { ordersRepository } from "@/lib/db/repositories/orders.repository";
 
-const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor"] as const;
+const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor", "owner", "super_admin"] as const;
 
 /** GET /api/orders?status=in_attesa&area=cucina&table=5 */
 export async function GET(req: NextRequest) {

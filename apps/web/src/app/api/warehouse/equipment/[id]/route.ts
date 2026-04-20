@@ -5,7 +5,7 @@ import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
 import type { WarehouseEquipment } from "@/lib/api/types/warehouse";
 
-const WAREHOUSE_ROLES = ["magazzino", "supervisor"] as const;
+const WAREHOUSE_ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, ctx: Ctx) {

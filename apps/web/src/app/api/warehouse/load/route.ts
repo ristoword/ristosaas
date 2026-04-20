@@ -4,7 +4,7 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
 
-const WAREHOUSE_ROLES = ["magazzino", "supervisor"] as const;
+const WAREHOUSE_ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
 
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);

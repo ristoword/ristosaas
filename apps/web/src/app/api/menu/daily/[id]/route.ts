@@ -5,7 +5,7 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.repository";
 
-const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor"] as const;
+const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor", "owner", "super_admin"] as const;
 
 type Ctx = { params: Promise<{ id: string }> };
 

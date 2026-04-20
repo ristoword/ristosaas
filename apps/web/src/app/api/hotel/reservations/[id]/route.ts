@@ -5,7 +5,7 @@ import { hotelReservationsRepository } from "@/lib/db/repositories/hotel-reserva
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import type { HotelReservation } from "@/modules/hotel/domain/types";
 
-const HOTEL_ROLES = ["hotel_manager", "reception", "super_admin"] as const;
+const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, ctx: Ctx) {

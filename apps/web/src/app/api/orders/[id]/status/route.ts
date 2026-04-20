@@ -8,7 +8,7 @@ import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.reposi
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
 import { prisma } from "@/lib/db/prisma";
 
-const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor"] as const;
+const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor", "owner", "super_admin"] as const;
 
 type Ctx = { params: Promise<{ id: string }> };
 

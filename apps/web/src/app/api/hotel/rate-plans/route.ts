@@ -4,7 +4,7 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { hotelRatePlansRepository } from "@/lib/db/repositories/hotel-rate-plans.repository";
 
-const HOTEL_ROLES = ["hotel_manager", "reception", "super_admin"] as const;
+const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, HOTEL_ROLES);

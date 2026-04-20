@@ -9,7 +9,7 @@ import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { isRoomAvailableForRange } from "@/modules/hotel/domain/availability";
 import type { HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
-const HOTEL_ROLES = ["hotel_manager", "reception", "super_admin"] as const;
+const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, HOTEL_ROLES);

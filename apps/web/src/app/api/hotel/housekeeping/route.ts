@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import type { HousekeepingTask } from "@/modules/hotel/domain/types";
 
-const HOTEL_ROLES = ["hotel_manager", "reception", "housekeeping", "super_admin"] as const;
+const HOTEL_ROLES = ["hotel_manager", "reception", "housekeeping", "owner", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, HOTEL_ROLES);
