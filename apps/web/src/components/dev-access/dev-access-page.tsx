@@ -105,6 +105,27 @@ export function DevAccessPage() {
       latencyLabel: `${live.ms} ms`,
     });
 
+    const ai = await timedFetch(`${origin}/api/health/ai`);
+    const aiBody = ai.body as { status?: string; model?: string; keyMasked?: string | null } | undefined;
+    const aiStatus: HealthStatus =
+      ai.ok && aiBody?.status === "ok"
+        ? "ok"
+        : aiBody?.status === "malformed"
+          ? "warn"
+          : "error";
+    rows.push({
+      id: "ai",
+      name: "OpenAI env (/api/health/ai)",
+      status: aiStatus,
+      latencyLabel: `${ai.ms} ms`,
+      detail:
+        aiBody?.status === "ok"
+          ? `key ${aiBody.keyMasked ?? "presente"} · model ${aiBody.model ?? "n/d"}`
+          : aiBody?.status === "malformed"
+            ? "Chiave presente ma formato non valido"
+            : "OPENAI_API_KEY non configurata",
+    });
+
     if (tenantId) {
       const gates = await timedFetch(`${origin}/api/health/gates?tenantId=${encodeURIComponent(tenantId)}`);
       const g = gates.body as { maintenanceMode?: boolean; tenantBlocked?: boolean } | undefined;
