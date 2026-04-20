@@ -20,7 +20,7 @@ const roomTone = {
 } as const;
 
 export function HotelRoomsPage() {
-  const { rooms, reservations, housekeeping, createRoom, updateRoom, deleteRoom } = useHotel();
+  const { rooms, reservations, housekeeping, createRoom, updateRoom, deleteRoom, failedSlices } = useHotel();
   const [calendarStart, setCalendarStart] = useState(() => todayIso());
   const [calendarEnd, setCalendarEnd] = useState(() => addDaysIso(todayIso(), 1));
   const [form, setForm] = useState<Omit<HotelRoom, "id">>({ code: "", floor: 1, capacity: 2, roomType: "Classic", status: "libera" });
@@ -51,6 +51,16 @@ export function HotelRoomsPage() {
         <Chip label="Disponibili oggi" value={availableToday} tone="success" />
         <Chip label="Totale camere" value={rooms.length} tone="accent" />
       </PageHeader>
+
+      {failedSlices.length > 0 ? (
+        <p
+          role="alert"
+          className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200"
+        >
+          Alcune informazioni hotel non sono disponibili con il tuo ruolo: {failedSlices.join(", ")}.
+          La pagina mostra i dati che hai diritto di vedere. Chiedi al super admin di abilitare il ruolo se serve.
+        </p>
+      ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
         <Card title="Nuova camera" description="CRUD base del verticale hotel.">

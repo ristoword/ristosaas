@@ -12,6 +12,8 @@ type HotelContextValue = {
   charges: FolioCharge[];
   ratePlans: RatePlan[];
   loading: boolean;
+  /** Nomi delle slice che non si sono potute caricare (permessi o errori). */
+  failedSlices: string[];
   refresh: () => Promise<void>;
   createRoom: (data: Omit<HotelRoom, "id">) => Promise<void>;
   updateRoom: (id: string, data: Partial<HotelRoom>) => Promise<void>;
@@ -40,28 +42,40 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
   const [charges, setCharges] = useState<FolioCharge[]>([]);
   const [ratePlans, setRatePlans] = useState<RatePlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failedSlices, setFailedSlices] = useState<string[]>([]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    try {
-      const [roomsData, reservationsData, housekeepingData, keycardsData, foliosData, chargesData, ratePlansData] = await Promise.all([
-        hotelApi.listRooms(),
-        hotelApi.listReservations(),
-        hotelApi.listHousekeeping(),
-        hotelApi.listKeycards(),
-        integrationApi.listFolios(),
-        integrationApi.listCharges(),
-        hotelApi.listRatePlans(),
-      ]);
-      setRooms(roomsData);
-      setReservations(reservationsData);
-      setHousekeeping(housekeepingData);
-      setKeycards(keycardsData);
-      setFolios(foliosData);
-      setCharges(chargesData);
-      setRatePlans(ratePlansData);
-    } finally {
-      setLoading(false);
+    // Carichiamo in parallelo ma NON fail-fast: se una sola API va in errore
+    // (tipicamente 403 per ruolo senza permessi) continuiamo a popolare il
+    // resto. Evita il caso "pagina muta" quando un RBAC disallineato rompe
+    // Promise.all.
+    const results = await Promise.allSettled([
+      hotelApi.listRooms(),
+      hotelApi.listReservations(),
+      hotelApi.listHousekeeping(),
+      hotelApi.listKeycards(),
+      integrationApi.listFolios(),
+      integrationApi.listCharges(),
+      hotelApi.listRatePlans(),
+    ]);
+    const [roomsR, reservationsR, housekeepingR, keycardsR, foliosR, chargesR, ratePlansR] = results;
+    const names = ["rooms", "reservations", "housekeeping", "keycards", "folios", "charges", "ratePlans"] as const;
+    const failed: string[] = [];
+
+    if (roomsR.status === "fulfilled") setRooms(roomsR.value); else failed.push(names[0]);
+    if (reservationsR.status === "fulfilled") setReservations(reservationsR.value); else failed.push(names[1]);
+    if (housekeepingR.status === "fulfilled") setHousekeeping(housekeepingR.value); else failed.push(names[2]);
+    if (keycardsR.status === "fulfilled") setKeycards(keycardsR.value); else failed.push(names[3]);
+    if (foliosR.status === "fulfilled") setFolios(foliosR.value); else failed.push(names[4]);
+    if (chargesR.status === "fulfilled") setCharges(chargesR.value); else failed.push(names[5]);
+    if (ratePlansR.status === "fulfilled") setRatePlans(ratePlansR.value); else failed.push(names[6]);
+
+    setFailedSlices(failed);
+    setLoading(false);
+
+    if (failed.length > 0 && process.env.NODE_ENV === "development") {
+      console.warn("HotelProvider: alcune API hotel non disponibili", failed);
     }
   }, []);
 
@@ -131,7 +145,7 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ rooms, reservations, housekeeping, keycards, folios, charges, ratePlans, loading, refresh, createRoom, updateRoom, deleteRoom, createReservation, updateReservation, deleteReservation, roomCharge, finalizeCheckout }}>
+    <Ctx.Provider value={{ rooms, reservations, housekeeping, keycards, folios, charges, ratePlans, loading, failedSlices, refresh, createRoom, updateRoom, deleteRoom, createReservation, updateReservation, deleteReservation, roomCharge, finalizeCheckout }}>
       {children}
     </Ctx.Provider>
   );
