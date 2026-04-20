@@ -186,6 +186,7 @@ export const tablesApi = {
 
 export const roomsApi = {
   list: () => get<Room[]>("/rooms"),
+  ensureDefault: () => post<Room>("/rooms/ensure-default", {}),
 };
 
 /* ─── Warehouse ──────────────────────────────────── */

@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CreditCard, Info, Send } from "lucide-react";
-import { tablesApi } from "@/lib/api-client";
+import { CreditCard, Info, Minus, Plus, Send } from "lucide-react";
+import { roomsApi, tablesApi } from "@/lib/api-client";
 import type { SalaTable } from "@/lib/api-client";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { useTenantFeatures } from "@/components/auth/auth-context";
@@ -63,6 +63,91 @@ export function SalaPage() {
       console.error(err);
     }
   }, []);
+
+  const MAX_TABLES = 30;
+  const [tablesBusy, setTablesBusy] = useState(false);
+  const [tablesError, setTablesError] = useState<string | null>(null);
+
+  // Distribuzione percentuale in griglia 5 x N, coerente col seed.
+  function percentPositionForIndex(index: number) {
+    const cols = 5;
+    const leftPad = 12;
+    const rightPad = 12;
+    const topPad = 18;
+    const rowGap = 24;
+    const usableWidth = 100 - leftPad - rightPad;
+    const colStep = usableWidth / (cols - 1);
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    return {
+      x: Math.round(leftPad + col * colStep),
+      y: Math.round(topPad + row * rowGap),
+    };
+  }
+
+  async function handleAddTable() {
+    if (tables.length >= MAX_TABLES) return;
+    setTablesError(null);
+    setTablesBusy(true);
+    try {
+      const room = await roomsApi.ensureDefault();
+      const usedIndexes = new Set(
+        tables
+          .map((t) => t.nome.trim().toUpperCase())
+          .filter((name) => /^T\d+$/.test(name))
+          .map((name) => Number(name.slice(1))),
+      );
+      let nextIndex = 1;
+      while (usedIndexes.has(nextIndex)) nextIndex += 1;
+
+      const pos = percentPositionForIndex(tables.length);
+      await tablesApi.create({
+        nome: `T${nextIndex}`,
+        posti: 4,
+        x: pos.x,
+        y: pos.y,
+        forma: tables.length % 2 === 0 ? "quadrato" : "tondo",
+        stato: "libero",
+        roomId: room.id,
+      });
+      await refreshTables();
+    } catch (err) {
+      setTablesError(err instanceof Error ? err.message : "Errore aggiunta tavolo");
+    } finally {
+      setTablesBusy(false);
+    }
+  }
+
+  async function handleRemoveTable() {
+    if (tables.length === 0) return;
+    // Cerca il tavolo "alto": priorità tavoli liberi, altrimenti ultimo creato.
+    const candidate =
+      [...tables].reverse().find((t) => t.stato === "libero") ?? tables[tables.length - 1];
+    if (!candidate) return;
+
+    const ordersOnTable = getOrdersForTable(candidate.nome);
+    if (ordersOnTable.length > 0) {
+      setTablesError(`${candidate.nome} ha ordini attivi: chiudili prima di rimuoverlo.`);
+      return;
+    }
+
+    const confirmed =
+      typeof window === "undefined"
+        ? true
+        : window.confirm(`Rimuovere ${candidate.nome}? L'azione non si può annullare.`);
+    if (!confirmed) return;
+
+    setTablesError(null);
+    setTablesBusy(true);
+    try {
+      await tablesApi.delete(candidate.id);
+      await refreshTables();
+    } catch (err) {
+      setTablesError(err instanceof Error ? err.message : "Errore rimozione tavolo");
+    } finally {
+      setTablesBusy(false);
+    }
+  }
 
   async function handleTableAction(id: AzioneId, t: SalaTable) {
     const ordersForTable = getOrdersForTable(t.nome);
@@ -163,6 +248,42 @@ export function SalaPage() {
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-rw-line bg-rw-surface px-4 py-3 shadow-sm">
+        <span className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
+          Gestione tavoli
+        </span>
+        <span className="text-sm text-rw-ink">
+          {tables.length} tavoli attivi
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRemoveTable}
+            disabled={tablesBusy || tables.length === 0}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 text-sm font-semibold text-rw-ink transition hover:border-red-500/40 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Rimuovi tavolo libero"
+          >
+            <Minus className="h-4 w-4" aria-hidden />
+            Rimuovi
+          </button>
+          <button
+            type="button"
+            onClick={handleAddTable}
+            disabled={tablesBusy || tables.length >= MAX_TABLES}
+            className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-rw-accent px-3 text-sm font-semibold text-white shadow-rw-sm transition hover:bg-rw-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="Aggiungi tavolo"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Aggiungi tavolo
+          </button>
+        </div>
+        {tablesError ? (
+          <p className="w-full text-sm font-medium text-red-300" role="alert">
+            {tablesError}
+          </p>
+        ) : null}
       </div>
 
       {/* Active orders by table with course status */}

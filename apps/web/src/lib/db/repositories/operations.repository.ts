@@ -172,6 +172,22 @@ async function deleteScoped(model: "staffMember" | "booking" | "supplier" | "cat
 export const operationsRepository = {
   rooms: {
     list: async (tenantId: string) => (await prisma.restaurantRoom.findMany({ where: { tenantId }, orderBy: { name: "asc" } })).map(mapRoom),
+    /**
+     * Ensure at least one room exists for this tenant. Returns the first room
+     * available (creating a default "Sala 1" if none). Used by the sala UI
+     * when the owner presses "Aggiungi tavolo" on a blank layout.
+     */
+    ensureDefault: async (tenantId: string) => {
+      const existing = await prisma.restaurantRoom.findFirst({
+        where: { tenantId },
+        orderBy: { createdAt: "asc" },
+      });
+      if (existing) return mapRoom(existing);
+      const created = await prisma.restaurantRoom.create({
+        data: { tenantId, name: "Sala 1", tables: 0 },
+      });
+      return mapRoom(created);
+    },
   },
   tables: {
     list: async (tenantId: string, roomId?: string) =>
