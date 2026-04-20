@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Building2,
   CreditCard,
+  FileText,
+  Loader2,
   Mail,
   Phone,
   Plus,
@@ -19,6 +21,7 @@ import {
   suppliersApi,
   warehouseApi,
   type PurchaseOrder,
+  type PurchaseOrderReport,
   type StockItem,
   type Supplier,
 } from "@/lib/api-client";
@@ -210,6 +213,8 @@ export function FornitoriPage() {
           )}
         </div>
       </div>
+
+      <PurchaseReportSection />
 
       <NewSupplierModal open={modalOpen} onClose={() => setModalOpen(false)} onSave={addSupplier} />
 
@@ -858,10 +863,15 @@ function PurchaseOrderDetailDrawer({
   onStatus: (order: PurchaseOrder, status: "inviato" | "annullato") => void;
 }) {
   const [draft, setDraft] = useState<Record<string, number>>({});
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailFlash, setEmailFlash] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!order) {
       setDraft({});
+      setEmailFlash(null);
+      setEmailError(null);
       return;
     }
     const d: Record<string, number> = {};
@@ -872,6 +882,21 @@ function PurchaseOrderDetailDrawer({
   if (!order) return null;
 
   const readonly = order.status === "ricevuto" || order.status === "annullato";
+
+  async function handleEmail() {
+    if (!order) return;
+    setEmailBusy(true);
+    setEmailError(null);
+    try {
+      const res = await purchaseOrdersApi.email(order.id, { attachPdf: true });
+      setEmailFlash(`Email inviata a ${res.recipients.join(", ")}.`);
+      setTimeout(() => setEmailFlash(null), 4000);
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "Invio email fallito.");
+    } finally {
+      setEmailBusy(false);
+    }
+  }
 
   function fillRemaining() {
     if (!order) return;
@@ -904,6 +929,36 @@ function PurchaseOrderDetailDrawer({
             {order.notes}
           </p>
         ) : null}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={purchaseOrdersApi.pdfUrl(order.id)}
+            target="_blank"
+            rel="noreferrer"
+            className={cn(BTN_OUTLINE, "text-xs")}
+          >
+            <FileText className="h-3.5 w-3.5" /> Scarica PDF
+          </a>
+          <button
+            type="button"
+            className={cn(BTN_OUTLINE, "text-xs")}
+            onClick={() => void handleEmail()}
+            disabled={emailBusy || order.status === "annullato"}
+          >
+            {emailBusy ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Mail className="h-3.5 w-3.5" />
+            )}
+            Invia email fornitore
+          </button>
+          {emailFlash ? (
+            <span className="text-xs font-medium text-emerald-300">{emailFlash}</span>
+          ) : null}
+          {emailError ? (
+            <span className="text-xs font-medium text-red-300">{emailError}</span>
+          ) : null}
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
@@ -1011,5 +1066,130 @@ function PurchaseOrderDetailDrawer({
         </div>
       </div>
     </Modal>
+  );
+}
+
+/* ── Report acquisti globale ─────────────────────────────── */
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addMonthsIso(days: number) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function PurchaseReportSection() {
+  const [from, setFrom] = useState(addMonthsIso(-1));
+  const [to, setTo] = useState(todayIso());
+  const [data, setData] = useState<PurchaseOrderReport | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await purchaseOrdersApi.report({ from, to });
+      setData(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Errore di caricamento report.");
+    } finally {
+      setLoading(false);
+    }
+  }, [from, to]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <Card
+      title="Report acquisti"
+      description="Spesa totale per fornitore nel periodo selezionato (dati reali da PurchaseOrder)."
+      headerRight={
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="date"
+            className={INPUT}
+            style={{ maxWidth: 160 }}
+            value={from}
+            onChange={(e) => setFrom(e.target.value)}
+          />
+          <span className="text-xs text-rw-muted">→</span>
+          <input
+            type="date"
+            className={INPUT}
+            style={{ maxWidth: 160 }}
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
+          <button type="button" className={cn(BTN_OUTLINE, "text-xs")} onClick={() => void load()} disabled={loading}>
+            {loading ? "Aggiorno…" : "Aggiorna"}
+          </button>
+        </div>
+      }
+    >
+      {error ? (
+        <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
+          {error}
+        </p>
+      ) : null}
+      {!data || data.suppliers.length === 0 ? (
+        <p className="py-6 text-center text-sm text-rw-muted">
+          Nessun ordine nel periodo selezionato.
+        </p>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetricBox label="Ordini" value={String(data.overall.ordersCount)} />
+            <MetricBox label="Totale lordo" value={`€${data.overall.totalGross.toFixed(2)}`} />
+            <MetricBox label="Ricevuto" value={`€${data.overall.totalReceived.toFixed(2)}`} />
+          </div>
+          <DataTable<PurchaseOrderReport["suppliers"][number]>
+            columns={[
+              { key: "supplierName", header: "Fornitore" },
+              { key: "ordersCount", header: "Ordini", className: "text-right" },
+              {
+                key: "totalGross",
+                header: "Totale lordo",
+                className: "text-right",
+                render: (r) => `€${r.totalGross.toFixed(2)}`,
+              },
+              {
+                key: "totalReceived",
+                header: "Ricevuto",
+                className: "text-right",
+                render: (r) => `€${r.totalReceived.toFixed(2)}`,
+              },
+              {
+                key: "byStatus",
+                header: "Stato",
+                render: (r) => (
+                  <span className="flex flex-wrap gap-1">
+                    {Object.entries(r.byStatus).map(([status, count]) => (
+                      <Chip key={status} label={status} value={String(count)} tone="default" />
+                    ))}
+                  </span>
+                ),
+              },
+            ]}
+            data={data.suppliers}
+            keyExtractor={(r) => r.supplierId}
+          />
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function MetricBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">{label}</p>
+      <p className="mt-1 font-display text-xl font-semibold text-rw-ink">{value}</p>
+    </div>
   );
 }

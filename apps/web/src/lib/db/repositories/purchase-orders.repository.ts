@@ -148,6 +148,80 @@ export const purchaseOrdersRepository = {
     return row ? mapOrder(row) : null;
   },
 
+  /** Report aggregato per fornitore in un intervallo. */
+  async report(
+    tenantId: string,
+    params: { from?: string | null; to?: string | null },
+  ) {
+    const from = params.from ? new Date(`${params.from}T00:00:00Z`) : null;
+    const to = params.to ? new Date(`${params.to}T23:59:59Z`) : null;
+    const where: { tenantId: string; orderedAt?: { gte?: Date; lte?: Date } } = { tenantId };
+    if (from || to) {
+      where.orderedAt = {
+        ...(from ? { gte: from } : {}),
+        ...(to ? { lte: to } : {}),
+      };
+    }
+    const rows = await prisma.purchaseOrder.findMany({
+      where,
+      orderBy: { orderedAt: "desc" },
+      include: { supplier: { select: { name: true } } },
+    });
+    const bySupplier = new Map<
+      string,
+      {
+        supplierId: string;
+        supplierName: string;
+        ordersCount: number;
+        totalGross: number;
+        totalReceived: number;
+        byStatus: Partial<Record<string, number>>;
+      }
+    >();
+    let overallCount = 0;
+    let overallGross = 0;
+    let overallReceived = 0;
+    for (const row of rows) {
+      const total = row.total.toNumber();
+      const key = row.supplierId;
+      const entry = bySupplier.get(key) ?? {
+        supplierId: row.supplierId,
+        supplierName: row.supplier.name,
+        ordersCount: 0,
+        totalGross: 0,
+        totalReceived: 0,
+        byStatus: {},
+      };
+      entry.ordersCount += 1;
+      entry.totalGross += total;
+      if (row.status === "ricevuto") entry.totalReceived += total;
+      entry.byStatus[row.status] = (entry.byStatus[row.status] ?? 0) + 1;
+      bySupplier.set(key, entry);
+
+      overallCount += 1;
+      overallGross += total;
+      if (row.status === "ricevuto") overallReceived += total;
+    }
+    return {
+      range: {
+        from: from ? from.toISOString() : null,
+        to: to ? to.toISOString() : null,
+      },
+      overall: {
+        ordersCount: overallCount,
+        totalGross: Number(overallGross.toFixed(2)),
+        totalReceived: Number(overallReceived.toFixed(2)),
+      },
+      suppliers: Array.from(bySupplier.values())
+        .map((entry) => ({
+          ...entry,
+          totalGross: Number(entry.totalGross.toFixed(2)),
+          totalReceived: Number(entry.totalReceived.toFixed(2)),
+        }))
+        .sort((a, b) => b.totalGross - a.totalGross),
+    };
+  },
+
   /**
    * Crea un nuovo ordine con righe. Se `status` non è specificato parte in `bozza`.
    * Valida che tutti i warehouseItem appartengano allo stesso tenant.

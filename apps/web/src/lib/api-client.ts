@@ -308,6 +308,19 @@ export type PurchaseOrder = {
   items: PurchaseOrderItem[];
 };
 
+export type PurchaseOrderReport = {
+  range: { from: string | null; to: string | null };
+  overall: { ordersCount: number; totalGross: number; totalReceived: number };
+  suppliers: Array<{
+    supplierId: string;
+    supplierName: string;
+    ordersCount: number;
+    totalGross: number;
+    totalReceived: number;
+    byStatus: Partial<Record<string, number>>;
+  }>;
+};
+
 export const purchaseOrdersApi = {
   list: (status?: PurchaseOrderStatus) =>
     get<PurchaseOrder[]>(status ? `/purchase-orders?status=${status}` : "/purchase-orders"),
@@ -316,6 +329,19 @@ export const purchaseOrdersApi = {
     patch<PurchaseOrder>(`/purchase-orders/${id}`, { status }),
   receive: (id: string, receipts: Array<{ itemId: string; qty: number }>) =>
     post<PurchaseOrder>(`/purchase-orders/${id}/receive`, { receipts }),
+  email: (id: string, payload?: { to?: string | string[]; message?: string; attachPdf?: boolean }) =>
+    post<{ ok: true; messageId: string; recipients: string[] }>(
+      `/purchase-orders/${id}/email`,
+      payload ?? {},
+    ),
+  pdfUrl: (id: string) => `/api/purchase-orders/${id}/pdf`,
+  report: (params?: { from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    const q = qs.toString();
+    return get<PurchaseOrderReport>(`/purchase-orders/report${q ? `?${q}` : ""}`);
+  },
 };
 
 /* ─── Catering ───────────────────────────────────── */
