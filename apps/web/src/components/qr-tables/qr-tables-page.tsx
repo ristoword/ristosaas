@@ -55,7 +55,7 @@ export function QrTablesPage() {
     } finally {
       setLoading(false);
     }
-  }, [tenantId]);
+  }, []);
 
   useEffect(() => {
     void load();

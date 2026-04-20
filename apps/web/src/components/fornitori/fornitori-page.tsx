@@ -14,7 +14,14 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { suppliersApi, type Supplier } from "@/lib/api-client";
+import {
+  purchaseOrdersApi,
+  suppliersApi,
+  warehouseApi,
+  type PurchaseOrder,
+  type StockItem,
+  type Supplier,
+} from "@/lib/api-client";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { Card } from "@/components/shared/card";
@@ -25,6 +32,7 @@ import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 
 const DETAIL_TABS = [
   { id: "anagrafica", label: "Anagrafica" },
+  { id: "ordini", label: "Ordini & Ricezione" },
 ];
 
 const INPUT =
@@ -196,6 +204,8 @@ export function FornitoriPage() {
               {detailTab === "anagrafica" && (
                 <AnagraficaPanel supplier={selected} onUpdate={updateSupplier} />
               )}
+
+              {detailTab === "ordini" && <SupplierOrdersPanel supplier={selected} />}
             </>
           )}
         </div>
@@ -399,6 +409,605 @@ function NewSupplierModal({
           <button type="button" className={BTN_PRIMARY} onClick={handleSave}>
             <Save className="h-4 w-4" /> Salva fornitore
           </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ── Panel ordini fornitore ─────────────────────────────────── */
+
+type DraftLine = {
+  warehouseItemId: string;
+  qtyOrdered: number;
+  unit: string;
+  unitCost: number;
+};
+
+function formatDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  } catch {
+    return iso ?? "—";
+  }
+}
+
+function statusChipTone(
+  status: PurchaseOrder["status"],
+): "default" | "info" | "warn" | "success" | "danger" {
+  switch (status) {
+    case "bozza":
+      return "default";
+    case "inviato":
+      return "info";
+    case "parziale":
+      return "warn";
+    case "ricevuto":
+      return "success";
+    case "annullato":
+      return "danger";
+  }
+}
+
+function SupplierOrdersPanel({ supplier }: { supplier: Supplier }) {
+  const [orders, setOrders] = useState<PurchaseOrder[]>([]);
+  const [stock, setStock] = useState<StockItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
+  const [selected, setSelected] = useState<PurchaseOrder | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [ordersRes, stockRes] = await Promise.all([
+        suppliersApi.orders(supplier.id),
+        warehouseApi.list(),
+      ]);
+      setOrders(ordersRes);
+      setStock(stockRes.items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Errore di caricamento ordini.");
+    } finally {
+      setLoading(false);
+    }
+  }, [supplier.id]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function handleCreate(draft: {
+    notes: string;
+    expectedAt: string;
+    status: "bozza" | "inviato";
+    lines: DraftLine[];
+  }) {
+    try {
+      const created = await suppliersApi.createOrder(supplier.id, {
+        notes: draft.notes || undefined,
+        expectedAt: draft.expectedAt ? `${draft.expectedAt}T00:00:00Z` : null,
+        status: draft.status,
+        items: draft.lines.map((l) => ({
+          warehouseItemId: l.warehouseItemId,
+          qtyOrdered: l.qtyOrdered,
+          unit: l.unit,
+          unitCost: l.unitCost,
+        })),
+      });
+      setOrders((prev) => [created, ...prev]);
+      setNewOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Creazione ordine fallita.");
+    }
+  }
+
+  async function handleReceive(order: PurchaseOrder, receipts: Array<{ itemId: string; qty: number }>) {
+    try {
+      const updated = await purchaseOrdersApi.receive(order.id, receipts);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      setSelected(updated);
+      // refresh stock dopo ricezione, così costPerUnit aggiornato
+      const stockRes = await warehouseApi.list();
+      setStock(stockRes.items);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ricezione fallita.");
+    }
+  }
+
+  async function handleStatus(order: PurchaseOrder, status: "inviato" | "annullato") {
+    try {
+      const updated = await purchaseOrdersApi.setStatus(order.id, status);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      if (selected?.id === updated.id) setSelected(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Aggiornamento stato fallito.");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <Chip label="Ordini totali" value={orders.length} tone="default" />
+        <Chip
+          label="Da ricevere"
+          value={orders.filter((o) => o.status === "inviato" || o.status === "parziale").length}
+          tone="warn"
+        />
+        <div className="ml-auto flex items-center gap-2">
+          <button type="button" className={BTN_OUTLINE} onClick={() => void refresh()} disabled={loading}>
+            {loading ? "Aggiorno…" : "Aggiorna"}
+          </button>
+          <button
+            type="button"
+            className={BTN_PRIMARY}
+            onClick={() => setNewOpen(true)}
+            disabled={stock.length === 0}
+          >
+            <Plus className="h-4 w-4" /> Nuovo ordine
+          </button>
+        </div>
+      </div>
+
+      {error ? (
+        <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-300">
+          {error}
+        </p>
+      ) : null}
+
+      {stock.length === 0 ? (
+        <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
+          Non ci sono articoli di magazzino. Aggiungi almeno uno stock item per poter creare un ordine.
+        </p>
+      ) : null}
+
+      <Card title="Storico ordini">
+        {loading ? (
+          <p className="py-6 text-center text-sm text-rw-muted">Caricamento…</p>
+        ) : orders.length === 0 ? (
+          <p className="py-6 text-center text-sm text-rw-muted">Nessun ordine emesso a questo fornitore.</p>
+        ) : (
+          <DataTable<PurchaseOrder>
+            columns={[
+              {
+                key: "code",
+                header: "Codice",
+                render: (r) => <span className="font-mono text-xs text-rw-ink">{r.code}</span>,
+              },
+              { key: "orderedAt", header: "Data", render: (r) => formatDate(r.orderedAt) },
+              { key: "expectedAt", header: "Attesa", render: (r) => formatDate(r.expectedAt) },
+              {
+                key: "status",
+                header: "Stato",
+                render: (r) => <Chip label={r.status} tone={statusChipTone(r.status)} />,
+              },
+              {
+                key: "items",
+                header: "Righe",
+                render: (r) => <span className="text-rw-soft">{r.items.length}</span>,
+              },
+              {
+                key: "total",
+                header: "Totale",
+                className: "text-right",
+                render: (r) => `€${r.total.toFixed(2)}`,
+              },
+              {
+                key: "actions",
+                header: "",
+                render: (r) => (
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      className={cn(BTN_OUTLINE, "px-3 py-1.5 text-xs")}
+                      onClick={() => setSelected(r)}
+                    >
+                      Dettagli
+                    </button>
+                  </div>
+                ),
+              },
+            ]}
+            data={orders}
+            keyExtractor={(r) => r.id}
+          />
+        )}
+      </Card>
+
+      <NewPurchaseOrderModal
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        supplier={supplier}
+        stock={stock}
+        onCreate={handleCreate}
+      />
+
+      <PurchaseOrderDetailDrawer
+        order={selected}
+        onClose={() => setSelected(null)}
+        onReceive={handleReceive}
+        onStatus={handleStatus}
+      />
+    </div>
+  );
+}
+
+function NewPurchaseOrderModal({
+  open,
+  onClose,
+  supplier,
+  stock,
+  onCreate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  supplier: Supplier;
+  stock: StockItem[];
+  onCreate: (draft: {
+    notes: string;
+    expectedAt: string;
+    status: "bozza" | "inviato";
+    lines: DraftLine[];
+  }) => void;
+}) {
+  const [lines, setLines] = useState<DraftLine[]>([]);
+  const [notes, setNotes] = useState("");
+  const [expectedAt, setExpectedAt] = useState("");
+  const [status, setStatus] = useState<"bozza" | "inviato">("inviato");
+
+  useEffect(() => {
+    if (!open) return;
+    setLines([]);
+    setNotes("");
+    setExpectedAt("");
+    setStatus("inviato");
+  }, [open]);
+
+  const total = lines.reduce((sum, l) => sum + l.qtyOrdered * l.unitCost, 0);
+
+  function addLine() {
+    const first = stock[0];
+    if (!first) return;
+    setLines((prev) => [
+      ...prev,
+      {
+        warehouseItemId: first.id,
+        qtyOrdered: 1,
+        unit: first.unit,
+        unitCost: first.costPerUnit ?? 0,
+      },
+    ]);
+  }
+
+  function updateLine(index: number, patch: Partial<DraftLine>) {
+    setLines((prev) =>
+      prev.map((line, i) => {
+        if (i !== index) return line;
+        const next = { ...line, ...patch };
+        if (patch.warehouseItemId) {
+          const item = stock.find((s) => s.id === patch.warehouseItemId);
+          if (item) {
+            next.unit = item.unit;
+            if (!patch.unitCost) next.unitCost = item.costPerUnit ?? 0;
+          }
+        }
+        return next;
+      }),
+    );
+  }
+
+  function removeLine(index: number) {
+    setLines((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function handleSubmit() {
+    if (lines.length === 0) return;
+    onCreate({ notes, expectedAt, status, lines });
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Nuovo ordine — ${supplier.name}`}
+      subtitle="Aggiungi articoli, quantità e prezzo concordato."
+      wide
+    >
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div>
+            <label className={LABEL}>Stato iniziale</label>
+            <select
+              className={INPUT}
+              value={status}
+              onChange={(e) => setStatus(e.target.value as typeof status)}
+            >
+              <option value="bozza">Bozza</option>
+              <option value="inviato">Inviato</option>
+            </select>
+          </div>
+          <div>
+            <label className={LABEL}>Consegna attesa</label>
+            <input
+              type="date"
+              className={INPUT}
+              value={expectedAt}
+              onChange={(e) => setExpectedAt(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>Note</label>
+            <input
+              className={INPUT}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Riferimenti, trasporto…"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-rw-ink">Articoli ordinati</p>
+            <button type="button" className={cn(BTN_OUTLINE, "px-3 py-1.5 text-xs")} onClick={addLine}>
+              <Plus className="h-3.5 w-3.5" /> Aggiungi riga
+            </button>
+          </div>
+          {lines.length === 0 ? (
+            <p className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-6 text-center text-sm text-rw-muted">
+              Nessuna riga: aggiungi almeno un articolo per creare l&apos;ordine.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {lines.map((line, index) => {
+                const item = stock.find((s) => s.id === line.warehouseItemId);
+                const lineTotal = line.qtyOrdered * line.unitCost;
+                return (
+                  <div
+                    key={index}
+                    className="grid gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+                  >
+                    <select
+                      className={INPUT}
+                      value={line.warehouseItemId}
+                      onChange={(e) => updateLine(index, { warehouseItemId: e.target.value })}
+                    >
+                      {stock.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.unit})
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.001}
+                      className={INPUT}
+                      value={line.qtyOrdered}
+                      onChange={(e) =>
+                        updateLine(index, { qtyOrdered: Math.max(0, Number(e.target.value)) })
+                      }
+                    />
+                    <input className={INPUT} value={line.unit} readOnly />
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.01}
+                      className={INPUT}
+                      value={line.unitCost}
+                      onChange={(e) =>
+                        updateLine(index, { unitCost: Math.max(0, Number(e.target.value)) })
+                      }
+                    />
+                    <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-end">
+                      <span className="text-sm font-semibold text-rw-ink">€{lineTotal.toFixed(2)}</span>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400"
+                        onClick={() => removeLine(index)}
+                        aria-label={`Rimuovi riga ${item?.name ?? ""}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3">
+          <span className="text-sm text-rw-muted">Totale ordine</span>
+          <span className="font-display text-lg font-semibold text-rw-ink">€{total.toFixed(2)}</span>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-2">
+          <button type="button" className={BTN_OUTLINE} onClick={onClose}>
+            Annulla
+          </button>
+          <button
+            type="button"
+            className={BTN_PRIMARY}
+            onClick={handleSubmit}
+            disabled={lines.length === 0}
+          >
+            <Save className="h-4 w-4" /> {status === "bozza" ? "Salva bozza" : "Invia ordine"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+function PurchaseOrderDetailDrawer({
+  order,
+  onClose,
+  onReceive,
+  onStatus,
+}: {
+  order: PurchaseOrder | null;
+  onClose: () => void;
+  onReceive: (order: PurchaseOrder, receipts: Array<{ itemId: string; qty: number }>) => void;
+  onStatus: (order: PurchaseOrder, status: "inviato" | "annullato") => void;
+}) {
+  const [draft, setDraft] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!order) {
+      setDraft({});
+      return;
+    }
+    const d: Record<string, number> = {};
+    for (const item of order.items) d[item.id] = 0;
+    setDraft(d);
+  }, [order]);
+
+  if (!order) return null;
+
+  const readonly = order.status === "ricevuto" || order.status === "annullato";
+
+  function fillRemaining() {
+    if (!order) return;
+    const next: Record<string, number> = {};
+    for (const item of order.items) next[item.id] = item.outstandingQty;
+    setDraft(next);
+  }
+
+  function handleReceive() {
+    if (!order) return;
+    const receipts = Object.entries(draft)
+      .map(([itemId, qty]) => ({ itemId, qty: Number(qty) || 0 }))
+      .filter((r) => r.qty > 0);
+    if (receipts.length === 0) return;
+    onReceive(order, receipts);
+  }
+
+  return (
+    <Modal open={!!order} onClose={onClose} title={`Ordine ${order.code}`} subtitle={order.supplierName} wide>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Chip label={order.status} tone={statusChipTone(order.status)} />
+          <Chip label="Data" value={formatDate(order.orderedAt)} />
+          <Chip label="Attesa" value={formatDate(order.expectedAt)} />
+          <Chip label="Totale" value={`€${order.total.toFixed(2)}`} tone="accent" />
+        </div>
+
+        {order.notes ? (
+          <p className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm text-rw-soft">
+            {order.notes}
+          </p>
+        ) : null}
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-rw-ink">Righe</p>
+            {!readonly ? (
+              <button
+                type="button"
+                className={cn(BTN_OUTLINE, "px-3 py-1.5 text-xs")}
+                onClick={fillRemaining}
+              >
+                Riempi con residuo
+              </button>
+            ) : null}
+          </div>
+          <div className="space-y-2">
+            {order.items.map((item) => {
+              const inputValue = draft[item.id] ?? 0;
+              return (
+                <div
+                  key={item.id}
+                  className="grid gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 sm:grid-cols-[2fr_1fr_1fr_1fr_1fr]"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-rw-ink">{item.warehouseItemName}</p>
+                    <p className="text-xs text-rw-muted">
+                      {item.qtyOrdered} {item.unit} × €{item.unitCost.toFixed(2)} = €
+                      {item.lineTotal.toFixed(2)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-rw-muted">Ricevuto</p>
+                    <p className="text-sm font-semibold text-rw-ink">
+                      {item.qtyReceived} {item.unit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-rw-muted">Residuo</p>
+                    <p
+                      className={cn(
+                        "text-sm font-semibold",
+                        item.outstandingQty > 0 ? "text-amber-300" : "text-emerald-300",
+                      )}
+                    >
+                      {item.outstandingQty} {item.unit}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-rw-muted">Da ricevere ora</p>
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.001}
+                      max={item.outstandingQty}
+                      className={INPUT}
+                      value={inputValue}
+                      onChange={(e) =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          [item.id]: Math.max(0, Math.min(item.outstandingQty, Number(e.target.value) || 0)),
+                        }))
+                      }
+                      disabled={readonly || item.outstandingQty <= 0}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Chip
+                      label="Subtotale"
+                      value={`€${(inputValue * item.unitCost).toFixed(2)}`}
+                      tone={inputValue > 0 ? "success" : "default"}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap justify-end gap-3 pt-2">
+          {order.status === "bozza" ? (
+            <button type="button" className={BTN_OUTLINE} onClick={() => onStatus(order, "inviato")}>
+              Invia ordine
+            </button>
+          ) : null}
+          {!readonly ? (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400 transition hover:bg-red-500/20"
+              onClick={() => onStatus(order, "annullato")}
+            >
+              <Trash2 className="h-4 w-4" /> Annulla ordine
+            </button>
+          ) : null}
+          {!readonly ? (
+            <button
+              type="button"
+              className={BTN_PRIMARY}
+              onClick={handleReceive}
+              disabled={Object.values(draft).every((v) => (Number(v) || 0) <= 0)}
+            >
+              <CreditCard className="h-4 w-4" /> Registra ricezione
+            </button>
+          ) : (
+            <p className="text-sm text-rw-muted">Ordine chiuso, nessuna ricezione ulteriore.</p>
+          )}
         </div>
       </div>
     </Modal>

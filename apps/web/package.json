@@ -16,6 +16,7 @@
     "db:cleanup-celeste": "node scripts/cleanup-celeste-targets.mjs",
     "db:migrate:rate-limit": "node scripts/apply-rate-limit-migration.mjs",
     "db:migrate:pending": "node scripts/apply-pending-migrations.mjs",
+    "db:migrate:purchase-orders": "node scripts/apply-purchase-orders-migration.mjs",
     "db:create-superadmin": "node scripts/create-superadmin.mjs",
     "db:sanity": "node scripts/db-sanity-check.mjs",
     "db:check-tables": "node scripts/db-check-tables.mjs",

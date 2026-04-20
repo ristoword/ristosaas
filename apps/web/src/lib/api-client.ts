@@ -260,6 +260,62 @@ export const suppliersApi = {
   create: (data: Omit<Supplier, "id">) => post<Supplier>("/suppliers", data),
   update: (id: string, data: Partial<Supplier>) => put<Supplier>(`/suppliers/${id}`, data),
   delete: (id: string) => del<{ deleted: boolean }>(`/suppliers/${id}`),
+  orders: (id: string) => get<PurchaseOrder[]>(`/suppliers/${id}/orders`),
+  createOrder: (
+    id: string,
+    payload: {
+      notes?: string;
+      status?: "bozza" | "inviato";
+      expectedAt?: string | null;
+      items: Array<{
+        warehouseItemId: string;
+        qtyOrdered: number;
+        unit: string;
+        unitCost: number;
+        notes?: string;
+      }>;
+    },
+  ) => post<PurchaseOrder>(`/suppliers/${id}/orders`, payload),
+};
+
+export type PurchaseOrderStatus = "bozza" | "inviato" | "parziale" | "ricevuto" | "annullato";
+
+export type PurchaseOrderItem = {
+  id: string;
+  warehouseItemId: string;
+  warehouseItemName: string;
+  qtyOrdered: number;
+  qtyReceived: number;
+  unit: string;
+  unitCost: number;
+  notes: string;
+  lineTotal: number;
+  outstandingQty: number;
+};
+
+export type PurchaseOrder = {
+  id: string;
+  tenantId: string;
+  supplierId: string;
+  supplierName: string;
+  code: string;
+  status: PurchaseOrderStatus;
+  notes: string;
+  orderedAt: string;
+  expectedAt: string | null;
+  receivedAt: string | null;
+  total: number;
+  items: PurchaseOrderItem[];
+};
+
+export const purchaseOrdersApi = {
+  list: (status?: PurchaseOrderStatus) =>
+    get<PurchaseOrder[]>(status ? `/purchase-orders?status=${status}` : "/purchase-orders"),
+  get: (id: string) => get<PurchaseOrder>(`/purchase-orders/${id}`),
+  setStatus: (id: string, status: "bozza" | "inviato" | "annullato") =>
+    patch<PurchaseOrder>(`/purchase-orders/${id}`, { status }),
+  receive: (id: string, receipts: Array<{ itemId: string; qty: number }>) =>
+    post<PurchaseOrder>(`/purchase-orders/${id}/receive`, { receipts }),
 };
 
 /* ─── Catering ───────────────────────────────────── */
@@ -737,6 +793,7 @@ export const api = {
   customers: customersApi,
   bookings: bookingsApi,
   suppliers: suppliersApi,
+  purchaseOrders: purchaseOrdersApi,
   catering: cateringApi,
   asporto: asportoApi,
   archivio: archivioApi,
