@@ -184,7 +184,7 @@ export function HotelFrontDeskPage() {
                 <div>
                   <p className="font-semibold text-rw-ink">2. Controlla documento</p>
                   <p className="text-sm text-rw-soft">
-                    Registra il documento dell'ospite (es. carta d'identità, passaporto).
+                    Registra il documento dell&apos;ospite (es. carta d&apos;identità, passaporto).
                   </p>
                 </div>
               </div>
