@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   CalendarDays,
   Download,
   FileText,
+  Info,
   Loader2,
   Plus,
   Receipt,
@@ -15,8 +16,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { TabBar } from "@/components/shared/tab-bar";
 import { DataTable } from "@/components/shared/data-table";
-import { archivioApi, type ArchivedOrder } from "@/lib/api-client";
-import { Info } from "lucide-react";
+import { archivioApi, archivioFiscalStubsApi, type ArchivedOrder, type ArchivioFiscalStub } from "@/lib/api-client";
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
@@ -131,27 +131,143 @@ function ReportPanel({ orders, loading }: { orders: ArchivedOrder[]; loading: bo
   );
 }
 
-function FiscalPlaceholderPanel({
-  title,
-  description,
-}: {
-  title: string;
-  description: string;
-}) {
+function FiscalStubPanel({ kind, title }: { kind: "entrata" | "cassa"; title: string }) {
+  const [rows, setRows] = useState<ArchivioFiscalStub[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [reference, setReference] = useState("");
+  const [counterparty, setCounterparty] = useState("");
+  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [amount, setAmount] = useState("");
+  const [vatRateNote, setVatRateNote] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setLoadError(null);
+    archivioFiscalStubsApi
+      .list(kind)
+      .then(setRows)
+      .catch((e) => setLoadError(e instanceof Error ? e.message : "Errore caricamento"))
+      .finally(() => setLoading(false));
+  }, [kind]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const amt = parseFloat(amount);
+    if (!Number.isFinite(amt) || amt < 0) {
+      setSaveError("Importo non valido.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await archivioFiscalStubsApi.create({
+        kind,
+        reference,
+        counterparty,
+        issueDate,
+        amount: amt,
+        vatRateNote,
+        notes,
+      });
+      setReference("");
+      setCounterparty("");
+      setIssueDate(new Date().toISOString().slice(0, 10));
+      setAmount("");
+      setVatRateNote("");
+      setNotes("");
+      await load();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Salvataggio non riuscito.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
-    <Card title={title} headerRight={<FileText className="h-4 w-4 text-rw-accent" />}>
-      <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-amber-200">
-        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-        <div>
-          <p className="font-semibold text-amber-100">Modulo fiscale non incluso in questo piano</p>
-          <p className="mt-1 text-amber-200/90">{description}</p>
-          <p className="mt-2 text-xs text-amber-200/70">
-            Quando il modulo fiscale sarà attivo (RT cloud o provider simile), questa sezione gestirà
-            automaticamente registrazione, IVA, stampa e conservazione.
-          </p>
+    <div className="space-y-4">
+      <Card title={title} headerRight={<FileText className="h-4 w-4 text-rw-accent" />}>
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-amber-200">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <div>
+            <p className="font-semibold text-amber-100">Registro interno (non RT / SDI)</p>
+            <p className="mt-1 text-amber-200/90">
+              Schede salvate nel database del tenant per tracciabilità amministrativa. Non sostituiscono fatturazione
+              elettronica né registratori telematici.
+            </p>
+          </div>
         </div>
-      </div>
-    </Card>
+      </Card>
+
+      <Card title="Nuova scheda" description="Aggiungi una riga al registro">
+        <form onSubmit={(ev) => void handleAdd(ev)} className="grid gap-3 sm:grid-cols-2">
+          {saveError && (
+            <div className="sm:col-span-2 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {saveError}
+            </div>
+          )}
+          <div>
+            <label className={labelCls}>Riferimento documento</label>
+            <input className={inputCls} value={reference} onChange={(e) => setReference(e.target.value)} placeholder="es. FT 2026/12" />
+          </div>
+          <div>
+            <label className={labelCls}>{kind === "entrata" ? "Fornitore" : "Cliente / intestatario"}</label>
+            <input className={inputCls} value={counterparty} onChange={(e) => setCounterparty(e.target.value)} placeholder="Ragione sociale" />
+          </div>
+          <div>
+            <label className={labelCls}>Data</label>
+            <input type="date" className={inputCls} value={issueDate} onChange={(e) => setIssueDate(e.target.value)} />
+          </div>
+          <div>
+            <label className={labelCls}>Importo (€)</label>
+            <input type="number" min="0" step="0.01" className={inputCls} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Aliquota / nota IVA</label>
+            <input className={inputCls} value={vatRateNote} onChange={(e) => setVatRateNote(e.target.value)} placeholder="es. 22% — detraibile" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelCls}>Note</label>
+            <textarea className={cn(inputCls, "resize-y")} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+          <div className="sm:col-span-2">
+            <button type="submit" disabled={saving} className={btnPrimary}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Salva nel registro
+            </button>
+          </div>
+        </form>
+      </Card>
+
+      <Card title="Elenco" description={loadError ? loadError : `${rows.length} righe`}>
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-rw-accent" />
+          </div>
+        ) : (
+          <DataTable<ArchivioFiscalStub>
+            columns={[
+              { key: "issueDate", header: "Data", render: (r) => r.issueDate },
+              { key: "reference", header: "Rif." },
+              { key: "counterparty", header: kind === "entrata" ? "Fornitore" : "Cliente" },
+              { key: "amount", header: "Importo", className: "text-right", render: (r) => `€${r.amount.toFixed(2)}` },
+              { key: "vatRateNote", header: "IVA", render: (r) => (r.vatRateNote || "—") },
+              { key: "notes", header: "Note", render: (r) => (r.notes ? (r.notes.length > 48 ? `${r.notes.slice(0, 48)}…` : r.notes) : "—") },
+            ]}
+            data={rows}
+            keyExtractor={(r) => r.id}
+            emptyMessage="Nessuna scheda ancora registrata"
+          />
+        )}
+      </Card>
+    </div>
   );
 }
 
@@ -240,18 +356,8 @@ export function ArchivioPage() {
 
       <div>
         {activeTab === "report" && <ReportPanel orders={orders} loading={loading} />}
-        {activeTab === "fatture-entrata" && (
-          <FiscalPlaceholderPanel
-            title="Fatture in entrata"
-            description="Registrazione fatture fornitori non disponibile. L'archivio acquisti va fatto con il tuo gestionale fiscale attuale o con il modulo RT cloud quando attivato."
-          />
-        )}
-        {activeTab === "fatture-cassa" && (
-          <FiscalPlaceholderPanel
-            title="Fatture da cassa"
-            description="L'emissione di fatture o ricevute fiscali richiede il collegamento a un registratore telematico o a un provider RT cloud. Gli incassi restano comunque tracciati su Archivio comande."
-          />
-        )}
+        {activeTab === "fatture-entrata" && <FiscalStubPanel kind="entrata" title="Fatture in entrata" />}
+        {activeTab === "fatture-cassa" && <FiscalStubPanel kind="cassa" title="Fatture da cassa" />}
         {activeTab === "comande" && <ComandePanel orders={orders} loading={loading} />}
       </div>
     </div>

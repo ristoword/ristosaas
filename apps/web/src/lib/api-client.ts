@@ -394,6 +394,64 @@ export const archivioApi = {
   delete: (id: string) => del<{ deleted: boolean }>(`/archivio/${id}`),
 };
 
+export type SupervisorStornoDto = {
+  id: string;
+  tenantId: string;
+  amount: number;
+  motivo: string;
+  tavolo: string;
+  ordineId: string;
+  note: string;
+  createdAt: string;
+};
+
+export const supervisorStorniApi = {
+  list: () => get<SupervisorStornoDto[]>("/supervisor/storni"),
+  create: (payload: { amount: number; motivo: string; tavolo?: string; ordineId?: string; note?: string }) =>
+    post<SupervisorStornoDto>("/supervisor/storni", payload),
+};
+
+export type WarehouseVoiceLogDto = {
+  id: string;
+  tenantId: string;
+  transcript: string;
+  createdAt: string;
+};
+
+export const warehouseVoiceApi = {
+  list: (limit?: number) =>
+    get<WarehouseVoiceLogDto[]>(`/warehouse/voice-log${limit != null ? `?limit=${limit}` : ""}`),
+  append: (transcript: string) => post<WarehouseVoiceLogDto>("/warehouse/voice-log", { transcript }),
+};
+
+export type ArchivioFiscalStub = {
+  id: string;
+  tenantId: string;
+  kind: "entrata" | "cassa";
+  reference: string;
+  counterparty: string;
+  issueDate: string;
+  amount: number;
+  vatRateNote: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const archivioFiscalStubsApi = {
+  list: (kind: "entrata" | "cassa") =>
+    get<ArchivioFiscalStub[]>(`/archivio/fiscal-stubs?kind=${encodeURIComponent(kind)}`),
+  create: (payload: {
+    kind: "entrata" | "cassa";
+    reference?: string;
+    counterparty?: string;
+    issueDate?: string;
+    amount?: number;
+    vatRateNote?: string;
+    notes?: string;
+  }) => post<ArchivioFiscalStub>("/archivio/fiscal-stubs", payload),
+};
+
 /* ─── HACCP ───────────────────────────────────────── */
 
 export type HaccpEntryType =
@@ -1019,6 +1077,9 @@ export const api = {
   catering: cateringApi,
   asporto: asportoApi,
   archivio: archivioApi,
+  archivioFiscalStubs: archivioFiscalStubsApi,
+  supervisorStorni: supervisorStorniApi,
+  warehouseVoice: warehouseVoiceApi,
   haccp: haccpApi,
   sessions: sessionsApi,
   hardware: hardwareApi,

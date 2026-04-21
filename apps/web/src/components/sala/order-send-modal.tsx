@@ -35,6 +35,8 @@ export function OrderSendModal({ table, open, onClose }: Props) {
   const [menuError, setMenuError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -129,7 +131,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     );
   }
 
-  function handleSend() {
+  async function handleSend() {
     const allItems = courses.flatMap((c) =>
       c.items.map((it, idx) => ({
         id: `new-${c.n}-${idx}`,
@@ -144,19 +146,26 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     );
     if (allItems.length === 0) return;
 
-    createOrder({
-      table: table!.nome,
-      covers,
-      area: "sala",
-      waiter: waiter || "—",
-      notes,
-      items: allItems,
-    });
-
-    setCourses([{ n: 1, items: [] }]);
-    setActiveCourse(1);
-    setNotes("");
-    onClose();
+    setSending(true);
+    setSendError(null);
+    try {
+      await createOrder({
+        table: table!.nome,
+        covers,
+        area: "sala",
+        waiter: waiter || "—",
+        notes,
+        items: allItems,
+      });
+      setCourses([{ n: 1, items: [] }]);
+      setActiveCourse(1);
+      setNotes("");
+      onClose();
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : "Invio comanda non riuscito.");
+    } finally {
+      setSending(false);
+    }
   }
 
   const totalItems = courses.reduce(
@@ -356,14 +365,20 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-ink placeholder:text-rw-muted"
         />
 
+        {sendError && (
+          <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {sendError}
+          </div>
+        )}
+
         <button
           type="button"
-          onClick={handleSend}
-          disabled={totalItems === 0}
+          onClick={() => void handleSend()}
+          disabled={totalItems === 0 || sending}
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 py-4 text-base font-bold text-emerald-300 transition hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Send className="h-5 w-5" />
-          Invia comanda ({totalItems} piatti, {courses.length}{" "}
+          {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+          {sending ? "Invio in corso…" : "Invia comanda"} ({totalItems} piatti, {courses.length}{" "}
           {courses.length === 1 ? "corso" : "corsi"})
         </button>
       </div>

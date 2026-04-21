@@ -41,6 +41,7 @@ import {
   hotelApi,
   reportsApi,
   aiOpsApi,
+  supervisorStorniApi,
   type Order,
   type MenuItem as ApiMenuItem,
   type FolioCharge,
@@ -56,6 +57,7 @@ import {
   type WarehouseAlert,
   type AiProposal,
   type KitchenOperationalSnapshot,
+  type SupervisorStornoDto,
 } from "@/lib/api-client";
 
 /* ------------------------------------------------------------------ */
@@ -71,6 +73,18 @@ type Storno = {
   ordineId: string;
   note: string;
 };
+
+function mapDtoToStorno(row: SupervisorStornoDto): Storno {
+  return {
+    id: row.id,
+    dataOra: row.createdAt.replace("T", " ").slice(0, 16),
+    importo: row.amount,
+    motivo: row.motivo,
+    tavolo: row.tavolo,
+    ordineId: row.ordineId,
+    note: row.note,
+  };
+}
 
 const TABS = [
   { id: "report", label: "Report" },
@@ -154,6 +168,15 @@ export function SupervisorPage() {
   const [sTavolo, setSTavolo] = useState("");
   const [sOrdineId, setSOrdineId] = useState("");
   const [sNote, setSNote] = useState("");
+  const [stornoSaveError, setStornoSaveError] = useState<string | null>(null);
+  const [stornoSaving, setStornoSaving] = useState(false);
+
+  useEffect(() => {
+    supervisorStorniApi
+      .list()
+      .then((rows) => setStorni(rows.map(mapDtoToStorno)))
+      .catch((err) => console.error("Failed to load supervisor storni:", err));
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -270,22 +293,34 @@ export function SupervisorPage() {
   );
 
   /* ---- handlers ---- */
-  function handleAddStorno() {
+  async function handleAddStorno() {
     if (!sImporto || !sMotivo.trim()) return;
-    const id = `s${Date.now()}`;
-    setStorni((p) => [
-      ...p,
-      {
-        id,
-        dataOra: new Date().toISOString().replace("T", " ").slice(0, 16),
-        importo: parseFloat(sImporto),
+    const importo = parseFloat(sImporto);
+    if (!Number.isFinite(importo) || importo <= 0) {
+      setStornoSaveError("Importo non valido.");
+      return;
+    }
+    setStornoSaving(true);
+    setStornoSaveError(null);
+    try {
+      const row = await supervisorStorniApi.create({
+        amount: importo,
         motivo: sMotivo.trim(),
         tavolo: sTavolo,
         ordineId: sOrdineId,
         note: sNote,
-      },
-    ]);
-    setSImporto(""); setSMotivo(""); setSTavolo(""); setSOrdineId(""); setSNote("");
+      });
+      setStorni((p) => [mapDtoToStorno(row), ...p]);
+      setSImporto("");
+      setSMotivo("");
+      setSTavolo("");
+      setSOrdineId("");
+      setSNote("");
+    } catch (e) {
+      setStornoSaveError(e instanceof Error ? e.message : "Salvataggio non riuscito.");
+    } finally {
+      setStornoSaving(false);
+    }
   }
 
   /* ---- table columns ---- */
@@ -575,16 +610,22 @@ export function SupervisorPage() {
       {/* ============================================================ */}
       {tab === "storni" && (
         <div className="space-y-6">
-          <Card title="Nuovo storno" description="Registra un'operazione di storno.">
+          <Card title="Nuovo storno" description="Registra un'operazione di storno (salvata nel database del tenant).">
             <div className="grid gap-3 sm:grid-cols-2">
+              {stornoSaveError && (
+                <div className="sm:col-span-2 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                  {stornoSaveError}
+                </div>
+              )}
               <div><label className={labelCls}>Importo (€)</label><input type="number" step="0.01" className={inputCls} value={sImporto} onChange={(e) => setSImporto(e.target.value)} placeholder="0.00" /></div>
               <div><label className={labelCls}>Motivo</label><input className={inputCls} value={sMotivo} onChange={(e) => setSMotivo(e.target.value)} placeholder="Errore, insoddisfazione…" /></div>
               <div><label className={labelCls}>Tavolo</label><input className={inputCls} value={sTavolo} onChange={(e) => setSTavolo(e.target.value)} placeholder="T1" /></div>
               <div><label className={labelCls}>ID Ordine</label><input className={inputCls} value={sOrdineId} onChange={(e) => setSOrdineId(e.target.value)} placeholder="o1" /></div>
               <div className="sm:col-span-2"><label className={labelCls}>Note</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={sNote} onChange={(e) => setSNote(e.target.value)} placeholder="Dettagli…" /></div>
               <div className="sm:col-span-2">
-                <button type="button" className={btnPrimary} onClick={handleAddStorno}>
-                  <XCircle className="h-4 w-4" /> Registra storno
+                <button type="button" className={btnPrimary} disabled={stornoSaving} onClick={() => void handleAddStorno()}>
+                  {stornoSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                  Registra storno
                 </button>
               </div>
             </div>

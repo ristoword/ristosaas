@@ -15,6 +15,7 @@ import type { StockItem } from "@/components/warehouse/warehouse-context";
 import {
   suppliersApi,
   warehouseApi,
+  warehouseVoiceApi,
   type Supplier,
   type WarehouseEquipment as Equipment,
 } from "@/lib/api-client";
@@ -40,6 +41,14 @@ const statusColors: Record<Equipment["status"], string> = {
   "fuori uso": "border-red-500/30 bg-red-500/10 text-red-400",
 };
 
+async function persistWarehouseVoice(transcript: string) {
+  try {
+    await warehouseVoiceApi.append(transcript);
+  } catch (e) {
+    window.alert(e instanceof Error ? e.message : "Impossibile salvare il comando vocale.");
+  }
+}
+
 export function MagazzinoPage() {
   const [tab, setTab] = useState("centrale");
   const [aiOpen, setAiOpen] = useState(false);
@@ -54,7 +63,7 @@ export function MagazzinoPage() {
         <Chip label="Prodotti" value={stock.length} tone="info" />
         <Chip label="Sotto scorta" value={lowItems.length} tone={lowItems.length > 0 ? "danger" : "default"} />
         <Chip label="Valore totale" value={`€ ${stockVal.toFixed(2)}`} tone="accent" />
-        <VoiceButton onResult={(text) => alert(`Comando vocale: ${text}`)} />
+        <VoiceButton onResult={(text) => void persistWarehouseVoice(text)} />
         <AiToggleButton onClick={() => setAiOpen(true)} label="AI Magazzino" />
       </PageHeader>
 
@@ -93,7 +102,19 @@ function CentraleTab() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.8fr)]">
-      <Card title="Nuovo prodotto" description="Manuale o con comando vocale" headerRight={<VoiceButton onResult={handleVoice} compact />}>
+      <Card
+        title="Nuovo prodotto"
+        description="Manuale o con comando vocale"
+        headerRight={
+          <VoiceButton
+            compact
+            onResult={(text) => {
+              handleVoice(text);
+              void persistWarehouseVoice(text);
+            }}
+          />
+        }
+      >
         <div className="space-y-3">
           <div><label className={LABEL}>Nome prodotto</label><input className={INPUT} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="es. Farina Manitoba" /></div>
           <div className="grid gap-3 sm:grid-cols-2">

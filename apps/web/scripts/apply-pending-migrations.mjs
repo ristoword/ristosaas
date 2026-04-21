@@ -29,6 +29,7 @@ const TARGETS = [
   "prisma/migrations_add_haccp.sql",
   "prisma/migrations_add_user_sessions.sql",
   "prisma/migrations_add_hardware.sql",
+  "prisma/migrations_add_supervisor_storni_voice_fiscal_stubs.sql",
 ];
 
 const prisma = new PrismaClient({ log: ["error"] });

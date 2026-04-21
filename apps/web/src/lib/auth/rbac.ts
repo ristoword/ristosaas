@@ -79,6 +79,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/purchase-orders", roles: ["magazzino", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/catering", roles: ["sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/asporto", roles: ["sala", "cassa", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/supervisor", roles: ["supervisor", "owner", "super_admin"] },
   { prefix: "/api/archivio", roles: ["supervisor", "owner", "super_admin", "cassa"] },
   { prefix: "/api/haccp", roles: ["cucina", "pizzeria", "bar", "magazzino", "supervisor", "owner", "super_admin"] },
   // Tutti gli utenti autenticati possono gestire le proprie sessioni.

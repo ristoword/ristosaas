@@ -26,7 +26,11 @@ const tabs = [
   { id: "log", label: "Invii recenti" },
 ];
 
-/** Built-in transactional templates (preview only until a template engine ships). */
+/**
+ * Esempi di testo per anteprima in UI. L'invio di prova e la configurazione SMTP
+ * usano le API reali (`TenantEmailConfig`); questi contenuti non sono ancora
+ * modellati come template editabili lato database.
+ */
 const BUILTIN_EMAIL_TEMPLATES = [
   {
     id: "tpl1",

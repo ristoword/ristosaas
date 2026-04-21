@@ -232,6 +232,9 @@ model Tenant {
   haccpEntries HaccpEntry[]
   hardwareDevices HardwareDevice[]
   printRoutes PrintRoute[]
+  supervisorStorni SupervisorStorno[]
+  warehouseVoiceLogs WarehouseVoiceLog[]
+  archivioFiscalStubs ArchivioFiscalStub[]
 }
 
 model BillingSubscription {
@@ -1099,4 +1102,48 @@ model PrintRoute {
   @@unique([tenantId, event, department])
   @@index([tenantId, department])
   @@index([tenantId, deviceId])
+}
+
+/// Registro storni / aggiustamenti incasso lato supervisor (non sostituisce documentazione fiscale).
+model SupervisorStorno {
+  id        String   @id @default(cuid())
+  tenantId  String
+  amount    Decimal  @db.Decimal(12, 2)
+  motivo    String
+  tavolo    String   @default("")
+  ordineId  String   @default("")
+  note      String   @default("")
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+/// Traccia comandi vocali magazzino (testo grezzo) per audit interno.
+model WarehouseVoiceLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  transcript  String
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+}
+
+/// Schede fiscali interne (entrata/cassa) finché non c’è integrazione RT — registro amministrativo per tenant.
+model ArchivioFiscalStub {
+  id           String   @id @default(cuid())
+  tenantId     String
+  kind         String
+  reference    String   @default("")
+  counterparty String   @default("")
+  issueDate    DateTime @default(now())
+  amount       Decimal  @db.Decimal(12, 2) @default(0)
+  vatRateNote  String   @default("")
+  notes        String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, kind, createdAt])
 }
