@@ -58,6 +58,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/catering", roles: ["owner", "super_admin", "supervisor"] },
   { prefix: "/api/asporto", roles: ["sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/archivio", roles: ["supervisor", "owner", "super_admin", "cassa"] },
+  { prefix: "/api/haccp", roles: ["cucina", "pizzeria", "bar", "magazzino", "supervisor", "owner", "super_admin"] },
 ] as const;
 
 export function canAccessWithRole(role: string, required: readonly UserRole[]) {

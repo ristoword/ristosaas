@@ -229,6 +229,7 @@ model Tenant {
   billingEvents BillingEvent[]
   purchaseOrders PurchaseOrder[]
   purchaseOrderItems PurchaseOrderItem[]
+  haccpEntries HaccpEntry[]
 }
 
 model BillingSubscription {
@@ -965,4 +966,31 @@ model PurchaseOrderItem {
 
   @@index([tenantId, purchaseOrderId])
   @@index([tenantId, warehouseItemId])
+}
+
+enum HaccpEntryType {
+  temp_frigo
+  temp_freezer
+  temp_cottura
+  temp_abbattitore
+  sanificazione
+  ricezione_merce
+  altro
+}
+
+model HaccpEntry {
+  id         String          @id @default(cuid())
+  tenantId   String
+  type       HaccpEntryType  @default(temp_frigo)
+  recordedAt DateTime        @default(now())
+  location   String          @default("")
+  tempC      Decimal?        @db.Decimal(5, 2)
+  operator   String          @default("")
+  notes      String          @default("")
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, recordedAt])
+  @@index([tenantId, type, recordedAt])
 }

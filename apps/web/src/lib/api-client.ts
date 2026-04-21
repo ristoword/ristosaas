@@ -374,6 +374,59 @@ export const archivioApi = {
   delete: (id: string) => del<{ deleted: boolean }>(`/archivio/${id}`),
 };
 
+/* ─── HACCP ───────────────────────────────────────── */
+
+export type HaccpEntryType =
+  | "temp_frigo"
+  | "temp_freezer"
+  | "temp_cottura"
+  | "temp_abbattitore"
+  | "sanificazione"
+  | "ricezione_merce"
+  | "altro";
+
+export type HaccpEntry = {
+  id: string;
+  tenantId: string;
+  type: HaccpEntryType;
+  recordedAt: string;
+  location: string;
+  tempC: number | null;
+  operator: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const haccpApi = {
+  list: (params?: { type?: HaccpEntryType; from?: string; to?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.type) qs.set("type", params.type);
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return get<HaccpEntry[]>(`/haccp${q ? `?${q}` : ""}`);
+  },
+  create: (data: {
+    type?: HaccpEntryType;
+    recordedAt?: string;
+    location?: string;
+    tempC?: number | null;
+    operator?: string;
+    notes?: string;
+  }) => post<HaccpEntry>("/haccp", data),
+  update: (id: string, data: Partial<{
+    type: HaccpEntryType;
+    recordedAt: string;
+    location: string;
+    tempC: number | null;
+    operator: string;
+    notes: string;
+  }>) => put<HaccpEntry>(`/haccp/${id}`, data),
+  delete: (id: string) => del<{ deleted: boolean }>(`/haccp/${id}`),
+};
+
 /* ─── AI chat ─────────────────────────────────────── */
 
 export type AiChatLog = {
@@ -827,6 +880,7 @@ export const api = {
   catering: cateringApi,
   asporto: asportoApi,
   archivio: archivioApi,
+  haccp: haccpApi,
   hotel: hotelApi,
   integration: integrationApi,
   reports: reportsApi,

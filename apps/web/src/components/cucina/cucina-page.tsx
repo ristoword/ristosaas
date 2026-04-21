@@ -15,13 +15,12 @@ import { DataTable } from "@/components/shared/data-table";
 import { cn } from "@/lib/utils";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
-import { aiOpsApi, type KitchenOperationalSnapshot } from "@/lib/api-client";
+import { aiOpsApi, haccpApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry } from "@/lib/api-client";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type HaccpEntry = { id: string; date: string; temp: string; operator: string; notes: string };
 type Shift = { id: string; day: string; name: string; hours: string; role: string };
 
 /* ------------------------------------------------------------------ */
@@ -676,51 +675,149 @@ function PiattiGiornoTab() {
   );
 }
 
+const HACCP_TYPE_LABELS: Record<string, string> = {
+  temp_frigo: "Temperatura frigo",
+  temp_freezer: "Temperatura freezer",
+  temp_cottura: "Temperatura cottura",
+  temp_abbattitore: "Temperatura abbattitore",
+  sanificazione: "Sanificazione",
+  ricezione_merce: "Ricezione merce",
+  altro: "Altro",
+};
+
 function HaccpTab() {
-  const [entries, setEntries] = useState<HaccpEntry[]>([]);
-  const [date, setDate] = useState("");
+  const [entries, setEntries] = useState<ApiHaccpEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const [type, setType] = useState<ApiHaccpEntry["type"]>("temp_frigo");
+  const [recordedAt, setRecordedAt] = useState(() => new Date().toISOString().slice(0, 16));
+  const [location, setLocation] = useState("");
   const [temp, setTemp] = useState("");
   const [operator, setOperator] = useState("");
   const [notes, setNotes] = useState("");
 
-  function save() {
-    if (!date || !temp) return;
-    setEntries((prev) => [...prev, { id: `hc-${Date.now()}`, date, temp, operator, notes }]);
-    setDate("");
-    setTemp("");
-    setOperator("");
-    setNotes("");
+  useEffect(() => {
+    haccpApi
+      .list({ limit: 100 })
+      .then((rows) => {
+        setEntries(rows);
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Errore caricamento HACCP");
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function save() {
+    if (!recordedAt) return;
+    const parsedTemp = temp.trim() ? Number.parseFloat(temp.replace(",", ".")) : null;
+    if (temp.trim() && (parsedTemp === null || Number.isNaN(parsedTemp))) {
+      setError("Temperatura non valida");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await haccpApi.create({
+        type,
+        recordedAt: new Date(recordedAt).toISOString(),
+        location: location.trim(),
+        tempC: parsedTemp,
+        operator: operator.trim(),
+        notes: notes.trim(),
+      });
+      setEntries((prev) => [created, ...prev]);
+      setLocation("");
+      setTemp("");
+      setOperator("");
+      setNotes("");
+      setRecordedAt(new Date().toISOString().slice(0, 16));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Errore salvataggio HACCP");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function removeEntry(id: string) {
+    try {
+      await haccpApi.delete(id);
+      setEntries((prev) => prev.filter((e) => e.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Errore eliminazione HACCP");
+    }
   }
 
   return (
     <div className="space-y-6">
-      <Card title="Registrazione HACCP">
+      <Card title="Registrazione HACCP" description="Log persistente delle rilevazioni HACCP (temperature, sanificazioni, ricezioni merce).">
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <div className="flex items-center gap-2">
-              <ThermometerSun className="h-4 w-4 text-rw-muted" />
-              <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="Temperatura °C" className="flex-1 rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            </div>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-rw-muted">Tipo rilevazione</span>
+              <select value={type} onChange={(e) => setType(e.target.value as ApiHaccpEntry["type"])} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent">
+                {(Object.keys(HACCP_TYPE_LABELS) as Array<keyof typeof HACCP_TYPE_LABELS>).map((t) => (
+                  <option key={t} value={t}>{HACCP_TYPE_LABELS[t]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-rw-muted">Data e ora</span>
+              <input type="datetime-local" value={recordedAt} onChange={(e) => setRecordedAt(e.target.value)} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            </label>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-rw-muted">Postazione / punto di controllo</span>
+              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="es. Frigo cucina 1" className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-rw-muted">Temperatura °C (opzionale)</span>
+              <div className="flex items-center gap-2">
+                <ThermometerSun className="h-4 w-4 text-rw-muted" />
+                <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="es. 4.2" className="flex-1 rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+              </div>
+            </label>
           </div>
           <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder="Operatore" className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note…" rows={3} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-          <button type="button" onClick={save} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85">Registra</button>
+          {error ? <p className="text-xs text-red-400">{error}</p> : null}
+          <button type="button" onClick={save} disabled={saving} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
+            {saving ? "Salvataggio…" : "Registra"}
+          </button>
         </div>
       </Card>
 
-      {entries.length > 0 && (
-        <DataTable
-          columns={[
-            { key: "date", header: "Data" },
-            { key: "temp", header: "Temp °C" },
-            { key: "operator", header: "Operatore" },
-            { key: "notes", header: "Note" },
-          ]}
-          data={entries}
-          keyExtractor={(e) => e.id}
-        />
-      )}
+      <Card title="Storico rilevazioni" description={loading ? "Caricamento…" : `${entries.length} rilevazioni (ultime 100)`}>
+        {!loading && entries.length === 0 ? (
+          <p className="py-4 text-center text-sm text-rw-muted">Nessuna rilevazione HACCP registrata.</p>
+        ) : (
+          <DataTable
+            columns={[
+              { key: "recordedAt", header: "Data/ora", render: (r: ApiHaccpEntry) => <span className="text-rw-ink">{new Date(r.recordedAt).toLocaleString("it-IT")}</span> },
+              { key: "type", header: "Tipo", render: (r: ApiHaccpEntry) => <span className="text-rw-soft">{HACCP_TYPE_LABELS[r.type] ?? r.type}</span> },
+              { key: "location", header: "Postazione" },
+              { key: "tempC", header: "Temp °C", render: (r: ApiHaccpEntry) => (r.tempC != null ? `${r.tempC.toFixed(1)}°` : "—") },
+              { key: "operator", header: "Operatore" },
+              { key: "notes", header: "Note", render: (r: ApiHaccpEntry) => <span className="text-rw-muted">{r.notes || "—"}</span> },
+              {
+                key: "actions",
+                header: "",
+                render: (r: ApiHaccpEntry) => (
+                  <button type="button" onClick={() => removeEntry(r.id)} className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/20">
+                    Elimina
+                  </button>
+                ),
+              },
+            ]}
+            data={entries}
+            keyExtractor={(r) => r.id}
+          />
+        )}
+      </Card>
     </div>
   );
 }
