@@ -3,6 +3,8 @@
 import { Bell, Menu, Search } from "lucide-react";
 import { useI18n } from "@/core/i18n/provider";
 import { useI10n } from "@/core/i10n/formatters";
+import type { Locale } from "@/core/i18n/types";
+import { SUPPORTED_LOCALES } from "@/core/i18n/types";
 
 type TopBarProps = {
   onOpenSidebar: () => void;
@@ -57,11 +59,14 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
           <span>{t("locale.label")}</span>
           <select
             value={locale}
-            onChange={(e) => setLocale(e.target.value as "it" | "en")}
+            onChange={(e) => setLocale(e.target.value as Locale)}
             className="h-10 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 text-sm text-rw-ink"
           >
-            <option value="it">{t("locale.it")}</option>
-            <option value="en">{t("locale.en")}</option>
+            {SUPPORTED_LOCALES.map((loc) => (
+              <option key={loc} value={loc}>
+                {t(`locale.${loc}`)}
+              </option>
+            ))}
           </select>
         </label>
 

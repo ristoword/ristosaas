@@ -26,7 +26,8 @@ const it: TranslationDictionary = {
   "dashboard.active": "Attivo",
   "locale.label": "Lingua",
   "locale.it": "Italiano",
-  "locale.en": "English",
+  "locale.en": "Inglese",
+  "locale.nl": "Olandese",
 };
 
 const en: TranslationDictionary = {
@@ -56,6 +57,7 @@ const en: TranslationDictionary = {
   "locale.label": "Language",
   "locale.it": "Italian",
   "locale.en": "English",
+  "locale.nl": "Dutch",
 };
 
 const nl: TranslationDictionary = {
