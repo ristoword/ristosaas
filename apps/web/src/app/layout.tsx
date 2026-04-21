@@ -16,12 +16,13 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://ristosaas.com"),
   title: {
-    default: "RistoWord — Pannello",
-    template: "%s · RistoWord",
+    default: "RistoSaaS — Restaurant & Hotel Management",
+    template: "%s · RistoSaaS",
   },
   description:
-    "Il gestionale cloud pensato per chi lavora in sala: pochi tocchi, tutto chiaro.",
+    "Software gestionale per ristorante e hotel: ordini, cucina, camere e magazzino in un unico sistema.",
 };
 
 export const viewport: Viewport = {

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
+import { HOMEPAGE_COPY } from "@/core/i18n/seo-content";
+import type { Locale } from "@/core/i18n/types";
 import { PhoneMockup, TabletMockup } from "./mockups";
 import { DashboardShowcase } from "./DashboardShowcase";
 
@@ -12,7 +14,11 @@ import { DashboardShowcase } from "./DashboardShowcase";
 const HERO_DASHBOARD_IMAGE =
   process.env.NEXT_PUBLIC_LANDING_DASHBOARD_IMAGE?.trim() || undefined;
 
-export function HeroShowcase() {
+export function HeroShowcase({ locale = "it" }: { locale?: Locale } = {}) {
+  const copy = HOMEPAGE_COPY[locale];
+  const demoHref = `mailto:hello@gestionesemplificata.com?subject=${encodeURIComponent(
+    copy.demoMailSubject,
+  )}&body=${encodeURIComponent(copy.demoMailBody)}`;
   return (
     <section className="relative overflow-hidden pb-16 pt-28 md:pb-28 md:pt-36">
       {/* Ambient glows */}
@@ -33,13 +39,13 @@ export function HeroShowcase() {
         <div className="flex flex-col items-center text-center">
           <span className="animate-landing-fade-up inline-flex items-center gap-2 rounded-full border border-landing-line bg-white/5 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-landing-soft backdrop-blur">
             <Sparkles className="h-3.5 w-3.5 text-landing-magentaSoft" aria-hidden />
-            Una soluzione firmata gestionesemplificata.com
+            {copy.heroBadge}
           </span>
 
           <h1 className="animate-landing-fade-up mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-landing-ink sm:text-5xl md:text-6xl lg:text-7xl">
             <span className="bg-gradient-to-br from-white via-landing-ink to-landing-soft bg-clip-text text-transparent">
-              Gestionale ristorante e hotel
-              <br className="hidden sm:block" /> in un unico sistema
+              {copy.heroH1Part1}
+              <br className="hidden sm:block" /> {copy.heroH1Part2}
             </span>
           </h1>
 
@@ -47,9 +53,7 @@ export function HeroShowcase() {
             className="animate-landing-fade-up mt-5 max-w-2xl text-base text-landing-soft sm:text-lg md:text-xl"
             style={{ animationDelay: "60ms" }}
           >
-            Gestisci ristorante, hotel e magazzino senza passare tra software diversi.
-            <br className="hidden sm:block" />
-            Ordini, cucina, camere e fornitori collegati in tempo reale.
+            {copy.heroSub}
           </p>
 
           <div
@@ -57,17 +61,17 @@ export function HeroShowcase() {
             style={{ animationDelay: "120ms" }}
           >
             <a
-              href="mailto:hello@gestionesemplificata.com?subject=RistoSaaS%20%E2%80%93%20Richiesta%20demo&body=Vorrei%20una%20demo%20di%20RistoSaaS%20per%20la%20mia%20struttura."
+              href={demoHref}
               className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-landing-violet via-landing-magenta to-landing-pink px-7 py-3.5 text-sm font-semibold text-white shadow-landing-card transition-transform duration-rw hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-landing-magenta"
             >
-              Richiedi demo
+              {copy.ctaDemo}
               <ArrowRight className="h-4 w-4 transition-transform duration-rw group-hover:translate-x-0.5" aria-hidden />
             </a>
             <Link
               href={ROUTES.login}
               className="inline-flex items-center gap-2 rounded-full border border-landing-line bg-white/5 px-7 py-3.5 text-sm font-semibold text-landing-ink transition-all duration-rw hover:border-landing-magenta/60 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-landing-magenta"
             >
-              Prova accesso
+              {copy.ctaAccess}
             </Link>
           </div>
 

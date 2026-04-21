@@ -6,6 +6,7 @@ import { useI18n } from "@/core/i18n/provider";
 const localeMap = {
   it: "it-IT",
   en: "en-US",
+  nl: "nl-NL",
 } as const;
 
 export function useI10n() {

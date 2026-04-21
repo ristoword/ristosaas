@@ -1,7 +1,16 @@
 import Link from "next/link";
-import { ROUTES } from "@/lib/routes";
+import { HOMEPAGE_COPY } from "@/core/i18n/seo-content";
+import type { Locale } from "@/core/i18n/types";
+import {
+  blogIndexPath,
+  homePath,
+  pillarPath,
+  restaurantPath,
+} from "@/core/i18n/locale-urls";
 
-export function LandingFooter() {
+export function LandingFooter({ locale = "it" }: { locale?: Locale } = {}) {
+  const copy = HOMEPAGE_COPY[locale];
+  const base = locale === "it" ? "" : `/${locale}`;
   return (
     <footer className="border-t border-landing-line bg-landing-bg py-10">
       <div className="mx-auto flex w-full max-w-7xl flex-col items-start justify-between gap-6 px-5 md:flex-row md:items-center md:px-8">
@@ -26,24 +35,31 @@ export function LandingFooter() {
         </div>
 
         <nav className="flex flex-wrap items-center gap-5 text-xs text-landing-soft">
-          <a href="/#funzioni" className="hover:text-landing-ink">Funzioni</a>
-          <Link href="/gestionale-ristorante-hotel-integrato" className="hover:text-landing-ink">
-            Sistema integrato
+          <a href={`${homePath(locale)}#funzioni`} className="hover:text-landing-ink">
+            {copy.footerFunctions}
+          </a>
+          <Link href={pillarPath(locale)} className="hover:text-landing-ink">
+            {copy.footerIntegrated}
           </Link>
-          <Link href="/gestionale-ristorante" className="hover:text-landing-ink">
-            Gestionale ristorante
+          <Link href={restaurantPath(locale)} className="hover:text-landing-ink">
+            {copy.footerRestaurant}
           </Link>
-          <Link href="/blog" className="hover:text-landing-ink">
-            Blog
+          <Link href={blogIndexPath(locale)} className="hover:text-landing-ink">
+            {copy.footerBlog}
           </Link>
-          <a href="/#demo" className="hover:text-landing-ink">Demo</a>
-          <Link href={ROUTES.login} className="font-semibold text-landing-ink hover:text-landing-magentaSoft">
-            Login
+          <a href={`${base}/#demo`} className="hover:text-landing-ink">
+            {copy.footerDemo}
+          </a>
+          <Link
+            href="/login"
+            className="font-semibold text-landing-ink hover:text-landing-magentaSoft"
+          >
+            {copy.navLogin}
           </Link>
         </nav>
 
         <p className="text-xs text-landing-muted">
-          © {new Date().getFullYear()} RistoSaaS · Tutti i diritti riservati.
+          © {new Date().getFullYear()} RistoSaaS · {copy.footerRights}
         </p>
       </div>
     </footer>

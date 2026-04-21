@@ -58,7 +58,38 @@ const en: TranslationDictionary = {
   "locale.en": "English",
 };
 
+const nl: TranslationDictionary = {
+  "app.brand": "RistoWord",
+  "app.tagline": "Eén tik, één actie. Geen stress.",
+  "topbar.greeting": "Goedemorgen, team",
+  "topbar.search": "Zoek overal: tafel, klant, gerecht…",
+  "topbar.search.label": "Zoeken in RistoWord",
+  "topbar.menu.toggle": "Menu openen of sluiten",
+  "topbar.notifications": "Meldingen (binnenkort)",
+  "sidebar.styleNote": "RistoWord-stijl: grote knoppen, eenvoudige woorden, geen rare flows.",
+  "dashboard.hero.badge": "SaaS dat speels aanvoelt, werkt als een pro",
+  "dashboard.hero.title.prefix": "Eén dashboard voor",
+  "dashboard.hero.title.accent": "restaurant, hotel of beide",
+  "dashboard.hero.body": "Elke klant kiest het pakket dat nodig is: alleen restaurant, alleen hotel of all included. De kern blijft gedeeld en het platform activeert alleen de ingeschakelde verticalen.",
+  "dashboard.plan": "Actief plan",
+  "dashboard.integration.ready": "Restaurant-naar-kamer facturatie klaar in de integratielaag.",
+  "dashboard.quick.title": "Wat wil je nu doen?",
+  "dashboard.quick.subtitle": "Drie grote acties: geen verborgen menu's, geen verwarrende termen.",
+  "dashboard.modules.title": "Jouw tools",
+  "dashboard.modules.subtitle": "Elke kaart is een module: als die klaar is, activeren we hem vanuit dezelfde home. Eén plek, één RistoWord-stijl.",
+  "dashboard.integration.title": "Hotel + Restaurant Integratie",
+  "dashboard.integration.subtitle": "Hier schittert het volledige pakket: één gast, één rekening en gedeelde kamerkosten.",
+  "dashboard.workflow": "Workflow",
+  "dashboard.comingSoon": "Binnenkort",
+  "dashboard.active": "Actief",
+  "locale.label": "Taal",
+  "locale.it": "Italiaans",
+  "locale.en": "Engels",
+  "locale.nl": "Nederlands",
+};
+
 export const dictionaries: Record<Locale, TranslationDictionary> = {
   it,
   en,
+  nl,
 };

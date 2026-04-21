@@ -4,36 +4,36 @@ import { getBlogPost, getBlogSlugs } from "@/core/i18n/seo-content";
 import { blogPostLanguages, blogPostPath } from "@/core/i18n/locale-urls";
 
 export function generateStaticParams() {
-  return getBlogSlugs("it").map((slug) => ({ slug }));
+  return getBlogSlugs("en").map((slug) => ({ slug }));
 }
 
 type Ctx = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Ctx): Promise<Metadata> {
   const { slug } = await params;
-  const post = getBlogPost("it", slug);
+  const post = getBlogPost("en", slug);
   if (!post) {
-    return { title: "Articolo non trovato | RistoSaaS" };
+    return { title: "Article not found | RistoSaaS" };
   }
   return {
     title: `${post.title} | RistoSaaS`,
     description: post.description,
     alternates: {
-      canonical: blogPostPath("it", post.slug),
-      languages: blogPostLanguages("it", post.slug),
+      canonical: blogPostPath("en", post.slug),
+      languages: blogPostLanguages("en", post.slug),
     },
     openGraph: {
       title: post.title,
       description: post.description,
       type: "article",
-      locale: "it_IT",
+      locale: "en_US",
       publishedTime: post.publishedAt,
       modifiedTime: post.publishedAt,
     },
   };
 }
 
-export default async function BlogPostPageIt({ params }: Ctx) {
+export default async function BlogPostPageEn({ params }: Ctx) {
   const { slug } = await params;
-  return <LocaleBlogPost locale="it" slug={slug} />;
+  return <LocaleBlogPost locale="en" slug={slug} />;
 }

@@ -10,54 +10,49 @@ import { ContactSection } from "@/components/landing/ContactSection";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { SoftwareApplicationJsonLd } from "@/components/landing/SoftwareApplicationJsonLd";
+import { HOMEPAGE_COPY } from "@/core/i18n/seo-content";
+import { homepageLanguages } from "@/core/i18n/locale-urls";
+
+const copy = HOMEPAGE_COPY.it;
 
 export const metadata: Metadata = {
-  title: "Gestionale Ristorante e Hotel Integrato | Ordini, Cucina, Magazzino, Camere",
-  description:
-    "Software completo per ristorante e hotel: gestisci tavoli, cucina (KDS), magazzino, fornitori e camere in un unico sistema cloud.",
-  keywords: [
-    "gestionale ristorante",
-    "gestionale hotel",
-    "software ristorante hotel integrato",
-    "KDS cucina",
-    "gestione magazzino ristorante",
-    "software horeca",
-    "addebito camera hotel ristorante",
-    "prenotazioni hotel",
-  ],
+  title: copy.title,
+  description: copy.description,
+  keywords: copy.keywords,
   openGraph: {
-    title: "Gestionale Ristorante e Hotel Integrato | Ordini, Cucina, Magazzino, Camere",
-    description:
-      "Software completo per ristorante e hotel: gestisci tavoli, cucina (KDS), magazzino, fornitori e camere in un unico sistema cloud.",
+    title: copy.title,
+    description: copy.description,
     type: "website",
     locale: "it_IT",
     siteName: "RistoSaaS",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gestionale Ristorante e Hotel Integrato | RistoSaaS",
-    description:
-      "Ordini, cucina, magazzino, camere e fornitori in un unico sistema. Addebito ristorante su camera, scarico magazzino automatico.",
+    title: copy.title,
+    description: copy.description,
   },
-  alternates: { canonical: "/" },
+  alternates: {
+    canonical: "/",
+    languages: homepageLanguages(),
+  },
 };
 
 export default function Home() {
   return (
     <div className="relative min-h-dvh overflow-x-clip bg-landing-bg text-landing-ink">
-      <SoftwareApplicationJsonLd />
-      <LandingNavbar />
+      <SoftwareApplicationJsonLd locale="it" />
+      <LandingNavbar locale="it" />
       <main>
-        <HeroShowcase />
-        <IntegrationFlowSection />
-        <FeatureCards />
+        <HeroShowcase locale="it" />
+        <IntegrationFlowSection locale="it" />
+        <FeatureCards locale="it" />
         <DashboardPreview />
-        <BenefitsSection />
-        <BrandTrustSection />
-        <ContactSection />
-        <FinalCta />
+        <BenefitsSection locale="it" />
+        <BrandTrustSection locale="it" />
+        <ContactSection locale="it" />
+        <FinalCta locale="it" />
       </main>
-      <LandingFooter />
+      <LandingFooter locale="it" />
     </div>
   );
 }

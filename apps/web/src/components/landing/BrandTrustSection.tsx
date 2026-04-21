@@ -1,4 +1,8 @@
-export function BrandTrustSection() {
+import { HOMEPAGE_COPY } from "@/core/i18n/seo-content";
+import type { Locale } from "@/core/i18n/types";
+
+export function BrandTrustSection({ locale = "it" }: { locale?: Locale } = {}) {
+  const copy = HOMEPAGE_COPY[locale];
   return (
     <section id="brand" className="relative py-20 md:py-28">
       <div className="mx-auto w-full max-w-5xl px-5 md:px-8">
@@ -9,23 +13,20 @@ export function BrandTrustSection() {
           />
           <div className="relative">
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-landing-magentaSoft">
-              Trust
+              {copy.brandEyebrow}
             </p>
             <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-landing-ink sm:text-4xl">
-              Una soluzione firmata{" "}
+              {copy.brandH2Part1}{" "}
               <a
                 href="https://gestionesemplificata.com"
                 target="_blank"
                 rel="noreferrer"
                 className="bg-gradient-to-r from-landing-violetSoft via-landing-magentaSoft to-landing-pink bg-clip-text text-transparent underline decoration-landing-magenta/30 decoration-2 underline-offset-8 transition-opacity hover:opacity-90"
               >
-                gestionesemplificata.com
+                {copy.brandH2Part2}
               </a>
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-landing-soft">
-              Dietro RistoSaaS c&apos;è un team che progetta software gestionale da anni.
-              Stessa filosofia, stessa cura — applicata al mondo dell&apos;hospitality.
-            </p>
+            <p className="mx-auto mt-4 max-w-2xl text-landing-soft">{copy.brandBody}</p>
           </div>
         </div>
       </div>

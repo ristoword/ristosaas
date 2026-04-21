@@ -3,23 +3,23 @@ import { LocaleBlogIndex } from "@/components/landing/LocaleBlogIndex";
 import { BLOG_INDEX_COPY } from "@/core/i18n/seo-content";
 import { blogIndexLanguages, blogIndexPath } from "@/core/i18n/locale-urls";
 
-const copy = BLOG_INDEX_COPY.it;
+const copy = BLOG_INDEX_COPY.en;
 
 export const metadata: Metadata = {
   title: copy.title,
   description: copy.description,
   alternates: {
-    canonical: blogIndexPath("it"),
+    canonical: blogIndexPath("en"),
     languages: blogIndexLanguages(),
   },
   openGraph: {
     title: copy.title,
     description: copy.description,
     type: "website",
-    locale: "it_IT",
+    locale: "en_US",
   },
 };
 
-export default function BlogIndexPageIt() {
-  return <LocaleBlogIndex locale="it" />;
+export default function BlogIndexPageEn() {
+  return <LocaleBlogIndex locale="en" />;
 }

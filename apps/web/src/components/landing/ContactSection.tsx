@@ -1,25 +1,26 @@
 import { ArrowUpRight, Mail } from "lucide-react";
+import { HOMEPAGE_COPY } from "@/core/i18n/seo-content";
+import type { Locale } from "@/core/i18n/types";
 
-export function ContactSection() {
+export function ContactSection({ locale = "it" }: { locale?: Locale } = {}) {
+  const copy = HOMEPAGE_COPY[locale];
   return (
     <section id="contatti" className="relative py-20 md:py-28">
       <div className="mx-auto w-full max-w-5xl px-5 md:px-8">
         <div className="grid gap-6 rounded-[32px] border border-landing-line bg-landing-card p-8 md:grid-cols-[1.1fr_1fr] md:p-12">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-landing-magentaSoft">
-              Contatti
+              {copy.contactEyebrow}
             </p>
             <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-landing-ink sm:text-4xl">
-              Ti rispondiamo noi.
+              {copy.contactH2}
             </h2>
-            <p className="mt-4 text-landing-soft">
-              Demo, integrazioni, onboarding su una nuova struttura: scrivici, ti guidiamo noi.
-            </p>
+            <p className="mt-4 text-landing-soft">{copy.contactBody}</p>
           </div>
 
           <div className="flex flex-col justify-center gap-3">
             <a
-              href="mailto:hello@gestionesemplificata.com?subject=RistoSaaS%20%E2%80%93%20Informazioni"
+              href="mailto:hello@gestionesemplificata.com?subject=RistoSaaS%20%E2%80%93%20Info"
               className="group flex items-center justify-between gap-3 rounded-2xl border border-landing-line bg-white/5 px-5 py-4 transition-all duration-rw hover:border-landing-magenta/60 hover:bg-white/10"
             >
               <span className="flex items-center gap-3">
@@ -28,7 +29,7 @@ export function ContactSection() {
                 </span>
                 <span>
                   <span className="block text-xs font-semibold uppercase tracking-wider text-landing-muted">
-                    Email
+                    {copy.contactEmailLabel}
                   </span>
                   <span className="block text-sm font-semibold text-landing-ink">
                     hello@gestionesemplificata.com
@@ -50,7 +51,7 @@ export function ContactSection() {
                 </span>
                 <span>
                   <span className="block text-xs font-semibold uppercase tracking-wider text-landing-muted">
-                    Sito madre
+                    {copy.contactSiteLabel}
                   </span>
                   <span className="block text-sm font-semibold text-landing-ink">
                     gestionesemplificata.com
