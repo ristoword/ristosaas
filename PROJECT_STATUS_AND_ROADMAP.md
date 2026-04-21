@@ -1,4 +1,4 @@
-# RistoSaaS Platform - Project Status and Final Roadmap
+# RistoSimply Platform - Project Status and Final Roadmap
 
 Ultimo aggiornamento: 2026-04-21 (sprint 2: SEO pubblico, hardware reale, cleanup MOCK totali, pillar page, blog)
 
@@ -120,7 +120,7 @@ SEO e conversione (commit `ffab925`):
 - FeatureCards riscritto coi 4 moduli reali (Ristorante, Cucina KDS,
   Magazzino, Hotel)
 - BenefitsSection riscritta "Perche e diverso" con confronto
-  competitor vs RistoSaaS
+  competitor vs RistoSimply
 - FinalCta riscritto "Riduci errori, tempo e costi operativi"
 - Navbar e footer aggiornati con link a pillar e blog
 - Nuova pagina pillar /gestionale-ristorante-hotel-integrato con

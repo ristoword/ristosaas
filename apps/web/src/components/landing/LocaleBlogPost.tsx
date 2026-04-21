@@ -51,16 +51,16 @@ const LABELS: Record<Locale, {
 
 const DEMO_MAIL: Record<Locale, { subject: string; body: string }> = {
   it: {
-    subject: "RistoSaaS – Richiesta demo",
-    body: "Vorrei una demo di RistoSaaS dopo aver letto l'articolo del blog.",
+    subject: "RistoSimply – Richiesta demo",
+    body: "Vorrei una demo di RistoSimply dopo aver letto l'articolo del blog.",
   },
   en: {
-    subject: "RistoSaaS – Demo request",
-    body: "I would like a demo of RistoSaaS after reading the blog post.",
+    subject: "RistoSimply – Demo request",
+    body: "I would like a demo of RistoSimply after reading the blog post.",
   },
   nl: {
-    subject: "RistoSaaS – Demo-aanvraag",
-    body: "Ik wil graag een demo van RistoSaaS na het lezen van het blogartikel.",
+    subject: "RistoSimply – Demo-aanvraag",
+    body: "Ik wil graag een demo van RistoSimply na het lezen van het blogartikel.",
   },
 };
 
@@ -84,7 +84,7 @@ export function LocaleBlogPost({ locale, slug }: { locale: Locale; slug: string 
     inLanguage: LOCALE_META[locale].htmlLang,
     author: {
       "@type": "Organization",
-      name: "RistoSaaS",
+      name: "RistoSimply",
       url: absUrl("/"),
     },
     publisher: {

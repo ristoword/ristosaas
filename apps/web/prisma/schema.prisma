@@ -407,15 +407,17 @@ model TenantEmailConfig {
 }
 
 model HotelRoom {
-  id           String          @id @default(cuid())
-  tenantId     String
-  code         String
-  floor        Int
-  roomType     String
-  capacity     Int
-  status       HotelRoomStatus
-  ratePlanCode String?
-  tenant       Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id                  String          @id @default(cuid())
+  tenantId            String
+  code                 String
+  floor                Int
+  roomType             String
+  capacity             Int
+  status               HotelRoomStatus
+  ratePlanCode         String?
+  /// Tariffa pubblicabile per notte (listino camera); usata in prenotazioni / booking interno.
+  defaultNightlyRate   Decimal         @db.Decimal(10, 2) @default(0)
+  tenant               Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   reservations HotelReservation[]
   tasks        HousekeepingTask[]
   keycards     HotelKeycard[]

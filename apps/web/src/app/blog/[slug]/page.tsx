@@ -13,10 +13,10 @@ export async function generateMetadata({ params }: Ctx): Promise<Metadata> {
   const { slug } = await params;
   const post = getBlogPost("it", slug);
   if (!post) {
-    return { title: "Articolo non trovato | RistoSaaS" };
+    return { title: "Articolo non trovato | RistoSimply" };
   }
   return {
-    title: `${post.title} | RistoSaaS`,
+    title: `${post.title} | RistoSimply`,
     description: post.description,
     alternates: {
       canonical: blogPostPath("it", post.slug),

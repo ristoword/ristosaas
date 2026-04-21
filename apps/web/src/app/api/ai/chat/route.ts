@@ -15,7 +15,7 @@ const TEMPERATURE = Number(process.env.OPENAI_TEMPERATURE || 0.4);
 
 function systemPromptForContext(context: string) {
   const base =
-    "Sei l'assistente operativo di RistoSaaS. Rispondi in italiano, in modo sintetico e pratico, con focus su azioni concrete.";
+    "Sei l'assistente operativo di RistoSimply. Rispondi in italiano, in modo sintetico e pratico, con focus su azioni concrete.";
 
   const byContext: Record<string, string> = {
     supervisor:

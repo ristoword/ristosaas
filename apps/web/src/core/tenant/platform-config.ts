@@ -47,7 +47,7 @@ export const planToFeatures: Record<ProductPlan, AppFeature[]> = {
 // fallback so SSR and first paint do not explode on older deployments.
 // ------------------------------------------------------------
 const fallbackPlan = (process.env.NEXT_PUBLIC_PRODUCT_PLAN as ProductPlan | undefined) || "all_included";
-const fallbackTenantName = process.env.NEXT_PUBLIC_TENANT_NAME || "RistoSaaS";
+const fallbackTenantName = process.env.NEXT_PUBLIC_TENANT_NAME || "RistoSimply";
 
 export const tenantPlatformProfile: TenantPlatformProfile = {
   tenantId: "",

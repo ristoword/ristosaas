@@ -16,10 +16,10 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://ristosaas.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://ristosimply.com"),
   title: {
-    default: "RistoSaaS — Restaurant & Hotel Management",
-    template: "%s · RistoSaaS",
+    default: "RistoSimply — Restaurant & Hotel Management",
+    template: "%s · RistoSimply",
   },
   description:
     "Software gestionale per ristorante e hotel: ordini, cucina, camere e magazzino in un unico sistema.",

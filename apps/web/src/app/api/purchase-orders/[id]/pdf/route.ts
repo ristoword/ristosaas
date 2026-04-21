@@ -30,7 +30,7 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
   const pdf = await renderPurchaseOrderPdf({
     order,
-    tenantName: tenant?.name ?? "RistoSaaS",
+    tenantName: tenant?.name ?? "RistoSimply",
     fromAddress: emailConfig?.fromAddress ?? null,
   });
 

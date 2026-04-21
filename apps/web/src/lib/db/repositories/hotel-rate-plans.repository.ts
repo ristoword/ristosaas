@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import type { RatePlan } from "@/modules/hotel/domain/types";
+import { roomTypesMatch } from "@/modules/hotel/domain/room-type";
 
 function mapPlan(row: {
   id: string;
@@ -33,9 +34,9 @@ export const hotelRatePlansRepository = {
   },
   async filterByRoomType(tenantId: string, roomType: string) {
     const rows = await prisma.hotelRatePlan.findMany({
-      where: { tenantId, roomType, active: true },
+      where: { tenantId, active: true },
       orderBy: { nightlyRate: "asc" },
     });
-    return rows.map(mapPlan);
+    return rows.filter((row) => roomTypesMatch(row.roomType, roomType)).map(mapPlan);
   },
 };

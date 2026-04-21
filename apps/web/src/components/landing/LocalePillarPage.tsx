@@ -30,7 +30,7 @@ export function LocalePillarPage({ locale }: { locale: Locale }) {
     <SeoPageShell locale={locale}>
       <SoftwareApplicationJsonLd
         locale={locale}
-        name="RistoSaaS — Integrated Restaurant & Hotel Management Software"
+        name="RistoSimply — Integrated Restaurant & Hotel Management Software"
         url={absUrl(pillarPath(locale))}
         description={copy.description}
       />

@@ -58,7 +58,7 @@ export function LandingNavbar({ locale = "it" }: Props = {}) {
             R
           </span>
           <span className="font-display text-lg font-semibold tracking-tight text-landing-ink">
-            RistoSaaS
+            RistoSimply
           </span>
         </Link>
 

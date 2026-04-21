@@ -1,10 +1,10 @@
-# SEO Submission Checklist — RistoSaaS (IT / EN / NL)
+# SEO Submission Checklist — RistoSimply (IT / EN / NL)
 
-Playbook operativo per l'iscrizione di RistoSaaS alle directory software,
+Playbook operativo per l'iscrizione di RistoSimply alle directory software,
 ai motori di ricerca e ai portali settore horeca. Copre i 3 mercati
 target: Italia, inglese internazionale, Paesi Bassi/Belgio-fiammingo.
 
-> **Dominio target**: `https://ristosaas.com`
+> **Dominio target**: `https://ristosimply.com`
 > **Email contatto**: `hello@gestionesemplificata.com`
 > **Brand owner**: gestionesemplificata.com
 > **Lingue pubblicate**: it-IT (default), en-US, nl-NL
@@ -22,11 +22,11 @@ Prerequisito per tutto il resto: i motori devono conoscere il sito.
 ### 1.1 Google Search Console
 
 - URL: <https://search.google.com/search-console>
-- **Aggiungi proprietà dominio** `ristosaas.com` (verifica DNS TXT —
+- **Aggiungi proprietà dominio** `ristosimply.com` (verifica DNS TXT —
   preferibile al prefisso URL perché copre tutti i sottodomini e
   protocolli).
 - Verifica proprietà → DNS TXT su Cloudflare/Namecheap/Registrar.
-- Vai in "Sitemaps" e **invia** `https://ristosaas.com/sitemap.xml`.
+- Vai in "Sitemaps" e **invia** `https://ristosimply.com/sitemap.xml`.
 - Vai in "Targeting internazionale" → **Non** impostare country
   target (abbiamo hreflang corretto, targeting geografico inutile).
 - Monitora "Rapporti prestazioni" distinto per lingua filtrando su
@@ -38,7 +38,7 @@ Prerequisito per tutto il resto: i motori devono conoscere il sito.
 - Aggiungi sito, verifica via meta tag o XML.
 - **Importa proprietà** direttamente da Google Search Console per
   saltare la verifica (Bing supporta import GSC nativo).
-- Invia sitemap `https://ristosaas.com/sitemap.xml`.
+- Invia sitemap `https://ristosimply.com/sitemap.xml`.
 
 ### 1.3 Yandex Webmaster (opzionale, solo se target RU)
 
@@ -88,7 +88,7 @@ Questi sono gli elenchi con più peso SEO e più traffico B2B reale.
 
 ### 2.3 Pagine dedicate per categoria (DO it!)
 
-Per ogni directory sopra, quando possibile inserire RistoSaaS **in
+Per ogni directory sopra, quando possibile inserire RistoSimply **in
 tutte le categorie rilevanti** (non solo "Restaurant Management"):
 
 - Restaurant Management Software / Gestionale Ristorante / Restaurant
@@ -104,7 +104,7 @@ tutte le categorie rilevanti** (non solo "Restaurant Management"):
 ## Step 3 — Business directories locali (per SEO locale)
 
 Aumentano la presenza sui risultati Google locali e sui pacchetti
-"vicino a te" per aziende fisiche (in caso RistoSaaS abbia sede).
+"vicino a te" per aziende fisiche (in caso RistoSimply abbia sede).
 
 ### 3.1 Italia
 
@@ -125,7 +125,7 @@ Aumentano la presenza sui risultati Google locali e sui pacchetti
 
 - **Crunchbase**: <https://www.crunchbase.com/add-new>
 - **LinkedIn Company Page** (se non già esistente): creare azienda
-  "RistoSaaS" con About + link ai 3 siti lingua.
+  "RistoSimply" con About + link ai 3 siti lingua.
 
 ---
 
@@ -136,15 +136,15 @@ l'autorità del dominio (citazioni e link di ritorno):
 
 | Canale | Nome handle consigliato | Lingua post |
 |--------|-------------------------|-------------|
-| LinkedIn Company | /company/ristosaas | IT + EN |
-| X (Twitter) | @ristosaas | EN |
-| YouTube | @ristosaas | IT (+ subtitle EN) |
-| Instagram | @ristosaas.official | IT |
-| Facebook Page | /ristosaas | IT + NL |
+| LinkedIn Company | /company/ristosimply | IT + EN |
+| X (Twitter) | @ristosimply | EN |
+| YouTube | @ristosimply | IT (+ subtitle EN) |
+| Instagram | @ristosimply.official | IT |
+| Facebook Page | /ristosimply | IT + NL |
 
 Su ogni profilo: link alla **pagina nella lingua corretta** (non
-sempre a `/`). Esempio LinkedIn IT → `https://ristosaas.com/`,
-LinkedIn EN → `https://ristosaas.com/en`.
+sempre a `/`). Esempio LinkedIn IT → `https://ristosimply.com/`,
+LinkedIn EN → `https://ristosimply.com/en`.
 
 ---
 
@@ -153,7 +153,7 @@ LinkedIn EN → `https://ristosaas.com/en`.
 ### 5.1 Nome e descrizioni (da copia-incollare)
 
 **Nome prodotto (identico in 3 lingue)**:
-RistoSaaS
+RistoSimply
 
 **Tagline (60 char)**:
 - IT: Gestionale ristorante e hotel in un unico sistema
@@ -166,9 +166,9 @@ RistoSaaS
 - NL: "Alles-in-één software voor restaurant en hotel: beheer tafels, keuken (KDS), voorraad, leveranciers en kamers in één cloudsysteem."
 
 **Descrizione lunga (500 char)**:
-- IT: "RistoSaaS è il gestionale cloud per ristoranti, hotel e strutture horeca complete. Collega sala, cucina (KDS), magazzino, fornitori e camere nello stesso sistema. Elimina doppie registrazioni e trascrizioni manuali tra software separati. Ogni piatto servito scarica automaticamente il magazzino. Il cliente hotel addebita al ristorante con folio unico al check-out. Multi-tenant, RBAC granulare, backup automatico, audit trail."
-- EN: "RistoSaaS is the cloud management software for restaurants, hotels and full hospitality properties. It connects dining room, kitchen (KDS), inventory, suppliers and rooms in the same system. It removes double registration and manual transcription between separate tools. Every served dish automatically deducts inventory. Hotel guests charge the restaurant to a single folio at check-out. Multi-tenant, granular RBAC, automatic backup, audit trail."
-- NL: "RistoSaaS is de cloud-beheersoftware voor restaurants, hotels en volledige hospitality-locaties. Het verbindt zaal, keuken (KDS), voorraad, leveranciers en kamers in hetzelfde systeem. Het elimineert dubbele registratie en handmatige overschrijving tussen losse tools. Elk geserveerd gerecht schrijft automatisch voorraad af. Hotelgasten boeken het restaurant op één folio bij check-out. Multi-tenant, granulair RBAC, automatische back-up, audit trail."
+- IT: "RistoSimply è il gestionale cloud per ristoranti, hotel e strutture horeca complete. Collega sala, cucina (KDS), magazzino, fornitori e camere nello stesso sistema. Elimina doppie registrazioni e trascrizioni manuali tra software separati. Ogni piatto servito scarica automaticamente il magazzino. Il cliente hotel addebita al ristorante con folio unico al check-out. Multi-tenant, RBAC granulare, backup automatico, audit trail."
+- EN: "RistoSimply is the cloud management software for restaurants, hotels and full hospitality properties. It connects dining room, kitchen (KDS), inventory, suppliers and rooms in the same system. It removes double registration and manual transcription between separate tools. Every served dish automatically deducts inventory. Hotel guests charge the restaurant to a single folio at check-out. Multi-tenant, granular RBAC, automatic backup, audit trail."
+- NL: "RistoSimply is de cloud-beheersoftware voor restaurants, hotels en volledige hospitality-locaties. Het verbindt zaal, keuken (KDS), voorraad, leveranciers en kamers in hetzelfde systeem. Het elimineert dubbele registratie en handmatige overschrijving tussen losse tools. Elk geserveerd gerecht schrijft automatisch voorraad af. Hotelgasten boeken het restaurant op één folio bij check-out. Multi-tenant, granulair RBAC, automatische back-up, audit trail."
 
 ### 5.2 URL target per le submission
 
@@ -176,9 +176,9 @@ Per ciascun mercato, l'URL **default** da inserire nella directory
 deve essere la homepage della lingua corretta per evitare che il
 sito ritorni redirect/alternate:
 
-- Directory italiane → `https://ristosaas.com/`
-- Directory inglesi/US → `https://ristosaas.com/en`
-- Directory olandesi/BE → `https://ristosaas.com/nl`
+- Directory italiane → `https://ristosimply.com/`
+- Directory inglesi/US → `https://ristosimply.com/en`
+- Directory olandesi/BE → `https://ristosimply.com/nl`
 
 ### 5.3 Categorie Capterra / GetApp (copia-incolla)
 
@@ -220,7 +220,7 @@ Categorie secondarie (selezionare tutte le applicabili):
 
 ### Checklist rapida ✅
 
-- [ ] DNS TXT verified on Search Console (ristosaas.com)
+- [ ] DNS TXT verified on Search Console (ristosimply.com)
 - [ ] Sitemap submitted to GSC + Bing
 - [ ] Google Business Profile live (se applicabile)
 - [ ] Capterra listing live in Restaurant Management Software
@@ -286,7 +286,7 @@ Dopo il go-live verifica che Google rispetti le nostre alternate:
 - <https://search.google.com/search-console/international-targeting>
   → "Lingue" tab deve mostrare le 3 lingue senza errori
 - Test singolo URL: <https://technicalseo.com/tools/hreflang/>
-- Prova: digita `https://ristosaas.com/` e verifica che la versione
+- Prova: digita `https://ristosimply.com/` e verifica che la versione
   `en-US` punti a `/en` e `nl-NL` a `/nl`.
 - Idem per pillar, restaurant e ogni blog post
 

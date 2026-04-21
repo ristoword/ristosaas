@@ -29,12 +29,12 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const result = await sendTenantMail({
     tenantId,
     to: recipient,
-    subject: "[RistoSaaS] Test configurazione SMTP",
-    text: `Questa e una email di test inviata da RistoSaaS per verificare la configurazione SMTP del tenant.\n\nHost: ${config.host}\nPort: ${config.port}\nUser: ${config.username}\nFrom: ${config.fromAddress}\n\nSe ricevi questa email significa che la configurazione funziona correttamente.`,
+    subject: "[RistoSimply] Test configurazione SMTP",
+    text: `Questa e una email di test inviata da RistoSimply per verificare la configurazione SMTP del tenant.\n\nHost: ${config.host}\nPort: ${config.port}\nUser: ${config.username}\nFrom: ${config.fromAddress}\n\nSe ricevi questa email significa che la configurazione funziona correttamente.`,
     html: `
       <div style="font-family: system-ui, sans-serif; max-width: 560px; padding: 16px;">
         <h2 style="color: #2563eb;">Test configurazione SMTP</h2>
-        <p>Questa email e stata inviata da <strong>RistoSaaS</strong> per verificare la configurazione SMTP del tenant.</p>
+        <p>Questa email e stata inviata da <strong>RistoSimply</strong> per verificare la configurazione SMTP del tenant.</p>
         <table style="border-collapse: collapse; margin-top: 12px;">
           <tr><td style="padding: 4px 8px; color: #6b7280;">Host</td><td style="padding: 4px 8px;"><code>${config.host}</code></td></tr>
           <tr><td style="padding: 4px 8px; color: #6b7280;">Port</td><td style="padding: 4px 8px;"><code>${config.port}</code></td></tr>

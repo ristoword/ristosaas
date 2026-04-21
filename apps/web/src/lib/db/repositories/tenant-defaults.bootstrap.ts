@@ -224,7 +224,7 @@ async function ensureHotelRatePlanClassic(tx: Tx, tenantId: string) {
     where: { tenantId_code: { tenantId, code: "RP_CLASSIC_BB" } },
     update: {
       name: "Classic B&B",
-      roomType: "Classic",
+      roomType: "CLASSIC",
       boardType: "bed_breakfast",
       nightlyRate: "109.00",
       refundable: true,
@@ -234,7 +234,7 @@ async function ensureHotelRatePlanClassic(tx: Tx, tenantId: string) {
       tenantId,
       code: "RP_CLASSIC_BB",
       name: "Classic B&B",
-      roomType: "Classic",
+      roomType: "CLASSIC",
       boardType: "bed_breakfast",
       nightlyRate: "109.00",
       refundable: true,
@@ -259,10 +259,11 @@ async function ensureDefaultHotelRooms(tx: Tx, tenantId: string): Promise<number
         tenantId,
         code: row.code,
         floor: row.floor,
-        roomType: "Classic",
+        roomType: "CLASSIC",
         capacity: row.capacity,
         status: "libera",
         ratePlanCode: "RP_CLASSIC_BB",
+        defaultNightlyRate: "109.00",
       },
     });
     added += 1;

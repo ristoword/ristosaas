@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
+import { roomTypesMatch } from "@/modules/hotel/domain/room-type";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 
 export function HotelFrontDeskPage() {
@@ -61,7 +62,7 @@ export function HotelFrontDeskPage() {
     if (!selectedReservation) return rooms.filter((r) => r.status === "libera" || r.status === "pulita");
     const matching = rooms.filter(
       (r) =>
-        (r.roomType === selectedReservation.roomType || !selectedReservation.roomType) &&
+        (!selectedReservation.roomType || roomTypesMatch(r.roomType, selectedReservation.roomType)) &&
         (r.status === "libera" || r.status === "pulita"),
     );
     return matching.length > 0

@@ -35,7 +35,7 @@ const BUILTIN_EMAIL_TEMPLATES = [
   {
     id: "tpl1",
     nome: "Attivazione account",
-    subject: "Benvenuto in RistoSaaS!",
+    subject: "Benvenuto in RistoSimply!",
     preview:
       "Ciao {{nome}}, il tuo account è stato attivato con successo. Accedi alla dashboard per iniziare.",
   },

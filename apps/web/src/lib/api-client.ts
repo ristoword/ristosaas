@@ -649,7 +649,16 @@ export const aiApi = {
 
 export type HotelRoomStatus = "libera" | "occupata" | "da_pulire" | "pulita" | "fuori_servizio" | "manutenzione";
 export type HotelReservationStatus = "confermata" | "in_casa" | "check_out" | "cancellata" | "no_show";
-export type HotelRoom = { id: string; code: string; floor: number; capacity: number; status: HotelRoomStatus; roomType: string; ratePlanCode?: string };
+export type HotelRoom = {
+  id: string;
+  code: string;
+  floor: number;
+  capacity: number;
+  status: HotelRoomStatus;
+  roomType: string;
+  ratePlanCode?: string;
+  defaultNightlyRate: number;
+};
 export type RatePlan = {
   id: string;
   code: string;

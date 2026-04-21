@@ -1,4 +1,4 @@
-# Backlink Outreach Plan — RistoSaaS (IT / EN / NL)
+# Backlink Outreach Plan — RistoSimply (IT / EN / NL)
 
 Piano operativo per ottenere backlink di qualità da blog settore,
 pubblicazioni trade e media verticali. Copre i mercati target IT,
@@ -66,7 +66,7 @@ EN internazionale e NL.
 
 > Hi {{editorName}},
 >
-> I'm Paolo from RistoSaaS (<https://ristosaas.com/en>), a cloud
+> I'm Paolo from RistoSimply (<https://ristosimply.com/en>), a cloud
 > management platform that connects restaurant, kitchen, inventory and
 > hotel in a single system — specifically designed for hospitality
 > properties with internal restaurants (hotels with F&B, agriturismo,
@@ -100,7 +100,7 @@ EN internazionale e NL.
 
 > Ciao {{nomeRedazione}},
 >
-> sono Paolo di RistoSaaS (<https://ristosaas.com/>), il gestionale
+> sono Paolo di RistoSimply (<https://ristosimply.com/>), il gestionale
 > cloud che collega ristorante, cucina (KDS), magazzino e hotel in un
 > unico sistema — pensato per strutture con ristorante interno
 > (hotel con F&B, agriturismi, resort).
@@ -133,7 +133,7 @@ EN internazionale e NL.
 
 > Hallo {{redactie}},
 >
-> Ik ben Paolo van RistoSaaS (<https://ristosaas.com/nl>), een
+> Ik ben Paolo van RistoSimply (<https://ristosimply.com/nl>), een
 > cloud-beheerplatform dat restaurant, keuken (KDS), voorraad en hotel
 > in één systeem verbindt — speciaal ontworpen voor hospitality-
 > locaties met een intern restaurant (hotels met F&B, agriturismo,
@@ -193,7 +193,7 @@ Target: 5 guest post pubblicati, 1 per settimana minimum.
    **1-2 link naturali** alla pagina pillar e al blog (non alla
    homepage — meno spam-signal).
 4. Ogni pezzo deve avere un angolo **utile** che il lettore userebbe
-   senza acquistare RistoSaaS. Evita il pitch product-first.
+   senza acquistare RistoSimply. Evita il pitch product-first.
 
 ### Week 5-8: Product Hunt launch + PR
 
@@ -248,19 +248,19 @@ Contribuisci (anche piccoli PR) a progetti usati nella stack:
 ### 4.3 Case study co-branded
 
 - Trova 1-2 clienti pilot con brand riconoscibile (agriturismo noto,
-  hotel boutique) → case study **pubblicato su ristosaas.com/blog**.
-- Chiedi al cliente di linkarlo dal proprio sito ("usiamo RistoSaaS
+  hotel boutique) → case study **pubblicato su ristosimply.com/blog**.
+- Chiedi al cliente di linkarlo dal proprio sito ("usiamo RistoSimply
   per la gestione integrata" → link). DR del cliente = backlink reale.
 - Fai lo stesso al contrario: scrivi "come il nostro cliente X usa
-  RistoSaaS" → naturale ottenere link di ritorno.
+  RistoSimply" → naturale ottenere link di ritorno.
 
 ### 4.4 Resource pages "migliori software X"
 
 Molti blog tech fanno post "Top 10 restaurant management software".
 Quelli hanno già alta autorità. Strategia:
-1. Identifica post esistenti che **non** includono RistoSaaS
+1. Identifica post esistenti che **non** includono RistoSimply
 2. Contatta autore con email pulita: "Have you considered adding
-   RistoSaaS? Happy to send you key data points, screenshot pack,
+   RistoSimply? Happy to send you key data points, screenshot pack,
    and our 2-minute demo video."
 3. Tasso di accettazione tipico: 10-15% = 1 link ogni 7-10 email.
 
@@ -290,7 +290,7 @@ comparativo.
 
 ### 5.2 Metrica settimanale
 
-Apri un Google Sheet `BacklinksRistoSaaS` con colonne:
+Apri un Google Sheet `BacklinksRistoSimply` con colonne:
 
 | Data | URL sorgente | Anchor text | URL target (it/en/nl) | DR sito | Nofollow? | Dove abbiamo ottenuto? |
 
@@ -314,7 +314,7 @@ Search Console o Ahrefs.
 
 Se hai 2 ore a settimana, fai queste 5 cose in ordine:
 
-- [ ] **Week 1-4**: Invia RistoSaaS a 10 directory (Capterra, GetApp,
+- [ ] **Week 1-4**: Invia RistoSimply a 10 directory (Capterra, GetApp,
       Software Advice, G2, Crozdesk, missethoreca, italianfood.net,
       ristorazionemoderna, Hospitality Tech, Product Hunt)
 - [ ] **Week 3-6**: Pitch email a 10 siti per guest post (5 IT, 3 EN, 2 NL)

@@ -30,6 +30,7 @@ const TARGETS = [
   "prisma/migrations_add_user_sessions.sql",
   "prisma/migrations_add_hardware.sql",
   "prisma/migrations_add_supervisor_storni_voice_fiscal_stubs.sql",
+  "prisma/migrations_add_hotel_room_default_nightly_rate.sql",
 ];
 
 const prisma = new PrismaClient({ log: ["error"] });

@@ -31,7 +31,7 @@ export function DashboardMockup() {
         </div>
         <div className="flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-[11px] text-landing-soft">
           <Search className="h-3 w-3" aria-hidden />
-          ristosaas.app / dashboard
+          ristosimply.com / dashboard
         </div>
         <div className="flex items-center gap-2 text-landing-soft">
           <Bell className="h-3.5 w-3.5" aria-hidden />

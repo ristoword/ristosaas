@@ -7,6 +7,7 @@ import { hotelRatePlansRepository } from "@/lib/db/repositories/hotel-rate-plans
 import { hotelRoomsRepository } from "@/lib/db/repositories/hotel-rooms.repository";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { isRoomAvailableForRange } from "@/modules/hotel/domain/availability";
+import { roomTypesMatch } from "@/modules/hotel/domain/room-type";
 import type { HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
 const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
@@ -45,7 +46,7 @@ export async function GET(req: NextRequest) {
       actualCheckOutAt: true,
     },
   });
-  const rooms = allRooms.filter((room: HotelRoom) => room.roomType === roomType);
+  const rooms = allRooms.filter((room: HotelRoom) => roomTypesMatch(room.roomType, roomType));
   const stays: HotelStay[] = stayRows.map((stay: {
     id: string;
     reservationId: string;

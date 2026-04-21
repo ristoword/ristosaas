@@ -9,6 +9,7 @@ function mapRoom(row: {
   status: HotelRoom["status"];
   roomType: string;
   ratePlanCode: string | null;
+  defaultNightlyRate: { toNumber: () => number };
 }): HotelRoom {
   return {
     id: row.id,
@@ -18,6 +19,7 @@ function mapRoom(row: {
     status: row.status,
     roomType: row.roomType,
     ratePlanCode: row.ratePlanCode ?? undefined,
+    defaultNightlyRate: row.defaultNightlyRate.toNumber(),
   };
 }
 
@@ -45,6 +47,7 @@ export const hotelRoomsRepository = {
         status: data.status,
         roomType: data.roomType,
         ratePlanCode: data.ratePlanCode ?? null,
+        defaultNightlyRate: data.defaultNightlyRate ?? 0,
       },
     });
     return mapRoom(row);
@@ -61,6 +64,7 @@ export const hotelRoomsRepository = {
         status: data.status,
         roomType: data.roomType,
         ratePlanCode: data.ratePlanCode === undefined ? undefined : (data.ratePlanCode ?? null),
+        defaultNightlyRate: data.defaultNightlyRate === undefined ? undefined : data.defaultNightlyRate,
       },
     });
     return mapRoom(row);

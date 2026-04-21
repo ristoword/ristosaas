@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     description: copy.description,
     type: "website",
     locale: "it_IT",
-    siteName: "RistoSaaS",
+    siteName: "RistoSimply",
   },
   twitter: {
     card: "summary_large_image",

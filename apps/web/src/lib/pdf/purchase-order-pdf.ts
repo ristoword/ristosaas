@@ -171,7 +171,7 @@ export async function renderPurchaseOrderPdf(ctx: PurchaseOrderPdfContext): Prom
       }
 
       // Footer
-      const footer = `Documento generato da RistoSaaS · ${new Date().toLocaleString("it-IT")}`;
+      const footer = `Documento generato da RistoSimply · ${new Date().toLocaleString("it-IT")}`;
       doc
         .fontSize(8)
         .fillColor("#888")

@@ -20,7 +20,7 @@ export function ContactSection({ locale = "it" }: { locale?: Locale } = {}) {
 
           <div className="flex flex-col justify-center gap-3">
             <a
-              href="mailto:hello@gestionesemplificata.com?subject=RistoSaaS%20%E2%80%93%20Info"
+              href="mailto:hello@gestionesemplificata.com?subject=RistoSimply%20%E2%80%93%20Info"
               className="group flex items-center justify-between gap-3 rounded-2xl border border-landing-line bg-white/5 px-5 py-4 transition-all duration-rw hover:border-landing-magenta/60 hover:bg-white/10"
             >
               <span className="flex items-center gap-3">

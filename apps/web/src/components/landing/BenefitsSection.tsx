@@ -9,9 +9,9 @@ const LEGACY_LABELS: Record<Locale, string> = {
 };
 
 const OURS_LABELS: Record<Locale, string> = {
-  it: "RistoSaaS fa",
-  en: "RistoSaaS delivers",
-  nl: "RistoSaaS levert",
+  it: "RistoSimply fa",
+  en: "RistoSimply delivers",
+  nl: "RistoSimply levert",
 };
 
 export function BenefitsSection({ locale = "it" }: { locale?: Locale } = {}) {

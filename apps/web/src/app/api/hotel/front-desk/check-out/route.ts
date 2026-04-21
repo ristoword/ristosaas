@@ -56,6 +56,7 @@ function mapRoom(row: {
   status: HotelRoom["status"];
   roomType: string;
   ratePlanCode: string | null;
+  defaultNightlyRate: { toNumber: () => number };
 }): HotelRoom {
   return {
     id: row.id,
@@ -65,6 +66,7 @@ function mapRoom(row: {
     status: row.status,
     roomType: row.roomType,
     ratePlanCode: row.ratePlanCode ?? undefined,
+    defaultNightlyRate: row.defaultNightlyRate.toNumber(),
   };
 }
 

@@ -17,7 +17,7 @@ import type { Locale } from "@/core/i18n/types";
  * e "gestionale-ristorante" in inglese).
  */
 
-export const SITE_URL = "https://ristosaas.com";
+export const SITE_URL = "https://ristosimply.com";
 
 export type HomepageCopy = {
   title: string;
@@ -202,8 +202,8 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
       "Gestisci ristorante, hotel e magazzino senza passare tra software diversi. Ordini, cucina, camere e fornitori collegati in tempo reale.",
     ctaDemo: "Richiedi demo",
     ctaAccess: "Prova accesso",
-    demoMailSubject: "RistoSaaS – Richiesta demo",
-    demoMailBody: "Vorrei una demo di RistoSaaS per la mia struttura.",
+    demoMailSubject: "RistoSimply – Richiesta demo",
+    demoMailBody: "Vorrei una demo di RistoSimply per la mia struttura.",
 
     integrationEyebrow: "Come funziona",
     integrationH2: "Tutto collegato, senza passaggi manuali",
@@ -217,7 +217,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     ],
 
     featuresEyebrow: "Funzioni",
-    featuresH2: "Cosa fa RistoSaaS",
+    featuresH2: "Cosa fa RistoSimply",
     featuresLead: "Quattro moduli pensati per lavorare insieme, non per essere comprati separatamente.",
     features: [
       {
@@ -270,7 +270,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     brandH2Part1: "Una soluzione firmata",
     brandH2Part2: "gestionesemplificata.com",
     brandBody:
-      "Dietro RistoSaaS c'è un team che progetta software gestionale da anni. Stessa filosofia, stessa cura — applicata al mondo dell'hospitality.",
+      "Dietro RistoSimply c'è un team che progetta software gestionale da anni. Stessa filosofia, stessa cura — applicata al mondo dell'hospitality.",
 
     contactEyebrow: "Contatti",
     contactH2: "Ti rispondiamo noi.",
@@ -292,7 +292,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     ],
     finalCtaPrimary: "Richiedi demo",
     finalCtaSecondary: "Accedi",
-    finalNote: "RistoSaaS è parte dell'ecosistema gestionesemplificata.com.",
+    finalNote: "RistoSimply è parte dell'ecosistema gestionesemplificata.com.",
 
     navComeFunziona: "Come funziona",
     navFunzioni: "Funzioni",
@@ -328,8 +328,8 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
       "Manage restaurant, hotel and inventory without switching between different tools. Orders, kitchen, rooms and suppliers connected in real time.",
     ctaDemo: "Request a demo",
     ctaAccess: "Try access",
-    demoMailSubject: "RistoSaaS – Demo request",
-    demoMailBody: "I would like a demo of RistoSaaS for my property.",
+    demoMailSubject: "RistoSimply – Demo request",
+    demoMailBody: "I would like a demo of RistoSimply for my property.",
 
     integrationEyebrow: "How it works",
     integrationH2: "All connected, no manual steps",
@@ -343,7 +343,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     ],
 
     featuresEyebrow: "Features",
-    featuresH2: "What RistoSaaS does",
+    featuresH2: "What RistoSimply does",
     featuresLead: "Four modules designed to work together, not to be bought separately.",
     features: [
       {
@@ -396,7 +396,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     brandH2Part1: "A solution powered by",
     brandH2Part2: "gestionesemplificata.com",
     brandBody:
-      "Behind RistoSaaS there is a team that has been designing business software for years. Same philosophy, same care — applied to hospitality.",
+      "Behind RistoSimply there is a team that has been designing business software for years. Same philosophy, same care — applied to hospitality.",
 
     contactEyebrow: "Contact",
     contactH2: "We will reply to you.",
@@ -418,7 +418,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     ],
     finalCtaPrimary: "Request a demo",
     finalCtaSecondary: "Sign in",
-    finalNote: "RistoSaaS is part of the gestionesemplificata.com ecosystem.",
+    finalNote: "RistoSimply is part of the gestionesemplificata.com ecosystem.",
 
     navComeFunziona: "How it works",
     navFunzioni: "Features",
@@ -454,8 +454,8 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
       "Beheer restaurant, hotel en voorraad zonder te wisselen tussen verschillende tools. Bestellingen, keuken, kamers en leveranciers realtime verbonden.",
     ctaDemo: "Vraag een demo aan",
     ctaAccess: "Probeer toegang",
-    demoMailSubject: "RistoSaaS – Demo-aanvraag",
-    demoMailBody: "Ik wil graag een demo van RistoSaaS voor mijn accommodatie.",
+    demoMailSubject: "RistoSimply – Demo-aanvraag",
+    demoMailBody: "Ik wil graag een demo van RistoSimply voor mijn accommodatie.",
 
     integrationEyebrow: "Zo werkt het",
     integrationH2: "Alles verbonden, geen handmatige stappen",
@@ -469,7 +469,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     ],
 
     featuresEyebrow: "Functies",
-    featuresH2: "Wat RistoSaaS doet",
+    featuresH2: "Wat RistoSimply doet",
     featuresLead: "Vier modules ontworpen om samen te werken, niet om apart gekocht te worden.",
     features: [
       {
@@ -522,7 +522,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     brandH2Part1: "Een oplossing van",
     brandH2Part2: "gestionesemplificata.com",
     brandBody:
-      "Achter RistoSaaS zit een team dat al jaren bedrijfssoftware ontwerpt. Dezelfde filosofie, dezelfde zorg — toegepast op hospitality.",
+      "Achter RistoSimply zit een team dat al jaren bedrijfssoftware ontwerpt. Dezelfde filosofie, dezelfde zorg — toegepast op hospitality.",
 
     contactEyebrow: "Contact",
     contactH2: "Wij antwoorden je.",
@@ -544,7 +544,7 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     ],
     finalCtaPrimary: "Vraag een demo aan",
     finalCtaSecondary: "Inloggen",
-    finalNote: "RistoSaaS is onderdeel van het ecosysteem gestionesemplificata.com.",
+    finalNote: "RistoSimply is onderdeel van het ecosysteem gestionesemplificata.com.",
 
     navComeFunziona: "Hoe het werkt",
     navFunzioni: "Functies",
@@ -582,8 +582,8 @@ export const PILLAR_COPY: Record<Locale, PillarCopy> = {
       "Un unico sistema per gestire ristorante e hotel elimina errori, doppie registrazioni e perdita di tempo. Tutto è collegato: dalla sala alla cucina, fino alle camere.",
     ctaDemo: "Richiedi demo",
     ctaAccess: "Prova accesso",
-    demoMailSubject: "RistoSaaS – Richiesta demo",
-    demoMailBody: "Vorrei una demo del gestionale integrato RistoSaaS.",
+    demoMailSubject: "RistoSimply – Richiesta demo",
+    demoMailBody: "Vorrei una demo del gestionale integrato RistoSimply.",
 
     howItWorksH2: "Come funziona l'integrazione",
     howItWorksLead:
@@ -663,8 +663,8 @@ export const PILLAR_COPY: Record<Locale, PillarCopy> = {
       "A single system to manage restaurant and hotel removes errors, double registration and wasted time. Everything is connected: from dining room to kitchen, to rooms.",
     ctaDemo: "Request a demo",
     ctaAccess: "Try access",
-    demoMailSubject: "RistoSaaS – Demo request",
-    demoMailBody: "I would like a demo of the RistoSaaS integrated system.",
+    demoMailSubject: "RistoSimply – Demo request",
+    demoMailBody: "I would like a demo of the RistoSimply integrated system.",
 
     howItWorksH2: "How the integration works",
     howItWorksLead: "Every action in one module automatically updates the others. No manual steps.",
@@ -743,8 +743,8 @@ export const PILLAR_COPY: Record<Locale, PillarCopy> = {
       "Eén systeem voor restaurant en hotel elimineert fouten, dubbele registratie en tijdverlies. Alles is verbonden: van de zaal tot de keuken, tot de kamers.",
     ctaDemo: "Vraag een demo aan",
     ctaAccess: "Probeer toegang",
-    demoMailSubject: "RistoSaaS – Demo-aanvraag",
-    demoMailBody: "Ik wil graag een demo van het geïntegreerde RistoSaaS-systeem.",
+    demoMailSubject: "RistoSimply – Demo-aanvraag",
+    demoMailBody: "Ik wil graag een demo van het geïntegreerde RistoSimply-systeem.",
 
     howItWorksH2: "Hoe de integratie werkt",
     howItWorksLead: "Elke actie in één module werkt de andere automatisch bij. Geen handmatige stappen.",
@@ -826,7 +826,7 @@ export const RESTAURANT_COPY: Record<Locale, RestaurantCopy> = {
       "Dalla presa comanda al conto chiuso: tutto collegato, tutto tracciato. Sala, cucina e magazzino parlano la stessa lingua in tempo reale.",
     ctaDemo: "Richiedi demo",
     ctaAccess: "Prova accesso",
-    demoMailSubject: "RistoSaaS – Demo ristorante",
+    demoMailSubject: "RistoSimply – Demo ristorante",
     demoMailBody: "Vorrei una demo del gestionale ristorante.",
 
     whatIncludesH2: "Cosa include il gestionale ristorante",
@@ -877,7 +877,7 @@ export const RESTAURANT_COPY: Record<Locale, RestaurantCopy> = {
       "From order taking to closed check: everything connected, everything tracked. Floor, kitchen and inventory speak the same language in real time.",
     ctaDemo: "Request a demo",
     ctaAccess: "Try access",
-    demoMailSubject: "RistoSaaS – Restaurant demo",
+    demoMailSubject: "RistoSimply – Restaurant demo",
     demoMailBody: "I would like a demo of the restaurant management software.",
 
     whatIncludesH2: "What the restaurant system includes",
@@ -928,7 +928,7 @@ export const RESTAURANT_COPY: Record<Locale, RestaurantCopy> = {
       "Van bestelopname tot afgesloten rekening: alles verbonden, alles gevolgd. Zaal, keuken en voorraad spreken dezelfde taal, realtime.",
     ctaDemo: "Vraag een demo aan",
     ctaAccess: "Probeer toegang",
-    demoMailSubject: "RistoSaaS – Restaurantdemo",
+    demoMailSubject: "RistoSimply – Restaurantdemo",
     demoMailBody: "Ik wil graag een demo van de restaurantbeheersoftware.",
 
     whatIncludesH2: "Wat het restaurantsysteem bevat",
@@ -1052,7 +1052,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "Vuoi vedere come un sistema unico gestisce in concreto il flusso ordine → cucina → magazzino? Richiedi una demo di RistoSaaS: ti mostriamo il percorso completo in 20 minuti sulla tua struttura reale.",
+        "Vuoi vedere come un sistema unico gestisce in concreto il flusso ordine → cucina → magazzino? Richiedi una demo di RistoSimply: ti mostriamo il percorso completo in 20 minuti sulla tua struttura reale.",
       related: ["gestionale-ristorante-magazzino-integrato", "software-hotel-ristorante-vantaggi"],
     },
     {
@@ -1096,7 +1096,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "Il ROI di un gestionale ristorante con magazzino integrato si misura nei primi 2-3 mesi di utilizzo, soprattutto sul controllo degli sprechi. Richiedi una demo per vedere il flusso completo su RistoSaaS.",
+        "Il ROI di un gestionale ristorante con magazzino integrato si misura nei primi 2-3 mesi di utilizzo, soprattutto sul controllo degli sprechi. Richiedi una demo per vedere il flusso completo su RistoSimply.",
       related: ["come-scegliere-gestionale-ristorante", "software-hotel-ristorante-vantaggi"],
     },
     {
@@ -1140,7 +1140,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "Se gestisci hotel con ristorante o ristorante con ospitalità, un software integrato è quasi sempre la scelta giusta. Richiedi una demo di RistoSaaS e verifica il flusso addebito-su-camera in tempo reale sulla tua struttura.",
+        "Se gestisci hotel con ristorante o ristorante con ospitalità, un software integrato è quasi sempre la scelta giusta. Richiedi una demo di RistoSimply e verifica il flusso addebito-su-camera in tempo reale sulla tua struttura.",
       related: ["gestionale-ristorante-magazzino-integrato", "come-scegliere-gestionale-ristorante"],
     },
   ],
@@ -1194,7 +1194,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "Want to see how a single system actually runs the order → kitchen → inventory flow? Request a demo of RistoSaaS: we walk through the whole path in 20 minutes on your real property.",
+        "Want to see how a single system actually runs the order → kitchen → inventory flow? Request a demo of RistoSimply: we walk through the whole path in 20 minutes on your real property.",
       related: ["restaurant-software-with-inventory", "hotel-restaurant-software-benefits"],
     },
     {
@@ -1238,7 +1238,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "The ROI of a restaurant system with integrated inventory is measurable in the first 2-3 months of use, especially on waste control. Request a demo to see the full flow on RistoSaaS.",
+        "The ROI of a restaurant system with integrated inventory is measurable in the first 2-3 months of use, especially on waste control. Request a demo to see the full flow on RistoSimply.",
       related: ["how-to-choose-restaurant-management-software", "hotel-restaurant-software-benefits"],
     },
     {
@@ -1282,7 +1282,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "If you run a hotel with a restaurant or a restaurant with hospitality, integrated software is almost always the right choice. Request a demo of RistoSaaS and verify the room-charge flow in real time on your property.",
+        "If you run a hotel with a restaurant or a restaurant with hospitality, integrated software is almost always the right choice. Request a demo of RistoSimply and verify the room-charge flow in real time on your property.",
       related: ["restaurant-software-with-inventory", "how-to-choose-restaurant-management-software"],
     },
   ],
@@ -1336,7 +1336,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "Wil je zien hoe één systeem de flow bestelling → keuken → voorraad concreet uitvoert? Vraag een demo van RistoSaaS aan: we laten het hele pad in 20 minuten zien op jouw echte locatie.",
+        "Wil je zien hoe één systeem de flow bestelling → keuken → voorraad concreet uitvoert? Vraag een demo van RistoSimply aan: we laten het hele pad in 20 minuten zien op jouw echte locatie.",
       related: ["restaurantsoftware-met-voorraad", "hotel-restaurant-software-voordelen"],
     },
     {
@@ -1380,7 +1380,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "De ROI van een restaurantsysteem met geïntegreerde voorraad is meetbaar in de eerste 2-3 maanden gebruik, vooral bij verspillingscontrole. Vraag een demo aan om de volledige flow op RistoSaaS te zien.",
+        "De ROI van een restaurantsysteem met geïntegreerde voorraad is meetbaar in de eerste 2-3 maanden gebruik, vooral bij verspillingscontrole. Vraag een demo aan om de volledige flow op RistoSimply te zien.",
       related: ["hoe-kies-je-restaurantbeheersoftware", "hotel-restaurant-software-voordelen"],
     },
     {
@@ -1424,7 +1424,7 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
         },
       ],
       conclusion:
-        "Als je een hotel met restaurant of een restaurant met hospitality runt, is geïntegreerde software bijna altijd de juiste keuze. Vraag een demo van RistoSaaS aan en verifieer de kamerrekeningsflow realtime op jouw locatie.",
+        "Als je een hotel met restaurant of een restaurant met hospitality runt, is geïntegreerde software bijna altijd de juiste keuze. Vraag een demo van RistoSimply aan en verifieer de kamerrekeningsflow realtime op jouw locatie.",
       related: ["restaurantsoftware-met-voorraad", "hoe-kies-je-restaurantbeheersoftware"],
     },
   ],

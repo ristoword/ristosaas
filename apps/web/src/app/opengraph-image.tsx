@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "RistoSaaS — Piattaforma all-in-one per ristoranti e hotel";
+export const alt = "RistoSimply — Piattaforma all-in-one per ristoranti e hotel";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -45,7 +45,7 @@ export default function OpenGraphImage() {
             R
           </div>
           <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: -0.5 }}>
-            RistoSaaS
+            RistoSimply
           </div>
         </div>
 

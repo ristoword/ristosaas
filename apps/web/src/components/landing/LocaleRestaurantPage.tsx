@@ -30,7 +30,7 @@ export function LocaleRestaurantPage({ locale }: { locale: Locale }) {
     <SeoPageShell locale={locale}>
       <SoftwareApplicationJsonLd
         locale={locale}
-        name="RistoSaaS — Cloud Restaurant Management"
+        name="RistoSimply — Cloud Restaurant Management"
         url={absUrl(restaurantPath(locale))}
         description={copy.description}
       />

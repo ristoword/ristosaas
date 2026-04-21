@@ -80,7 +80,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
           filename: `ordine-${order.code}.pdf`,
           content: await renderPurchaseOrderPdf({
             order,
-            tenantName: tenant?.name ?? "RistoSaaS",
+            tenantName: tenant?.name ?? "RistoSimply",
             fromAddress: emailConfig?.fromAddress ?? null,
           }),
           contentType: "application/pdf",
@@ -110,10 +110,10 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     "",
     `Totale ordine: € ${order.total.toFixed(2)}`,
     "",
-    `${tenant?.name ?? "RistoSaaS"}`,
+    `${tenant?.name ?? "RistoSimply"}`,
   ].join("\n");
 
-  const subject = `Ordine ${order.code} — ${tenant?.name ?? "RistoSaaS"}`;
+  const subject = `Ordine ${order.code} — ${tenant?.name ?? "RistoSimply"}`;
 
   const result = await sendTenantMail({
     tenantId,

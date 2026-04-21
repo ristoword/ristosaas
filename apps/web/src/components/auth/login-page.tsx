@@ -45,7 +45,7 @@ export function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-rw-accent/15 ring-1 ring-rw-accent/30">
             <Sparkles className="h-8 w-8 text-rw-accent" />
           </div>
-          <h1 className="font-display text-3xl font-bold text-rw-ink">RistoSaaS</h1>
+          <h1 className="font-display text-3xl font-bold text-rw-ink">RistoSimply</h1>
           <p className="mt-2 text-sm text-rw-muted">Il gestionale cloud per la ristorazione</p>
         </div>
 

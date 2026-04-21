@@ -14,6 +14,8 @@ export type HotelRoom = {
   status: HotelRoomStatus;
   roomType: string;
   ratePlanCode?: string;
+  /** Listino €/notte per questa camera (prenotazioni / messaggio al cliente). */
+  defaultNightlyRate: number;
 };
 
 export type RatePlan = {

@@ -22,7 +22,7 @@ export function LandingFooter({ locale = "it" }: { locale?: Locale } = {}) {
             R
           </span>
           <div className="leading-tight">
-            <p className="text-sm font-semibold text-landing-ink">RistoSaaS</p>
+            <p className="text-sm font-semibold text-landing-ink">RistoSimply</p>
             <a
               href="https://gestionesemplificata.com"
               target="_blank"
@@ -59,7 +59,7 @@ export function LandingFooter({ locale = "it" }: { locale?: Locale } = {}) {
         </nav>
 
         <p className="text-xs text-landing-muted">
-          © {new Date().getFullYear()} RistoSaaS · {copy.footerRights}
+          © {new Date().getFullYear()} RistoSimply · {copy.footerRights}
         </p>
       </div>
     </footer>

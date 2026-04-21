@@ -22,7 +22,7 @@ type Props = {
  */
 export function DashboardShowcase({
   imageSrc,
-  imageAlt = "Anteprima dashboard RistoSaaS",
+  imageAlt = "Anteprima dashboard RistoSimply",
   width = 1600,
   height = 1000,
   priority = false,

@@ -1,4 +1,4 @@
-# Runbook Go-Live (RistoSaaS)
+# Runbook Go-Live (RistoSimply)
 
 ## 1) Pre-deploy Checklist
 

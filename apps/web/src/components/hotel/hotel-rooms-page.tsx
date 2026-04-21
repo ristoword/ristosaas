@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
+import { HotelRoomTypeSelect } from "@/components/hotel/hotel-room-type-select";
 import { useHotel } from "@/components/hotel/hotel-context";
 import type { HotelRoom } from "@/lib/api-client";
 import { isRoomAvailableForRange } from "@/modules/hotel/domain/availability";
@@ -19,47 +20,18 @@ const roomTone = {
   manutenzione: "default",
 } as const;
 
-const ROOM_TYPE_OPTIONS = [
-  { label: "Classic", value: "CLASSIC" },
-  { label: "Superior", value: "SUPERIOR" },
-  { label: "Deluxe", value: "DELUXE" },
-  { label: "Suite", value: "SUITE" },
-  { label: "Altro", value: "OTHER" },
-] as const;
-
-const PRESET_VALUES = new Set(ROOM_TYPE_OPTIONS.map((o) => o.value));
-
-/** Allinea valori legacy (es. "Classic") al preset select; il resto va trattato come "Altro". */
-function storedRoomTypeToSelectValue(roomType: string): (typeof ROOM_TYPE_OPTIONS)[number]["value"] {
-  const raw = roomType.trim();
-  const low = raw.toLowerCase();
-  if (low === "classic") return "CLASSIC";
-  if (low === "superior") return "SUPERIOR";
-  if (low === "deluxe") return "DELUXE";
-  if (low === "suite") return "SUITE";
-  if (raw === "OTHER") return "OTHER";
-  if (PRESET_VALUES.has(raw as (typeof ROOM_TYPE_OPTIONS)[number]["value"])) {
-    return raw as (typeof ROOM_TYPE_OPTIONS)[number]["value"];
-  }
-  return "OTHER";
-}
-
-/** Testo mostrato sotto "Altro" quando il valore salvato non è un preset noto (né sinonimo legacy). */
-function otherRoomTypeInputValue(roomType: string): string {
-  const preset = storedRoomTypeToSelectValue(roomType);
-  if (preset !== "OTHER") return "";
-  const raw = roomType.trim();
-  if (raw === "" || raw === "OTHER") return "";
-  if (PRESET_VALUES.has(raw as (typeof ROOM_TYPE_OPTIONS)[number]["value"])) return "";
-  if (["classic", "superior", "deluxe", "suite"].includes(raw.toLowerCase())) return "";
-  return raw;
-}
-
 export function HotelRoomsPage() {
   const { rooms, reservations, housekeeping, createRoom, updateRoom, deleteRoom, failedSlices } = useHotel();
   const [calendarStart, setCalendarStart] = useState(() => todayIso());
   const [calendarEnd, setCalendarEnd] = useState(() => addDaysIso(todayIso(), 1));
-  const [form, setForm] = useState<Omit<HotelRoom, "id">>({ code: "", floor: 1, capacity: 2, roomType: "CLASSIC", status: "libera" });
+  const [form, setForm] = useState<Omit<HotelRoom, "id">>({
+    code: "",
+    floor: 1,
+    capacity: 2,
+    roomType: "CLASSIC",
+    status: "libera",
+    defaultNightlyRate: 0,
+  });
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
 
   const stays = useMemo(
@@ -99,48 +71,36 @@ export function HotelRoomsPage() {
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <Card title="Nuova camera" description="CRUD base del verticale hotel.">
+        <Card title="Nuova camera" description="Tipologia come in Prenotazioni hotel; imposta il listino €/notte usato in booking e messaggio al cliente.">
           <div className="grid gap-3 sm:grid-cols-2">
             <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Numero camera" value={form.code} onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))} />
             <input type="number" min="0" className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Piano" value={form.floor} onChange={(e) => setForm((prev) => ({ ...prev, floor: parseInt(e.target.value, 10) || 0 }))} />
             <input type="number" min="1" className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Capienza" value={form.capacity} onChange={(e) => setForm((prev) => ({ ...prev, capacity: parseInt(e.target.value, 10) || 1 }))} />
-            <div className="grid gap-2 sm:col-span-2">
-              <label className="text-xs font-semibold text-rw-muted" htmlFor="hotel-room-type">
-                Tipo camera
+            <div>
+              <label className="text-xs font-semibold text-rw-muted" htmlFor="hotel-room-nightly">
+                Prezzo listino (€ / notte)
               </label>
-              <select
+              <input
+                id="hotel-room-nightly"
+                type="number"
+                min="0"
+                step="0.01"
+                className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
+                placeholder="0.00"
+                value={form.defaultNightlyRate || ""}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, defaultNightlyRate: parseFloat(e.target.value) || 0 }))
+                }
+              />
+              <p className="mt-1 text-[11px] text-rw-muted">Usato in Prenotazioni hotel per mostrare la tariffa al cliente.</p>
+            </div>
+            <div className="sm:col-span-2">
+              <HotelRoomTypeSelect
                 id="hotel-room-type"
-                className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
-                value={storedRoomTypeToSelectValue(form.roomType)}
-                onChange={(e) => {
-                  const v = e.target.value as (typeof ROOM_TYPE_OPTIONS)[number]["value"];
-                  if (v === "OTHER") {
-                    setForm((prev) => ({
-                      ...prev,
-                      roomType: otherRoomTypeInputValue(prev.roomType) || "OTHER",
-                    }));
-                  } else {
-                    setForm((prev) => ({ ...prev, roomType: v }));
-                  }
-                }}
-              >
-                {ROOM_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              {storedRoomTypeToSelectValue(form.roomType) === "OTHER" ? (
-                <input
-                  className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
-                  placeholder="Inserisci nome camera personalizzato"
-                  value={otherRoomTypeInputValue(form.roomType)}
-                  onChange={(e) => {
-                    const text = e.target.value;
-                    setForm((prev) => ({ ...prev, roomType: text.trim() || "OTHER" }));
-                  }}
-                />
-              ) : null}
+                value={form.roomType}
+                onChange={(roomType) => setForm((prev) => ({ ...prev, roomType }))}
+                selectClassName="w-full"
+              />
             </div>
             <select className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as typeof form.status }))}>
               <option value="libera">Libera</option>
@@ -157,7 +117,7 @@ export function HotelRoomsPage() {
                 const action = editingRoomId ? updateRoom(editingRoomId, form) : createRoom(form);
                 action.then(() => {
                   setEditingRoomId(null);
-                  setForm({ code: "", floor: 1, capacity: 2, roomType: "CLASSIC", status: "libera" });
+                  setForm({ code: "", floor: 1, capacity: 2, roomType: "CLASSIC", status: "libera", defaultNightlyRate: 0 });
                 }).catch(console.error);
               }}
             >
@@ -175,6 +135,15 @@ export function HotelRoomsPage() {
             columns={[
               { key: "code", header: "Camera", render: (row) => <span className="font-semibold text-rw-ink">{row.code}</span> },
               { key: "roomType", header: "Tipologia", render: (row) => <span className="text-rw-soft">{row.roomType}</span> },
+              {
+                key: "defaultNightlyRate",
+                header: "€ / notte",
+                render: (row) => (
+                  <span className="font-medium text-rw-ink">
+                    {row.defaultNightlyRate > 0 ? `€ ${row.defaultNightlyRate.toFixed(2)}` : "—"}
+                  </span>
+                ),
+              },
               { key: "status", header: "Stato operativo", render: (row) => <Chip label={row.status.replace("_", " ")} tone={roomTone[row.status]} /> },
               { key: "available", header: "Disponibilità", render: (row) => <Chip label={row.available ? "disponibile" : "occupata / bloccata"} tone={row.available ? "success" : "danger"} /> },
             ]}
@@ -188,6 +157,13 @@ export function HotelRoomsPage() {
         <DataTable
           columns={[
             { key: "code", header: "Camera", render: (row) => <span className="font-semibold text-rw-ink">{row.code}</span> },
+            {
+              key: "defaultNightlyRate",
+              header: "Listino",
+              render: (row) => (
+                <span className="text-rw-soft">{row.defaultNightlyRate > 0 ? `€${row.defaultNightlyRate.toFixed(2)}/n` : "—"}</span>
+              ),
+            },
             { key: "status", header: "Stato", render: (row) => <Chip label={row.status.replace("_", " ")} tone={roomTone[row.status]} /> },
             {
               key: "guest",
@@ -240,7 +216,15 @@ export function HotelRoomsPage() {
                     className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-2 py-1 text-xs font-semibold text-rw-ink"
                     onClick={() => {
                       setEditingRoomId(row.id);
-                      setForm({ code: row.code, floor: row.floor, capacity: row.capacity, roomType: row.roomType, status: row.status });
+                      setForm({
+                        code: row.code,
+                        floor: row.floor,
+                        capacity: row.capacity,
+                        roomType: row.roomType,
+                        status: row.status,
+                        defaultNightlyRate: row.defaultNightlyRate ?? 0,
+                        ratePlanCode: row.ratePlanCode,
+                      });
                     }}
                   >
                     Modifica

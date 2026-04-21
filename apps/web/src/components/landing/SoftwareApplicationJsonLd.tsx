@@ -1,8 +1,8 @@
-import { HOMEPAGE_COPY, LOCALE_META } from "@/core/i18n/seo-content";
+import { HOMEPAGE_COPY, LOCALE_META, SITE_URL } from "@/core/i18n/seo-content";
 import type { Locale } from "@/core/i18n/types";
 
 /**
- * JSON-LD SoftwareApplication per RistoSaaS.
+ * JSON-LD SoftwareApplication per RistoSimply.
  * Il copy (name, description, featureList) viene preso dalla lingua
  * passata. inLanguage viene settato al codice IETF corretto (it-IT,
  * en-US, nl-NL) così i crawler sanno su quale locale indicizzare.
@@ -58,8 +58,8 @@ export function SoftwareApplicationJsonLd({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    name: name ?? "RistoSaaS",
-    url: url ?? "https://ristosaas.com/",
+    name: name ?? "RistoSimply",
+    url: url ?? `${SITE_URL}/`,
     description: description ?? copy.description,
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
@@ -68,7 +68,7 @@ export function SoftwareApplicationJsonLd({
       "@type": "Offer",
       priceCurrency: "EUR",
       availability: "https://schema.org/InStock",
-      url: url ?? "https://ristosaas.com/",
+      url: url ?? `${SITE_URL}/`,
     },
     featureList: FEATURE_LIST[locale],
     provider: {

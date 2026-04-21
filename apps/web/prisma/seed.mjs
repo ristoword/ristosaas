@@ -32,7 +32,7 @@ loadEnvFile(path.resolve(currentDir, "../.env.local"));
 const prisma = new PrismaClient();
 
 const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || "tenant_demo";
-const TENANT_NAME = process.env.NEXT_PUBLIC_TENANT_NAME || "RistoSaaS Demo";
+const TENANT_NAME = process.env.NEXT_PUBLIC_TENANT_NAME || "RistoSimply Demo";
 const TENANT_PLAN = process.env.NEXT_PUBLIC_PRODUCT_PLAN || "all_included";
 const SEED_SUPERADMIN_PASSWORD = process.env.SEED_SUPERADMIN_PASSWORD;
 
@@ -224,7 +224,7 @@ async function upsertTenantLicenseAndEmailConfig() {
       port: 587,
       username: "noreply@ristosaas.local",
       password: "demo_smtp_password",
-      fromAddress: "RistoSaaS <noreply@ristosaas.local>",
+      fromAddress: "RistoSimply <noreply@ristosaas.local>",
       secure: false,
       lastTestStatus: "ok",
       lastTestedAt: new Date(),
@@ -235,7 +235,7 @@ async function upsertTenantLicenseAndEmailConfig() {
       port: 587,
       username: "noreply@ristosaas.local",
       password: "demo_smtp_password",
-      fromAddress: "RistoSaaS <noreply@ristosaas.local>",
+      fromAddress: "RistoSimply <noreply@ristosaas.local>",
       secure: false,
       lastTestStatus: "ok",
       lastTestedAt: new Date(),

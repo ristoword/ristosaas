@@ -69,9 +69,7 @@ describe("billing.processStripeEvent — idempotency", () => {
       data: { object: {} },
     } as any);
     expect(result.processed).toBe(true);
-    // @ts-expect-error narrow union
     expect(result.duplicate).toBe(true);
-    // @ts-expect-error narrow union
     expect(result.eventId).toBe("evt_already_done");
   });
 
@@ -83,15 +81,13 @@ describe("billing.processStripeEvent — idempotency", () => {
       data: { object: {} },
     } as any);
     // With no tenant inference available, the repo returns tenant_not_resolved
-    expect(result.processed).toBe(false);
-    // @ts-expect-error narrow union
-    expect(result.reason).toBe("tenant_not_resolved");
+    expect((result as any).processed).toBe(false);
+    expect((result as any).reason).toBe("tenant_not_resolved");
   });
 
   it("refuses events without id", async () => {
     const result = await billingRepository.processStripeEvent({ type: "customer.subscription.updated" } as any);
-    expect(result.processed).toBe(false);
-    // @ts-expect-error narrow union
-    expect(result.reason).toBe("missing_event_id");
+    expect((result as any).processed).toBe(false);
+    expect((result as any).reason).toBe("missing_event_id");
   });
 });
