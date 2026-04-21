@@ -6,10 +6,10 @@ import { Menu, X } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
 const NAV_LINKS = [
+  { href: "#come-funziona", label: "Come funziona" },
   { href: "#funzioni", label: "Funzioni" },
-  { href: "#vantaggi", label: "Vantaggi" },
+  { href: "/gestionale-ristorante-hotel-integrato", label: "Integrato" },
   { href: "#demo", label: "Demo" },
-  { href: "#contatti", label: "Contatti" },
 ];
 
 export function LandingNavbar() {

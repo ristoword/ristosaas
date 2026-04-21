@@ -26,10 +26,17 @@ export function LandingFooter() {
         </div>
 
         <nav className="flex flex-wrap items-center gap-5 text-xs text-landing-soft">
-          <a href="#funzioni" className="hover:text-landing-ink">Funzioni</a>
-          <a href="#vantaggi" className="hover:text-landing-ink">Vantaggi</a>
-          <a href="#demo" className="hover:text-landing-ink">Demo</a>
-          <a href="#contatti" className="hover:text-landing-ink">Contatti</a>
+          <a href="/#funzioni" className="hover:text-landing-ink">Funzioni</a>
+          <Link href="/gestionale-ristorante-hotel-integrato" className="hover:text-landing-ink">
+            Sistema integrato
+          </Link>
+          <Link href="/gestionale-ristorante" className="hover:text-landing-ink">
+            Gestionale ristorante
+          </Link>
+          <Link href="/blog" className="hover:text-landing-ink">
+            Blog
+          </Link>
+          <a href="/#demo" className="hover:text-landing-ink">Demo</a>
           <Link href={ROUTES.login} className="font-semibold text-landing-ink hover:text-landing-magentaSoft">
             Login
           </Link>

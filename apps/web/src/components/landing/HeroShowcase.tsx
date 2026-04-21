@@ -38,7 +38,8 @@ export function HeroShowcase() {
 
           <h1 className="animate-landing-fade-up mt-6 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-landing-ink sm:text-5xl md:text-6xl lg:text-7xl">
             <span className="bg-gradient-to-br from-white via-landing-ink to-landing-soft bg-clip-text text-transparent">
-              RistoSaaS
+              Gestionale ristorante e hotel
+              <br className="hidden sm:block" /> in un unico sistema
             </span>
           </h1>
 
@@ -46,28 +47,28 @@ export function HeroShowcase() {
             className="animate-landing-fade-up mt-5 max-w-2xl text-base text-landing-soft sm:text-lg md:text-xl"
             style={{ animationDelay: "60ms" }}
           >
-            La piattaforma all-in-one per ristoranti e hotel.
+            Gestisci ristorante, hotel e magazzino senza passare tra software diversi.
             <br className="hidden sm:block" />
-            Ordini, hotel, pagamenti e operatività in un&apos;unica piattaforma.
+            Ordini, cucina, camere e fornitori collegati in tempo reale.
           </p>
 
           <div
             className="animate-landing-fade-up mt-8 flex w-full flex-col items-center justify-center gap-3 sm:flex-row"
             style={{ animationDelay: "120ms" }}
           >
-            <Link
-              href={ROUTES.login}
+            <a
+              href="mailto:hello@gestionesemplificata.com?subject=RistoSaaS%20%E2%80%93%20Richiesta%20demo&body=Vorrei%20una%20demo%20di%20RistoSaaS%20per%20la%20mia%20struttura."
               className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-landing-violet via-landing-magenta to-landing-pink px-7 py-3.5 text-sm font-semibold text-white shadow-landing-card transition-transform duration-rw hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-landing-magenta"
             >
-              Accedi a RistoSaaS
+              Richiedi demo
               <ArrowRight className="h-4 w-4 transition-transform duration-rw group-hover:translate-x-0.5" aria-hidden />
-            </Link>
-            <a
-              href="#funzioni"
+            </a>
+            <Link
+              href={ROUTES.login}
               className="inline-flex items-center gap-2 rounded-full border border-landing-line bg-white/5 px-7 py-3.5 text-sm font-semibold text-landing-ink transition-all duration-rw hover:border-landing-magenta/60 hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-landing-magenta"
             >
-              Scopri la piattaforma
-            </a>
+              Prova accesso
+            </Link>
           </div>
 
           <a

@@ -1,29 +1,28 @@
-import { Check } from "lucide-react";
+import { Check, XCircle } from "lucide-react";
+
+const LEGACY = [
+  "un gestionale per il ristorante",
+  "uno per l'hotel",
+  "uno per il magazzino",
+  "fogli Excel per collegare i dati",
+];
 
 const BENEFITS = [
   {
-    title: "Ordini live",
-    body: "Zero doppi passaggi tra sala e cucina. Tutto tracciato, tutto aggiornato in tempo reale.",
+    title: "Meno errori operativi",
+    body: "Niente trascrizioni manuali tra sistemi. Sala, cucina, magazzino e reception usano la stessa fonte dei dati.",
   },
   {
-    title: "Sala, tavoli, servizio",
-    body: "Pianta tavoli, assegnazioni, modifiche al volo. Grande e leggibile, anche a mani impegnate.",
+    title: "Meno software da gestire",
+    body: "Un solo accesso, una sola licenza, un solo fornitore. Zero integrazioni da manutenere.",
   },
   {
-    title: "Prenotazioni e hospitality",
-    body: "Check-in e check-out fluidi. Folio unico per chi è ospite del ristorante e dell&apos;hotel.",
+    title: "Maggiore controllo",
+    body: "Stato ordini, scorte, prenotazioni e incassi visibili in tempo reale dallo stesso pannello.",
   },
   {
-    title: "Pagamenti integrati",
-    body: "Stripe nativo. Ricevute, abbonamenti e licenze senza uscire dalla piattaforma.",
-  },
-  {
-    title: "Desktop e mobile",
-    body: "Stesse funzioni su ogni schermo. Proprietario, maitre, cameriere: ognuno ha il suo spazio.",
-  },
-  {
-    title: "Multi-tenant sicuro",
-    body: "Più strutture, stessa piattaforma. RBAC granulare, audit trail e isolamento dei dati.",
+    title: "Dati centralizzati",
+    body: "Multi-tenant sicuro con RBAC, backup automatico, audit trail sulle azioni sensibili.",
   },
 ];
 
@@ -33,17 +32,58 @@ export function BenefitsSection() {
       <div className="mx-auto w-full max-w-7xl px-5 md:px-8">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-landing-magentaSoft">
-            Vantaggi
+            Differenza
           </p>
           <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-landing-ink sm:text-4xl md:text-5xl">
-            Gestione totale, senza stress.
+            Perché è diverso dagli altri software
           </h2>
           <p className="mt-4 text-landing-soft">
-            Pensato per ristoranti con hotel. Pensato per hotel con ristorante. Pensato per chi non ha tempo da perdere.
+            La maggior parte delle strutture horeca oggi usa tre o quattro software separati
+            che non si parlano tra loro. Qui è tutto nello stesso sistema.
           </p>
         </div>
 
-        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto mt-10 grid max-w-5xl gap-4 md:grid-cols-2">
+          <article className="rounded-3xl border border-landing-line bg-landing-card p-6">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-landing-muted">
+              Gli altri usano
+            </p>
+            <ul className="mt-4 space-y-3">
+              {LEGACY.map((item) => (
+                <li key={item} className="flex items-start gap-3 text-sm text-landing-soft">
+                  <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-landing-muted" aria-hidden />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="rounded-3xl border border-landing-magenta/40 bg-landing-card p-6 shadow-landing-soft">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-landing-magentaSoft">
+              RistoSaaS fa
+            </p>
+            <ul className="mt-4 space-y-3">
+              <li className="flex items-start gap-3 text-sm text-landing-ink">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-landing-magentaSoft" aria-hidden />
+                <span>Un unico sistema integrato per ristorante, cucina, magazzino e hotel.</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm text-landing-ink">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-landing-magentaSoft" aria-hidden />
+                <span>Flussi automatici tra sala, cucina, magazzino e camere.</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm text-landing-ink">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-landing-magentaSoft" aria-hidden />
+                <span>Zero doppie registrazioni, zero integrazioni da manutenere.</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm text-landing-ink">
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-landing-magentaSoft" aria-hidden />
+                <span>Dashboard unica con dati in tempo reale.</span>
+              </li>
+            </ul>
+          </article>
+        </div>
+
+        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {BENEFITS.map((b) => (
             <article
               key={b.title}
@@ -53,10 +93,7 @@ export function BenefitsSection() {
                 <Check className="h-4 w-4" aria-hidden />
               </span>
               <h3 className="mt-4 font-display text-lg font-semibold text-landing-ink">{b.title}</h3>
-              <p
-                className="mt-2 text-sm leading-relaxed text-landing-soft"
-                dangerouslySetInnerHTML={{ __html: b.body }}
-              />
+              <p className="mt-2 text-sm leading-relaxed text-landing-soft">{b.body}</p>
             </article>
           ))}
         </div>

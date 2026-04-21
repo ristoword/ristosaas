@@ -3,7 +3,20 @@ import { canAccessWithRole, getApiRequiredRoles, isPublicApiPath } from "@/lib/a
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
 import { getOrCreateRequestId } from "@/lib/observability/request-context";
 
-const PUBLIC = ["/login", "/change-password", "/setup", "/maintenance", "/signup", "/t/", "/api/auth/login", "/api/auth/refresh", "/api/health"];
+const PUBLIC = [
+  "/login",
+  "/change-password",
+  "/setup",
+  "/maintenance",
+  "/signup",
+  "/t/",
+  "/gestionale-ristorante-hotel-integrato",
+  "/gestionale-ristorante",
+  "/blog",
+  "/api/auth/login",
+  "/api/auth/refresh",
+  "/api/health",
+];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/email-settings", "/super-admin", "/dev-access"];
 
 type Gates = { maintenanceMode: boolean; tenantBlocked: boolean };

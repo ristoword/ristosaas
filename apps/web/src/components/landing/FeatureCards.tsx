@@ -1,28 +1,32 @@
-import { Building2, CreditCard, Receipt, Sparkles } from "lucide-react";
+import { BedDouble, ChefHat, Package, UtensilsCrossed } from "lucide-react";
 
 const FEATURES = [
   {
-    title: "Ordini live",
-    body: "Sala, cucina, bar e delivery parlano in tempo reale. Niente più fogli volanti, niente più errori.",
-    Icon: Receipt,
+    title: "Ristorante",
+    subtitle: "Sala, ordini, cassa",
+    body: "Tavoli e sala in tempo reale, ordini veloci collegati alla cucina, stato piatti (in preparazione, pronto, servito), chiusura conto.",
+    Icon: UtensilsCrossed,
     accent: "from-landing-violet to-landing-magenta",
   },
   {
-    title: "Prenotazioni hotel",
-    body: "Reception, housekeeping e rate plan in un unico flusso. Check-in veloci e camere sempre sincronizzate.",
-    Icon: Building2,
+    title: "Cucina (KDS)",
+    subtitle: "Schermo cucina",
+    body: "Comande ordinate per priorità, aggiornamento live, riduzione errori tra sala e cucina. Stato corsi in preparazione, pronto, servito.",
+    Icon: ChefHat,
     accent: "from-landing-magenta to-landing-pink",
   },
   {
-    title: "Pagamenti e billing",
-    body: "Stripe integrato. Sottoscrizioni, fatturazione e riconciliazioni gestite nativamente nella piattaforma.",
-    Icon: CreditCard,
+    title: "Magazzino",
+    subtitle: "Scorte e fornitori",
+    body: "Scarico ingredienti automatico su ordine, avviso scorte basse, suggerimento ordini fornitori, PDF ed email ordine al fornitore.",
+    Icon: Package,
     accent: "from-landing-violet to-landing-magentaSoft",
   },
   {
-    title: "Multi-tenant centralizzato",
-    body: "Gestisci più strutture, licenze e ruoli da un unico pannello con RBAC granulare e audit trail.",
-    Icon: Sparkles,
+    title: "Hotel",
+    subtitle: "Camere e ospiti",
+    body: "Prenotazioni, check-in e check-out, addebito ristorante sulla camera con folio unificato per l'ospite.",
+    Icon: BedDouble,
     accent: "from-landing-pink to-landing-violet",
   },
 ];
@@ -36,10 +40,10 @@ export function FeatureCards() {
             Funzioni
           </p>
           <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-landing-ink sm:text-4xl md:text-5xl">
-            Tutto ciò che serve a chi vive la struttura.
+            Cosa fa RistoSaaS
           </h2>
           <p className="mt-4 text-landing-soft">
-            Una piattaforma costruita per chi lavora davvero in sala, cucina e reception — non per chi guarda i report.
+            Quattro moduli pensati per lavorare insieme, non per essere comprati separatamente.
           </p>
         </div>
 
@@ -57,7 +61,10 @@ export function FeatureCards() {
                 <span className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${feature.accent} text-white shadow-landing-soft`}>
                   <feature.Icon className="h-5 w-5" aria-hidden />
                 </span>
-                <h3 className="mt-4 font-display text-lg font-semibold text-landing-ink">
+                <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-landing-magentaSoft">
+                  {feature.subtitle}
+                </p>
+                <h3 className="mt-1 font-display text-lg font-semibold text-landing-ink">
                   {feature.title}
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-landing-soft">{feature.body}</p>
