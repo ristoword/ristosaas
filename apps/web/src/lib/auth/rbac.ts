@@ -26,36 +26,58 @@ export const PUBLIC_API_PREFIXES = [
   "/api/jobs/billing/reconcile-all",
 ] as const;
 
+/**
+ * Matrice unica di verita' per RBAC lato API.
+ *
+ * Regole d'uso:
+ *  - longest prefix wins (match piu' specifico vince)
+ *  - il middleware edge usa questa matrice su ogni richiesta `/api/*`
+ *  - il guard handler `requireApiUser` legge la stessa matrice se non
+ *    viene passato un override esplicito `requiredRoles`
+ *  - super_admin passa sempre (bypass globale in canAccessWithRole)
+ *  - owner passa sempre tranne quando la regola e' esattamente
+ *    ["super_admin"] (vedere canAccessWithRole)
+ *
+ * Come modificare una regola:
+ *  - modificare SOLO questo array; handler e middleware si allineano
+ *    automaticamente senza drift
+ *  - se un handler ha bisogno di restrizioni LOCALI piu' strette
+ *    (es. solo owner anche se la matrice ammette supervisor), passare
+ *    `requireApiUser(req, ["owner", "super_admin"])` esplicitamente
+ *
+ * Ultima revisione drift: 2026-04-21 - chiusi 9 drift identificati
+ * nell'audit tra middleware e handler hardcoded.
+ */
 export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/admin", roles: ["super_admin"] },
   { prefix: "/api/billing", roles: ["owner", "super_admin"] },
-  { prefix: "/api/reports", roles: ["owner", "super_admin", "supervisor", "cassa"] },
-  { prefix: "/api/hotel/front-desk", roles: ["reception", "hotel_manager", "owner", "super_admin"] },
+  { prefix: "/api/reports", roles: ["owner", "super_admin", "supervisor", "cassa", "hotel_manager", "reception"] },
+  { prefix: "/api/hotel/front-desk", roles: ["reception", "hotel_manager", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/housekeeping", roles: ["housekeeping", "hotel_manager", "reception", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/keycards", roles: ["reception", "hotel_manager", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/rate-plans", roles: ["hotel_manager", "reception", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/rooms", roles: ["reception", "hotel_manager", "housekeeping", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/reservations", roles: ["reception", "hotel_manager", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/availability", roles: ["reception", "hotel_manager", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/integration", roles: ["reception", "hotel_manager", "cassa", "sala", "owner", "super_admin"] },
+  { prefix: "/api/integration", roles: ["reception", "hotel_manager", "cassa", "sala", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/ai/proposals/schedule", roles: ["super_admin"] },
   { prefix: "/api/ai/proposals", roles: ["cucina", "magazzino", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/ai/kitchen", roles: ["cucina", "magazzino", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/ai", roles: ["cucina", "magazzino", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/orders", roles: ["sala", "cucina", "bar", "pizzeria", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/kitchen", roles: ["cucina", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/menu", roles: ["cucina", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/warehouse", roles: ["magazzino", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/staff/shifts/clock", roles: ["staff", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/staff/shifts", roles: ["supervisor", "owner", "super_admin"] },
-  { prefix: "/api/staff", roles: ["supervisor", "owner", "super_admin"] },
+  { prefix: "/api/menu", roles: ["cucina", "sala", "cassa", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/warehouse", roles: ["magazzino", "cucina", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/staff/shifts/clock", roles: ["staff", "sala", "cucina", "cassa", "bar", "pizzeria", "magazzino", "reception", "hotel_manager", "housekeeping", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/staff/shifts", roles: ["staff", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/staff", roles: ["staff", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/customers", roles: ["reception", "hotel_manager", "sala", "cassa", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/bookings", roles: ["sala", "cassa", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/rooms", roles: ["sala", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/tables", roles: ["sala", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/suppliers", roles: ["magazzino", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/purchase-orders", roles: ["magazzino", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/catering", roles: ["owner", "super_admin", "supervisor"] },
+  { prefix: "/api/bookings", roles: ["sala", "cassa", "reception", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/rooms", roles: ["sala", "cassa", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/tables", roles: ["sala", "cassa", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/suppliers", roles: ["magazzino", "cassa", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/purchase-orders", roles: ["magazzino", "cassa", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/catering", roles: ["sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/asporto", roles: ["sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/archivio", roles: ["supervisor", "owner", "super_admin", "cassa"] },
   { prefix: "/api/haccp", roles: ["cucina", "pizzeria", "bar", "magazzino", "supervisor", "owner", "super_admin"] },
