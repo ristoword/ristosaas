@@ -22,6 +22,7 @@
     "db:check-tables": "node scripts/db-check-tables.mjs",
     "db:seed-tables": "node scripts/seed-default-tables.mjs",
     "db:seed-tables:execute": "node scripts/seed-default-tables.mjs --execute",
+    "db:ensure-tenant-defaults": "tsx scripts/ensure-tenant-defaults.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
@@ -57,6 +58,7 @@
     "postcss": "^8.4.49",
     "prisma": "^6.19.3",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.3",
     "vitest": "^4.1.4"
   }

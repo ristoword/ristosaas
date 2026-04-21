@@ -19,11 +19,47 @@ const roomTone = {
   manutenzione: "default",
 } as const;
 
+const ROOM_TYPE_OPTIONS = [
+  { label: "Classic", value: "CLASSIC" },
+  { label: "Superior", value: "SUPERIOR" },
+  { label: "Deluxe", value: "DELUXE" },
+  { label: "Suite", value: "SUITE" },
+  { label: "Altro", value: "OTHER" },
+] as const;
+
+const PRESET_VALUES = new Set(ROOM_TYPE_OPTIONS.map((o) => o.value));
+
+/** Allinea valori legacy (es. "Classic") al preset select; il resto va trattato come "Altro". */
+function storedRoomTypeToSelectValue(roomType: string): (typeof ROOM_TYPE_OPTIONS)[number]["value"] {
+  const raw = roomType.trim();
+  const low = raw.toLowerCase();
+  if (low === "classic") return "CLASSIC";
+  if (low === "superior") return "SUPERIOR";
+  if (low === "deluxe") return "DELUXE";
+  if (low === "suite") return "SUITE";
+  if (raw === "OTHER") return "OTHER";
+  if (PRESET_VALUES.has(raw as (typeof ROOM_TYPE_OPTIONS)[number]["value"])) {
+    return raw as (typeof ROOM_TYPE_OPTIONS)[number]["value"];
+  }
+  return "OTHER";
+}
+
+/** Testo mostrato sotto "Altro" quando il valore salvato non è un preset noto (né sinonimo legacy). */
+function otherRoomTypeInputValue(roomType: string): string {
+  const preset = storedRoomTypeToSelectValue(roomType);
+  if (preset !== "OTHER") return "";
+  const raw = roomType.trim();
+  if (raw === "" || raw === "OTHER") return "";
+  if (PRESET_VALUES.has(raw as (typeof ROOM_TYPE_OPTIONS)[number]["value"])) return "";
+  if (["classic", "superior", "deluxe", "suite"].includes(raw.toLowerCase())) return "";
+  return raw;
+}
+
 export function HotelRoomsPage() {
   const { rooms, reservations, housekeeping, createRoom, updateRoom, deleteRoom, failedSlices } = useHotel();
   const [calendarStart, setCalendarStart] = useState(() => todayIso());
   const [calendarEnd, setCalendarEnd] = useState(() => addDaysIso(todayIso(), 1));
-  const [form, setForm] = useState<Omit<HotelRoom, "id">>({ code: "", floor: 1, capacity: 2, roomType: "Classic", status: "libera" });
+  const [form, setForm] = useState<Omit<HotelRoom, "id">>({ code: "", floor: 1, capacity: 2, roomType: "CLASSIC", status: "libera" });
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
 
   const stays = useMemo(
@@ -68,7 +104,44 @@ export function HotelRoomsPage() {
             <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Numero camera" value={form.code} onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))} />
             <input type="number" min="0" className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Piano" value={form.floor} onChange={(e) => setForm((prev) => ({ ...prev, floor: parseInt(e.target.value, 10) || 0 }))} />
             <input type="number" min="1" className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Capienza" value={form.capacity} onChange={(e) => setForm((prev) => ({ ...prev, capacity: parseInt(e.target.value, 10) || 1 }))} />
-            <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Tipologia" value={form.roomType} onChange={(e) => setForm((prev) => ({ ...prev, roomType: e.target.value }))} />
+            <div className="grid gap-2 sm:col-span-2">
+              <label className="text-xs font-semibold text-rw-muted" htmlFor="hotel-room-type">
+                Tipo camera
+              </label>
+              <select
+                id="hotel-room-type"
+                className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
+                value={storedRoomTypeToSelectValue(form.roomType)}
+                onChange={(e) => {
+                  const v = e.target.value as (typeof ROOM_TYPE_OPTIONS)[number]["value"];
+                  if (v === "OTHER") {
+                    setForm((prev) => ({
+                      ...prev,
+                      roomType: otherRoomTypeInputValue(prev.roomType) || "OTHER",
+                    }));
+                  } else {
+                    setForm((prev) => ({ ...prev, roomType: v }));
+                  }
+                }}
+              >
+                {ROOM_TYPE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {storedRoomTypeToSelectValue(form.roomType) === "OTHER" ? (
+                <input
+                  className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
+                  placeholder="Inserisci nome camera personalizzato"
+                  value={otherRoomTypeInputValue(form.roomType)}
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    setForm((prev) => ({ ...prev, roomType: text.trim() || "OTHER" }));
+                  }}
+                />
+              ) : null}
+            </div>
             <select className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as typeof form.status }))}>
               <option value="libera">Libera</option>
               <option value="pulita">Pulita / pronta</option>
@@ -84,7 +157,7 @@ export function HotelRoomsPage() {
                 const action = editingRoomId ? updateRoom(editingRoomId, form) : createRoom(form);
                 action.then(() => {
                   setEditingRoomId(null);
-                  setForm({ code: "", floor: 1, capacity: 2, roomType: "Classic", status: "libera" });
+                  setForm({ code: "", floor: 1, capacity: 2, roomType: "CLASSIC", status: "libera" });
                 }).catch(console.error);
               }}
             >

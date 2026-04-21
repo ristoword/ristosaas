@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { invalidateTenantAccessCache } from "@/lib/db/repositories/platform.repository";
+import {
+  ensureTenantDefaults,
+  type EnsureTenantDefaultsSummary,
+} from "@/lib/db/repositories/tenant-defaults.bootstrap";
 
 type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
 
@@ -33,11 +37,9 @@ function tableGridPositions(count: number) {
  * gia sale/camere configurate non tocca nulla.
  *
  * Include:
- *  - piano ristorante: 1 sala "Sala 1" + 10 tavoli `T1..T10` in griglia.
- *  - piano hotel:      5 camere esempio con rate plan base.
- *
- * Volutamente NON crea ricette, menu item, staff, clienti, ordini finti:
- * sono dati editoriali del cliente.
+ *  - piano ristorante: 1 sala "Sala 1" + 10 tavoli `T1..T10` in griglia (solo se ancora zero sale/tavoli).
+ *  - piano hotel: camere codice 101,102,201,202,301 mancanti + rate plan base (idempotente).
+ *  - menu della casa / menu del giorno / ricette: 6 piatti base via `ensureTenantDefaults` (idempotente).
  */
 async function bootstrapMinimalTenantResources(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
@@ -46,7 +48,13 @@ async function bootstrapMinimalTenantResources(
 ) {
   const hasRestaurant = plan === "restaurant_only" || plan === "all_included";
   const hasHotel = plan === "hotel_only" || plan === "all_included";
-  const summary = {
+  const summary: {
+    restaurantRooms: number;
+    restaurantTables: number;
+    hotelRooms: number;
+    hotelRatePlans: number;
+    seedDefaults?: EnsureTenantDefaultsSummary;
+  } = {
     restaurantRooms: 0,
     restaurantTables: 0,
     hotelRooms: 0,
@@ -78,62 +86,10 @@ async function bootstrapMinimalTenantResources(
     }
   }
 
+  summary.seedDefaults = await ensureTenantDefaults(tx, tenantId, plan);
   if (hasHotel) {
-    const existingHotel = await tx.hotelRoom.count({ where: { tenantId } });
-    if (existingHotel === 0) {
-      const ratePlan = await tx.hotelRatePlan.upsert({
-        where: { tenantId_code: { tenantId, code: "RP_CLASSIC_BB" } },
-        update: {
-          name: "Classic B&B",
-          roomType: "Classic",
-          boardType: "bed_breakfast",
-          nightlyRate: "109.00",
-          refundable: true,
-          active: true,
-        },
-        create: {
-          tenantId,
-          code: "RP_CLASSIC_BB",
-          name: "Classic B&B",
-          roomType: "Classic",
-          boardType: "bed_breakfast",
-          nightlyRate: "109.00",
-          refundable: true,
-          active: true,
-        },
-      });
-      summary.hotelRatePlans = 1;
-
-      const hotelSeeds = [
-        { code: "101", floor: 1, capacity: 2 },
-        { code: "102", floor: 1, capacity: 2 },
-        { code: "201", floor: 2, capacity: 2 },
-        { code: "202", floor: 2, capacity: 2 },
-        { code: "301", floor: 3, capacity: 2 },
-      ] as const;
-      for (const room of hotelSeeds) {
-        await tx.hotelRoom.upsert({
-          where: { tenantId_code: { tenantId, code: room.code } },
-          update: {
-            floor: room.floor,
-            roomType: "Classic",
-            capacity: room.capacity,
-            status: "libera",
-            ratePlanCode: ratePlan.code,
-          },
-          create: {
-            tenantId,
-            code: room.code,
-            floor: room.floor,
-            roomType: "Classic",
-            capacity: room.capacity,
-            status: "libera",
-            ratePlanCode: ratePlan.code,
-          },
-        });
-      }
-      summary.hotelRooms = hotelSeeds.length;
-    }
+    summary.hotelRooms = await tx.hotelRoom.count({ where: { tenantId } });
+    summary.hotelRatePlans = await tx.hotelRatePlan.count({ where: { tenantId } });
   }
 
   return summary;
@@ -331,7 +287,7 @@ export const adminRepository = {
         },
         bootstrap,
       };
-    });
+    }, { maxWait: 10_000, timeout: 60_000 });
   },
   async bootstrapTenantOperationalData(tenantId: string) {
     const tenant = await prisma.tenant.findUnique({
@@ -354,6 +310,8 @@ export const adminRepository = {
       reports: 0,
     };
 
+    let seedDefaultsSummary: EnsureTenantDefaultsSummary | null = null;
+
     await prisma.$transaction(async (tx) => {
       const ratePlans = [
         { code: "RP_CLASSIC_RO", name: "Classic Room Only", roomType: "Classic", boardType: "room_only", nightlyRate: "89.00", refundable: true },
@@ -370,20 +328,8 @@ export const adminRepository = {
       }
       created.ratePlans = ratePlans.length;
 
-      const rooms = [
-        { code: "101", floor: 1, roomType: "Classic", capacity: 2, status: "libera", ratePlanCode: "RP_CLASSIC_BB" },
-        { code: "102", floor: 1, roomType: "Classic", capacity: 2, status: "pulita", ratePlanCode: "RP_CLASSIC_RO" },
-        { code: "201", floor: 2, roomType: "Deluxe", capacity: 3, status: "libera", ratePlanCode: "RP_DELUXE_HB" },
-        { code: "301", floor: 3, roomType: "Family", capacity: 4, status: "libera", ratePlanCode: "RP_FAMILY_FB" },
-      ] as const;
-      for (const room of rooms) {
-        await tx.hotelRoom.upsert({
-          where: { tenantId_code: { tenantId, code: room.code } },
-          update: room,
-          create: { tenantId, ...room },
-        });
-      }
-      created.rooms = rooms.length;
+      seedDefaultsSummary = await ensureTenantDefaults(tx, tenantId, tenant.plan as ProductPlan);
+      created.rooms = await tx.hotelRoom.count({ where: { tenantId } });
 
       const sala = await tx.restaurantRoom.upsert({
         where: { tenantId_name: { tenantId, name: "Sala Principale" } },
@@ -567,12 +513,13 @@ export const adminRepository = {
       created.reports = await tx.dailyClosureReport.count({ where: { tenantId } });
     }, {
       maxWait: 10_000,
-      timeout: 30_000,
+      timeout: 90_000,
     });
 
     return {
       tenant,
       created,
+      seedDefaults: seedDefaultsSummary,
     };
   },
   async licenses() {

@@ -75,6 +75,19 @@ export type AdminTenantOnboardingResult = {
   tenant: { id: string; name: string; slug: string; plan: string };
   license: { id: string; key: string; status: string; plan: string; seats: number; usedSeats: number; expiresAt: string };
   adminUser: { id: string; username: string; email: string; role: string; mustChangePassword: boolean };
+  bootstrap?: {
+    restaurantRooms: number;
+    restaurantTables: number;
+    hotelRooms: number;
+    hotelRatePlans: number;
+    seedDefaults?: {
+      hotelRoomsAdded: number;
+      tablesAdded: number;
+      recipesAdded: number;
+      menuItemsAdded: number;
+      dailyDishesAdded: number;
+    };
+  };
 };
 export type AdminTenantBootstrapResult = {
   tenant: { id: string; name: string; slug: string; plan: string };
@@ -91,6 +104,13 @@ export type AdminTenantBootstrapResult = {
     customers: number;
     reports: number;
   };
+  seedDefaults?: {
+    hotelRoomsAdded: number;
+    tablesAdded: number;
+    recipesAdded: number;
+    menuItemsAdded: number;
+    dailyDishesAdded: number;
+  } | null;
 };
 export type AdminLicense = {
   id: string;
