@@ -17,7 +17,7 @@ const PUBLIC = [
   "/api/auth/refresh",
   "/api/health",
 ];
-const INTERNAL_ONLY = ["/licenses", "/stripe", "/websocket", "/email-settings", "/super-admin", "/dev-access"];
+const INTERNAL_ONLY = ["/licenses", "/stripe", "/email-settings", "/super-admin", "/dev-access"];
 
 type Gates = { maintenanceMode: boolean; tenantBlocked: boolean };
 let gatesCache: { key: string; value: Gates; exp: number } = {

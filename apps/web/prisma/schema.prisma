@@ -230,6 +230,8 @@ model Tenant {
   purchaseOrders PurchaseOrder[]
   purchaseOrderItems PurchaseOrderItem[]
   haccpEntries HaccpEntry[]
+  hardwareDevices HardwareDevice[]
+  printRoutes PrintRoute[]
 }
 
 model BillingSubscription {
@@ -1016,4 +1018,85 @@ model HaccpEntry {
 
   @@index([tenantId, recordedAt])
   @@index([tenantId, type, recordedAt])
+}
+
+enum HardwareDeviceType {
+  stampante_termica
+  stampante_fiscale
+  display_kds
+  lettore_keycard
+  cassetto_denaro
+  altro
+}
+
+enum HardwareDeviceConnection {
+  tcp_ip
+  usb
+  bluetooth
+  hdmi
+  altro
+}
+
+enum HardwareDeviceStatus {
+  online
+  offline
+  manutenzione
+}
+
+enum HardwareDepartment {
+  cucina
+  pizzeria
+  bar
+  cassa
+  sala
+  reception
+  housekeeping
+  magazzino
+  altro
+}
+
+model HardwareDevice {
+  id         String                    @id @default(cuid())
+  tenantId   String
+  name       String
+  type       HardwareDeviceType        @default(stampante_termica)
+  department HardwareDepartment        @default(cucina)
+  connection HardwareDeviceConnection  @default(tcp_ip)
+  ipAddress  String?
+  port       Int?
+  status     HardwareDeviceStatus      @default(offline)
+  notes      String                    @default("")
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+  tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  routes     PrintRoute[]              @relation("DeviceRoutes")
+
+  @@unique([tenantId, name])
+  @@index([tenantId, department])
+  @@index([tenantId, status])
+}
+
+enum PrintRouteEvent {
+  nuova_comanda
+  ordine_bevande
+  chiusura_conto
+  preconto
+  nota_cucina
+  keycard_emessa
+}
+
+model PrintRoute {
+  id         String             @id @default(cuid())
+  tenantId   String
+  event      PrintRouteEvent
+  department HardwareDepartment
+  deviceId   String
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  tenant     Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device     HardwareDevice     @relation("DeviceRoutes", fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, event, department])
+  @@index([tenantId, department])
+  @@index([tenantId, deviceId])
 }

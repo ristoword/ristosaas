@@ -1,10 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Printer, QrCode, Copy, ExternalLink } from "lucide-react";
+import { Armchair, Copy, ExternalLink, Printer, QrCode } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
-import { MockPreviewBanner } from "@/components/shared/mock-preview-banner";
 import { tablesApi, type SalaTable } from "@/lib/api-client";
 
 type TokenizedTable = SalaTable & { token?: string };
@@ -99,10 +99,22 @@ export function QrTablesPage() {
       ) : null}
 
       {!loading && tables.length === 0 ? (
-        <MockPreviewBanner title="Nessun tavolo configurato">
-          Configura prima i tavoli dalla sezione Sala. Questa pagina genererà automaticamente URL e
-          QR code firmati quando ci saranno tavoli reali.
-        </MockPreviewBanner>
+        <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-rw-line bg-rw-surface px-6 py-10 text-center">
+          <Armchair className="h-8 w-8 text-rw-muted" aria-hidden />
+          <p className="font-display text-lg font-semibold text-rw-ink">
+            Nessun tavolo configurato
+          </p>
+          <p className="max-w-md text-sm text-rw-soft">
+            Configura prima i tavoli dalla sezione Sala. Appena saranno disponibili,
+            questa pagina genererà URL e QR code firmati con HMAC per ognuno.
+          </p>
+          <Link
+            href="/rooms"
+            className="mt-2 inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2 text-sm font-semibold text-white hover:bg-rw-accent/90"
+          >
+            Vai a Sala e tavoli
+          </Link>
+        </div>
       ) : null}
 
       <div className="flex flex-wrap gap-3">

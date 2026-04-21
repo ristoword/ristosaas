@@ -2,18 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  Terminal,
   Activity,
-  Server,
-  Unlock,
-  RotateCcw,
-  Trash2,
-  LogOut,
   CheckCircle2,
-  XCircle,
-  Key,
-  Zap,
   Copy,
+  Server,
+  XCircle,
+  Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
@@ -29,20 +23,6 @@ type HealthRow = {
   status: HealthStatus;
   latencyLabel: string;
   detail?: string;
-};
-
-type ActionId = "unlock-user" | "reset-license" | "clear-cache" | "force-logout";
-const quickActions: { id: ActionId; label: string; icon: typeof Unlock; tone: "accent" | "danger" | "warn" }[] = [
-  { id: "unlock-user", label: "Sblocca utente", icon: Unlock, tone: "accent" },
-  { id: "reset-license", label: "Reset licenza", icon: RotateCcw, tone: "warn" },
-  { id: "clear-cache", label: "Svuota cache", icon: Trash2, tone: "warn" },
-  { id: "force-logout", label: "Force logout tutti", icon: LogOut, tone: "danger" },
-];
-
-const toneBtn: Record<string, string> = {
-  accent: "border-rw-accent/30 bg-rw-accent/10 text-rw-ink hover:bg-rw-accent/15",
-  warn: "border-amber-500/30 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20",
-  danger: "border-red-500/30 bg-red-500/10 text-red-300 hover:bg-red-500/20",
 };
 
 const statusIcon = { ok: CheckCircle2, warn: Activity, error: XCircle };
@@ -68,7 +48,6 @@ async function timedFetch(url: string): Promise<{ ok: boolean; status: number; m
 export function DevAccessPage() {
   const { user } = useAuth();
   const [flash, setFlash] = useState<string | null>(null);
-  const [devToken, setDevToken] = useState("");
   const [healthRows, setHealthRows] = useState<HealthRow[]>([]);
   const [healthLoading, setHealthLoading] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
@@ -158,13 +137,10 @@ export function DevAccessPage() {
     void loadHealth();
   }, [loadHealth]);
 
-  function runAction(label: string) {
-    setFlash(`«${label}» eseguito con successo.`);
-    setTimeout(() => setFlash(null), 3000);
-  }
-
   async function copyHealthSummary() {
-    const text = healthRows.map((r) => `${r.name}: ${r.status} (${r.latencyLabel})${r.detail ? ` — ${r.detail}` : ""}`).join("\n");
+    const text = healthRows
+      .map((r) => `${r.name}: ${r.status} (${r.latencyLabel})${r.detail ? ` — ${r.detail}` : ""}`)
+      .join("\n");
     try {
       await navigator.clipboard.writeText(text);
       setFlash("Riepilogo health copiato negli appunti.");
@@ -176,60 +152,37 @@ export function DevAccessPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Dev Access" subtitle="Ponte di emergenza e strumenti di diagnostica">
+      <PageHeader title="Dev Access" subtitle="Diagnostica tecnica e verifica servizi">
         <Chip label="NODE_ENV" value={nodeEnv} tone="accent" />
         <Chip label="version" value={appVersion} tone="info" />
       </PageHeader>
 
-      {flash && (
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-sm font-semibold text-emerald-300" role="status">
-          <CheckCircle2 className="mr-2 inline h-4 w-4" />{flash}
+      {flash ? (
+        <div
+          className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-3 text-sm font-semibold text-emerald-300"
+          role="status"
+        >
+          <CheckCircle2 className="mr-2 inline h-4 w-4" />
+          {flash}
         </div>
-      )}
+      ) : null}
 
-      {/* technical login — unchanged behaviour (no backend) */}
-      <Card title="Accesso tecnico" description="Login di emergenza con token dev">
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="block flex-1">
-            <span className="mb-1 block text-sm font-semibold text-rw-ink">Token dev</span>
-            <div className="relative">
-              <Key className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-              <input type="password" value={devToken} onChange={(e) => setDevToken(e.target.value)} placeholder="Inserisci token…" className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2.5 pl-10 pr-4 font-mono text-sm text-rw-ink placeholder:text-rw-muted" />
-            </div>
-          </label>
-          <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white shadow-rw">
-            <Terminal className="h-4 w-4" /> Accedi
-          </button>
-        </div>
-      </Card>
-
-      <Card title="Ambiente client" description="Dati reali da build e sessione; niente metriche server inventate.">
+      <Card title="Ambiente client" description="Dati reali da build e sessione; nessuna metrica server inventata.">
         <div className="flex flex-wrap gap-3">
           <Chip label="Utente" value={user?.email ?? "—"} />
           <Chip label="Ruolo" value={user?.role ?? "—"} tone="accent" />
           <Chip label="Tenant" value={tenantId ?? "—"} />
         </div>
-      </Card>
-
-      <Card title="Azioni rapide" description="Operazioni di emergenza — usare con cautela">
-        <div className="grid gap-3 sm:grid-cols-2">
-          {quickActions.map((a) => {
-            const Icon = a.icon;
-            return (
-              <button key={a.id} type="button" onClick={() => runAction(a.label)} className={cn("flex items-center gap-3 rounded-2xl border px-4 py-4 text-left text-sm font-semibold transition active:scale-[0.99]", toneBtn[a.tone])}>
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 shadow-sm">
-                  <Icon className="h-5 w-5" />
-                </span>
-                {a.label}
-              </button>
-            );
-          })}
-        </div>
+        <p className="mt-4 text-xs text-rw-muted">
+          Per la gestione operativa dei tenant (blocca/sblocca, licenze, manutenzione, reset password),
+          usa <strong className="font-semibold text-rw-ink">Super Admin</strong>. Per revocare sessioni
+          specifiche usa <strong className="font-semibold text-rw-ink">Sessioni</strong>.
+        </p>
       </Card>
 
       <Card
         title="Health check (reale)"
-        description="Chiamate HTTP agli endpoint pubblici dell’app. Altri servizi (Redis, WS, SMTP, S3) non espongono health qui."
+        description="Chiamate HTTP agli endpoint pubblici dell'app. Altri servizi (SMTP, stampanti, S3) non espongono health qui."
         headerRight={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button
@@ -256,15 +209,23 @@ export function DevAccessPage() {
           {healthRows.map((h) => {
             const SIcon = statusIcon[h.status];
             return (
-              <div key={h.id} className="flex flex-col gap-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3">
+              <div
+                key={h.id}
+                className="flex flex-col gap-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3"
+              >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <SIcon className={cn("h-4 w-4 shrink-0", statusColor[h.status])} />
                   <span className="text-sm font-semibold text-rw-ink">{h.name}</span>
                 </div>
-                {h.detail ? <span className="text-xs text-rw-muted sm:max-w-[40%] sm:text-right">{h.detail}</span> : null}
+                {h.detail ? (
+                  <span className="text-xs text-rw-muted sm:max-w-[40%] sm:text-right">{h.detail}</span>
+                ) : null}
                 <div className="flex shrink-0 items-center gap-2 sm:ml-auto">
                   <span className="text-xs text-rw-muted">{h.latencyLabel}</span>
-                  <Chip label={h.status} tone={h.status === "ok" ? "success" : h.status === "warn" ? "warn" : "danger"} />
+                  <Chip
+                    label={h.status}
+                    tone={h.status === "ok" ? "success" : h.status === "warn" ? "warn" : "danger"}
+                  />
                 </div>
               </div>
             );
@@ -272,7 +233,7 @@ export function DevAccessPage() {
         </div>
         <p className="mt-3 text-xs text-rw-muted">
           <Server className="mr-1 inline h-3.5 w-3.5 align-text-bottom" />
-          In produzione verifica anche bilanciamento, TLS e variabili d’ambiente sul provider di hosting.
+          In produzione verifica anche bilanciamento, TLS e variabili d&apos;ambiente sul provider di hosting.
         </p>
       </Card>
     </div>

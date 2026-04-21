@@ -83,6 +83,8 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/haccp", roles: ["cucina", "pizzeria", "bar", "magazzino", "supervisor", "owner", "super_admin"] },
   // Tutti gli utenti autenticati possono gestire le proprie sessioni.
   { prefix: "/api/sessions", roles: ["sala", "cucina", "cassa", "supervisor", "magazzino", "staff", "bar", "pizzeria", "hotel_manager", "reception", "housekeeping", "owner", "super_admin"] },
+  // Hardware: configurazione stampanti/display, riservata a owner e super_admin.
+  { prefix: "/api/hardware", roles: ["owner", "super_admin"] },
 ] as const;
 
 export function canAccessWithRole(role: string, required: readonly UserRole[]) {

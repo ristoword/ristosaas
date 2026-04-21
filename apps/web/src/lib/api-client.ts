@@ -455,6 +455,97 @@ export const sessionsApi = {
   revoke: (id: string) => del<{ session: UserSessionRecord }>(`/sessions/${id}`),
 };
 
+/* ─── Hardware (stampanti/display/rotte) ─────────── */
+
+export type HardwareDeviceType =
+  | "stampante_termica"
+  | "stampante_fiscale"
+  | "display_kds"
+  | "lettore_keycard"
+  | "cassetto_denaro"
+  | "altro";
+
+export type HardwareDeviceConnection = "tcp_ip" | "usb" | "bluetooth" | "hdmi" | "altro";
+
+export type HardwareDeviceStatus = "online" | "offline" | "manutenzione";
+
+export type HardwareDepartment =
+  | "cucina"
+  | "pizzeria"
+  | "bar"
+  | "cassa"
+  | "sala"
+  | "reception"
+  | "housekeeping"
+  | "magazzino"
+  | "altro";
+
+export type PrintRouteEvent =
+  | "nuova_comanda"
+  | "ordine_bevande"
+  | "chiusura_conto"
+  | "preconto"
+  | "nota_cucina"
+  | "keycard_emessa";
+
+export type HardwareDevice = {
+  id: string;
+  tenantId: string;
+  name: string;
+  type: HardwareDeviceType;
+  department: HardwareDepartment;
+  connection: HardwareDeviceConnection;
+  ipAddress: string | null;
+  port: number | null;
+  status: HardwareDeviceStatus;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PrintRouteRecord = {
+  id: string;
+  tenantId: string;
+  event: PrintRouteEvent;
+  department: HardwareDepartment;
+  deviceId: string;
+  deviceName?: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const hardwareApi = {
+  listDevices: () => get<HardwareDevice[]>("/hardware/devices"),
+  createDevice: (data: {
+    name: string;
+    type?: HardwareDeviceType;
+    department?: HardwareDepartment;
+    connection?: HardwareDeviceConnection;
+    ipAddress?: string | null;
+    port?: number | null;
+    status?: HardwareDeviceStatus;
+    notes?: string;
+  }) => post<HardwareDevice>("/hardware/devices", data),
+  updateDevice: (
+    id: string,
+    data: Partial<{
+      name: string;
+      type: HardwareDeviceType;
+      department: HardwareDepartment;
+      connection: HardwareDeviceConnection;
+      ipAddress: string | null;
+      port: number | null;
+      status: HardwareDeviceStatus;
+      notes: string;
+    }>,
+  ) => put<HardwareDevice>(`/hardware/devices/${id}`, data),
+  deleteDevice: (id: string) => del<{ deleted: boolean }>(`/hardware/devices/${id}`),
+  listRoutes: () => get<PrintRouteRecord[]>("/hardware/routes"),
+  createRoute: (data: { event: PrintRouteEvent; department: HardwareDepartment; deviceId: string }) =>
+    post<PrintRouteRecord>("/hardware/routes", data),
+  deleteRoute: (id: string) => del<{ deleted: boolean }>(`/hardware/routes/${id}`),
+};
+
 /* ─── AI chat ─────────────────────────────────────── */
 
 export type AiChatLog = {
@@ -910,6 +1001,7 @@ export const api = {
   archivio: archivioApi,
   haccp: haccpApi,
   sessions: sessionsApi,
+  hardware: hardwareApi,
   hotel: hotelApi,
   integration: integrationApi,
   reports: reportsApi,
