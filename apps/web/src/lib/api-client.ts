@@ -427,6 +427,34 @@ export const haccpApi = {
   delete: (id: string) => del<{ deleted: boolean }>(`/haccp/${id}`),
 };
 
+/* ─── User sessions ─────────────────────────────── */
+
+export type UserSessionRecord = {
+  id: string;
+  userId: string;
+  tenantId: string | null;
+  jti: string;
+  tokenType: "access" | "refresh";
+  userAgent: string | null;
+  ipAddress: string | null;
+  issuedAt: string;
+  lastSeenAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  revokedBy: string | null;
+};
+
+export const sessionsApi = {
+  list: (params?: { scope?: "self" | "tenant"; active?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.scope) qs.set("scope", params.scope);
+    if (params?.active) qs.set("active", "true");
+    const q = qs.toString();
+    return get<{ sessions: UserSessionRecord[]; self: string | null }>(`/sessions${q ? `?${q}` : ""}`);
+  },
+  revoke: (id: string) => del<{ session: UserSessionRecord }>(`/sessions/${id}`),
+};
+
 /* ─── AI chat ─────────────────────────────────────── */
 
 export type AiChatLog = {
@@ -881,6 +909,7 @@ export const api = {
   asporto: asportoApi,
   archivio: archivioApi,
   haccp: haccpApi,
+  sessions: sessionsApi,
   hotel: hotelApi,
   integration: integrationApi,
   reports: reportsApi,

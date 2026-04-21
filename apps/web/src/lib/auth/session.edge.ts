@@ -14,10 +14,11 @@ export async function verifyEdgeSessionToken(token: string) {
     const tokenType = payload.tokenType === "access" || payload.tokenType === "refresh" ? payload.tokenType : null;
     const sessionVersion = payload.sessionVersion ? Number(payload.sessionVersion) : 0;
     const mustChangePassword = payload.mustChangePassword ? Boolean(payload.mustChangePassword) : false;
+    const jti = payload.jti ? String(payload.jti) : null;
     if (!tokenType || tokenType !== "access") return null;
     if (Number.isNaN(sessionVersion) || sessionVersion < 0) return null;
     if (!userId || !role || !username || !name || !email) return null;
-    return { userId, tenantId, role, username, name, email, tokenType, sessionVersion, mustChangePassword };
+    return { userId, tenantId, role, username, name, email, tokenType, sessionVersion, mustChangePassword, jti };
   } catch {
     return null;
   }

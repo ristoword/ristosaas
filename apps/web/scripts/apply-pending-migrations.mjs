@@ -27,6 +27,7 @@ const TARGETS = [
   "prisma/migrations_add_archived_order_source.sql",
   "prisma/migrations_add_admin_audit_log.sql",
   "prisma/migrations_add_haccp.sql",
+  "prisma/migrations_add_user_sessions.sql",
 ];
 
 const prisma = new PrismaClient({ log: ["error"] });

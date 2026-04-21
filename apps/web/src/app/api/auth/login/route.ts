@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { err, body } from "@/lib/api/helpers";
-import { setAuthCookies } from "@/lib/auth/session";
+import { issueAuthSession } from "@/lib/auth/session-tracking";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     user: safeUser,
   });
 
-  setAuthCookies(res, {
+  await issueAuthSession(req, res, {
     userId: validatedUser.id,
     tenantId: validatedUser.tenantId,
     role: validatedUser.role,

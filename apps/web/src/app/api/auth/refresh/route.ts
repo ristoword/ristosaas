@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { err } from "@/lib/api/helpers";
 import { REFRESH_COOKIE } from "@/lib/auth/constants";
-import { clearRefreshCookie, clearSessionCookie, setAuthCookies, verifyRefreshToken } from "@/lib/auth/session";
+import { clearRefreshCookie, clearSessionCookie, verifyRefreshToken } from "@/lib/auth/session";
+import { issueAuthSession } from "@/lib/auth/session-tracking";
+import { userSessionsRepository } from "@/lib/db/repositories/user-sessions.repository";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
@@ -27,6 +29,19 @@ export async function POST(req: NextRequest) {
 
   const refreshClaims = verifyRefreshToken(refreshToken);
   if (!refreshClaims) return err("Invalid refresh token", 401);
+
+  // Se il refresh token ha un jti tracciato e risulta revocato, blocca
+  // il refresh (mantiene la kill-switch sessionVersion globale ma
+  // aggiunge la revoca puntuale della sessione).
+  if (refreshClaims.jti) {
+    const active = await userSessionsRepository.isActive(refreshClaims.jti).catch(() => true);
+    if (!active) {
+      const res = NextResponse.json({ error: "Session revoked. Please login again." }, { status: 401 });
+      clearSessionCookie(res);
+      clearRefreshCookie(res);
+      return res;
+    }
+  }
 
   const user = await authUsersRepository.findById(refreshClaims.userId);
   if (!user) return err("User not found", 401);
@@ -54,15 +69,20 @@ export async function POST(req: NextRequest) {
 
   const safeUser = authUsersRepository.sanitizeUser(user);
   const res = NextResponse.json({ user: safeUser });
-  setAuthCookies(res, {
-    userId: user.id,
-    tenantId: user.tenantId,
-    role: user.role,
-    username: user.username,
-    name: user.name,
-    email: user.email,
-    sessionVersion: user.sessionVersion,
-    mustChangePassword: !!user.mustChangePassword,
-  });
+  await issueAuthSession(
+    req,
+    res,
+    {
+      userId: user.id,
+      tenantId: user.tenantId,
+      role: user.role,
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      sessionVersion: user.sessionVersion,
+      mustChangePassword: !!user.mustChangePassword,
+    },
+    { previousJti: refreshClaims.jti ?? null },
+  );
   return res;
 }

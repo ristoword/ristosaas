@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { err, body } from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
-import { setAuthCookies } from "@/lib/auth/session";
+import { issueAuthSession } from "@/lib/auth/session-tracking";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 
 export async function POST(req: NextRequest) {
@@ -17,15 +17,20 @@ export async function POST(req: NextRequest) {
   if (!changed.ok) return err("User not found", 404);
 
   const res = NextResponse.json({ success: true });
-  setAuthCookies(res, {
-    userId: changed.user.id,
-    tenantId: changed.user.tenantId,
-    role: changed.user.role,
-    username: changed.user.username,
-    name: changed.user.name,
-    email: changed.user.email,
-    sessionVersion: changed.user.sessionVersion,
-    mustChangePassword: false,
-  });
+  await issueAuthSession(
+    req,
+    res,
+    {
+      userId: changed.user.id,
+      tenantId: changed.user.tenantId,
+      role: changed.user.role,
+      username: changed.user.username,
+      name: changed.user.name,
+      email: changed.user.email,
+      sessionVersion: changed.user.sessionVersion,
+      mustChangePassword: false,
+    },
+    { previousJti: user.jti ?? null },
+  );
   return res;
 }

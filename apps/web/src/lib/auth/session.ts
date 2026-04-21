@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { NextRequest, NextResponse } from "next/server";
 import {
@@ -22,14 +23,29 @@ type SessionClaims = {
   tokenType?: "access" | "refresh";
   sessionVersion?: number;
   mustChangePassword?: boolean;
+  jti?: string;
 };
 
 export function createSessionToken(payload: SessionClaims) {
-  return jwt.sign({ ...payload, tokenType: "access" }, getJwtSecret(), { expiresIn: getSessionMaxAgeSeconds(payload.role) });
+  const jti = payload.jti ?? randomUUID();
+  return {
+    token: jwt.sign({ ...payload, tokenType: "access", jti }, getJwtSecret(), {
+      expiresIn: getSessionMaxAgeSeconds(payload.role),
+    }),
+    jti,
+    expiresInSeconds: getSessionMaxAgeSeconds(payload.role),
+  };
 }
 
 export function createRefreshToken(payload: SessionClaims) {
-  return jwt.sign({ ...payload, tokenType: "refresh" }, getJwtSecret(), { expiresIn: REFRESH_MAX_AGE_SECONDS });
+  const jti = payload.jti ?? randomUUID();
+  return {
+    token: jwt.sign({ ...payload, tokenType: "refresh", jti }, getJwtSecret(), {
+      expiresIn: REFRESH_MAX_AGE_SECONDS,
+    }),
+    jti,
+    expiresInSeconds: REFRESH_MAX_AGE_SECONDS,
+  };
 }
 
 export function verifySessionToken(token: string) {
@@ -56,16 +72,17 @@ function verifyToken(token: string, expectedType: "access" | "refresh") {
         : null;
     const sessionVersion = "sessionVersion" in decoded ? Number(decoded.sessionVersion) : 0;
     const mustChangePassword = "mustChangePassword" in decoded ? Boolean(decoded.mustChangePassword) : false;
+    const jti = "jti" in decoded && decoded.jti ? String(decoded.jti) : null;
     if (!userId || !role || !username || !name || !email) return null;
     if (!tokenType || tokenType !== expectedType) return null;
     if (Number.isNaN(sessionVersion) || sessionVersion < 0) return null;
-    return { userId, tenantId, role, username, name, email, tokenType, sessionVersion, mustChangePassword };
+    return { userId, tenantId, role, username, name, email, tokenType, sessionVersion, mustChangePassword, jti };
   } catch {
     return null;
   }
 }
 
-export function getRequestUser(req: NextRequest) {
+export function getRequestUser(req: NextRequest): PublicUser | null {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const claims = verifySessionToken(token);
@@ -80,13 +97,16 @@ export function getRequestUser(req: NextRequest) {
     sessionVersion: claims.sessionVersion ?? 0,
     mustChangePassword: !!claims.mustChangePassword,
     isLocked: false,
+    jti: claims.jti,
   };
   return user;
 }
 
-export function setSessionCookie(res: NextResponse, payload: SessionClaims) {
+type CookieSetOptions = { jti?: string };
+
+export function setSessionCookie(res: NextResponse, payload: SessionClaims, opts?: CookieSetOptions) {
   const maxAge = getSessionMaxAgeSeconds(payload.role);
-  const token = createSessionToken(payload);
+  const { token } = createSessionToken({ ...payload, jti: opts?.jti ?? payload.jti });
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -96,8 +116,8 @@ export function setSessionCookie(res: NextResponse, payload: SessionClaims) {
   });
 }
 
-export function setRefreshCookie(res: NextResponse, payload: SessionClaims) {
-  const token = createRefreshToken(payload);
+export function setRefreshCookie(res: NextResponse, payload: SessionClaims, opts?: CookieSetOptions) {
+  const { token } = createRefreshToken({ ...payload, jti: opts?.jti ?? payload.jti });
   res.cookies.set(REFRESH_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -107,9 +127,30 @@ export function setRefreshCookie(res: NextResponse, payload: SessionClaims) {
   });
 }
 
-export function setAuthCookies(res: NextResponse, payload: SessionClaims) {
-  setSessionCookie(res, payload);
-  setRefreshCookie(res, payload);
+export function setAuthCookies(res: NextResponse, payload: SessionClaims): { accessJti: string; refreshJti: string; accessExpiresAt: Date; refreshExpiresAt: Date } {
+  const access = createSessionToken(payload);
+  const refresh = createRefreshToken(payload);
+  res.cookies.set(SESSION_COOKIE, access.token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isSecureCookieEnvironment(),
+    path: "/",
+    maxAge: access.expiresInSeconds,
+  });
+  res.cookies.set(REFRESH_COOKIE, refresh.token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: isSecureCookieEnvironment(),
+    path: "/",
+    maxAge: refresh.expiresInSeconds,
+  });
+  const now = Date.now();
+  return {
+    accessJti: access.jti,
+    refreshJti: refresh.jti,
+    accessExpiresAt: new Date(now + access.expiresInSeconds * 1000),
+    refreshExpiresAt: new Date(now + refresh.expiresInSeconds * 1000),
+  };
 }
 
 export function clearSessionCookie(res: NextResponse) {

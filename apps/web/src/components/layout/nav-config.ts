@@ -422,11 +422,10 @@ export const navSections: NavSection[] = [
       {
         id: "sessions",
         label: "Sessioni",
-        hint: "Preview interno. Listing sessioni reali non ancora implementato.",
+        hint: "Le tue sessioni attive — revoca puntuale.",
         href: "/sessions",
         icon: Shield,
-        ready: false,
-        visibleFor: ["super_admin"],
+        ready: true,
       },
     ],
   },

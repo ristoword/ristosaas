@@ -1,87 +1,170 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Clock,
+  Key,
+  Loader2,
+  LogOut,
   Monitor,
+  RefreshCcw,
+  Shield,
   Smartphone,
   Tablet,
-  LogOut,
-  Trash2,
   Users,
-  Clock,
-  Shield,
-  Wifi,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
-import { MockPreviewBanner } from "@/components/shared/mock-preview-banner";
+import { useAuth } from "@/components/auth/auth-context";
+import { sessionsApi, type UserSessionRecord } from "@/lib/api-client";
 
-type Session = {
-  id: string;
-  user: string;
-  device: "desktop" | "mobile" | "tablet";
-  browser: string;
-  ip: string;
-  startedAt: string;
-  durationMin: number;
-  current: boolean;
-};
+function detectDevice(userAgent: string | null): "desktop" | "mobile" | "tablet" {
+  if (!userAgent) return "desktop";
+  const ua = userAgent.toLowerCase();
+  if (/iphone|ipod|android.*mobile|windows phone/.test(ua)) return "mobile";
+  if (/ipad|tablet|playbook|kindle/.test(ua)) return "tablet";
+  return "desktop";
+}
+
+function detectBrowser(userAgent: string | null): string {
+  if (!userAgent) return "Browser";
+  if (/Edg\//.test(userAgent)) return "Edge";
+  if (/Chrome\//.test(userAgent) && !/Chromium/.test(userAgent)) return "Chrome";
+  if (/Firefox\//.test(userAgent)) return "Firefox";
+  if (/Safari\//.test(userAgent) && !/Chrome/.test(userAgent)) return "Safari";
+  if (/Chromium/.test(userAgent)) return "Chromium";
+  return "Browser";
+}
+
+function formatDuration(issuedIso: string): string {
+  const diff = Date.now() - new Date(issuedIso).getTime();
+  if (diff < 0) return "ora";
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "adesso";
+  if (min < 60) return `${min}m fa`;
+  const h = Math.floor(min / 60);
+  const rest = min % 60;
+  if (h < 24) return rest > 0 ? `${h}h ${rest}m fa` : `${h}h fa`;
+  const d = Math.floor(h / 24);
+  return `${d}g fa`;
+}
 
 const deviceIcon = { desktop: Monitor, mobile: Smartphone, tablet: Tablet };
 
-const mockSessions: Session[] = [
-  { id: "s1", user: "admin@ristodemo.it", device: "desktop", browser: "Chrome 124", ip: "192.168.1.10", startedAt: "2026-04-11 08:15", durationMin: 247, current: true },
-  { id: "s2", user: "marco.r@ristodemo.it", device: "tablet", browser: "Safari 18", ip: "192.168.1.22", startedAt: "2026-04-11 11:30", durationMin: 52, current: false },
-  { id: "s3", user: "sara.l@ristodemo.it", device: "mobile", browser: "Chrome 124", ip: "10.0.0.45", startedAt: "2026-04-11 12:00", durationMin: 22, current: false },
-  { id: "s4", user: "luca.b@ristodemo.it", device: "desktop", browser: "Firefox 128", ip: "192.168.1.15", startedAt: "2026-04-11 09:45", durationMin: 157, current: false },
-  { id: "s5", user: "anna.p@ristodemo.it", device: "tablet", browser: "Safari 18", ip: "192.168.1.33", startedAt: "2026-04-11 10:20", durationMin: 122, current: false },
-  { id: "s6", user: "dev@ristodemo.it", device: "desktop", browser: "Chrome 124", ip: "88.34.12.99", startedAt: "2026-04-10 22:10", durationMin: 620, current: false },
-];
-
-function fmtDuration(min: number) {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
 export function SessionsPage() {
-  const [sessions, setSessions] = useState(mockSessions);
+  const { user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
+  const [sessions, setSessions] = useState<UserSessionRecord[]>([]);
+  const [selfJti, setSelfJti] = useState<string | null>(null);
+  const [scope, setScope] = useState<"self" | "tenant">("self");
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  function kick(id: string) {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await sessionsApi.list({
+        scope: isSuperAdmin ? scope : "self",
+        active: true,
+      });
+      setSessions(data.sessions);
+      setSelfJti(data.self);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore caricamento sessioni");
+    } finally {
+      setLoading(false);
+    }
+  }, [isSuperAdmin, scope]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const accessSessions = useMemo(
+    () => sessions.filter((row) => row.tokenType === "access"),
+    [sessions],
+  );
+
+  async function handleRevoke(sessionId: string) {
+    setBusy(sessionId);
+    setError(null);
+    try {
+      await sessionsApi.revoke(sessionId);
+      setSessions((prev) => prev.filter((row) => row.id !== sessionId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Revoca fallita");
+    } finally {
+      setBusy(null);
+    }
   }
 
-  function bulkLogout() {
-    setSessions((prev) => prev.filter((s) => s.current));
-  }
-
-  const stats = {
-    total: sessions.length,
-    desktop: sessions.filter((s) => s.device === "desktop").length,
-    mobile: sessions.filter((s) => s.device === "mobile").length,
-    tablet: sessions.filter((s) => s.device === "tablet").length,
-  };
+  const stats = useMemo(() => {
+    const byDevice = accessSessions.reduce(
+      (acc, row) => {
+        const kind = detectDevice(row.userAgent);
+        acc[kind] += 1;
+        return acc;
+      },
+      { desktop: 0, mobile: 0, tablet: 0 },
+    );
+    return { total: accessSessions.length, ...byDevice };
+  }, [accessSessions]);
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Sessioni attive" subtitle="Gestisci le connessioni al sistema">
+      <PageHeader
+        title="Sessioni attive"
+        subtitle={
+          isSuperAdmin
+            ? scope === "tenant"
+              ? "Tutte le sessioni attive del tenant"
+              : "Le mie sessioni attive"
+            : "Le tue sessioni attive"
+        }
+      >
+        {isSuperAdmin ? (
+          <div className="inline-flex items-center gap-1 rounded-xl border border-rw-line bg-rw-surfaceAlt p-1">
+            <button
+              type="button"
+              onClick={() => setScope("self")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                scope === "self" ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-soft",
+              )}
+            >
+              Le mie
+            </button>
+            <button
+              type="button"
+              onClick={() => setScope("tenant")}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                scope === "tenant" ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-soft",
+              )}
+            >
+              Tenant
+            </button>
+          </div>
+        ) : null}
         <button
           type="button"
-          onClick={bulkLogout}
-          className="inline-flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-400"
+          onClick={() => void load()}
+          className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink hover:border-rw-accent/30 hover:text-rw-accent"
         >
-          <Trash2 className="h-4 w-4" /> Disconnetti tutte
+          <RefreshCcw className="h-4 w-4" /> Aggiorna
         </button>
       </PageHeader>
 
-      <MockPreviewBanner>
-        Dati di esempio: il sistema di auth usa JWT + `sessionVersion`, non una tabella “sessioni”.
-        Per una lista reale servirebbe un modello `UserSession` dedicato.
-      </MockPreviewBanner>
+      {error ? (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      ) : null}
 
-      {/* stats */}
       <div className="grid gap-3 sm:grid-cols-4">
         {[
           { label: "Totali", value: stats.total, icon: Users, tone: "text-rw-accent" },
@@ -99,56 +182,71 @@ export function SessionsPage() {
         ))}
       </div>
 
-      {/* session list */}
-      <Card title="Elenco sessioni">
-        <div className="space-y-2">
-          {sessions.length === 0 && (
-            <p className="py-6 text-center text-sm text-rw-muted">Nessuna sessione attiva.</p>
-          )}
-          {sessions.map((s) => {
-            const DevIcon = deviceIcon[s.device];
-            return (
-              <div
-                key={s.id}
-                className={cn(
-                  "flex flex-wrap items-center gap-4 rounded-xl border px-4 py-3 transition",
-                  s.current
-                    ? "border-rw-accent/30 bg-rw-accent/5"
-                    : "border-rw-line bg-rw-surfaceAlt",
-                )}
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rw-surfaceAlt text-rw-accent">
-                  <DevIcon className="h-5 w-5" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-rw-ink">
-                    {s.user}
-                    {s.current && <Chip label="corrente" tone="accent" className="ml-2" />}
-                  </p>
-                  <p className="text-xs text-rw-muted">{s.browser} · {s.ip}</p>
+      <Card title="Elenco sessioni" description="Access token attivi — la revoca chiude la sessione immediatamente (il token non verra' piu accettato al prossimo refresh o verifica).">
+        {loading ? (
+          <div className="flex items-center gap-2 py-6 text-sm text-rw-muted">
+            <Loader2 className="h-4 w-4 animate-spin" /> Caricamento sessioni…
+          </div>
+        ) : accessSessions.length === 0 ? (
+          <p className="py-6 text-center text-sm text-rw-muted">Nessuna sessione attiva.</p>
+        ) : (
+          <div className="space-y-2">
+            {accessSessions.map((session) => {
+              const device = detectDevice(session.userAgent);
+              const browser = detectBrowser(session.userAgent);
+              const isCurrent = !!selfJti && session.jti === selfJti;
+              const DevIcon = deviceIcon[device];
+              return (
+                <div
+                  key={session.id}
+                  className={cn(
+                    "flex flex-wrap items-center gap-4 rounded-xl border px-4 py-3 transition",
+                    isCurrent
+                      ? "border-rw-accent/30 bg-rw-accent/5"
+                      : "border-rw-line bg-rw-surfaceAlt",
+                  )}
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rw-surfaceAlt text-rw-accent">
+                    <DevIcon className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-rw-ink">
+                      <span>{browser}</span>
+                      <span className="text-rw-muted">·</span>
+                      <span className="text-xs font-normal text-rw-muted">{session.ipAddress ?? "IP sconosciuto"}</span>
+                      {isCurrent ? <Chip label="corrente" tone="accent" /> : null}
+                    </p>
+                    <p className="mt-0.5 truncate text-xs text-rw-muted">
+                      {session.userAgent ?? "User agent non disponibile"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-rw-muted">
+                    <Clock className="h-3.5 w-3.5" />
+                    <span>Avviata {formatDuration(session.issuedAt)}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-rw-muted">
+                    <Shield className="h-3.5 w-3.5" />
+                    <Key className="h-3.5 w-3.5" />
+                    <span className="font-mono">…{session.jti.slice(-8)}</span>
+                  </div>
+                  {isCurrent ? (
+                    <span className="text-xs font-semibold text-rw-muted">Sessione corrente</span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busy === session.id}
+                      onClick={() => void handleRevoke(session.id)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
+                    >
+                      {busy === session.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+                      Revoca
+                    </button>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 text-xs text-rw-muted">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>{s.startedAt}</span>
-                  <span className="font-semibold text-rw-soft">{fmtDuration(s.durationMin)}</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-rw-muted">
-                  <Wifi className="h-3.5 w-3.5" />
-                  <Shield className="h-3.5 w-3.5" />
-                </div>
-                {!s.current && (
-                  <button
-                    type="button"
-                    onClick={() => kick(s.id)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
-                  >
-                    <LogOut className="h-3.5 w-3.5" /> Disconnetti
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </Card>
     </div>
   );

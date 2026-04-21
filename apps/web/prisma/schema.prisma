@@ -323,6 +323,29 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions     UserSession[]
+}
+
+model UserSession {
+  id         String    @id @default(cuid())
+  userId     String
+  tenantId   String?
+  jti        String    @unique
+  tokenType  String    @default("access")
+  userAgent  String?
+  ipAddress  String?
+  issuedAt   DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  revokedBy  String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([tenantId, revokedAt])
+  @@index([expiresAt])
 }
 
 model Customer {
