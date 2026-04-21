@@ -216,8 +216,14 @@ export function OwnerPage() {
     setSmtpBusy("test");
     setSmtpMessage(null);
     try {
-      await api.admin.emailConfig.test(smtpTenantId);
-      setSmtpMessage("Test inviato: controlla la casella.");
+      const response = await api.admin.emailConfig.test(smtpTenantId);
+      if (response.error) {
+        setSmtpMessage(`Invio fallito: ${response.error}`);
+      } else {
+        setSmtpMessage(
+          `Email di test inviata${response.recipient ? ` a ${response.recipient}` : ""}. Controlla la casella.`,
+        );
+      }
     } catch (err) {
       setSmtpMessage((err as Error).message || "Errore test SMTP");
     } finally {

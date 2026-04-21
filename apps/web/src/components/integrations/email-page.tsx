@@ -83,6 +83,7 @@ export function EmailPage() {
 
   const [busy, setBusy] = useState<"save" | "test" | null>(null);
   const [toast, setToast] = useState<{ kind: "ok" | "err"; message: string } | null>(null);
+  const [testRecipient, setTestRecipient] = useState("");
 
   const [previewTpl, setPreviewTpl] = useState<string | null>(null);
 
@@ -179,17 +180,27 @@ export function EmailPage() {
     setBusy("test");
     setToast(null);
     try {
-      const updated = await api.admin.emailConfig.test(tenantId);
-      setToast({
-        kind: "ok",
-        message:
-          updated.lastTestStatus === "ok"
-            ? "Test registrato come riuscito (aggiorna stato su TenantEmailConfig)."
-            : "Test registrato.",
-      });
+      const response = await api.admin.emailConfig.test(tenantId, testRecipient.trim() || undefined);
+      const {
+        messageId,
+        recipient,
+        error: testError,
+        ...configPart
+      } = response as typeof response & { messageId?: string; recipient?: string; error?: string };
+      if (testError) {
+        setToast({
+          kind: "err",
+          message: `Invio fallito: ${testError}`,
+        });
+      } else {
+        setToast({
+          kind: "ok",
+          message: `Email di test inviata${recipient ? ` a ${recipient}` : ""}${messageId ? ` (messageId: ${messageId.slice(0, 24)}...)` : ""}.`,
+        });
+      }
       setConfigs((prev) => {
-        const rest = prev.filter((c) => c.tenantId !== updated.tenantId);
-        return [updated, ...rest];
+        const rest = prev.filter((c) => c.tenantId !== configPart.tenantId);
+        return [configPart as AdminEmailConfig, ...rest];
       });
     } catch (e) {
       setToast({ kind: "err", message: e instanceof Error ? e.message : "Errore test" });
@@ -316,12 +327,23 @@ export function EmailPage() {
             </label>
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold text-rw-muted">Destinatario test (opzionale, default mittente)</span>
+              <input
+                type="email"
+                value={testRecipient}
+                onChange={(e) => setTestRecipient(e.target.value)}
+                placeholder={smtp.fromAddress || "email@example.com"}
+                className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm text-rw-ink"
+                disabled={!tenantId}
+              />
+            </label>
             <button
               type="button"
               onClick={() => void handleSave()}
               disabled={busy === "save" || !tenantId}
-              className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white shadow-rw disabled:opacity-50"
+              className="inline-flex items-center gap-2 self-end rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white shadow-rw disabled:opacity-50"
             >
               {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Settings2 className="h-4 w-4" />}
               Salva configurazione
@@ -330,12 +352,14 @@ export function EmailPage() {
               type="button"
               onClick={() => void handleTest()}
               disabled={busy === "test" || !tenantId || !selectedConfig}
-              className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-5 py-2.5 text-sm font-semibold text-rw-ink disabled:opacity-50"
+              className="inline-flex items-center gap-2 self-end rounded-xl border border-rw-line bg-rw-surfaceAlt px-5 py-2.5 text-sm font-semibold text-rw-ink disabled:opacity-50"
               title={!selectedConfig ? "Salva prima una configurazione SMTP per questo tenant" : undefined}
             >
               {busy === "test" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-              Registra test SMTP
+              Invia email di test
             </button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             {toast?.kind === "ok" && (
               <span className="flex items-center gap-1.5 text-sm font-semibold text-emerald-400">
                 <CheckCircle2 className="h-4 w-4" /> {toast.message}
@@ -348,7 +372,7 @@ export function EmailPage() {
             )}
           </div>
           <p className="mt-3 text-xs text-rw-muted">
-            Il pulsante test aggiorna <code className="rounded bg-rw-surfaceAlt px-1">lastTestStatus</code> sul database (invio email reale non ancora cablato nel worker).
+            Il pulsante &quot;Invia email di test&quot; invia un messaggio reale tramite SMTP del tenant e aggiorna <code className="rounded bg-rw-surfaceAlt px-1">lastTestStatus</code>.
           </p>
         </Card>
       )}

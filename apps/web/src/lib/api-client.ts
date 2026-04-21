@@ -801,7 +801,11 @@ export const api = {
       list: () => get<AdminEmailConfig[]>("/admin/email-config"),
       save: (tenantId: string, payload: { host: string; port: number; username: string; password: string; fromAddress: string; secure: boolean }) =>
         put<AdminEmailConfig>(`/admin/email-config/${tenantId}`, payload),
-      test: (tenantId: string) => post<AdminEmailConfig>(`/admin/email-config/${tenantId}/test`, {}),
+      test: (tenantId: string, to?: string) =>
+        post<AdminEmailConfig & { messageId?: string; recipient?: string; error?: string }>(
+          `/admin/email-config/${tenantId}/test`,
+          to ? { to } : {},
+        ),
     },
     users: {
       list: () => get<AdminUser[]>("/admin/users"),
