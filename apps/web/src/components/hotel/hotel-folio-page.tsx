@@ -25,13 +25,19 @@ export function HotelFolioPage() {
               key: "stayId",
               header: "Ospite",
               render: (row) => {
-                const reservation = reservations.find((item) => item.id === row.stayId);
+                const reservation = row.reservationId
+                  ? reservations.find((item) => item.id === row.reservationId)
+                  : null;
+                const guest = row.guestName || reservation?.guestName || row.customerId;
+                const roomLabel = row.roomCode
+                  ? `Camera ${row.roomCode}`
+                  : reservation?.roomId
+                  ? `Camera ${reservation.roomId.replace("hr_", "")}`
+                  : "Camera non assegnata";
                 return (
                   <div>
-                    <p className="font-semibold text-rw-ink">{reservation?.guestName || row.customerId}</p>
-                    <p className="text-xs text-rw-muted">
-                      {reservation?.roomId ? `Camera ${reservation.roomId.replace("hr_", "")}` : "Camera non assegnata"}
-                    </p>
+                    <p className="font-semibold text-rw-ink">{guest}</p>
+                    <p className="text-xs text-rw-muted">{roomLabel}</p>
                   </div>
                 );
               },

@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 
-function mapFolio(row: {
+type FolioRow = {
   id: string;
   tenantId: string;
   customerId: string;
@@ -9,7 +9,19 @@ function mapFolio(row: {
   currency: string;
   balance: { toNumber: () => number };
   status: GuestFolio["status"];
-}): GuestFolio {
+  customer?: { name: string | null } | null;
+  stay?: {
+    reservationId: string;
+    reservation: {
+      guestName: string | null;
+      roomId: string | null;
+      room: { code: string } | null;
+    } | null;
+  } | null;
+};
+
+function mapFolio(row: FolioRow): GuestFolio {
+  const stayReservation = row.stay?.reservation ?? null;
   return {
     id: row.id,
     tenantId: row.tenantId,
@@ -18,6 +30,9 @@ function mapFolio(row: {
     currency: row.currency,
     balance: row.balance.toNumber(),
     status: row.status,
+    guestName: stayReservation?.guestName ?? row.customer?.name ?? null,
+    roomCode: stayReservation?.room?.code ?? null,
+    reservationId: row.stay?.reservationId ?? null,
   };
 }
 
@@ -46,6 +61,21 @@ export const guestFolioRepository = {
     const rows = await prisma.guestFolio.findMany({
       where: { tenantId },
       orderBy: { id: "asc" },
+      include: {
+        customer: { select: { name: true } },
+        stay: {
+          select: {
+            reservationId: true,
+            reservation: {
+              select: {
+                guestName: true,
+                roomId: true,
+                room: { select: { code: true } },
+              },
+            },
+          },
+        },
+      },
     });
     return rows.map(mapFolio);
   },

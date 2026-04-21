@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Plus } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
@@ -21,6 +21,8 @@ const statusTone = {
 export function HotelReservationsPage() {
   const { reservations, createReservation, updateReservation, deleteReservation } = useHotel();
   const [availability, setAvailability] = useState<{ availableCount: number; rooms: HotelRoom[]; ratePlans: RatePlan[] } | null>(null);
+  const formCardRef = useRef<HTMLDivElement | null>(null);
+  const guestNameRef = useRef<HTMLInputElement | null>(null);
   const today = todayIso();
   const [form, setForm] = useState<Omit<HotelReservation, "id">>({
     customerId: "cst_new",
@@ -69,15 +71,39 @@ export function HotelReservationsPage() {
       <PageHeader title="Prenotazioni Hotel" subtitle="Arrivi, partenze, assegnazione camera e gestione soggiorni.">
         <Chip label="Arrivi oggi" value={arrivals} tone="info" />
         <Chip label="Partenze oggi" value={departures} tone="warn" />
-        <button type="button" className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white">
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white"
+          onClick={() => {
+            setEditingReservationId(null);
+            setForm({
+              customerId: "cst_new",
+              guestName: "",
+              phone: "",
+              email: "",
+              roomId: "",
+              checkInDate: today,
+              checkOutDate: addDaysIso(today, 2),
+              guests: 2,
+              status: "confermata",
+              roomType: "Classic",
+              boardType: "bed_breakfast",
+              nights: 2,
+              rate: 220,
+              documentCode: "",
+            });
+            formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            setTimeout(() => guestNameRef.current?.focus(), 300);
+          }}
+        >
           <Plus className="h-4 w-4" /> Nuova prenotazione
         </button>
       </PageHeader>
 
-      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]" ref={formCardRef}>
         <Card title="Nuova prenotazione" description="CRUD base prenotazioni con tipologia soggiorno e piano pasti.">
           <div className="grid gap-3 sm:grid-cols-2">
-            <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" placeholder="Nome ospite" value={form.guestName} onChange={(e) => setForm((prev) => ({ ...prev, guestName: e.target.value }))} />
+            <input ref={guestNameRef} className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" placeholder="Nome ospite" value={form.guestName} onChange={(e) => setForm((prev) => ({ ...prev, guestName: e.target.value }))} />
             <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Telefono" value={form.phone} onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} />
             <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Email" value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} />
             <input type="date" className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" value={form.checkInDate} onChange={(e) => setForm((prev) => ({ ...prev, checkInDate: e.target.value }))} />
@@ -101,14 +127,15 @@ export function HotelReservationsPage() {
                   : createReservation({ ...form, roomId: form.roomId || null });
                 action.then(() => {
                   setEditingReservationId(null);
+                  const now = todayIso();
                   setForm({
                     customerId: "cst_new",
                     guestName: "",
                     phone: "",
                     email: "",
                     roomId: "",
-                    checkInDate: "2026-04-15",
-                    checkOutDate: "2026-04-17",
+                    checkInDate: now,
+                    checkOutDate: addDaysIso(now, 2),
                     guests: 2,
                     status: "confermata",
                     roomType: "Classic",

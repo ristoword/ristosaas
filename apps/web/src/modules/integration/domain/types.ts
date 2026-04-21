@@ -6,6 +6,9 @@ export type GuestFolio = {
   currency: string;
   balance: number;
   status: "open" | "closed";
+  guestName?: string | null;
+  roomCode?: string | null;
+  reservationId?: string | null;
 };
 
 export type FolioChargeSource = "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit";

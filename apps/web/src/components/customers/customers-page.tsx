@@ -8,7 +8,6 @@ import {
   Loader2,
   Plus,
   Search,
-  Sparkles,
   Star,
   Trash2,
   User,
@@ -19,6 +18,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
+import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { customersApi, type Customer } from "@/lib/api-client";
 
 type CustomerType = Customer["type"];
@@ -55,6 +55,7 @@ export function CustomersPage() {
   const [newType, setNewType] = useState<CustomerType>("new");
   const [newAllergies, setNewAllergies] = useState("");
   const [newPreferences, setNewPreferences] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
 
   useEffect(() => {
     customersApi
@@ -131,10 +132,15 @@ export function CustomersPage() {
         <button type="button" onClick={() => setShowAdd(!showAdd)} className="inline-flex items-center gap-2 rounded-2xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white">
           <UserPlus className="h-4 w-4" /> Nuovo cliente
         </button>
-        <button type="button" className="inline-flex items-center gap-2 rounded-2xl border border-rw-accent/30 bg-rw-accent/10 px-4 py-2.5 text-sm font-semibold text-rw-accent transition hover:bg-rw-accent/20">
-          <Sparkles className="h-4 w-4" /> AI Insights
-        </button>
+        <AiToggleButton onClick={() => setAiOpen(true)} label="AI Insights" />
       </PageHeader>
+
+      <AiChat
+        open={aiOpen}
+        onClose={() => setAiOpen(false)}
+        context="customers"
+        title="AI CRM Insights"
+      />
 
       {showAdd && (
         <Card title="Aggiungi cliente" headerRight={<button type="button" onClick={() => setShowAdd(false)} className="text-rw-muted hover:text-rw-ink"><X className="h-5 w-5" /></button>}>

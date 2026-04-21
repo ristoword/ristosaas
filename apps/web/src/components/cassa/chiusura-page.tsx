@@ -156,7 +156,6 @@ export function ChiusuraPage() {
   const margin = unified?.realCosts?.margin ?? revenue - foodCost - staffCost;
 
   async function handleClose() {
-    if (alreadyClosed) return;
     setClosing(true);
     setError(null);
     try {
@@ -180,6 +179,31 @@ export function ChiusuraPage() {
     if (typeof window !== "undefined") window.print();
   }
 
+  function handleExportCsv() {
+    const header = ["Data", "Incasso", "Food cost", "Staff", "Margine", "Note"];
+    const lordo = revenue.toFixed(2);
+    const rows = [[
+      selectedDay,
+      lordo,
+      foodCost.toFixed(2),
+      staffCost.toFixed(2),
+      margin.toFixed(2),
+      (notes || alreadyClosed?.notes || "").replace(/"/g, '""'),
+    ]];
+    const csv = [header, ...rows]
+      .map((r) => r.map((c) => `"${c}"`).join(","))
+      .join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `chiusura-${selectedDay}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -201,10 +225,10 @@ export function ChiusuraPage() {
         </button>
         <button
           type="button"
-          onClick={handlePrint}
-          className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink"
+          onClick={handleExportCsv}
+          className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink hover:border-rw-accent/30 hover:text-rw-accent"
         >
-          <Download className="h-4 w-4" /> Esporta PDF
+          <Download className="h-4 w-4" /> Esporta CSV
         </button>
       </PageHeader>
 

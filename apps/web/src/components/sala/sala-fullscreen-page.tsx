@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Minimize2,
   Users,
@@ -38,6 +39,7 @@ function useClock() {
 }
 
 export function SalaFullscreenPage() {
+  const router = useRouter();
   const now = useClock();
   const [selected, setSelected] = useState<SalaTable | null>(null);
   const [tables, setTables] = useState<SalaTable[]>([]);
@@ -67,7 +69,16 @@ export function SalaFullscreenPage() {
     {} as Record<string, number>,
   );
 
-  const selectedOrder = selected ? ordersByTable[selected.id] : undefined;
+  // Gli ordini sono indicizzati per nome tavolo (o.table, es. "T1") perche
+  // l'API ordini usa il nome nel campo table, non l'id del record.
+  const selectedOrder = selected ? ordersByTable[selected.nome] : undefined;
+
+  async function handleExitFullscreen() {
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+    }
+    router.push("/rooms");
+  }
 
   return (
     <div className="flex h-dvh flex-col bg-rw-bg">
@@ -90,7 +101,8 @@ export function SalaFullscreenPage() {
 
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink"
+          onClick={handleExitFullscreen}
+          className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink hover:border-rw-accent/30 hover:text-rw-accent"
         >
           <Minimize2 className="h-4 w-4" />
           Esci fullscreen

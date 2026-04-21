@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   Edit3,
   Plus,
-  Power,
   Printer,
   Trash2,
 } from "lucide-react";
@@ -26,7 +25,9 @@ const categoryOptions = ["Antipasti", "Primi", "Secondi", "Contorni", "Dolci"];
 
 export function DailyMenuPage() {
   const { dailyDishes, addDailyDish, removeDailyDish, updateDailyDish, recipes } = useMenu();
-  const [menuActive, setMenuActive] = useState(true);
+  // Lo stato "menu attivo" e derivato dal numero di piatti del giorno presenti sul DB.
+  // Quando l'utente vuole disattivare il menu, rimuove tutti i piatti (chiarezza UI reale).
+  const menuActive = dailyDishes.length > 0;
   const [editDish, setEditDish] = useState<DailyDish | null>(null);
 
   const [newName, setNewName] = useState("");
@@ -82,23 +83,9 @@ export function DailyMenuPage() {
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-4 print:hidden">
-        <Chip label="Stato" value={menuActive ? "Attivo" : "Inattivo"} tone={menuActive ? "success" : "danger"} />
+        <Chip label="Stato" value={menuActive ? "Attivo" : "Vuoto"} tone={menuActive ? "success" : "warn"} />
         <Chip label="Piatti" value={dailyDishes.length} tone="default" />
         {recipes.length > 0 && <Chip label="Ricette disponibili" value={recipes.length} tone="accent" />}
-
-        <button
-          type="button"
-          onClick={() => setMenuActive(!menuActive)}
-          className={cn(
-            "inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition",
-            menuActive
-              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-              : "border-rw-line bg-rw-surfaceAlt text-rw-muted hover:text-rw-soft",
-          )}
-        >
-          <Power className="h-4 w-4" />
-          {menuActive ? "Menu attivo" : "Attiva menu"}
-        </button>
       </div>
 
       {/* Add form */}

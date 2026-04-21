@@ -81,9 +81,48 @@ export function StaffPage() {
   const anomalie = assenze.filter((a) => a.stato === "in attesa").length;
   const oreTotali = staff.reduce((acc, s) => acc + s.hoursWeek, 0);
 
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+
+  function resetForm() {
+    setFName(""); setFRole("sala"); setFPhone("");
+    setFEmail(""); setFHireDate(""); setFSalary(""); setFHoursWeek(""); setFNotes("");
+    setEditingStaffId(null);
+  }
+
+  function handleEditStaff(member: StaffMember) {
+    setEditingStaffId(member.id);
+    setFName(member.name);
+    setFRole(member.role);
+    setFPhone(member.phone);
+    setFEmail(member.email);
+    setFHireDate(member.hireDate);
+    setFSalary(String(member.salary));
+    setFHoursWeek(String(member.hoursWeek));
+    setFNotes(member.notes);
+    if (typeof document !== "undefined") {
+      document.querySelector<HTMLInputElement>('input[placeholder="Mario Rossi"]')?.focus();
+      document.querySelector('input[placeholder="Mario Rossi"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+
   async function handleAddDipendente() {
     if (!fName.trim()) return;
     try {
+      if (editingStaffId) {
+        const updated = await staffApi.update(editingStaffId, {
+          name: fName.trim(),
+          role: fRole,
+          phone: fPhone,
+          email: fEmail,
+          hireDate: fHireDate || new Date().toISOString().slice(0, 10),
+          salary: Number(fSalary) || 0,
+          hoursWeek: Number(fHoursWeek) || 40,
+          notes: fNotes,
+        });
+        setStaff((p) => p.map((s) => (s.id === editingStaffId ? updated : s)));
+        resetForm();
+        return;
+      }
       const created = await staffApi.create({
         name: fName.trim(),
         role: fRole,
@@ -96,8 +135,7 @@ export function StaffPage() {
         notes: fNotes,
       });
       setStaff((p) => [...p, created]);
-      setFName(""); setFRole("sala"); setFPhone("");
-      setFEmail(""); setFHireDate(""); setFSalary(""); setFHoursWeek(""); setFNotes("");
+      resetForm();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : "Errore nel salvataggio");
     }
@@ -169,7 +207,7 @@ export function StaffPage() {
       key: "azioni", header: "Azioni",
       render: (r: StaffMember) => (
         <div className="flex items-center gap-2">
-          <button type="button" className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title="Modifica">
+          <button type="button" onClick={() => handleEditStaff(r)} className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title="Modifica">
             <Edit className="h-4 w-4" />
           </button>
           <button type="button" onClick={() => toggleAttivo(r)} className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title={r.status === "attivo" ? "Disattiva" : "Attiva"}>
@@ -237,7 +275,17 @@ export function StaffPage() {
 
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
         <div className="space-y-6">
-          <Card title="Aggiungi dipendente" description="Compila i dati del nuovo membro dello staff.">
+          <Card
+            title={editingStaffId ? "Modifica dipendente" : "Aggiungi dipendente"}
+            description={editingStaffId ? "Aggiorna i dati del dipendente selezionato." : "Compila i dati del nuovo membro dello staff."}
+            headerRight={
+              editingStaffId ? (
+                <button type="button" onClick={resetForm} className="text-xs font-semibold text-rw-muted hover:text-rw-accent">
+                  Annulla modifica
+                </button>
+              ) : undefined
+            }
+          >
             <div className="space-y-3">
               <div>
                 <label className={labelCls}>Nome completo</label>
@@ -263,7 +311,7 @@ export function StaffPage() {
               </div>
               <div><label className={labelCls}>Note</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={fNotes} onChange={(e) => setFNotes(e.target.value)} placeholder="Annotazioni…" /></div>
               <button type="button" className={btnPrimary} onClick={handleAddDipendente}>
-                <UserPlus className="h-4 w-4" /> Salva
+                <UserPlus className="h-4 w-4" /> {editingStaffId ? "Salva modifiche" : "Salva"}
               </button>
             </div>
           </Card>

@@ -59,10 +59,43 @@ export function ArchivioComandePage() {
     });
   }, [orders, search, statusFilter, dateFrom, dateTo]);
 
+  function handleExportCsv() {
+    if (filtered.length === 0) return;
+    const header = ["ID", "Data", "Chiuso alle", "Tavolo", "Cameriere", "Stato", "Metodo pagamento", "Totale", "Dettaglio"];
+    const rows = filtered.map((o) => [
+      o.id,
+      o.date,
+      o.closedAt ?? "",
+      o.table,
+      o.waiter,
+      o.status,
+      o.paymentMethod,
+      o.total.toFixed(2),
+      o.items.map((i) => `${i.qty}x ${i.name} @ ${i.price.toFixed(2)}`).join(" | "),
+    ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `archivio-comande-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader title="Archivio comande" subtitle="Storico ordini con ricerca e filtri">
-        <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink">
+        <button
+          type="button"
+          onClick={handleExportCsv}
+          disabled={filtered.length === 0}
+          className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink hover:border-rw-accent/30 hover:text-rw-accent disabled:opacity-50"
+        >
           <Download className="h-4 w-4" /> Esporta CSV
         </button>
       </PageHeader>
