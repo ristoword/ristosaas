@@ -1,7 +1,18 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { hotelApi, integrationApi, type FolioCharge, type GuestFolio, type HotelKeycard, type HotelReservation, type HotelRoom, type HousekeepingTask, type RatePlan } from "@/lib/api-client";
+import {
+  hotelApi,
+  integrationApi,
+  type FolioCharge,
+  type GuestFolio,
+  type HotelKeycard,
+  type HotelManualPaymentMethod,
+  type HotelReservation,
+  type HotelRoom,
+  type HousekeepingTask,
+  type RatePlan,
+} from "@/lib/api-client";
 
 type HotelContextValue = {
   rooms: HotelRoom[];
@@ -23,7 +34,13 @@ type HotelContextValue = {
   deleteReservation: (id: string) => Promise<void>;
   roomCharge: (reservationId: string, orderId: string, description: string, amount: number, serviceType: "breakfast" | "lunch" | "dinner") => Promise<FolioCharge>;
   processCheckIn: (reservationId: string, roomId: string) => Promise<void>;
-  finalizeCheckout: (reservationId: string, cityTaxAmount: number, paymentMethod: "cash" | "card" | "room_charge_settlement") => Promise<void>;
+  recordFolioPayment: (reservationId: string, amount: number, method: HotelManualPaymentMethod, note?: string) => Promise<void>;
+  finalizeCheckout: (
+    reservationId: string,
+    cityTaxAmount: number,
+    paymentMethod: "cash" | "card" | "room_charge_settlement" | HotelManualPaymentMethod,
+    options?: { allowResidual?: boolean; implicitFullPayment?: boolean },
+  ) => Promise<void>;
 };
 
 const Ctx = createContext<HotelContextValue | null>(null);
@@ -141,31 +158,74 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const finalizeCheckout = useCallback(async (reservationId: string, cityTaxAmount: number, paymentMethod: "cash" | "card" | "room_charge_settlement") => {
-    const result = await hotelApi.checkOut(reservationId, cityTaxAmount, paymentMethod);
-    setReservations((prev) => prev.map((reservation) => (reservation.id === result.reservation.id ? result.reservation : reservation)));
-    setRooms((prev) => prev.map((room) => (room.id === result.room.id ? result.room : room)));
-    setHousekeeping((prev) => {
-      const next = prev.filter((task) => task.id !== result.housekeepingTask.id);
-      return [result.housekeepingTask, ...next];
+  const recordFolioPayment = useCallback(async (reservationId: string, amount: number, method: HotelManualPaymentMethod, note?: string) => {
+    const result = await hotelApi.recordFolioPayment(reservationId, amount, method, note);
+    setFolios((prev) => {
+      const next = prev.filter((folio) => folio.id !== result.folio.id);
+      return [result.folio, ...next];
     });
-    setKeycards((prev) =>
-      prev.map((card) => result.keycards.find((updated) => updated.id === card.id) || card),
-    );
-    if (result.folio) {
-      setFolios((prev) => {
-        const next = prev.filter((folio) => folio.id !== result.folio!.folio.id);
-        return [result.folio!.folio, ...next];
-      });
-      setCharges((prev) => {
-        const others = prev.filter((charge) => charge.folioId !== result.folio!.folio.id);
-        return [...result.folio!.charges, ...others];
-      });
-    }
+    setCharges((prev) => {
+      const others = prev.filter((charge) => charge.folioId !== result.folio.id);
+      return [...result.charges, ...others];
+    });
   }, []);
 
+  const finalizeCheckout = useCallback(
+    async (
+      reservationId: string,
+      cityTaxAmount: number,
+      paymentMethod: "cash" | "card" | "room_charge_settlement" | HotelManualPaymentMethod,
+      options?: { allowResidual?: boolean; implicitFullPayment?: boolean },
+    ) => {
+      const result = await hotelApi.checkOut(reservationId, cityTaxAmount, paymentMethod, options);
+      setReservations((prev) => prev.map((reservation) => (reservation.id === result.reservation.id ? result.reservation : reservation)));
+      setRooms((prev) => prev.map((room) => (room.id === result.room.id ? result.room : room)));
+      setHousekeeping((prev) => {
+        const next = prev.filter((task) => task.id !== result.housekeepingTask.id);
+        return [result.housekeepingTask, ...next];
+      });
+      setKeycards((prev) =>
+        prev.map((card) => result.keycards.find((updated) => updated.id === card.id) || card),
+      );
+      if (result.folio) {
+        setFolios((prev) => {
+          const next = prev.filter((folio) => folio.id !== result.folio!.folio.id);
+          return [result.folio!.folio, ...next];
+        });
+        setCharges((prev) => {
+          const others = prev.filter((charge) => charge.folioId !== result.folio!.folio.id);
+          return [...result.folio!.charges, ...others];
+        });
+      }
+    },
+    [],
+  );
+
   return (
-    <Ctx.Provider value={{ rooms, reservations, housekeeping, keycards, folios, charges, ratePlans, loading, failedSlices, refresh, createRoom, updateRoom, deleteRoom, createReservation, updateReservation, deleteReservation, roomCharge, processCheckIn, finalizeCheckout }}>
+    <Ctx.Provider
+      value={{
+        rooms,
+        reservations,
+        housekeeping,
+        keycards,
+        folios,
+        charges,
+        ratePlans,
+        loading,
+        failedSlices,
+        refresh,
+        createRoom,
+        updateRoom,
+        deleteRoom,
+        createReservation,
+        updateReservation,
+        deleteReservation,
+        roomCharge,
+        processCheckIn,
+        recordFolioPayment,
+        finalizeCheckout,
+      }}
+    >
       {children}
     </Ctx.Provider>
   );

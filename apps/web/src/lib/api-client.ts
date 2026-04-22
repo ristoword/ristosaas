@@ -718,6 +718,16 @@ export type HousekeepingTask = { id: string; roomId: string; assignedTo: string;
 export type HotelKeycard = { id: string; roomId: string; reservationId: string; validFrom: string; validUntil: string; status: "attiva" | "scaduta" | "annullata"; issuedBy: string };
 export type GuestFolio = { id: string; tenantId: string; customerId: string; stayId: string | null; currency: string; balance: number; status: "open" | "closed"; guestName?: string | null; roomCode?: string | null; reservationId?: string | null };
 export type FolioCharge = { id: string; folioId: string; source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit"; sourceId: string | null; description: string; amount: number; postedAt: string };
+
+/** Pagamento manuale reception (checkout hotel, senza Stripe). */
+export type HotelManualPaymentMethod =
+  | "contanti"
+  | "carta"
+  | "bonifico"
+  | "altro"
+  | "cash"
+  | "card"
+  | "room_charge_settlement";
 export type UnifiedReportSnapshot = {
   range: { from: string | null; to: string | null };
   occupancy: { occupiedRooms: number; totalRooms: number };
@@ -796,15 +806,33 @@ export const hotelApi = {
   deleteReservation: (id: string) => del<{ deleted: boolean }>(`/hotel/reservations/${id}`),
   checkIn: (reservationId: string, roomId: string) =>
     post<{ reservation: HotelReservation; room: HotelRoom; stay: HotelStay; card: HotelKeycard }>("/hotel/front-desk/check-in", { reservationId, roomId }),
-  checkOut: (reservationId: string, cityTaxAmount = 0, paymentMethod: "cash" | "card" | "room_charge_settlement" = "card") =>
+  recordFolioPayment: (reservationId: string, amount: number, method: HotelManualPaymentMethod, note?: string) =>
+    post<{ folio: GuestFolio; charges: FolioCharge[]; balance: number }>("/hotel/front-desk/payment", {
+      reservationId,
+      amount,
+      method,
+      note,
+    }),
+  checkOut: (
+    reservationId: string,
+    cityTaxAmount = 0,
+    paymentMethod: "cash" | "card" | "room_charge_settlement" | HotelManualPaymentMethod = "card",
+    options?: { allowResidual?: boolean; implicitFullPayment?: boolean },
+  ) =>
     post<{
       reservation: HotelReservation;
       room: HotelRoom;
       stay: HotelStay | null;
       housekeepingTask: HousekeepingTask;
       keycards: HotelKeycard[];
-      folio: { folio: GuestFolio; charges: FolioCharge[]; settlement: FolioCharge } | null;
-    }>("/hotel/front-desk/check-out", { reservationId, cityTaxAmount, paymentMethod }),
+      folio: { folio: GuestFolio; charges: FolioCharge[]; settlement: FolioCharge | null } | null;
+    }>("/hotel/front-desk/check-out", {
+      reservationId,
+      cityTaxAmount,
+      paymentMethod,
+      allowResidual: options?.allowResidual,
+      implicitFullPayment: options?.implicitFullPayment,
+    }),
   listHousekeeping: () => get<HousekeepingTask[]>("/hotel/housekeeping"),
   listKeycards: () => get<HotelKeycard[]>("/hotel/keycards"),
   listRatePlans: (roomType?: string) =>

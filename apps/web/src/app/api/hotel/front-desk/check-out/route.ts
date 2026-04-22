@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
@@ -8,8 +9,37 @@ import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, Hotel
 
 const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
 
+const CHECKOUT_REJECT = "CHECKOUT_REJECT:";
+
+function rejectCheckout(message: string): never {
+  throw new Error(`${CHECKOUT_REJECT}${message}`);
+}
+
+const EPS = 0.005;
+
 function toDateString(value: Date) {
   return value.toISOString().slice(0, 10);
+}
+
+function paymentMethodDisplay(
+  method?: "cash" | "card" | "room_charge_settlement" | "contanti" | "carta" | "bonifico" | "altro",
+): string {
+  switch (method) {
+    case "cash":
+    case "contanti":
+      return "contanti";
+    case "card":
+    case "carta":
+      return "carta";
+    case "bonifico":
+      return "bonifico";
+    case "altro":
+      return "altro";
+    case "room_charge_settlement":
+      return "saldo interno";
+    default:
+      return method ?? "card";
+  }
 }
 
 function mapReservation(row: {
@@ -162,164 +192,223 @@ function mapCard(row: {
   };
 }
 
+async function sumChargesForFolio(tx: Prisma.TransactionClient, folioId: string) {
+  const rows = await tx.folioCharge.findMany({ where: { folioId } });
+  return rows.reduce((s, c) => s + c.amount.toNumber(), 0);
+}
+
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
-  const { reservationId, cityTaxAmount = 0, paymentMethod = "card" } = await body<{
+  const {
+    reservationId,
+    cityTaxAmount = 0,
+    paymentMethod = "card",
+    allowResidual = false,
+    implicitFullPayment = true,
+  } = await body<{
     reservationId: string;
     cityTaxAmount?: number;
-    paymentMethod?: "cash" | "card" | "room_charge_settlement";
+    paymentMethod?:
+      | "cash"
+      | "card"
+      | "room_charge_settlement"
+      | "contanti"
+      | "carta"
+      | "bonifico"
+      | "altro";
+    allowResidual?: boolean;
+    /** Se true (default), salda automaticamente il saldo residuo in un’unica riga di pagamento (compatibilità col flusso precedente). Se false, il saldo deve essere già coperto da pagamenti registrati o da `allowResidual`. */
+    implicitFullPayment?: boolean;
   }>(req);
+
   if (!reservationId) return err("reservationId required");
   const tenantId = getTenantId();
   const now = new Date();
+  const tax = typeof cityTaxAmount === "number" && !Number.isNaN(cityTaxAmount) ? Math.max(0, cityTaxAmount) : 0;
 
-  const reservation = await prisma.hotelReservation.findFirst({
-    where: { id: reservationId, tenantId },
-  });
-  if (!reservation || !reservation.roomId) return err("Reservation not found", 404);
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const reservation = await tx.hotelReservation.findFirst({
+        where: { id: reservationId, tenantId, status: "in_casa" },
+      });
+      if (!reservation || reservation.roomId === null) {
+        rejectCheckout("La prenotazione non è in casa, è già in check-out o non ha una camera assegnata.");
+      }
+      const roomId = reservation.roomId;
 
-  const updatedReservation = await prisma.hotelReservation.update({
-    where: { id: reservation.id },
-    data: { status: "check_out" },
-  });
+      const stay = await tx.stay.upsert({
+        where: { reservationId: reservation.id },
+        update: { actualCheckOutAt: now },
+        create: {
+          tenantId,
+          reservationId: reservation.id,
+          actualCheckOutAt: now,
+        },
+        select: {
+          id: true,
+          reservationId: true,
+          reservation: { select: { roomId: true } },
+          actualCheckInAt: true,
+          actualCheckOutAt: true,
+        },
+      });
 
-  const updatedRoom = await prisma.hotelRoom.update({
-    where: { id: reservation.roomId },
-    data: { status: "da_pulire" },
-  });
+      let folio = await tx.guestFolio.findFirst({
+        where: {
+          tenantId,
+          OR: [{ stayId: stay.id }, { customerId: reservation.customerId, status: "open" }],
+        },
+        orderBy: { id: "asc" },
+      });
 
-  const stay = await prisma.stay.upsert({
-    where: { reservationId: reservation.id },
-    update: { actualCheckOutAt: now },
-    create: {
-      tenantId,
-      reservationId: reservation.id,
-      actualCheckOutAt: now,
-    },
-    select: {
-      id: true,
-      reservationId: true,
-      reservation: { select: { roomId: true } },
-      actualCheckInAt: true,
-      actualCheckOutAt: true,
-    },
-  });
+      if (!folio) {
+        folio = await tx.guestFolio.create({
+          data: {
+            tenantId,
+            customerId: reservation.customerId,
+            stayId: stay.id,
+            currency: "EUR",
+            balance: 0,
+            status: "open",
+          },
+        });
+      }
 
-  const task = await prisma.housekeepingTask.create({
-    data: {
-      tenantId,
-      roomId: reservation.roomId,
-      status: "todo",
-      scheduledFor: now,
-    },
-    select: {
-      id: true,
-      roomId: true,
-      status: true,
-      scheduledFor: true,
-    },
-  });
+      if (tax > EPS) {
+        await tx.folioCharge.create({
+          data: {
+            folioId: folio.id,
+            source: "city_tax",
+            sourceId: reservation.id,
+            description: "Tassa di soggiorno",
+            amount: tax,
+            postedAt: now,
+          },
+        });
+      }
 
-  await prisma.hotelKeycard.updateMany({
-    where: {
-      tenantId,
-      reservationId: reservation.id,
-      status: "attiva",
-    },
-    data: {
-      status: "annullata",
-    },
-  });
-  const keycards = await prisma.hotelKeycard.findMany({
-    where: {
-      tenantId,
-      reservationId: reservation.id,
-    },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      roomId: true,
-      reservationId: true,
-      validFrom: true,
-      validUntil: true,
-      status: true,
-      issuedBy: true,
-    },
-  });
+      let balanceSum = await sumChargesForFolio(tx, folio.id);
 
-  let folio = await prisma.guestFolio.findFirst({
-    where: {
-      tenantId,
-      OR: [{ stayId: stay.id }, { customerId: reservation.customerId, status: "open" }],
-    },
-    orderBy: { id: "asc" },
-  });
+      if (implicitFullPayment && !allowResidual && balanceSum > EPS) {
+        await tx.folioCharge.create({
+          data: {
+            folioId: folio.id,
+            source: "payment",
+            sourceId: reservation.id,
+            description: `Saldo finale soggiorno (${paymentMethodDisplay(paymentMethod)})`,
+            amount: -balanceSum,
+            postedAt: now,
+          },
+        });
+        balanceSum = await sumChargesForFolio(tx, folio.id);
+      }
 
-  if (!folio) {
-    folio = await prisma.guestFolio.create({
-      data: {
-        tenantId,
-        customerId: reservation.customerId,
-        stayId: stay.id,
-        currency: "EUR",
-        balance: 0,
-        status: "open",
-      },
+      if (balanceSum > EPS && !allowResidual) {
+        rejectCheckout(
+          `Saldo aperto di €${balanceSum.toFixed(2)}. Registra un pagamento dalla sezione checkout oppure abilita il checkout con residuo autorizzato.`,
+        );
+      }
+
+      const updatedReservation = await tx.hotelReservation.update({
+        where: { id: reservation.id },
+        data: { status: "check_out" },
+      });
+
+      const updatedRoom = await tx.hotelRoom.update({
+        where: { id: roomId },
+        data: { status: "da_pulire" },
+      });
+
+      const task = await tx.housekeepingTask.create({
+        data: {
+          tenantId,
+          roomId,
+          status: "todo",
+          scheduledFor: now,
+        },
+        select: {
+          id: true,
+          roomId: true,
+          status: true,
+          scheduledFor: true,
+        },
+      });
+
+      await tx.hotelKeycard.updateMany({
+        where: {
+          tenantId,
+          reservationId: reservation.id,
+          status: "attiva",
+        },
+        data: {
+          status: "annullata",
+        },
+      });
+
+      let closedFolio;
+      if (balanceSum > EPS && allowResidual) {
+        closedFolio = await tx.guestFolio.update({
+          where: { id: folio.id },
+          data: {
+            balance: balanceSum,
+            status: "open",
+          },
+        });
+      } else {
+        closedFolio = await tx.guestFolio.update({
+          where: { id: folio.id },
+          data: {
+            balance: 0,
+            status: "closed",
+          },
+        });
+      }
+
+      const keycards = await tx.hotelKeycard.findMany({
+        where: {
+          tenantId,
+          reservationId: reservation.id,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          roomId: true,
+          reservationId: true,
+          validFrom: true,
+          validUntil: true,
+          status: true,
+          issuedBy: true,
+        },
+      });
+
+      const charges = await tx.folioCharge.findMany({
+        where: { folioId: folio.id },
+        orderBy: { postedAt: "desc" },
+      });
+
+      const lastPayment = charges.find((c) => c.source === "payment");
+
+      return {
+        reservation: mapReservation(updatedReservation),
+        room: mapRoom(updatedRoom),
+        stay: mapStay(stay),
+        housekeepingTask: mapTask(task),
+        keycards: keycards.map(mapCard),
+        folio: {
+          folio: mapFolio(closedFolio),
+          charges: charges.map(mapCharge),
+          settlement: lastPayment ? mapCharge(lastPayment) : null,
+        },
+      };
     });
+
+    return ok(result);
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith(CHECKOUT_REJECT)) {
+      return err(e.message.slice(CHECKOUT_REJECT.length), 400);
+    }
+    throw e;
   }
-
-  let nextBalance = folio.balance.toNumber();
-
-  if (cityTaxAmount > 0) {
-    await prisma.folioCharge.create({
-      data: {
-        folioId: folio.id,
-        source: "city_tax",
-        sourceId: reservation.id,
-        description: "Tassa di soggiorno",
-        amount: cityTaxAmount,
-        postedAt: now,
-      },
-    });
-    nextBalance += cityTaxAmount;
-  }
-
-  const settlement = await prisma.folioCharge.create({
-    data: {
-      folioId: folio.id,
-      source: "payment",
-      sourceId: reservation.id,
-      description: `Saldo finale soggiorno (${paymentMethod})`,
-      amount: -nextBalance,
-      postedAt: now,
-    },
-  });
-
-  const closedFolio = await prisma.guestFolio.update({
-    where: { id: folio.id },
-    data: {
-      balance: 0,
-      status: "closed",
-    },
-  });
-
-  const charges = await prisma.folioCharge.findMany({
-    where: { folioId: folio.id },
-    orderBy: { postedAt: "desc" },
-  });
-
-  return ok({
-    reservation: mapReservation(updatedReservation),
-    room: mapRoom(updatedRoom),
-    stay: mapStay(stay),
-    housekeepingTask: mapTask(task),
-    keycards: keycards.map(mapCard),
-    folio: {
-      folio: mapFolio(closedFolio),
-      charges: charges.map(mapCharge),
-      settlement: mapCharge(settlement),
-    },
-  });
 }
