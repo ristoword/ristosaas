@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
-import type { CourseStatus, Order, OrderItem, OrderStatus } from "@/lib/api/types/orders";
+import type { CourseStatus, Order, OrderItem, OrderOnlinePaymentStatus, OrderStatus } from "@/lib/api/types/orders";
+import { restaurantOrderTotalCentsFromItems } from "@/lib/billing/stripe-restaurant-order";
 
 type OrderFilters = {
   status?: string | null;
@@ -28,6 +29,25 @@ function toCourseStates(input: unknown): Record<string, CourseStatus> {
   return states;
 }
 
+function mapMenuItemAreaToOrderArea(raw: string): OrderItem["area"] {
+  const v = (raw || "").toLowerCase().trim();
+  if (v === "bar") return "bar";
+  if (v === "pizzeria") return "pizzeria";
+  if (v === "cucina" || v.includes("cucin")) return "cucina";
+  return "sala";
+}
+
+function mergePublicOrderLines(items: Array<{ menuItemId: string; qty: number }>) {
+  const m = new Map<string, number>();
+  for (const line of items) {
+    if (!Number.isFinite(line.qty) || line.qty < 1) continue;
+    const id = line.menuItemId.trim();
+    if (!id) continue;
+    m.set(id, (m.get(id) ?? 0) + Math.floor(line.qty));
+  }
+  return [...m.entries()].map(([menuItemId, qty]) => ({ menuItemId, qty }));
+}
+
 function mapOrder(row: {
   id: string;
   table: string | null;
@@ -38,10 +58,13 @@ function mapOrder(row: {
   activeCourse: number;
   courseStates: unknown;
   status: OrderStatus;
+  onlinePaymentStatus: OrderOnlinePaymentStatus;
+  stripeCheckoutSessionId: string | null;
   createdAt: Date;
   updatedAt: Date;
   items: Array<{
     id: string;
+    menuItemId: string | null;
     name: string;
     qty: number;
     category: string | null;
@@ -61,11 +84,14 @@ function mapOrder(row: {
     activeCourse: row.activeCourse,
     courseStates: toCourseStates(row.courseStates),
     status: row.status,
+    onlinePaymentStatus: row.onlinePaymentStatus,
+    stripeCheckoutSessionId: row.stripeCheckoutSessionId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     items: row.items.map(
       (item): OrderItem => ({
         id: item.id,
+        menuItemId: item.menuItemId,
         name: item.name,
         qty: item.qty,
         category: item.category,
@@ -124,6 +150,8 @@ export const ordersRepository = {
         activeCourse: order.activeCourse,
         courseStates: order.courseStates,
         status: order.status,
+        onlinePaymentStatus: order.onlinePaymentStatus ?? "unpaid",
+        stripeCheckoutSessionId: order.stripeCheckoutSessionId ?? null,
         items: {
           create: order.items.map((item) => ({
             name: item.name,
@@ -133,6 +161,7 @@ export const ordersRepository = {
             price: item.price,
             note: item.note,
             course: item.course,
+            ...(item.menuItemId ? { menuItemId: item.menuItemId } : {}),
           })),
         },
       },
@@ -140,6 +169,151 @@ export const ordersRepository = {
     });
     return mapOrder(row);
   },
+
+  /**
+   * Ordine inviato dal menu pubblico: prezzi e voci da DB, stato iniziale `pending`.
+   */
+  async createFromPublicMenu(
+    tenantId: string,
+    payload: {
+      items: Array<{ menuItemId: string; qty: number }>;
+      notes?: string | null;
+      tableHint?: string | null;
+      /** `RestaurantTable.id` nel tenant; `order.table` sarà il nome tavolo (compatibile con sala). */
+      tableId?: string | null;
+    },
+  ) {
+    let resolvedTableNome: string | null = null;
+    if (payload.tableId?.trim()) {
+      const tbl = await prisma.restaurantTable.findFirst({
+        where: { tenantId, id: payload.tableId.trim() },
+        select: { nome: true },
+      });
+      if (!tbl) throw new Error("Tavolo non valido o non appartenente alla struttura.");
+      resolvedTableNome = tbl.nome;
+    }
+
+    const lines = mergePublicOrderLines(payload.items);
+    if (lines.length === 0) throw new Error("Il carrello è vuoto.");
+
+    const ids = lines.map((l) => l.menuItemId);
+    const menuRows = await prisma.menuItem.findMany({
+      where: { tenantId, id: { in: ids }, active: true },
+    });
+    if (menuRows.length !== ids.length) {
+      throw new Error("Uno o più articoli non sono disponibili.");
+    }
+    const byId = new Map(menuRows.map((r) => [r.id, r]));
+
+    const orderItems: OrderItem[] = lines.map((line) => {
+      const row = byId.get(line.menuItemId)!;
+      return {
+        id: "",
+        menuItemId: row.id,
+        name: row.name,
+        qty: line.qty,
+        category: row.category,
+        area: mapMenuItemAreaToOrderArea(row.area),
+        price: row.price.toNumber(),
+        note: null,
+        course: 1,
+      };
+    });
+
+    const mainArea: Order["area"] = orderItems.some((i) => i.area === "cucina")
+      ? "cucina"
+      : orderItems.some((i) => i.area === "bar")
+        ? "bar"
+        : orderItems.some((i) => i.area === "pizzeria")
+          ? "pizzeria"
+          : "sala";
+
+    const courseNums = [...new Set(orderItems.map((item) => item.course))].sort((a, b) => a - b);
+    const courseStates: Record<string, CourseStatus> = {};
+    for (let idx = 0; idx < courseNums.length; idx += 1) {
+      const course = courseNums[idx];
+      courseStates[String(course)] = idx === 0 ? "in_attesa" : "queued";
+    }
+
+    const notesParts = [
+      "Ordine da menu pubblico.",
+      resolvedTableNome ? `Tavolo: ${resolvedTableNome}.` : null,
+      !resolvedTableNome && payload.tableHint?.trim() ? `Riferimento tavolo/posto: ${payload.tableHint.trim()}` : null,
+      resolvedTableNome && payload.tableHint?.trim() ? `Nota: ${payload.tableHint.trim()}` : null,
+      payload.notes?.trim() || null,
+    ].filter(Boolean) as string[];
+
+    const order: Omit<Order, "id" | "createdAt" | "updatedAt"> = {
+      table: resolvedTableNome ?? (payload.tableHint?.trim() || null),
+      covers: null,
+      area: mainArea,
+      waiter: "Menu online",
+      notes: notesParts.join(" "),
+      items: orderItems,
+      activeCourse: courseNums[0] ?? 1,
+      courseStates,
+      status: "pending",
+      onlinePaymentStatus: "unpaid",
+      stripeCheckoutSessionId: null,
+    };
+    return this.create(tenantId, order);
+  },
+
+  async setStripeCheckoutSessionId(tenantId: string, orderId: string, stripeCheckoutSessionId: string) {
+    const existing = await prisma.restaurantOrder.findFirst({
+      where: { id: orderId, tenantId, onlinePaymentStatus: "unpaid" },
+    });
+    if (!existing) return null;
+    const row = await prisma.restaurantOrder.update({
+      where: { id: orderId },
+      data: { stripeCheckoutSessionId },
+      include: { items: true },
+    });
+    if (row.tenantId !== tenantId) return null;
+    return mapOrder(row);
+  },
+
+  async markOnlinePaymentPaidFromCheckout(args: {
+    tenantId: string;
+    orderId: string;
+    stripeCheckoutSessionId: string;
+    amountTotalCents: number;
+    currency: string;
+  }): Promise<{ ok: true } | { ok: false; reason: string }> {
+    if (args.currency.toLowerCase() !== "eur") return { ok: false, reason: "currency_mismatch" };
+
+    const existing = await prisma.restaurantOrder.findFirst({
+      where: { id: args.orderId, tenantId: args.tenantId },
+      include: { items: true },
+    });
+    if (!existing) return { ok: false, reason: "order_not_found" };
+    if (existing.onlinePaymentStatus === "paid") return { ok: true };
+
+    const expectedCents = restaurantOrderTotalCentsFromItems(
+      existing.items.map((i) => ({
+        price: i.price ? i.price.toNumber() : null,
+        qty: i.qty,
+      })),
+    );
+    if (expectedCents !== args.amountTotalCents) return { ok: false, reason: "amount_mismatch" };
+
+    if (
+      existing.stripeCheckoutSessionId &&
+      existing.stripeCheckoutSessionId !== args.stripeCheckoutSessionId
+    ) {
+      return { ok: false, reason: "session_mismatch" };
+    }
+
+    await prisma.restaurantOrder.update({
+      where: { id: args.orderId },
+      data: {
+        onlinePaymentStatus: "paid",
+        stripeCheckoutSessionId: args.stripeCheckoutSessionId,
+      },
+    });
+    return { ok: true };
+  },
+
   async update(tenantId: string, id: string, updates: Partial<Order>) {
     const existing = await prisma.restaurantOrder.findFirst({
       where: { tenantId, id },
@@ -158,6 +332,8 @@ export const ordersRepository = {
         activeCourse: updates.activeCourse,
         courseStates: updates.courseStates,
         status: updates.status,
+        onlinePaymentStatus: updates.onlinePaymentStatus,
+        stripeCheckoutSessionId: updates.stripeCheckoutSessionId,
         items: updates.items
           ? {
               deleteMany: {},
@@ -169,6 +345,7 @@ export const ordersRepository = {
                 price: item.price,
                 note: item.note,
                 course: item.course,
+                ...(item.menuItemId ? { menuItemId: item.menuItemId } : {}),
               })),
             }
           : undefined,

@@ -1,6 +1,7 @@
 export type {
   CourseStatus,
   OrderStatus,
+  OrderOnlinePaymentStatus,
   OrderArea,
   OrderItem,
   Order,

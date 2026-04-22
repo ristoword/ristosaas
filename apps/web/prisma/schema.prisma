@@ -100,12 +100,18 @@ enum TenantFeatureCode {
 }
 
 enum RestaurantOrderStatus {
+  pending
   in_attesa
   in_preparazione
   pronto
   servito
   chiuso
   annullato
+}
+
+enum RestaurantOrderOnlinePaymentStatus {
+  unpaid
+  paid
 }
 
 enum HotelReservationStatus {
@@ -749,6 +755,9 @@ model RestaurantOrder {
   activeCourse Int
   courseStates Json
   status       RestaurantOrderStatus
+  /** Pagamento online (Stripe Checkout) per ordini da menu pubblico. */
+  onlinePaymentStatus     RestaurantOrderOnlinePaymentStatus @default(unpaid)
+  stripeCheckoutSessionId String?                            @unique
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
   tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)

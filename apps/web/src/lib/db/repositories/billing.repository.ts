@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { ordersRepository } from "@/lib/db/repositories/orders.repository";
 
 type StripeLikeEvent = {
   id: string;
@@ -372,6 +373,40 @@ export const billingRepository = {
     }
 
     await this.recordRawEvent(event, "received", tenantId);
+
+    // Checkout one-time: ordini menu pubblico (metadata `purpose=restaurant_order`).
+    if (event.type === "checkout.session.completed") {
+      const session = event.data?.object ?? {};
+      const md = session.metadata ?? {};
+      if (
+        md.purpose === "restaurant_order" &&
+        typeof md.restaurantOrderId === "string" &&
+        typeof md.tenantId === "string"
+      ) {
+        const sessionId = String(session.id ?? "");
+        if (!sessionId) {
+          await this.recordRawEvent(event, "failed", md.tenantId);
+          return { processed: false as const, reason: "missing_session_id" as const };
+        }
+        if (session.payment_status !== "paid") {
+          await this.recordRawEvent(event, "failed", md.tenantId);
+          return { processed: false as const, reason: "checkout_not_paid" as const };
+        }
+        const mark = await ordersRepository.markOnlinePaymentPaidFromCheckout({
+          tenantId: md.tenantId,
+          orderId: md.restaurantOrderId,
+          stripeCheckoutSessionId: sessionId,
+          amountTotalCents: Number(session.amount_total ?? 0),
+          currency: String(session.currency ?? "eur"),
+        });
+        if (!mark.ok) {
+          await this.recordRawEvent(event, "failed", md.tenantId);
+          return { processed: false as const, reason: mark.reason as "amount_mismatch" };
+        }
+        await this.recordRawEvent(event, "processed", md.tenantId);
+        return { processed: true as const };
+      }
+    }
 
     if (!tenantId) {
       await this.recordRawEvent(event, "failed", null);

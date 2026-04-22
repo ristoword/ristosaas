@@ -7,7 +7,9 @@ type OrdersContextValue = {
   orders: Order[];
   activeOrders: Order[];
   loading: boolean;
-  createOrder: (o: Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status">) => Promise<void>;
+  createOrder: (
+    o: Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status" | "onlinePaymentStatus" | "stripeCheckoutSessionId">,
+  ) => Promise<void>;
   patchStatus: (id: string, status: OrderStatus) => Promise<void>;
   patchActiveCourse: (id: string, course: number) => Promise<void>;
   getOrdersForArea: (area: string) => Order[];
@@ -46,7 +48,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createOrder = useCallback(async (
-    payload: Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status">,
+    payload: Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status" | "onlinePaymentStatus" | "stripeCheckoutSessionId">,
   ) => {
     const order = await ordersApi.create(payload);
     setOrders((prev) => [order, ...prev]);

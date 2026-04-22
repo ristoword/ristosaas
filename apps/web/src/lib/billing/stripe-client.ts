@@ -35,3 +35,22 @@ export async function stripePostForm<T>(path: string, params: URLSearchParams): 
   }
   return { ok: true, data: payload as T };
 }
+
+export async function stripeGet<T>(path: string): Promise<StripeRequestResult<T>> {
+  const secret = getStripeSecretKey();
+  if (!secret) return { ok: false, status: 500, error: "STRIPE_SECRET_KEY missing" };
+
+  const response = await fetch(`${STRIPE_API_BASE}${path}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${secret}`,
+    },
+  });
+
+  const payload = (await response.json().catch(() => null)) as any;
+  if (!response.ok) {
+    const message = payload?.error?.message || `Stripe request failed (${response.status})`;
+    return { ok: false, status: response.status, error: message };
+  }
+  return { ok: true, data: payload as T };
+}

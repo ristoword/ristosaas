@@ -331,9 +331,31 @@ export function SupervisorPage() {
     {
       key: "status" as const, header: "Stato",
       render: (r: Order) => {
-        const t: Record<string, string> = { chiuso: "bg-emerald-500/15 text-emerald-400", servito: "bg-emerald-500/15 text-emerald-400", in_attesa: "bg-amber-500/15 text-amber-400", in_preparazione: "bg-amber-500/15 text-amber-400", pronto: "bg-blue-500/15 text-blue-400", annullato: "bg-red-500/15 text-red-400" };
+        const t: Record<string, string> = {
+          pending: "bg-violet-500/15 text-violet-300",
+          chiuso: "bg-emerald-500/15 text-emerald-400",
+          servito: "bg-emerald-500/15 text-emerald-400",
+          in_attesa: "bg-amber-500/15 text-amber-400",
+          in_preparazione: "bg-amber-500/15 text-amber-400",
+          pronto: "bg-blue-500/15 text-blue-400",
+          annullato: "bg-red-500/15 text-red-400",
+        };
         return <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold capitalize", t[r.status] ?? "")}>{r.status.replace("_", " ")}</span>;
       },
+    },
+    {
+      key: "onlinePaymentStatus" as const,
+      header: "Pag. online",
+      render: (r: Order) => (
+        <span
+          className={cn(
+            "rounded-full px-2 py-0.5 text-xs font-semibold",
+            r.onlinePaymentStatus === "paid" ? "bg-emerald-500/15 text-emerald-300" : "bg-rw-muted/30 text-rw-soft",
+          )}
+        >
+          {r.onlinePaymentStatus === "paid" ? "paid" : "unpaid"}
+        </span>
+      ),
     },
     { key: "covers" as const, header: "Coperti", render: (r: Order) => r.covers ?? "—" },
     { key: "waiter" as const, header: "Cameriere" },

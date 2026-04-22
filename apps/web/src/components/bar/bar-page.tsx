@@ -134,7 +134,7 @@ function classifyByStatus(orders: Order[]) {
   const pronti: Order[] = [];
 
   for (const o of orders) {
-    if (o.status === "in_attesa") inAttesa.push(o);
+    if (o.status === "in_attesa" || o.status === "pending") inAttesa.push(o);
     else if (o.status === "in_preparazione") inPrep.push(o);
     else if (o.status === "pronto") pronti.push(o);
   }

@@ -9,6 +9,7 @@ const PUBLIC = [
   "/setup",
   "/maintenance",
   "/signup",
+  "/menu/",
   "/t/",
   "/gestionale-ristorante-hotel-integrato",
   "/gestionale-ristorante",
@@ -96,6 +97,8 @@ export async function middleware(req: NextRequest) {
 
   if (pathname.startsWith("/api/")) {
     if (isPublicApiPath(pathname)) return nextWithRequestId(req, requestId);
+    // Solo POST crea-ordine da menu pubblico (senza sessione). GET /api/orders resta protetto.
+    if (pathname === "/api/orders" && req.method === "POST") return nextWithRequestId(req, requestId);
     if (!user) return jsonWithRequestId({ error: "Unauthorized" }, { status: 401 }, requestId);
 
     const requiredRoles = getApiRequiredRoles(pathname);

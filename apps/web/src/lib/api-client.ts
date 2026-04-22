@@ -186,7 +186,9 @@ export const ordersApi = {
     return get<Order[]>(`/orders${q ? `?${q}` : ""}`);
   },
   get: (id: string) => get<Order>(`/orders/${id}`),
-  create: (data: Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status">) => post<Order>("/orders", data),
+  create: (
+    data: Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status" | "onlinePaymentStatus" | "stripeCheckoutSessionId">,
+  ) => post<Order>("/orders", data),
   update: (id: string, data: Partial<Order>) => put<Order>(`/orders/${id}`, data),
   delete: (id: string) => del<{ deleted: boolean }>(`/orders/${id}`),
   patchStatus: (id: string, status: string) => patch<{ order: Order; discharge: unknown }>(`/orders/${id}/status`, { status }),
@@ -1140,10 +1142,43 @@ export type FoodCostResult = { ingredientCost: number; productionCost: number; p
 export type MenuItem = { id: string; name: string; category: string; area: string; price: number; code: string; active: boolean; recipeId: string | null; notes: string; foodCostPct: number | null };
 export type DailyDish = { id: string; name: string; description: string; category: string; price: number; allergens: string; recipeId: string | null };
 export type CourseStatus = "queued" | "in_attesa" | "in_preparazione" | "pronto" | "servito";
-export type OrderStatus = "in_attesa" | "in_preparazione" | "pronto" | "servito" | "chiuso" | "annullato";
+export type OrderStatus =
+  | "pending"
+  | "in_attesa"
+  | "in_preparazione"
+  | "pronto"
+  | "servito"
+  | "chiuso"
+  | "annullato";
+export type OrderOnlinePaymentStatus = "unpaid" | "paid";
 export type OrderArea = "sala" | "cucina" | "bar" | "pizzeria";
-export type OrderItem = { id: string; name: string; qty: number; category: string | null; area: OrderArea; price: number | null; note: string | null; course: number };
-export type Order = { id: string; table: string | null; covers: number | null; area: OrderArea; waiter: string; notes: string; items: OrderItem[]; activeCourse: number; courseStates: Record<string, CourseStatus>; status: OrderStatus; createdAt: string; updatedAt: string };
+export type OrderItem = {
+  id: string;
+  menuItemId?: string | null;
+  name: string;
+  qty: number;
+  category: string | null;
+  area: OrderArea;
+  price: number | null;
+  note: string | null;
+  course: number;
+};
+export type Order = {
+  id: string;
+  table: string | null;
+  covers: number | null;
+  area: OrderArea;
+  waiter: string;
+  notes: string;
+  items: OrderItem[];
+  activeCourse: number;
+  courseStates: Record<string, CourseStatus>;
+  status: OrderStatus;
+  onlinePaymentStatus: OrderOnlinePaymentStatus;
+  stripeCheckoutSessionId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 export type TableStatus = "libero" | "aperto" | "conto" | "sporco";
 export type SalaTable = { id: string; nome: string; posti: number; x: number; y: number; forma: "tondo" | "quadrato"; stato: TableStatus; roomId: string };
 export type Room = { id: string; name: string; tables: number };
