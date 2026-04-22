@@ -115,7 +115,10 @@ function OrderCard({
   onServito: () => void;
 }) {
   const elapsed = minutesSince(order.createdAt);
-  const courseItems = order.items.filter((i) => i.course === kds.courseNum && i.area === "cucina");
+  /** Corsi che hanno almeno una riga in cucina: tutti visibili subito; i pulsanti restano solo sul corso attivo (`kds`). */
+  const cucinaCourseNums = [...new Set(order.items.filter((i) => i.area === "cucina").map((i) => i.course))].sort(
+    (a, b) => a - b,
+  );
 
   return (
     <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 space-y-2">
@@ -134,41 +137,81 @@ function OrderCard({
         </div>
       </div>
 
-      <div className="text-xs text-rw-muted font-semibold uppercase tracking-wide">
-        Portata {kds.courseNum}
-      </div>
+      {cucinaCourseNums.length === 0 ? (
+        <p className="text-xs text-rw-muted italic">Nessun piatto in cucina su questa comanda</p>
+      ) : (
+        <div className="space-y-3">
+          {cucinaCourseNums.map((courseNum) => {
+            const rawSt = order.courseStates[String(courseNum)] as CourseStatus | undefined;
+            const st: CourseStatus = rawSt ?? "queued";
+            const isActive = courseNum === kds.courseNum;
+            const courseItems = order.items.filter((i) => i.course === courseNum && i.area === "cucina");
+            const statusLabel =
+              !isActive && st === "queued"
+                ? "In coda"
+                : !isActive && st === "in_attesa"
+                  ? "In attesa"
+                  : COURSE_STATUS_LABELS[st];
+            return (
+              <div
+                key={courseNum}
+                className={cn(
+                  "rounded-lg border px-2 py-2 space-y-1",
+                  isActive ? "border-rw-accent/45 bg-rw-bg/35" : "border-rw-line/35 bg-rw-surface/25",
+                )}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
+                    Portata {courseNum}
+                    {isActive ? (
+                      <span className="ml-2 rounded bg-rw-accent/20 px-1.5 py-0.5 normal-case text-[10px] font-bold text-rw-accent">
+                        Attivo
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${COURSE_STATUS_COLORS[st] ?? COURSE_STATUS_COLORS.queued}`} aria-hidden />
+                    <span className={cn("text-xs font-semibold", !isActive && (st === "queued" || st === "in_attesa") ? "text-rw-soft" : "text-rw-ink")}>
+                      {statusLabel}
+                    </span>
+                  </div>
+                </div>
 
-      <ul className="space-y-0.5">
-        {courseItems.map((it) => (
-          <li key={it.id} className="flex items-center justify-between text-sm text-rw-soft">
-            <span>
-              <span className="font-medium text-rw-ink">{it.qty}×</span> {it.name}
-            </span>
-            {it.note && <span className="text-xs text-rw-muted italic">{it.note}</span>}
-          </li>
-        ))}
-        {courseItems.length === 0 && (
-          <li className="text-xs text-rw-muted italic">Nessun item cucina</li>
-        )}
-      </ul>
+                <ul className="space-y-0.5">
+                  {courseItems.map((it) => (
+                    <li key={it.id} className="flex items-center justify-between text-sm text-rw-soft">
+                      <span>
+                        <span className="font-medium text-rw-ink">{it.qty}×</span> {it.name}
+                      </span>
+                      {it.note && <span className="text-xs text-rw-muted italic">{it.note}</span>}
+                    </li>
+                  ))}
+                </ul>
 
-      <div className="flex items-center gap-2 pt-1">
-        {kds.status === "in_attesa" && (
-          <button type="button" onClick={onInPrep} className="flex-1 rounded-lg bg-rw-accent/15 px-3 py-1.5 text-xs font-bold text-rw-accent transition hover:bg-rw-accent/25">
-            In prep
-          </button>
-        )}
-        {kds.status === "in_preparazione" && (
-          <button type="button" onClick={onPronto} className="flex-1 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/25">
-            Pronto
-          </button>
-        )}
-        {kds.status === "pronto" && (
-          <button type="button" onClick={onServito} className="flex-1 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-400 transition hover:bg-blue-500/25">
-            Servito
-          </button>
-        )}
-      </div>
+                {isActive ? (
+                  <div className="flex items-center gap-2 pt-1">
+                    {kds.status === "in_attesa" && (
+                      <button type="button" onClick={onInPrep} className="flex-1 rounded-lg bg-rw-accent/15 px-3 py-1.5 text-xs font-bold text-rw-accent transition hover:bg-rw-accent/25">
+                        In prep
+                      </button>
+                    )}
+                    {kds.status === "in_preparazione" && (
+                      <button type="button" onClick={onPronto} className="flex-1 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/25">
+                        Pronto
+                      </button>
+                    )}
+                    {kds.status === "pronto" && (
+                      <button type="button" onClick={onServito} className="flex-1 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-400 transition hover:bg-blue-500/25">
+                        Servito
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
