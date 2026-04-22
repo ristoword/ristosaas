@@ -365,7 +365,7 @@ export const navSections: NavSection[] = [
       {
         id: "archivio",
         label: "Archivio",
-        hint: "Incassi, fatture, comande.",
+        hint: "Incassi, fatture, comande, ordini fornitore.",
         href: "/archivio",
         icon: Archive,
         ready: true,

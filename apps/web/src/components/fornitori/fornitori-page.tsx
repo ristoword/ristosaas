@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
+  Archive,
   Building2,
   CreditCard,
   FileText,
@@ -20,6 +21,7 @@ import {
   purchaseOrdersApi,
   suppliersApi,
   warehouseApi,
+  type ArchivedSupplierOrderKind,
   type PurchaseOrder,
   type PurchaseOrderReport,
   type StockItem,
@@ -638,6 +640,10 @@ function SupplierOrdersPanel({ supplier }: { supplier: Supplier }) {
         onClose={() => setSelected(null)}
         onReceive={handleReceive}
         onStatus={handleStatus}
+        onOrderUpdated={(o) => {
+          setOrders((prev) => prev.map((row) => (row.id === o.id ? o : row)));
+          setSelected(o);
+        }}
       />
     </div>
   );
@@ -856,22 +862,27 @@ function PurchaseOrderDetailDrawer({
   onClose,
   onReceive,
   onStatus,
+  onOrderUpdated,
 }: {
   order: PurchaseOrder | null;
   onClose: () => void;
   onReceive: (order: PurchaseOrder, receipts: Array<{ itemId: string; qty: number }>) => void;
   onStatus: (order: PurchaseOrder, status: "inviato" | "annullato") => void;
+  onOrderUpdated?: (order: PurchaseOrder) => void;
 }) {
   const [draft, setDraft] = useState<Record<string, number>>({});
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailFlash, setEmailFlash] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [archiveError, setArchiveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!order) {
       setDraft({});
       setEmailFlash(null);
       setEmailError(null);
+      setArchiveError(null);
       return;
     }
     const d: Record<string, number> = {};
@@ -895,6 +906,27 @@ function PurchaseOrderDetailDrawer({
       setEmailError(error instanceof Error ? error.message : "Invio email fallito.");
     } finally {
       setEmailBusy(false);
+    }
+  }
+
+  async function handleArchiveDocument() {
+    if (!order || order.archivedDocumentId || order.status === "annullato") return;
+    const kind: ArchivedSupplierOrderKind =
+      order.status === "bozza" ? "bozza_confermata" : "ordine_confermato";
+    const confirmMsg =
+      kind === "bozza_confermata"
+        ? `Confermi l'archiviazione del documento come BOZZA?\n\nIl riepilogo verrà registrato nell'Archivio → Ordini fornitore. L'ordine resta in bozza e potrai ancora modificarlo o inviarlo.`
+        : `Confermi l'archiviazione del documento come ORDINE EMESSO?\n\nIl riepilogo verrà registrato nell'Archivio → Ordini fornitore (ordine inviato, in ricezione o ricevuto).`;
+    if (!window.confirm(confirmMsg)) return;
+    setArchiveBusy(true);
+    setArchiveError(null);
+    try {
+      const { order: updated } = await purchaseOrdersApi.archive(order.id, { kind });
+      onOrderUpdated?.(updated);
+    } catch (e) {
+      setArchiveError(e instanceof Error ? e.message : "Archiviazione non riuscita.");
+    } finally {
+      setArchiveBusy(false);
     }
   }
 
@@ -922,6 +954,9 @@ function PurchaseOrderDetailDrawer({
           <Chip label="Data" value={formatDate(order.orderedAt)} />
           <Chip label="Attesa" value={formatDate(order.expectedAt)} />
           <Chip label="Totale" value={`€${order.total.toFixed(2)}`} tone="accent" />
+          {order.archivedDocumentId ? (
+            <Chip label="Archivio" value="documento archiviato" tone="success" />
+          ) : null}
         </div>
 
         {order.notes ? (
@@ -952,13 +987,43 @@ function PurchaseOrderDetailDrawer({
             )}
             Invia email fornitore
           </button>
+          {order.status !== "annullato" && !order.archivedDocumentId ? (
+            <button
+              type="button"
+              className={cn(BTN_OUTLINE, "text-xs")}
+              onClick={() => void handleArchiveDocument()}
+              disabled={archiveBusy}
+            >
+              {archiveBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Archive className="h-3.5 w-3.5" />
+              )}
+              Archivia documento
+            </button>
+          ) : null}
           {emailFlash ? (
             <span className="text-xs font-medium text-emerald-300">{emailFlash}</span>
           ) : null}
           {emailError ? (
             <span className="text-xs font-medium text-red-300">{emailError}</span>
           ) : null}
+          {archiveError ? (
+            <span className="text-xs font-medium text-red-300">{archiveError}</span>
+          ) : null}
         </div>
+        {order.archivedDocumentId ? (
+          <p className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 px-4 py-2.5 text-xs text-emerald-200/95">
+            Questo ordine è già stato archiviato. Trovi la riga in{" "}
+            <span className="font-semibold">Archivio → Ordini fornitore</span>.
+          </p>
+        ) : (
+          <p className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-xs text-rw-muted">
+            <span className="font-semibold text-rw-soft">Archivia documento</span> registra una copia di
+            tracciabilità nell&apos;archivio dedicato (conferma bozza o ordine emesso). Non sostituisce l&apos;invio
+            email al fornitore.
+          </p>
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">

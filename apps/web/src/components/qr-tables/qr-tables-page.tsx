@@ -2,12 +2,29 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Armchair, Copy, ExternalLink, Printer, QrCode } from "lucide-react";
+import { Armchair, Copy, ExternalLink, Link2, Printer, QrCode } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
+import { Card } from "@/components/shared/card";
 import { tablesApi, type SalaTable } from "@/lib/api-client";
 
 type TokenizedTable = SalaTable & { token?: string };
+
+const LS_KEY = (tid: string) => `rs-qr-menu-base:${tid}`;
+
+/** Normalizza input utente in URL base (senza slash finale). */
+function normalizeMenuBaseUrl(raw: string): string {
+  const t = raw.trim().replace(/\/+$/, "");
+  if (!t) return "";
+  try {
+    const withProto = /^https?:\/\//i.test(t) ? t : `https://${t}`;
+    const u = new URL(withProto);
+    const path = u.pathname.replace(/\/+$/, "");
+    return `${u.origin}${path === "/" ? "" : path}`;
+  } catch {
+    return "";
+  }
+}
 
 export function QrTablesPage() {
   const [tables, setTables] = useState<TokenizedTable[]>([]);
@@ -15,11 +32,23 @@ export function QrTablesPage() {
   const [error, setError] = useState<string | null>(null);
   const [tenantId, setTenantId] = useState<string>("");
   const [appOrigin, setAppOrigin] = useState<string>("");
+  /** Valore mostrato nel campo (può essere incompleto mentre si digita). */
+  const [menuBaseInput, setMenuBaseInput] = useState("");
 
   useEffect(() => {
     const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
     setAppOrigin(fromEnv || (typeof window !== "undefined" ? window.location.origin : ""));
   }, []);
+
+  useEffect(() => {
+    if (!tenantId || typeof window === "undefined") return;
+    try {
+      const saved = localStorage.getItem(LS_KEY(tenantId));
+      if (saved != null) setMenuBaseInput(saved);
+    } catch {
+      /* ignore */
+    }
+  }, [tenantId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,7 +106,27 @@ export function QrTablesPage() {
     }
   }
 
-  const printUrl = (token?: string) => (token && appOrigin ? `${appOrigin}/t/${encodeURIComponent(token)}` : "");
+  const effectiveMenuBase = useMemo(() => {
+    const custom = normalizeMenuBaseUrl(menuBaseInput);
+    if (custom) return custom;
+    return (appOrigin || "").replace(/\/+$/, "");
+  }, [menuBaseInput, appOrigin]);
+
+  const printUrl = (token?: string) =>
+    token && effectiveMenuBase ? `${effectiveMenuBase}/t/${encodeURIComponent(token)}` : "";
+
+  function saveMenuBaseToStorage() {
+    if (!tenantId || typeof window === "undefined") return;
+    try {
+      if (normalizeMenuBaseUrl(menuBaseInput)) {
+        localStorage.setItem(LS_KEY(tenantId), menuBaseInput.trim());
+      } else {
+        localStorage.removeItem(LS_KEY(tenantId));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -117,10 +166,54 @@ export function QrTablesPage() {
         </div>
       ) : null}
 
+      <Card
+        title="URL del menu / sito"
+        description="Inserisci il dominio o l'indirizzo pubblico dove è raggiungibile il menu: sarà la base per tutti i link ai tavoli (stesso percorso /t/… su ogni QR)."
+        headerRight={<Link2 className="h-4 w-4 text-rw-accent" />}
+      >
+        <div className="space-y-3">
+          <div>
+            <label htmlFor="qr-menu-base-url" className="sr-only">
+              URL base menu
+            </label>
+            <input
+              id="qr-menu-base-url"
+              type="url"
+              inputMode="url"
+              autoComplete="url"
+              spellCheck={false}
+              value={menuBaseInput}
+              onChange={(e) => setMenuBaseInput(e.target.value)}
+              onBlur={() => saveMenuBaseToStorage()}
+              placeholder="Inserisci l'URL del tuo menu (es. https://tuoristorante.it)"
+              className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30"
+            />
+            <p className="mt-2 text-xs text-rw-muted">
+              Senza barra finale. Se lasci vuoto, si usa il dominio di questa app
+              {appOrigin ? (
+                <>
+                  {" "}
+                  (<span className="font-mono text-rw-soft">{appOrigin}</span>)
+                </>
+              ) : null}
+              . Il valore viene salvato per questo locale sul tuo browser.
+            </p>
+          </div>
+          {normalizeMenuBaseUrl(menuBaseInput) ? (
+            <p className="rounded-lg border border-rw-line bg-rw-surfaceAlt/80 px-3 py-2 text-xs text-rw-soft">
+              Esempio link tavolo:{" "}
+              <span className="break-all font-mono text-rw-ink">
+                {effectiveMenuBase}/t/…
+              </span>
+            </p>
+          ) : null}
+        </div>
+      </Card>
+
       <div className="flex flex-wrap gap-3">
         <Chip label="Tavoli" value={tables.length} tone="default" />
         <Chip label="Sale" value={areas.size} tone="info" />
-        <Chip label="Dominio pubblico" value={appOrigin || "—"} tone="accent" />
+        <Chip label="Base URL usata" value={effectiveMenuBase || "—"} tone="accent" />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">

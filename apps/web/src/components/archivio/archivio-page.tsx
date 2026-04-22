@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react";
 import {
+  Archive,
   CalendarDays,
   Download,
   FileText,
@@ -16,7 +17,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { TabBar } from "@/components/shared/tab-bar";
 import { DataTable } from "@/components/shared/data-table";
-import { archivioApi, archivioFiscalStubsApi, type ArchivedOrder, type ArchivioFiscalStub } from "@/lib/api-client";
+import {
+  archivioApi,
+  archivioFiscalStubsApi,
+  archivioOrdiniFornitoreApi,
+  type ArchivedOrder,
+  type ArchivedSupplierOrder,
+  type ArchivioFiscalStub,
+} from "@/lib/api-client";
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
@@ -29,6 +37,7 @@ const tabs = [
   { id: "fatture-entrata", label: "Fatture in entrata" },
   { id: "fatture-cassa", label: "Fatture da cassa" },
   { id: "comande", label: "Archivio comande" },
+  { id: "ordini-fornitore", label: "Ordini fornitore" },
 ];
 
 type ReportRow = { id: string; period: string; orders: number; revenue: number; average: number };
@@ -271,6 +280,104 @@ function FiscalStubPanel({ kind, title }: { kind: "entrata" | "cassa"; title: st
   );
 }
 
+function kindLabelIt(kind: ArchivedSupplierOrder["kind"]) {
+  return kind === "bozza_confermata" ? "Bozza confermata" : "Ordine confermato";
+}
+
+function OrdiniFornitorePanel() {
+  const [rows, setRows] = useState<ArchivedSupplierOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    archivioOrdiniFornitoreApi
+      .list()
+      .then(setRows)
+      .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-rw-accent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-4 text-sm text-amber-200">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+        <div>
+          <p className="font-semibold text-amber-100">Registro interno</p>
+          <p className="mt-1 text-amber-200/90">
+            Le righe qui provengono da <span className="font-medium text-amber-100">Fornitori</span> → dettaglio
+            ordine → <span className="font-medium text-amber-100">Archivia documento</span>, con conferma bozza o
+            ordine emesso. Non sostituisce fatturazione elettronica né SDI.
+          </p>
+        </div>
+      </div>
+
+      {error ? (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</div>
+      ) : null}
+
+      <Card title="Documenti archiviati" headerRight={<Archive className="h-4 w-4 text-rw-accent" />}>
+        <DataTable<ArchivedSupplierOrder>
+          columns={[
+            {
+              key: "archivedAt",
+              header: "Archiviato il",
+              render: (r) => {
+                try {
+                  return new Date(r.archivedAt).toLocaleString("it-IT", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                } catch {
+                  return r.archivedAt;
+                }
+              },
+            },
+            { key: "code", header: "Codice ordine", render: (r) => <span className="font-mono text-xs">{r.code}</span> },
+            { key: "supplierName", header: "Fornitore" },
+            { key: "poStatus", header: "Stato al momento" },
+            { key: "kind", header: "Tipo archivio", render: (r) => kindLabelIt(r.kind) },
+            { key: "total", header: "Totale", className: "text-right", render: (r) => `€${r.total.toFixed(2)}` },
+            {
+              key: "pdf",
+              header: "",
+              render: (r) => (
+                <a
+                  href={`/api/purchase-orders/${r.purchaseOrderId}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-semibold text-rw-accent hover:underline"
+                >
+                  PDF
+                </a>
+              ),
+            },
+          ]}
+          data={rows}
+          keyExtractor={(r) => r.id}
+          emptyMessage="Nessun documento ancora archiviato. Da Fornitori apri un ordine e usa Archivia documento."
+        />
+      </Card>
+    </div>
+  );
+}
+
 function ComandePanel({ orders, loading }: { orders: ArchivedOrder[]; loading: boolean }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -350,7 +457,7 @@ export function ArchivioPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Archivio" subtitle="Report finanziari, fatture e storico comande" />
+      <PageHeader title="Archivio" subtitle="Report finanziari, fatture, comande e ordini fornitore archiviati" />
 
       <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
@@ -359,6 +466,7 @@ export function ArchivioPage() {
         {activeTab === "fatture-entrata" && <FiscalStubPanel kind="entrata" title="Fatture in entrata" />}
         {activeTab === "fatture-cassa" && <FiscalStubPanel kind="cassa" title="Fatture da cassa" />}
         {activeTab === "comande" && <ComandePanel orders={orders} loading={loading} />}
+        {activeTab === "ordini-fornitore" && <OrdiniFornitorePanel />}
       </div>
     </div>
   );

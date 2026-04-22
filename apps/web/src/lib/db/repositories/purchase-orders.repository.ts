@@ -30,6 +30,8 @@ export type PurchaseOrderDto = {
   receivedAt: string | null;
   total: number;
   items: PurchaseOrderItemDto[];
+  /** Presente se il documento è stato archiviato da Archivio ordini fornitore. */
+  archivedDocumentId: string | null;
 };
 
 type Row = {
@@ -54,6 +56,7 @@ type Row = {
     notes: string;
     warehouseItem: { name: string };
   }>;
+  archivedSupplierOrder: { id: string } | null;
 };
 
 function mapItem(
@@ -90,6 +93,7 @@ function mapOrder(row: Row): PurchaseOrderDto {
     receivedAt: row.receivedAt ? row.receivedAt.toISOString() : null,
     total: row.total.toNumber(),
     items: row.items.map(mapItem),
+    archivedDocumentId: row.archivedSupplierOrder?.id ?? null,
   };
 }
 
@@ -132,6 +136,7 @@ export const purchaseOrdersRepository = {
         items: {
           include: { warehouseItem: { select: { name: true } } },
         },
+        archivedSupplierOrder: { select: { id: true } },
       },
     });
     return rows.map(mapOrder);
@@ -143,6 +148,7 @@ export const purchaseOrdersRepository = {
       include: {
         supplier: { select: { name: true } },
         items: { include: { warehouseItem: { select: { name: true } } } },
+        archivedSupplierOrder: { select: { id: true } },
       },
     });
     return row ? mapOrder(row) : null;
@@ -290,6 +296,7 @@ export const purchaseOrdersRepository = {
       include: {
         supplier: { select: { name: true } },
         items: { include: { warehouseItem: { select: { name: true } } } },
+        archivedSupplierOrder: { select: { id: true } },
       },
     });
 
@@ -312,6 +319,7 @@ export const purchaseOrdersRepository = {
       include: {
         supplier: { select: { name: true } },
         items: { include: { warehouseItem: { select: { name: true } } } },
+        archivedSupplierOrder: { select: { id: true } },
       },
     });
     return mapOrder(updated);
@@ -438,6 +446,7 @@ export const purchaseOrdersRepository = {
         include: {
           supplier: { select: { name: true } },
           items: { include: { warehouseItem: { select: { name: true } } } },
+          archivedSupplierOrder: { select: { id: true } },
         },
       });
       return updated ? mapOrder(updated) : null;
@@ -454,6 +463,7 @@ export const purchaseOrdersRepository = {
       include: {
         supplier: { select: { name: true } },
         items: { include: { warehouseItem: { select: { name: true } } } },
+        archivedSupplierOrder: { select: { id: true } },
       },
     });
     return mapOrder(row);

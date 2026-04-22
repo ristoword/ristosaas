@@ -229,6 +229,7 @@ model Tenant {
   billingEvents BillingEvent[]
   purchaseOrders PurchaseOrder[]
   purchaseOrderItems PurchaseOrderItem[]
+  archivedSupplierOrders ArchivedSupplierOrder[]
   haccpEntries HaccpEntry[]
   hardwareDevices HardwareDevice[]
   printRoutes PrintRoute[]
@@ -956,6 +957,12 @@ enum PurchaseOrderStatus {
   annullato
 }
 
+/// Registro archivio documenti ordine fornitore (conferma bozza vs ordine emesso).
+enum ArchivedSupplierOrderKind {
+  bozza_confermata
+  ordine_confermato
+}
+
 model PurchaseOrder {
   id              String               @id @default(cuid())
   tenantId        String
@@ -972,10 +979,30 @@ model PurchaseOrder {
   tenant          Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   supplier        Supplier             @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   items           PurchaseOrderItem[]
+  archivedSupplierOrder ArchivedSupplierOrder?
 
   @@unique([tenantId, code])
   @@index([tenantId, status])
   @@index([tenantId, supplierId])
+}
+
+model ArchivedSupplierOrder {
+  id               String                     @id @default(cuid())
+  tenantId         String
+  purchaseOrderId  String                     @unique
+  code             String
+  supplierId       String
+  supplierName     String
+  poStatus         PurchaseOrderStatus
+  kind             ArchivedSupplierOrderKind
+  total            Decimal                    @db.Decimal(12, 2)
+  orderedAt        DateTime?
+  notes            String                     @default("")
+  archivedAt       DateTime                   @default(now())
+  tenant           Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  purchaseOrder    PurchaseOrder              @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, archivedAt])
 }
 
 model PurchaseOrderItem {

@@ -326,6 +326,8 @@ export type PurchaseOrder = {
   receivedAt: string | null;
   total: number;
   items: PurchaseOrderItem[];
+  /** Popolato se il documento è stato archiviato (Archivio → Ordini fornitore). */
+  archivedDocumentId: string | null;
 };
 
 export type PurchaseOrderReport = {
@@ -341,6 +343,23 @@ export type PurchaseOrderReport = {
   }>;
 };
 
+export type ArchivedSupplierOrderKind = "bozza_confermata" | "ordine_confermato";
+
+export type ArchivedSupplierOrder = {
+  id: string;
+  tenantId: string;
+  purchaseOrderId: string;
+  code: string;
+  supplierId: string;
+  supplierName: string;
+  poStatus: PurchaseOrderStatus;
+  kind: ArchivedSupplierOrderKind;
+  total: number;
+  orderedAt: string | null;
+  notes: string;
+  archivedAt: string;
+};
+
 export const purchaseOrdersApi = {
   list: (status?: PurchaseOrderStatus) =>
     get<PurchaseOrder[]>(status ? `/purchase-orders?status=${status}` : "/purchase-orders"),
@@ -349,6 +368,8 @@ export const purchaseOrdersApi = {
     patch<PurchaseOrder>(`/purchase-orders/${id}`, { status }),
   receive: (id: string, receipts: Array<{ itemId: string; qty: number }>) =>
     post<PurchaseOrder>(`/purchase-orders/${id}/receive`, { receipts }),
+  archive: (id: string, payload: { kind: ArchivedSupplierOrderKind }) =>
+    post<{ order: PurchaseOrder }>(`/purchase-orders/${id}/archive`, payload),
   email: (id: string, payload?: { to?: string | string[]; message?: string; attachPdf?: boolean }) =>
     post<{ ok: true; messageId: string; recipients: string[] }>(
       `/purchase-orders/${id}/email`,
@@ -392,6 +413,11 @@ export const archivioApi = {
   create: (data: Omit<ArchivedOrder, "id">) => post<ArchivedOrder>("/archivio", data),
   update: (id: string, data: Partial<ArchivedOrder>) => put<ArchivedOrder>(`/archivio/${id}`, data),
   delete: (id: string) => del<{ deleted: boolean }>(`/archivio/${id}`),
+};
+
+/** Documenti ordine fornitore archiviati (registro interno). */
+export const archivioOrdiniFornitoreApi = {
+  list: () => get<ArchivedSupplierOrder[]>("/archivio/ordini-fornitore"),
 };
 
 export type SupervisorStornoDto = {
