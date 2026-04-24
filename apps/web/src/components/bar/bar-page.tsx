@@ -235,9 +235,9 @@ export function BarPage() {
                 key={`${order.id}-${kds.courseNum}`}
                 order={order}
                 kds={kds}
-                onInPrep={() => patchStatus(order.id, "in_preparazione")}
-                onPronto={() => patchStatus(order.id, "pronto")}
-                onServito={() => patchStatus(order.id, "servito")}
+                onInPrep={() => void patchStatus(order.id, "in_preparazione")}
+                onPronto={() => void patchStatus(order.id, "pronto")}
+                onServito={() => void patchStatus(order.id, "servito")}
               />
             ))}
             {classified.inAttesa.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in attesa</p>}
@@ -249,9 +249,9 @@ export function BarPage() {
                 key={`${order.id}-${kds.courseNum}`}
                 order={order}
                 kds={kds}
-                onInPrep={() => patchStatus(order.id, "in_preparazione")}
-                onPronto={() => patchStatus(order.id, "pronto")}
-                onServito={() => patchStatus(order.id, "servito")}
+                onInPrep={() => void patchStatus(order.id, "in_preparazione")}
+                onPronto={() => void patchStatus(order.id, "pronto")}
+                onServito={() => void patchStatus(order.id, "servito")}
               />
             ))}
             {classified.inPrep.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in prep</p>}
@@ -263,9 +263,9 @@ export function BarPage() {
                 key={`${order.id}-${kds.courseNum}`}
                 order={order}
                 kds={kds}
-                onInPrep={() => patchStatus(order.id, "in_preparazione")}
-                onPronto={() => patchStatus(order.id, "pronto")}
-                onServito={() => patchStatus(order.id, "servito")}
+                onInPrep={() => void patchStatus(order.id, "in_preparazione")}
+                onPronto={() => void patchStatus(order.id, "pronto")}
+                onServito={() => void patchStatus(order.id, "servito")}
               />
             ))}
             {classified.pronti.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda pronta</p>}

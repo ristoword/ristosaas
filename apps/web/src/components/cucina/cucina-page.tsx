@@ -289,11 +289,15 @@ function RicetteTab() {
     setIngredients([emptyIng()]); setSteps([emptyStep(1)]); setNotes("");
   }
 
-  function save() {
+  async function save() {
     if (!name.trim()) return;
-    addRecipe(draftRecipe);
-    resetForm();
-    showFlash("Ricetta salvata. Food cost calcolato.");
+    try {
+      await addRecipe(draftRecipe);
+      resetForm();
+      showFlash("Ricetta salvata. Food cost calcolato.");
+    } catch (e) {
+      showFlash(`Errore: ${e instanceof Error ? e.message : "Salvataggio fallito"}`);
+    }
   }
 
   function handleAddToMenu(recipe: Recipe) {
@@ -537,7 +541,7 @@ function RicetteTab() {
           )}
 
           {/* Save */}
-          <button type="button" onClick={save} disabled={!name.trim()} className="w-full rounded-xl bg-rw-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:cursor-not-allowed disabled:opacity-40">
+          <button type="button" onClick={() => void save()} disabled={!name.trim()} className="w-full rounded-xl bg-rw-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:cursor-not-allowed disabled:opacity-40">
             Salva ricetta (food cost calcolato automaticamente)
           </button>
         </div>

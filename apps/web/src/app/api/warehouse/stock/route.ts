@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     items,
     lowStock,
     alerts,
-    totalValue: items.reduce((s, i) => s + i.qty * i.costPerUnit, 0),
+    totalValue: items.reduce((s, i) => s + (i.totalQty ?? i.qty) * i.costPerUnit, 0),
   });
 }
 

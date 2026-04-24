@@ -47,7 +47,7 @@ export function WarehouseProvider({ children }: { children: React.ReactNode }) {
       setStock(stockData.items);
       setMovements(movData);
     } catch (e) {
-      if (process.env.NODE_ENV === "development") console.error("WarehouseProvider:", e);
+      console.error("WarehouseProvider refresh:", e instanceof Error ? e.message : e);
     } finally {
       setLoading(false);
     }
@@ -93,9 +93,9 @@ export function WarehouseProvider({ children }: { children: React.ReactNode }) {
     return stock.find((s) => s.name.toLowerCase() === name.toLowerCase());
   }, [stock]);
 
-  const lowStockItems = useCallback(() => stock.filter((s) => s.qty <= s.minStock), [stock]);
+  const lowStockItems = useCallback(() => stock.filter((s) => (s.totalQty ?? s.qty) <= s.minStock), [stock]);
 
-  const totalStockValue = useCallback(() => stock.reduce((s, i) => s + i.qty * i.costPerUnit, 0), [stock]);
+  const totalStockValue = useCallback(() => stock.reduce((s, i) => s + (i.totalQty ?? i.qty) * i.costPerUnit, 0), [stock]);
 
   return (
     <Ctx.Provider value={{ stock, movements, dischargeLogs, loading, addStock, loadStock, dischargeForOrder, manualDischarge, getStockByName, lowStockItems, totalStockValue, refresh }}>

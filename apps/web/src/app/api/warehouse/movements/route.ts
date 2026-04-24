@@ -7,13 +7,14 @@ import type { WarehouseLocation } from "@/lib/api/types/warehouse";
 import { WAREHOUSE_LOCATIONS } from "@/lib/api/types/warehouse";
 
 const WAREHOUSE_ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
+const WAREHOUSE_READ_ROLES = ["magazzino", "cucina", "pizzeria", "bar", "supervisor", "owner", "super_admin"] as const;
 
 function isValidLocation(v: unknown): v is WarehouseLocation {
   return typeof v === "string" && (WAREHOUSE_LOCATIONS as string[]).includes(v);
 }
 
 export async function GET(req: NextRequest) {
-  const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
+  const guard = await requireApiUser(req, [...WAREHOUSE_READ_ROLES]);
   if (guard.error) return guard.error;
   const movements = await warehouseRepository.listMovements(getTenantId());
   return ok(movements);

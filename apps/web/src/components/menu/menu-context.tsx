@@ -75,7 +75,7 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
       setMenuItems(m);
       setDailyDishes(d);
     } catch (e) {
-      if (process.env.NODE_ENV === "development") console.error("MenuProvider:", e);
+      console.error("MenuProvider refresh:", e instanceof Error ? e.message : e);
     } finally {
       setLoading(false);
     }

@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { Modal } from "@/components/shared/modal";
-import { useMenu, calcFoodCost } from "@/components/menu/menu-context";
+import { useMenu } from "@/components/menu/menu-context";
 import type { MenuItem } from "@/components/menu/menu-context";
 
 const inputCls =
@@ -285,7 +285,7 @@ export function MenuAdminPage() {
                   <button
                     type="button"
                     title="Elimina piatto"
-                    onClick={() => removeMenuItem(d.id)}
+                    onClick={() => void removeMenuItem(d.id)}
                     className="rounded-lg border border-red-500/20 p-1.5 text-red-400 hover:bg-red-500/10 transition"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

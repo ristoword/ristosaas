@@ -35,7 +35,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       const data = await ordersApi.list();
       setOrders(data);
     } catch (e) {
-      if (process.env.NODE_ENV === "development") console.error("OrdersProvider:", e);
+      console.error("OrdersProvider refresh:", e instanceof Error ? e.message : e);
     } finally {
       setLoading(false);
     }
