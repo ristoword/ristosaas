@@ -7,6 +7,15 @@ import { ordersRepository } from "@/lib/db/repositories/orders.repository";
 import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.repository";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
 import { prisma } from "@/lib/db/prisma";
+import type { WarehouseLocation } from "@/lib/api/types/warehouse";
+
+/** Mappa l'area dell'item ordine alla location di reparto magazzino. */
+function orderAreaToWarehouseLocation(area: string): WarehouseLocation {
+  if (area === "cucina") return "CUCINA";
+  if (area === "pizzeria") return "PIZZERIA";
+  if (area === "bar") return "BAR";
+  return "MAGAZZINO_CENTRALE";
+}
 
 const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor", "owner", "super_admin"] as const;
 
@@ -144,25 +153,40 @@ async function dischargeCourseFromWarehouse(tenantId: string, order: Order, cour
       const cost = totalQty * unitCost;
 
       if (stockItem) {
-        const nextQty = Math.max(0, stockItem.qty - totalQty);
-        await warehouseRepository.updateItem(tenantId, stockItem.id, { qty: nextQty });
-        await warehouseRepository.createMovement({
+        // Determina il reparto di scarico in base all'area dell'item dell'ordine.
+        // Prima prova il reparto specifico (cucina/pizzeria/bar); se stock
+        // insufficiente, ricade sul Magazzino Centrale (comportamento precedente).
+        const targetLocation = orderAreaToWarehouseLocation(item.area);
+        const dischargeResult = await warehouseRepository.dischargeFromLocation({
           tenantId,
           warehouseItemId: stockItem.id,
-          type: "scarico_comanda",
+          location: targetLocation,
           qty: totalQty,
-          unit: ing.unit,
           reason: `Scarico per ${item.name} x${item.qty} (order:${order.id};course:${course})`,
           orderId: order.id,
+          allowFallback: true,
         });
-        if (nextQty <= stockItem.minStock) {
+        if (dischargeResult.alert) {
           alerts.push({
             itemId: stockItem.id,
             itemName: stockItem.name,
-            qty: nextQty,
+            qty: stockItem.qty,
             minStock: stockItem.minStock,
-            level: nextQty <= 0 ? "critical" : "warning",
+            level: stockItem.qty <= 0 ? "critical" : "warning",
           });
+        }
+        // Rilegge la quantità aggiornata per l'alert di scorta minima
+        const refreshed = await warehouseRepository.getItem(tenantId, stockItem.id);
+        if (refreshed && refreshed.qty <= refreshed.minStock) {
+          if (!alerts.some((a) => a.itemId === stockItem.id)) {
+            alerts.push({
+              itemId: stockItem.id,
+              itemName: stockItem.name,
+              qty: refreshed.qty,
+              minStock: refreshed.minStock,
+              level: refreshed.qty <= 0 ? "critical" : "warning",
+            });
+          }
         }
       }
 

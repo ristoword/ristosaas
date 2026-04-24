@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ArrowDownUp, Download, Loader2, Plus, Save, Search, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowDownUp, ArrowLeftRight, Download, Edit2, Loader2, Plus, Save, Search, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
@@ -11,7 +11,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
 import { useWarehouse } from "@/components/warehouse/warehouse-context";
-import type { StockItem } from "@/components/warehouse/warehouse-context";
+import type { StockItem, StockMovement } from "@/components/warehouse/warehouse-context";
 import {
   suppliersApi,
   warehouseApi,
@@ -20,11 +20,17 @@ import {
   type WarehouseEquipment as Equipment,
 } from "@/lib/api-client";
 import { Modal } from "@/components/shared/modal";
+import {
+  WAREHOUSE_LOCATIONS,
+  WAREHOUSE_LOCATION_LABELS,
+  type WarehouseLocation,
+} from "@/lib/api/types/warehouse";
 
 type ShoppingItem = { id: string; product: string; qty: number; unit: string; supplier: string; done: boolean };
 
 const TABS = [
   { id: "centrale", label: "Centrale" },
+  { id: "reparti", label: "Reparti" },
   { id: "ricezione", label: "Ricezione" },
   { id: "movimenti", label: "Movimenti" },
   { id: "lista-spesa", label: "Lista spesa" },
@@ -70,6 +76,7 @@ export function MagazzinoPage() {
       <TabBar tabs={TABS} active={tab} onChange={setTab} />
 
       {tab === "centrale" && <CentraleTab />}
+      {tab === "reparti" && <RepartiTab />}
       {tab === "ricezione" && <RicezioneTab />}
       {tab === "movimenti" && <MovimentiTab />}
       {tab === "lista-spesa" && <ListaSpesaTab />}
@@ -151,6 +158,232 @@ function CentraleTab() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Tab Reparti — scorte operative per area                            */
+/* ------------------------------------------------------------------ */
+
+const LOCATION_COLORS: Record<string, string> = {
+  MAGAZZINO_CENTRALE: "bg-rw-accent/15 text-rw-accent border-rw-accent/30",
+  CUCINA: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  PIZZERIA: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
+  BAR: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+  SALA: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  PROPRIETA: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+  ALTRO: "bg-rw-surfaceAlt text-rw-muted border-rw-line",
+};
+
+function RepartiTab() {
+  const { stock, refresh } = useWarehouse();
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [form, setForm] = useState<{
+    warehouseItemId: string;
+    fromLocation: WarehouseLocation;
+    toLocation: WarehouseLocation;
+    qty: string;
+    reason: string;
+    note: string;
+  }>({
+    warehouseItemId: "",
+    fromLocation: "MAGAZZINO_CENTRALE",
+    toLocation: "CUCINA",
+    qty: "",
+    reason: "Trasferimento reparto",
+    note: "",
+  });
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  // Prodotti che hanno almeno una scorta in qualche reparto
+  const itemsWithDept = useMemo(() => {
+    return stock.filter(
+      (s) => s.locationStocks && s.locationStocks.length > 0
+    );
+  }, [stock]);
+
+  async function handleTransfer() {
+    if (!form.warehouseItemId || !form.qty) return;
+    const qty = parseFloat(form.qty);
+    if (isNaN(qty) || qty <= 0) { setError("Inserisci una quantità valida > 0"); return; }
+    setSending(true);
+    setError(null);
+    try {
+      await warehouseApi.createMovement({
+        warehouseItemId: form.warehouseItemId,
+        type: "trasferimento",
+        qty,
+        reason: form.reason || "Trasferimento reparto",
+        fromLocation: form.fromLocation,
+        toLocation: form.toLocation,
+        note: form.note || undefined,
+      });
+      setFlash(`Trasferimento registrato: ${qty} unità da ${WAREHOUSE_LOCATION_LABELS[form.fromLocation]} a ${WAREHOUSE_LOCATION_LABELS[form.toLocation]}`);
+      setTransferOpen(false);
+      setForm((f) => ({ ...f, warehouseItemId: "", qty: "", note: "" }));
+      await refresh();
+      setTimeout(() => setFlash(null), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore durante il trasferimento");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {flash && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
+          {flash}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-rw-muted">
+          Scorte operative nei reparti (derivate dai trasferimenti dal Magazzino Centrale).
+        </p>
+        <button
+          type="button"
+          onClick={() => setTransferOpen(true)}
+          className={cn(BTN_PRIMARY, "gap-2")}
+        >
+          <ArrowLeftRight className="h-4 w-4" />
+          Nuovo trasferimento
+        </button>
+      </div>
+
+      {itemsWithDept.length === 0 ? (
+        <Card title="Nessuna scorta nei reparti">
+          <p className="py-4 text-sm text-rw-muted text-center">
+            Nessun prodotto ha ancora scorte nei reparti. Usa &ldquo;Nuovo trasferimento&rdquo; per spostare merce dal Magazzino Centrale verso Cucina, Pizzeria, Bar, Sala o Proprietà.
+          </p>
+        </Card>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-rw-line">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-rw-line bg-rw-surfaceAlt">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Prodotto</th>
+                <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">Centrale</th>
+                {(["CUCINA", "PIZZERIA", "BAR", "SALA", "PROPRIETA", "ALTRO"] as WarehouseLocation[]).map((loc) => (
+                  <th key={loc} className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">
+                    {WAREHOUSE_LOCATION_LABELS[loc]}
+                  </th>
+                ))}
+                <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-rw-accent">Totale</th>
+              </tr>
+            </thead>
+            <tbody>
+              {itemsWithDept.map((item) => {
+                const getLocQty = (loc: string) =>
+                  (item.locationStocks ?? []).find((l) => l.location === loc)?.qty ?? 0;
+                return (
+                  <tr key={item.id} className="border-b border-rw-line/50 hover:bg-rw-surfaceAlt/50">
+                    <td className="px-4 py-2.5">
+                      <span className="font-medium text-rw-ink">{item.name}</span>
+                      <span className="ml-2 text-xs text-rw-muted">{item.unit}</span>
+                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-rw-soft">{item.qty.toFixed(3)}</td>
+                    {(["CUCINA", "PIZZERIA", "BAR", "SALA", "PROPRIETA", "ALTRO"] as WarehouseLocation[]).map((loc) => {
+                      const q = getLocQty(loc);
+                      return (
+                        <td key={loc} className={cn("px-3 py-2.5 text-right tabular-nums", q > 0 ? "font-semibold text-rw-ink" : "text-rw-muted")}>
+                          {q > 0 ? q.toFixed(3) : "—"}
+                        </td>
+                      );
+                    })}
+                    <td className="px-3 py-2.5 text-right tabular-nums font-bold text-rw-accent">
+                      {(item.totalQty ?? item.qty).toFixed(3)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Anche i prodotti senza scorte reparto, con totale */}
+      {stock.filter((s) => !s.locationStocks || s.locationStocks.length === 0).length > 0 && (
+        <details className="rounded-xl border border-rw-line">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold text-rw-muted hover:text-rw-ink">
+            Prodotti solo in Magazzino Centrale ({stock.filter((s) => !s.locationStocks || s.locationStocks.length === 0).length})
+          </summary>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <tbody>
+                {stock.filter((s) => !s.locationStocks || s.locationStocks.length === 0).map((item) => (
+                  <tr key={item.id} className="border-t border-rw-line/30">
+                    <td className="px-4 py-2.5 font-medium text-rw-soft">{item.name}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-rw-muted">{item.qty.toFixed(3)} {item.unit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+
+      <Modal open={transferOpen} onClose={() => setTransferOpen(false)} title="Trasferimento tra reparti">
+        <div className="space-y-4">
+          <div>
+            <label className={LABEL}>Prodotto</label>
+            <select
+              className={INPUT}
+              value={form.warehouseItemId}
+              onChange={(e) => setForm((f) => ({ ...f, warehouseItemId: e.target.value }))}
+            >
+              <option value="">Seleziona prodotto…</option>
+              {stock.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name} — Centrale: {s.qty} {s.unit}
+                  {s.locationStocks && s.locationStocks.length > 0
+                    ? ` | Reparti: ${s.locationStocks.map((l) => `${WAREHOUSE_LOCATION_LABELS[l.location as WarehouseLocation] ?? l.location} ${l.qty}`).join(", ")}`
+                    : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL}>Da</label>
+              <select className={INPUT} value={form.fromLocation} onChange={(e) => setForm((f) => ({ ...f, fromLocation: e.target.value as WarehouseLocation }))}>
+                {WAREHOUSE_LOCATIONS.map((l) => (
+                  <option key={l} value={l}>{WAREHOUSE_LOCATION_LABELS[l]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>A</label>
+              <select className={INPUT} value={form.toLocation} onChange={(e) => setForm((f) => ({ ...f, toLocation: e.target.value as WarehouseLocation }))}>
+                {WAREHOUSE_LOCATIONS.map((l) => (
+                  <option key={l} value={l}>{WAREHOUSE_LOCATION_LABELS[l]}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className={LABEL}>Quantità</label>
+            <input type="number" min="0" step="0.001" className={INPUT} value={form.qty} onChange={(e) => setForm((f) => ({ ...f, qty: e.target.value }))} placeholder="0" />
+          </div>
+          <div>
+            <label className={LABEL}>Motivo</label>
+            <input className={INPUT} value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} placeholder="es. Rifornimento cucina" />
+          </div>
+          <div>
+            <label className={LABEL}>Nota (opzionale)</label>
+            <input className={INPUT} value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} placeholder="Note aggiuntive…" />
+          </div>
+          {error && <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>}
+          <button type="button" className={cn(BTN_PRIMARY, "w-full")} onClick={() => void handleTransfer()} disabled={sending}>
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowLeftRight className="h-4 w-4" />}
+            {sending ? "Trasferimento in corso…" : "Conferma trasferimento"}
+          </button>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 function RicezioneTab() {
   const { stock, loadStock } = useWarehouse();
   const [selectedProduct, setSelectedProduct] = useState("");
@@ -189,30 +422,306 @@ function RicezioneTab() {
   );
 }
 
-function MovimentiTab() {
-  const { movements } = useWarehouse();
+const MOVEMENT_TYPE_COLORS: Record<string, string> = {
+  carico: "text-emerald-400",
+  scarico: "text-red-400",
+  scarico_comanda: "text-amber-400",
+  trasferimento: "text-sky-400",
+  rettifica: "text-purple-400",
+};
 
-  const typeColors: Record<string, string> = { carico: "text-emerald-400", scarico: "text-red-400", scarico_comanda: "text-amber-400" };
+const MOVEMENT_TYPE_LABELS: Record<string, string> = {
+  carico: "Carico",
+  scarico: "Scarico",
+  scarico_comanda: "Scarico comanda",
+  trasferimento: "Trasferimento",
+  rettifica: "Rettifica",
+};
+
+function MovimentiTab() {
+  const { movements, stock, refresh } = useWarehouse();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editMovement, setEditMovement] = useState<StockMovement | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  const [form, setForm] = useState<{
+    warehouseItemId: string;
+    type: "carico" | "scarico" | "trasferimento" | "rettifica";
+    qty: string;
+    newQty: string;
+    fromLocation: WarehouseLocation;
+    toLocation: WarehouseLocation;
+    reason: string;
+    note: string;
+  }>({
+    warehouseItemId: "",
+    type: "carico",
+    qty: "",
+    newQty: "",
+    fromLocation: "MAGAZZINO_CENTRALE",
+    toLocation: "CUCINA",
+    reason: "",
+    note: "",
+  });
+
+  const [editForm, setEditForm] = useState({ reason: "", note: "" });
+
+  function openCreate() {
+    setForm({ warehouseItemId: "", type: "carico", qty: "", newQty: "", fromLocation: "MAGAZZINO_CENTRALE", toLocation: "CUCINA", reason: "", note: "" });
+    setError(null);
+    setCreateOpen(true);
+  }
+
+  function openEdit(mv: StockMovement) {
+    setEditMovement(mv);
+    setEditForm({ reason: mv.reason, note: mv.note ?? "" });
+    setError(null);
+  }
+
+  async function handleCreate() {
+    if (!form.warehouseItemId) { setError("Seleziona un prodotto"); return; }
+    const qty = parseFloat(form.qty);
+    if (form.type !== "rettifica" && (isNaN(qty) || qty <= 0)) { setError("Inserisci una quantità valida > 0"); return; }
+    setSending(true);
+    setError(null);
+    try {
+      const payload: Parameters<typeof warehouseApi.createMovement>[0] = {
+        warehouseItemId: form.warehouseItemId,
+        type: form.type,
+        qty: form.type === "rettifica" ? Math.abs(parseFloat(form.newQty) || 0) : qty,
+        reason: form.reason || `${MOVEMENT_TYPE_LABELS[form.type]} manuale`,
+        note: form.note || undefined,
+      };
+      if (form.type === "trasferimento") {
+        payload.fromLocation = form.fromLocation;
+        payload.toLocation = form.toLocation;
+      } else if (form.type === "rettifica") {
+        payload.fromLocation = form.fromLocation;
+        payload.newQty = parseFloat(form.newQty) || 0;
+      } else if (form.type === "scarico") {
+        payload.fromLocation = form.fromLocation;
+      } else if (form.type === "carico") {
+        payload.toLocation = form.toLocation;
+      }
+      await warehouseApi.createMovement(payload);
+      setFlash(`Movimento "${MOVEMENT_TYPE_LABELS[form.type]}" registrato con successo.`);
+      setCreateOpen(false);
+      await refresh();
+      setTimeout(() => setFlash(null), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore durante la registrazione");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleEdit() {
+    if (!editMovement) return;
+    setSending(true);
+    setError(null);
+    try {
+      await warehouseApi.patchMovement(editMovement.id, {
+        reason: editForm.reason,
+        note: editForm.note,
+      });
+      setFlash("Movimento aggiornato.");
+      setEditMovement(null);
+      await refresh();
+      setTimeout(() => setFlash(null), 3000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore aggiornamento");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  const showFromLocation = form.type === "trasferimento" || form.type === "scarico" || form.type === "rettifica";
+  const showToLocation = form.type === "trasferimento" || form.type === "carico";
 
   return (
-    <Card title="Storico movimenti" description={`${movements.length} movimenti registrati`}>
-      {movements.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 py-10 text-rw-muted"><ArrowDownUp className="h-10 w-10 opacity-40" /><p className="text-sm">Nessun movimento registrato</p></div>
-      ) : (
-        <DataTable
-          columns={[
-            { key: "date", header: "Data" },
-            { key: "productName", header: "Prodotto" },
-            { key: "type", header: "Tipo", render: (r: typeof movements[number]) => <span className={cn("text-xs font-semibold uppercase", typeColors[r.type] || "text-rw-muted")}>{r.type}</span> },
-            { key: "qty", header: "Qtà", render: (r: typeof movements[number]) => `${r.qty} ${r.unit}` },
-            { key: "reason", header: "Motivo" },
-          ]}
-          data={movements}
-          keyExtractor={(r) => r.id}
-          emptyMessage="Nessun movimento"
-        />
+    <div className="space-y-4">
+      {flash && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
+          {flash}
+        </div>
       )}
-    </Card>
+
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-rw-muted">{movements.length} movimenti registrati su DB.</p>
+        <button type="button" className={cn(BTN_PRIMARY, "gap-2")} onClick={openCreate}>
+          <Plus className="h-4 w-4" /> Nuovo movimento
+        </button>
+      </div>
+
+      {movements.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 py-10 text-rw-muted">
+          <ArrowDownUp className="h-10 w-10 opacity-40" />
+          <p className="text-sm">Nessun movimento registrato</p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-rw-line">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-rw-line bg-rw-surfaceAlt">
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Data</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Prodotto</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Tipo</th>
+                <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">Qtà</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Da → A</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Motivo</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Nota</th>
+                <th className="w-10" />
+              </tr>
+            </thead>
+            <tbody>
+              {movements.map((mv) => (
+                <tr key={mv.id} className="border-b border-rw-line/50 hover:bg-rw-surfaceAlt/40">
+                  <td className="px-4 py-2.5 text-rw-muted tabular-nums text-xs">{mv.date}</td>
+                  <td className="px-4 py-2.5 font-medium text-rw-ink">{mv.productName}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={cn("text-xs font-semibold uppercase", MOVEMENT_TYPE_COLORS[mv.type] ?? "text-rw-muted")}>
+                      {MOVEMENT_TYPE_LABELS[mv.type] ?? mv.type}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-rw-soft">{mv.qty} {mv.unit}</td>
+                  <td className="px-4 py-2.5 text-xs text-rw-muted">
+                    {mv.fromLocation || mv.toLocation ? (
+                      <span>
+                        {mv.fromLocation ? (WAREHOUSE_LOCATION_LABELS[mv.fromLocation as WarehouseLocation] ?? mv.fromLocation) : "—"}
+                        {mv.toLocation ? ` → ${WAREHOUSE_LOCATION_LABELS[mv.toLocation as WarehouseLocation] ?? mv.toLocation}` : ""}
+                      </span>
+                    ) : "—"}
+                  </td>
+                  <td className="px-4 py-2.5 text-rw-soft text-xs max-w-[160px] truncate">{mv.reason}</td>
+                  <td className="px-4 py-2.5 text-rw-muted text-xs italic max-w-[120px] truncate">{mv.note ?? "—"}</td>
+                  <td className="px-2 py-2.5">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(mv)}
+                      title="Modifica motivo/nota"
+                      className="rounded-lg border border-rw-line p-1.5 text-rw-muted hover:text-rw-ink"
+                    >
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Modal: Nuovo Movimento */}
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title="Nuovo movimento magazzino" wide>
+        <div className="space-y-4">
+          <div>
+            <label className={LABEL}>Prodotto *</label>
+            <select className={INPUT} value={form.warehouseItemId} onChange={(e) => setForm((f) => ({ ...f, warehouseItemId: e.target.value }))}>
+              <option value="">— Seleziona un prodotto esistente —</option>
+              {stock.length === 0 && <option disabled>Nessun prodotto in magazzino. Creane uno prima nella tab Centrale.</option>}
+              {stock.map((s) => (
+                <option key={s.id} value={s.id}>{s.name} (centrale: {s.qty} {s.unit})</option>
+              ))}
+            </select>
+            {stock.length === 0 && (
+              <p className="mt-1 text-xs text-amber-400">
+                Crea prima il prodotto/ingrediente in anagrafica magazzino (tab &ldquo;Centrale&rdquo;).
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className={LABEL}>Tipo movimento *</label>
+            <select className={INPUT} value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as typeof f.type }))}>
+              <option value="carico">Carico (in entrata nel magazzino)</option>
+              <option value="scarico">Scarico (uscita da un reparto o dal centrale)</option>
+              <option value="trasferimento">Trasferimento (da un reparto a un altro)</option>
+              <option value="rettifica">Rettifica (imposta quantità esatta)</option>
+            </select>
+          </div>
+
+          {form.type === "rettifica" ? (
+            <div>
+              <label className={LABEL}>Nuova quantità assoluta *</label>
+              <input type="number" min="0" step="0.001" className={INPUT} value={form.newQty} onChange={(e) => setForm((f) => ({ ...f, newQty: e.target.value }))} placeholder="es. 45.5" />
+            </div>
+          ) : (
+            <div>
+              <label className={LABEL}>Quantità *</label>
+              <input type="number" min="0" step="0.001" className={INPUT} value={form.qty} onChange={(e) => setForm((f) => ({ ...f, qty: e.target.value }))} placeholder="es. 10" />
+            </div>
+          )}
+
+          {showFromLocation && (
+            <div>
+              <label className={LABEL}>{form.type === "rettifica" ? "Reparto da rettificare" : "Da reparto"}</label>
+              <select className={INPUT} value={form.fromLocation} onChange={(e) => setForm((f) => ({ ...f, fromLocation: e.target.value as WarehouseLocation }))}>
+                {WAREHOUSE_LOCATIONS.map((l) => (
+                  <option key={l} value={l}>{WAREHOUSE_LOCATION_LABELS[l]}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {showToLocation && (
+            <div>
+              <label className={LABEL}>A reparto</label>
+              <select className={INPUT} value={form.toLocation} onChange={(e) => setForm((f) => ({ ...f, toLocation: e.target.value as WarehouseLocation }))}>
+                {WAREHOUSE_LOCATIONS.map((l) => (
+                  <option key={l} value={l}>{WAREHOUSE_LOCATION_LABELS[l]}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>
+            <label className={LABEL}>Motivo</label>
+            <input className={INPUT} value={form.reason} onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))} placeholder={`es. ${MOVEMENT_TYPE_LABELS[form.type]} manuale`} />
+          </div>
+
+          <div>
+            <label className={LABEL}>Nota (opzionale)</label>
+            <input className={INPUT} value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))} placeholder="Note aggiuntive…" />
+          </div>
+
+          {error && <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>}
+
+          <button type="button" className={cn(BTN_PRIMARY, "w-full")} onClick={() => void handleCreate()} disabled={sending}>
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {sending ? "Salvataggio…" : "Registra movimento"}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal: Modifica Movimento */}
+      <Modal open={!!editMovement} onClose={() => setEditMovement(null)} title="Modifica movimento">
+        <div className="space-y-4">
+          {editMovement && (
+            <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-xs text-rw-muted space-y-1">
+              <p><span className="font-semibold text-rw-soft">Prodotto:</span> {editMovement.productName}</p>
+              <p><span className="font-semibold text-rw-soft">Tipo:</span> {MOVEMENT_TYPE_LABELS[editMovement.type] ?? editMovement.type}</p>
+              <p><span className="font-semibold text-rw-soft">Quantità:</span> {editMovement.qty} {editMovement.unit}</p>
+              <p className="text-[10px] text-rw-muted">Le quantità non vengono ricalcolate. Per correggere, crea una rettifica.</p>
+            </div>
+          )}
+          <div>
+            <label className={LABEL}>Motivo</label>
+            <input className={INPUT} value={editForm.reason} onChange={(e) => setEditForm((f) => ({ ...f, reason: e.target.value }))} />
+          </div>
+          <div>
+            <label className={LABEL}>Nota</label>
+            <input className={INPUT} value={editForm.note} onChange={(e) => setEditForm((f) => ({ ...f, note: e.target.value }))} placeholder="Note aggiuntive…" />
+          </div>
+          {error && <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{error}</p>}
+          <button type="button" className={cn(BTN_PRIMARY, "w-full")} onClick={() => void handleEdit()} disabled={sending}>
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {sending ? "Salvataggio…" : "Salva modifiche"}
+          </button>
+        </div>
+      </Modal>
+    </div>
   );
 }
 

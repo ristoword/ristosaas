@@ -20,6 +20,7 @@
     "db:apply:storni-voice-fiscal": "node scripts/apply-storni-voice-fiscal-sql.mjs",
     "db:verify:storni-voice-fiscal": "node scripts/verify-storni-voice-fiscal.mjs",
     "db:migrate:purchase-orders": "node scripts/apply-purchase-orders-migration.mjs",
+    "db:migrate:warehouse-locations": "node scripts/apply-warehouse-locations-migration.mjs",
     "db:create-superadmin": "node scripts/create-superadmin.mjs",
     "db:sanity": "node scripts/db-sanity-check.mjs",
     "db:check-tables": "node scripts/db-check-tables.mjs",

@@ -221,6 +221,18 @@ export const warehouseApi = {
   load: (productId: string, qty: number, reason?: string) => post<{ item: StockItem }>("/warehouse/load", { productId, qty, reason }),
   discharge: (productName: string, qty: number, reason: string) => post<{ item: StockItem }>("/warehouse/discharge", { productName, qty, reason }),
   movements: () => get<StockMovement[]>("/warehouse/movements"),
+  createMovement: (data: {
+    warehouseItemId: string;
+    type: "carico" | "scarico" | "trasferimento" | "rettifica";
+    qty: number;
+    reason: string;
+    fromLocation?: string;
+    toLocation?: string;
+    note?: string;
+    newQty?: number;
+  }) => post<StockMovement | { item: StockItem; movement: StockMovement }>("/warehouse/movements", data),
+  patchMovement: (id: string, data: { reason?: string; note?: string }) =>
+    patch<StockMovement>(`/warehouse/movements/${id}`, data),
   reorder: (days = 14) =>
     get<{
       generatedAt: string;
@@ -1210,8 +1222,34 @@ export type Order = {
 export type TableStatus = "libero" | "aperto" | "conto" | "sporco";
 export type SalaTable = { id: string; nome: string; posti: number; x: number; y: number; forma: "tondo" | "quadrato"; stato: TableStatus; roomId: string };
 export type Room = { id: string; name: string; tables: number };
-export type StockItem = { id: string; name: string; category: string; qty: number; unit: string; minStock: number; costPerUnit: number; supplier: string };
-export type StockMovement = { id: string; date: string; productId: string; productName: string; type: "carico" | "scarico" | "scarico_comanda"; qty: number; unit: string; reason: string; orderId?: string };
+export type StockItem = {
+  id: string;
+  name: string;
+  category: string;
+  qty: number;
+  unit: string;
+  minStock: number;
+  costPerUnit: number;
+  supplier: string;
+  /** Scorte nei reparti (escluso il centrale). Presente nella risposta di listItemsWithLocations. */
+  locationStocks?: { location: string; qty: number }[];
+  /** Totale centrale + reparti. */
+  totalQty?: number;
+};
+export type StockMovement = {
+  id: string;
+  date: string;
+  productId: string;
+  productName: string;
+  type: "carico" | "scarico" | "scarico_comanda" | "trasferimento" | "rettifica";
+  qty: number;
+  unit: string;
+  reason: string;
+  fromLocation?: string | null;
+  toLocation?: string | null;
+  note?: string | null;
+  orderId?: string;
+};
 export type WarehouseAlert = { id: string; name: string; qty: number; minStock: number; level: "warning" | "critical"; message: string };
 export type WarehouseEquipment = {
   id: string;
