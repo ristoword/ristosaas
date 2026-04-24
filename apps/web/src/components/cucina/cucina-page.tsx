@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, Clock, Flame, Minus, Plus, Printer, ThermometerSun, Trash2, Upload, Users, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, Clock, Edit2, Flame, Loader2, Minus, Plus, Printer, Save, ThermometerSun, Trash2, Upload, Users, UtensilsCrossed, X } from "lucide-react";
 import { useOrders } from "@/components/orders/orders-context";
 import { useMenu, calcFoodCost } from "@/components/menu/menu-context";
 import type { RecipeIngredient, RecipeStep, Recipe } from "@/components/menu/menu-context";
@@ -227,7 +227,7 @@ function OrderCard({
 /* ------------------------------------------------------------------ */
 
 function RicetteTab() {
-  const { recipes, addRecipe, removeRecipe, addToMenu, addToDailyMenu } = useMenu();
+  const { recipes, addRecipe, updateRecipe, removeRecipe, addToMenu, addToDailyMenu } = useMenu();
 
   const emptyIng = (): RecipeIngredient => ({ id: `ing-${Date.now()}-${Math.random()}`, name: "", qty: 0, unit: "g", unitCost: 0, wastePct: 0 });
   const emptyStep = (order: number): RecipeStep => ({ id: `st-${Date.now()}-${Math.random()}`, order, text: "" });
@@ -247,6 +247,15 @@ function RicetteTab() {
   const [steps, setSteps] = useState<RecipeStep[]>([emptyStep(1)]);
   const [notes, setNotes] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
+
+  // ── stato modifica ricetta ─────────────────────────────────────────
+  type RecipeQuickEdit = {
+    id: string; name: string; category: string; area: "cucina" | "pizzeria" | "bar";
+    portions: number; sellingPrice: number; targetFcPct: number; notes: string;
+  };
+  const [editRecipe, setEditRecipe] = useState<RecipeQuickEdit | null>(null);
+  const [editRecipeSaving, setEditRecipeSaving] = useState(false);
+  const [editRecipeError, setEditRecipeError] = useState<string | null>(null);
 
   const draftRecipe = {
     name, category, area, portions, sellingPrice, targetFcPct, ivaPct, overheadPct,
@@ -288,13 +297,45 @@ function RicetteTab() {
   }
 
   function handleAddToMenu(recipe: Recipe) {
-    addToMenu(recipe);
+    void addToMenu(recipe);
     showFlash(`"${recipe.name}" aggiunto al menu.`);
   }
 
   function handleAddToDaily(recipe: Recipe) {
-    addToDailyMenu(recipe, `Dal ricettario cucina`);
+    void addToDailyMenu(recipe, `Dal ricettario cucina`);
     showFlash(`"${recipe.name}" aggiunto al menu del giorno.`);
+  }
+
+  function openEditRecipe(r: Recipe) {
+    setEditRecipe({
+      id: r.id, name: r.name, category: r.category, area: r.area,
+      portions: r.portions, sellingPrice: r.sellingPrice,
+      targetFcPct: r.targetFcPct, notes: r.notes,
+    });
+    setEditRecipeError(null);
+  }
+
+  async function handleSaveEditRecipe() {
+    if (!editRecipe) return;
+    setEditRecipeSaving(true);
+    setEditRecipeError(null);
+    try {
+      await updateRecipe(editRecipe.id, {
+        name: editRecipe.name,
+        category: editRecipe.category,
+        area: editRecipe.area,
+        portions: editRecipe.portions,
+        sellingPrice: editRecipe.sellingPrice,
+        targetFcPct: editRecipe.targetFcPct,
+        notes: editRecipe.notes,
+      });
+      showFlash(`Ricetta "${editRecipe.name}" aggiornata.`);
+      setEditRecipe(null);
+    } catch (e) {
+      setEditRecipeError(e instanceof Error ? e.message : "Errore salvataggio");
+    } finally {
+      setEditRecipeSaving(false);
+    }
   }
 
   function showFlash(msg: string) {
@@ -547,9 +588,12 @@ function RicetteTab() {
                     <Upload className="h-3.5 w-3.5" /> Carica nel Menu
                   </button>
                   <button type="button" onClick={() => handleAddToDaily(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20">
-                    <BookOpen className="h-3.5 w-3.5" /> Carica nel Menu del Giorno
+                    <CalendarDays className="h-3.5 w-3.5" /> Menu del Giorno
                   </button>
-                  <button type="button" onClick={() => removeRecipe(r.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/10">
+                  <button type="button" onClick={() => openEditRecipe(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-400 hover:bg-sky-500/20">
+                    <Edit2 className="h-3.5 w-3.5" /> Modifica
+                  </button>
+                  <button type="button" onClick={() => void removeRecipe(r.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/10">
                     <Trash2 className="h-3.5 w-3.5" /> Elimina
                   </button>
                 </div>
@@ -558,12 +602,75 @@ function RicetteTab() {
           })}
         </div>
       )}
+
+      {/* Modal: modifica campi base ricetta */}
+      {editRecipe && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-rw-line bg-rw-surface p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-rw-ink">Modifica ricetta</h2>
+              <button type="button" onClick={() => setEditRecipe(null)} className="text-rw-muted hover:text-rw-ink">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="text-xs text-rw-muted">Modifica i campi base. Ingredienti e passaggi si modificano ricreandoli dopo aver eliminato.</p>
+            <div>
+              <label className={labelCls}>Nome ricetta</label>
+              <input type="text" className={inputCls} value={editRecipe.name} onChange={(e) => setEditRecipe({ ...editRecipe, name: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Categoria</label>
+                <select className={inputCls} value={editRecipe.category} onChange={(e) => setEditRecipe({ ...editRecipe, category: e.target.value })}>
+                  {["Antipasti","Primi","Secondi","Pizze","Dolci","Contorni","Bevande"].map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Area</label>
+                <select className={inputCls} value={editRecipe.area} onChange={(e) => setEditRecipe({ ...editRecipe, area: e.target.value as "cucina" | "pizzeria" | "bar" })}>
+                  <option value="cucina">Cucina</option>
+                  <option value="pizzeria">Pizzeria</option>
+                  <option value="bar">Bar</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className={labelCls}>Prezzo (€)</label>
+                <input type="number" step="0.50" min={0} className={inputCls} value={editRecipe.sellingPrice || ""} onChange={(e) => setEditRecipe({ ...editRecipe, sellingPrice: Number(e.target.value) })} />
+              </div>
+              <div>
+                <label className={labelCls}>Porzioni</label>
+                <input type="number" min={1} className={inputCls} value={editRecipe.portions} onChange={(e) => setEditRecipe({ ...editRecipe, portions: Number(e.target.value) || 1 })} />
+              </div>
+              <div>
+                <label className={labelCls}>Target FC%</label>
+                <input type="number" min={0} max={100} className={inputCls} value={editRecipe.targetFcPct} onChange={(e) => setEditRecipe({ ...editRecipe, targetFcPct: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>Note</label>
+              <textarea rows={2} className={cn(inputCls, "resize-y")} value={editRecipe.notes} onChange={(e) => setEditRecipe({ ...editRecipe, notes: e.target.value })} />
+            </div>
+            {editRecipeError && <p className="text-xs text-red-400">{editRecipeError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button type="button" className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90" onClick={() => void handleSaveEditRecipe()} disabled={editRecipeSaving}>
+                {editRecipeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                {editRecipeSaving ? "Salvataggio…" : "Salva modifiche"}
+              </button>
+              <button type="button" onClick={() => setEditRecipe(null)} className="rounded-xl border border-rw-line px-4 py-2.5 text-sm text-rw-muted hover:text-rw-ink">
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function PiattiGiornoTab() {
-  const { dailyDishes, addDailyDish, removeDailyDish, recipes, addToDailyMenu } = useMenu();
+  const { dailyDishes, addDailyDish, removeDailyDish, updateDailyDish, addMenuItemFromDaily, recipes, addToDailyMenu } = useMenu();
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [cat, setCat] = useState("Primi");
@@ -571,12 +678,18 @@ function PiattiGiornoTab() {
   const [allergens, setAllergens] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
 
+  // stato modifica
+  type DailyDishEdit = { id: string; name: string; description: string; category: string; price: number; allergens: string; recipeId: string | null };
+  const [editDish, setEditDish] = useState<DailyDishEdit | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   const categories = ["Antipasti", "Primi", "Secondi", "Contorni", "Dolci"];
 
   function add(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    addDailyDish({ name, description: desc, category: cat, price, allergens, recipeId: null });
+    void addDailyDish({ name, description: desc, category: cat, price, allergens, recipeId: null });
     setName(""); setDesc(""); setPrice(0); setAllergens("");
     showFlash("Piatto del giorno aggiunto.");
   }
@@ -587,13 +700,46 @@ function PiattiGiornoTab() {
   }
 
   function handleFromRecipe(recipe: Recipe) {
-    addToDailyMenu(recipe, `Dal ricettario cucina`);
+    void addToDailyMenu(recipe, `Dal ricettario cucina`);
     showFlash(`"${recipe.name}" aggiunto al menu del giorno.`);
   }
 
-  function handlePrint() {
-    window.print();
+  function openEdit(d: DailyDishEdit) {
+    setEditDish({ ...d });
+    setEditError(null);
   }
+
+  async function handleSaveEdit() {
+    if (!editDish) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await updateDailyDish(editDish.id, {
+        name: editDish.name,
+        description: editDish.description,
+        category: editDish.category,
+        price: editDish.price,
+        allergens: editDish.allergens,
+      });
+      showFlash(`"${editDish.name}" aggiornato.`);
+      setEditDish(null);
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "Errore salvataggio");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleAddToMenu(d: DailyDishEdit) {
+    try {
+      await addMenuItemFromDaily(d);
+      showFlash(`"${d.name}" aggiunto al Menu Permanente.`);
+    } catch (e) {
+      showFlash(`Errore: ${e instanceof Error ? e.message : "Impossibile aggiungere al menu"}`);
+    }
+  }
+
+  function handlePrint() { window.print(); }
 
   const grouped = categories
     .map((c) => ({ category: c, items: dailyDishes.filter((d) => d.category === c) }))
@@ -602,7 +748,7 @@ function PiattiGiornoTab() {
   return (
     <div className="space-y-6">
       {flash && (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300" role="status">
+        <div className={cn("rounded-xl border px-4 py-3 text-sm font-semibold", flash.startsWith("Errore") ? "border-red-500/30 bg-red-500/10 text-red-300" : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300")} role="status">
           {flash}
         </div>
       )}
@@ -679,14 +825,30 @@ function PiattiGiornoTab() {
               <p className="text-xs font-bold uppercase tracking-wide text-rw-muted mb-1">{g.category}</p>
               <div className="space-y-1">
                 {g.items.map((d) => (
-                  <div key={d.id} className="flex items-center justify-between rounded-lg border border-rw-line/50 bg-rw-surfaceAlt px-3 py-2">
-                    <div>
+                  <div key={d.id} className="flex items-center justify-between rounded-lg border border-rw-line/50 bg-rw-surfaceAlt px-3 py-2 gap-2">
+                    <div className="min-w-0">
                       <span className="text-sm font-medium text-rw-ink">{d.name}</span>
                       {d.description && <span className="text-xs text-rw-muted ml-2">— {d.description}</span>}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex shrink-0 items-center gap-2">
                       <span className="text-sm font-bold text-rw-accent">€{d.price.toFixed(2)}</span>
-                      <button type="button" onClick={() => removeDailyDish(d.id)} className="text-red-400 hover:text-red-300">
+                      <button
+                        type="button"
+                        title="Aggiungi al Menu Permanente"
+                        onClick={() => void handleAddToMenu(d)}
+                        className="flex items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2 py-1 text-[11px] font-semibold text-sky-400 hover:bg-sky-500/20"
+                      >
+                        <ArrowRight className="h-3 w-3" /> Menu
+                      </button>
+                      <button
+                        type="button"
+                        title="Modifica"
+                        onClick={() => openEdit(d)}
+                        className="rounded-lg border border-rw-line p-1.5 text-rw-muted hover:text-rw-accent"
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button type="button" title="Elimina" onClick={() => void removeDailyDish(d.id)} className="text-red-400 hover:text-red-300">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -696,6 +858,54 @@ function PiattiGiornoTab() {
             </div>
           ))}
         </Card>
+      )}
+
+      {/* Modal modifica piatto del giorno */}
+      {editDish && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-rw-line bg-rw-surface p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-rw-ink">Modifica piatto del giorno</h2>
+              <button type="button" onClick={() => setEditDish(null)} className="text-rw-muted hover:text-rw-ink">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div>
+              <label className={labelCls}>Nome</label>
+              <input type="text" className={inputCls} value={editDish.name} onChange={(e) => setEditDish({ ...editDish, name: e.target.value })} />
+            </div>
+            <div>
+              <label className={labelCls}>Descrizione</label>
+              <input type="text" className={inputCls} value={editDish.description} onChange={(e) => setEditDish({ ...editDish, description: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>Categoria</label>
+                <select className={inputCls} value={editDish.category} onChange={(e) => setEditDish({ ...editDish, category: e.target.value })}>
+                  {categories.map((c) => <option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>Prezzo (€)</label>
+                <input type="number" step="0.50" min={0} className={inputCls} value={editDish.price || ""} onChange={(e) => setEditDish({ ...editDish, price: Number(e.target.value) })} />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>Allergeni</label>
+              <input type="text" className={inputCls} value={editDish.allergens} onChange={(e) => setEditDish({ ...editDish, allergens: e.target.value })} />
+            </div>
+            {editError && <p className="text-xs text-red-400">{editError}</p>}
+            <div className="flex gap-3 pt-1">
+              <button type="button" className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90" onClick={() => void handleSaveEdit()} disabled={editSaving}>
+                {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {editSaving ? "Salvataggio…" : "Salva"}
+              </button>
+              <button type="button" onClick={() => setEditDish(null)} className="rounded-xl border border-rw-line px-4 py-2.5 text-sm text-rw-muted hover:text-rw-ink">
+                Annulla
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Print-only view */}

@@ -34,14 +34,18 @@ type MenuContextValue = {
   dailyDishes: DailyDish[];
   loading: boolean;
   addRecipe: (r: Omit<Recipe, "id" | "createdAt">) => Promise<Recipe>;
+  updateRecipe: (id: string, updates: Partial<Omit<Recipe, "id" | "createdAt">>) => Promise<void>;
   removeRecipe: (id: string) => Promise<void>;
   addToMenu: (recipe: Recipe) => Promise<void>;
   addToDailyMenu: (recipe: Recipe, description?: string) => Promise<void>;
   addMenuItem: (item: Omit<MenuItem, "id">) => Promise<void>;
+  updateMenuItem: (id: string, updates: Partial<MenuItem>) => Promise<void>;
   removeMenuItem: (id: string) => Promise<void>;
+  addMenuItemFromDaily: (dish: DailyDish) => Promise<void>;
   addDailyDish: (dish: Omit<DailyDish, "id">) => Promise<void>;
   removeDailyDish: (id: string) => Promise<void>;
   updateDailyDish: (id: string, updates: Partial<DailyDish>) => Promise<void>;
+  addDailyFromMenuItem: (item: MenuItem) => Promise<void>;
   refresh: () => Promise<void>;
 };
 
@@ -85,6 +89,11 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
     return recipe;
   }, []);
 
+  const updateRecipe = useCallback(async (id: string, updates: Partial<Omit<Recipe, "id" | "createdAt">>) => {
+    const { recipe } = await kitchenApi.updateRecipe(id, updates);
+    setRecipes((p) => p.map((r) => (r.id === id ? recipe : r)));
+  }, []);
+
   const removeRecipe = useCallback(async (id: string) => {
     await kitchenApi.deleteRecipe(id);
     setRecipes((p) => p.filter((r) => r.id !== id));
@@ -113,9 +122,29 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
     setMenuItems((p) => [created, ...p]);
   }, []);
 
+  const updateMenuItem = useCallback(async (id: string, updates: Partial<MenuItem>) => {
+    const updated = await menuApi.updateItem(id, updates);
+    setMenuItems((p) => p.map((i) => (i.id === id ? updated : i)));
+  }, []);
+
   const removeMenuItem = useCallback(async (id: string) => {
     await menuApi.deleteItem(id);
     setMenuItems((p) => p.filter((i) => i.id !== id));
+  }, []);
+
+  const addMenuItemFromDaily = useCallback(async (dish: DailyDish) => {
+    const created = await menuApi.createItem({
+      name: dish.name,
+      category: dish.category,
+      area: "cucina",
+      price: dish.price,
+      code: "",
+      active: true,
+      recipeId: dish.recipeId,
+      notes: dish.description || "",
+      foodCostPct: null,
+    });
+    setMenuItems((p) => [created, ...p]);
   }, []);
 
   const addDailyDish = useCallback(async (dish: Omit<DailyDish, "id">) => {
@@ -133,8 +162,20 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
     setDailyDishes((p) => p.map((d) => (d.id === id ? updated : d)));
   }, []);
 
+  const addDailyFromMenuItem = useCallback(async (item: MenuItem) => {
+    const created = await menuApi.createDaily({
+      name: item.name,
+      category: item.category,
+      description: item.notes || "",
+      price: item.price,
+      allergens: "",
+      recipeId: item.recipeId,
+    });
+    setDailyDishes((p) => [created, ...p]);
+  }, []);
+
   return (
-    <Ctx.Provider value={{ recipes, menuItems, dailyDishes, loading, addRecipe, removeRecipe, addToMenu, addToDailyMenu, addMenuItem, removeMenuItem, addDailyDish, removeDailyDish, updateDailyDish, refresh }}>
+    <Ctx.Provider value={{ recipes, menuItems, dailyDishes, loading, addRecipe, updateRecipe, removeRecipe, addToMenu, addToDailyMenu, addMenuItem, updateMenuItem, removeMenuItem, addMenuItemFromDaily, addDailyDish, removeDailyDish, updateDailyDish, addDailyFromMenuItem, refresh }}>
       {children}
     </Ctx.Provider>
   );
