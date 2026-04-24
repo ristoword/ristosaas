@@ -137,6 +137,12 @@ function OrderCard({
         </div>
       </div>
 
+      {order.notes ? (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-300 italic">
+          {order.notes}
+        </p>
+      ) : null}
+
       {cucinaCourseNums.length === 0 ? (
         <p className="text-xs text-rw-muted italic">Nessun piatto in cucina su questa comanda</p>
       ) : (

@@ -17,6 +17,13 @@ type Props = {
 
 const VALID_AREAS: OrderArea[] = ["sala", "cucina", "bar", "pizzeria"];
 
+const AREA_BADGE: Record<string, string> = {
+  cucina: "bg-orange-500/15 text-orange-400",
+  pizzeria: "bg-yellow-500/15 text-yellow-400",
+  bar: "bg-sky-500/15 text-sky-400",
+  sala: "bg-rw-surfaceAlt text-rw-muted",
+};
+
 function normalizeArea(raw: string): OrderArea {
   const lower = (raw || "").toLowerCase();
   return (VALID_AREAS as string[]).includes(lower) ? (lower as OrderArea) : "cucina";
@@ -35,6 +42,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
   const [menuError, setMenuError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [areaFilter, setAreaFilter] = useState<string>("all");
   const [sendError, setSendError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
@@ -64,10 +72,12 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     const q = search.trim().toLowerCase();
     return menu.filter((item) => {
       const matchCategory = categoryFilter === "all" || item.category === categoryFilter;
+      const itemArea = (item.area || "cucina").toLowerCase();
+      const matchArea = areaFilter === "all" || itemArea === areaFilter;
       const matchSearch = q === "" || item.name.toLowerCase().includes(q);
-      return matchCategory && matchSearch;
+      return matchCategory && matchArea && matchSearch;
     });
-  }, [menu, search, categoryFilter]);
+  }, [menu, search, categoryFilter, areaFilter]);
 
   if (!table) return null;
 
@@ -244,7 +254,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
               Aggiungi al {activeCourse}° corso · {menu.length} voci menu
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-rw-muted" />
                 <input
@@ -254,6 +264,16 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                   className="h-8 rounded-lg border border-rw-line bg-rw-surfaceAlt pl-7 pr-2 text-xs text-rw-ink"
                 />
               </div>
+              <select
+                value={areaFilter}
+                onChange={(e) => setAreaFilter(e.target.value)}
+                className="h-8 rounded-lg border border-rw-line bg-rw-surfaceAlt px-2 text-xs text-rw-ink"
+              >
+                <option value="all">Tutte le aree</option>
+                <option value="cucina">🍳 Cucina</option>
+                <option value="pizzeria">🍕 Pizzeria</option>
+                <option value="bar">🍹 Bar</option>
+              </select>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
@@ -281,19 +301,26 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           )}
           {!loadingMenu && !menuError && (
             <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3">
-              {filteredMenu.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => addItem(item)}
-                  className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-left text-xs transition hover:border-rw-accent/30"
-                >
-                  <span className="block font-semibold text-rw-ink">{item.name}</span>
-                  <span className="text-rw-muted">
-                    €{item.price.toFixed(2)} · {item.area || "cucina"}
-                  </span>
-                </button>
-              ))}
+              {filteredMenu.map((item) => {
+                const itemArea = (item.area || "cucina").toLowerCase();
+                const badgeCls = AREA_BADGE[itemArea] ?? AREA_BADGE.sala;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => addItem(item)}
+                    className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-left text-xs transition hover:border-rw-accent/30"
+                  >
+                    <span className="block font-semibold text-rw-ink">{item.name}</span>
+                    <div className="mt-0.5 flex items-center gap-1.5">
+                      <span className="text-rw-muted">€{item.price.toFixed(2)}</span>
+                      <span className={`rounded px-1 py-0.5 text-[10px] font-bold ${badgeCls}`}>
+                        {itemArea}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
               {filteredMenu.length === 0 && (
                 <p className="col-span-full py-6 text-center text-sm text-rw-muted">
                   Nessuna voce menu corrisponde ai filtri.

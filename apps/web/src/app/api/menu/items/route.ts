@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const item = await kitchenMenuRepository.createMenuItem(tenantId, {
       name: recipe.name,
       category: recipe.category,
-      area: recipe.area.charAt(0).toUpperCase() + recipe.area.slice(1),
+      area: recipe.area.toLowerCase(),
       price: recipe.sellingPrice,
       code: data.code || "",
       active: true,

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Mic } from "lucide-react";
 import { useOrders } from "@/components/orders/orders-context";
-import type { Order } from "@/components/orders/types";
+import type { CourseStatus, Order } from "@/components/orders/types";
 import { PageHeader } from "@/components/shared/page-header";
 import { TabBar } from "@/components/shared/tab-bar";
 import { KdsColumn } from "@/components/shared/kds-column";
@@ -21,6 +21,34 @@ function minutesSince(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60_000);
 }
 
+type AreaKdsState = { courseNum: number; status: CourseStatus };
+
+/**
+ * Restituisce lo stato corrente per l'area specificata, basandosi sui
+ * courseStates del corso con item dell'area non ancora serviti.
+ * Stessa logica di getKitchenDisplayState in cucina-page, adattata per area.
+ */
+function getAreaDisplayState(order: Order, area: string): AreaKdsState | null {
+  const areaCourses = [
+    ...new Set(order.items.filter((i) => i.area === area).map((i) => i.course)),
+  ].sort((a, b) => a - b);
+  if (areaCourses.length === 0) return null;
+  const current = areaCourses.find(
+    (n) => order.courseStates[String(n)] !== "servito",
+  );
+  if (current == null) return null;
+  const rawStatus = order.courseStates[String(current)];
+  const status: CourseStatus =
+    rawStatus === "in_attesa" ||
+    rawStatus === "in_preparazione" ||
+    rawStatus === "pronto" ||
+    rawStatus === "servito" ||
+    rawStatus === "queued"
+      ? rawStatus
+      : "in_attesa";
+  return { courseNum: current, status };
+}
+
 const TABS = [
   { id: "comande", label: "Comande" },
   { id: "ricette", label: "Ricette pizza" },
@@ -28,22 +56,26 @@ const TABS = [
 ] as const;
 
 /* ------------------------------------------------------------------ */
-/*  Order card (no course logic)                                       */
+/*  Order card                                                         */
 /* ------------------------------------------------------------------ */
 
 function PizzeriaOrderCard({
   order,
-  onAction,
-  actionLabel,
-  actionTone,
+  kds,
+  onInPrep,
+  onPronto,
+  onServito,
 }: {
   order: Order;
-  onAction: () => void;
-  actionLabel: string;
-  actionTone: string;
+  kds: AreaKdsState;
+  onInPrep: () => void;
+  onPronto: () => void;
+  onServito: () => void;
 }) {
   const elapsed = minutesSince(order.createdAt);
-  const pizzaItems = order.items.filter((i) => i.area === "pizzeria");
+  const pizzaItems = order.items.filter(
+    (i) => i.area === "pizzeria" && i.course === kds.courseNum,
+  );
 
   return (
     <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 space-y-2">
@@ -53,11 +85,18 @@ function PizzeriaOrderCard({
             T{order.table ?? "?"}
           </span>
           <span className="text-xs text-rw-muted">{order.waiter}</span>
+          <span className="text-xs text-rw-muted">P{kds.courseNum}</span>
         </div>
         <span className={`text-xs font-semibold ${elapsed > 15 ? "text-red-400" : "text-rw-muted"}`}>
           {elapsed}′
         </span>
       </div>
+
+      {order.notes ? (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-xs text-amber-300 italic">
+          {order.notes}
+        </p>
+      ) : null}
 
       <ul className="space-y-0.5">
         {pizzaItems.map((it) => (
@@ -69,17 +108,37 @@ function PizzeriaOrderCard({
           </li>
         ))}
         {pizzaItems.length === 0 && (
-          <li className="text-xs text-rw-muted italic">Nessun item pizzeria</li>
+          <li className="text-xs text-rw-muted italic">Nessun item pizzeria in questa portata</li>
         )}
       </ul>
 
-      <button
-        type="button"
-        onClick={onAction}
-        className={`w-full rounded-lg px-3 py-1.5 text-xs font-bold transition ${actionTone}`}
-      >
-        {actionLabel}
-      </button>
+      <div className="flex items-center gap-2 pt-1">
+        {kds.status === "in_attesa" || kds.status === "queued" ? (
+          <button
+            type="button"
+            onClick={onInPrep}
+            className="flex-1 rounded-lg bg-rw-accent/15 px-3 py-1.5 text-xs font-bold text-rw-accent hover:bg-rw-accent/25 transition"
+          >
+            In prep
+          </button>
+        ) : kds.status === "in_preparazione" ? (
+          <button
+            type="button"
+            onClick={onPronto}
+            className="flex-1 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition"
+          >
+            Pronto
+          </button>
+        ) : kds.status === "pronto" ? (
+          <button
+            type="button"
+            onClick={onServito}
+            className="flex-1 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-400 hover:bg-blue-500/25 transition"
+          >
+            Servito
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -128,15 +187,21 @@ function NoteVocaliTab() {
 /*  Main page                                                          */
 /* ------------------------------------------------------------------ */
 
-function classifyByStatus(orders: Order[]) {
-  const inAttesa: Order[] = [];
-  const inPrep: Order[] = [];
-  const pronti: Order[] = [];
+function classifyByAreaState(orders: Order[], area: string) {
+  const inAttesa: { order: Order; kds: AreaKdsState }[] = [];
+  const inPrep: { order: Order; kds: AreaKdsState }[] = [];
+  const pronti: { order: Order; kds: AreaKdsState }[] = [];
 
-  for (const o of orders) {
-    if (o.status === "in_attesa" || o.status === "pending") inAttesa.push(o);
-    else if (o.status === "in_preparazione") inPrep.push(o);
-    else if (o.status === "pronto") pronti.push(o);
+  for (const order of orders) {
+    const kds = getAreaDisplayState(order, area);
+    if (!kds) continue;
+    if (kds.status === "in_attesa" || kds.status === "queued") {
+      inAttesa.push({ order, kds });
+    } else if (kds.status === "in_preparazione") {
+      inPrep.push({ order, kds });
+    } else if (kds.status === "pronto") {
+      pronti.push({ order, kds });
+    }
   }
 
   return { inAttesa, inPrep, pronti };
@@ -147,7 +212,7 @@ export function PizzeriaPage() {
   const [activeTab, setActiveTab] = useState("comande");
 
   const pizzeriaOrders = getOrdersForArea("pizzeria");
-  const classified = useMemo(() => classifyByStatus(pizzeriaOrders), [pizzeriaOrders]);
+  const classified = useMemo(() => classifyByAreaState(pizzeriaOrders, "pizzeria"), [pizzeriaOrders]);
 
   const lateCount = pizzeriaOrders.filter((o) => minutesSince(o.createdAt) > 15).length;
 
@@ -165,39 +230,42 @@ export function PizzeriaPage() {
       {activeTab === "comande" && (
         <div className="grid gap-4 lg:grid-cols-3">
           <KdsColumn title="In attesa" tone="pending" count={classified.inAttesa.length}>
-            {classified.inAttesa.map((order) => (
+            {classified.inAttesa.map(({ order, kds }) => (
               <PizzeriaOrderCard
-                key={order.id}
+                key={`${order.id}-${kds.courseNum}`}
                 order={order}
-                onAction={() => patchStatus(order.id, "in_preparazione")}
-                actionLabel="In prep"
-                actionTone="bg-rw-accent/15 text-rw-accent hover:bg-rw-accent/25"
+                kds={kds}
+                onInPrep={() => patchStatus(order.id, "in_preparazione")}
+                onPronto={() => patchStatus(order.id, "pronto")}
+                onServito={() => patchStatus(order.id, "servito")}
               />
             ))}
             {classified.inAttesa.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in attesa</p>}
           </KdsColumn>
 
           <KdsColumn title="In preparazione" tone="prep" count={classified.inPrep.length}>
-            {classified.inPrep.map((order) => (
+            {classified.inPrep.map(({ order, kds }) => (
               <PizzeriaOrderCard
-                key={order.id}
+                key={`${order.id}-${kds.courseNum}`}
                 order={order}
-                onAction={() => patchStatus(order.id, "pronto")}
-                actionLabel="Pronto"
-                actionTone="bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                kds={kds}
+                onInPrep={() => patchStatus(order.id, "in_preparazione")}
+                onPronto={() => patchStatus(order.id, "pronto")}
+                onServito={() => patchStatus(order.id, "servito")}
               />
             ))}
             {classified.inPrep.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in prep</p>}
           </KdsColumn>
 
           <KdsColumn title="Pronti" tone="ready" count={classified.pronti.length}>
-            {classified.pronti.map((order) => (
+            {classified.pronti.map(({ order, kds }) => (
               <PizzeriaOrderCard
-                key={order.id}
+                key={`${order.id}-${kds.courseNum}`}
                 order={order}
-                onAction={() => patchStatus(order.id, "servito")}
-                actionLabel="Servito"
-                actionTone="bg-blue-500/15 text-blue-400 hover:bg-blue-500/25"
+                kds={kds}
+                onInPrep={() => patchStatus(order.id, "in_preparazione")}
+                onPronto={() => patchStatus(order.id, "pronto")}
+                onServito={() => patchStatus(order.id, "servito")}
               />
             ))}
             {classified.pronti.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda pronta</p>}
