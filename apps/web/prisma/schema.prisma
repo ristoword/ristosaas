@@ -218,6 +218,7 @@ model Tenant {
   warehouseLots WarehouseLot[]
   warehouseCostHistory WarehouseCostHistory[]
   warehouseLocationStocks WarehouseLocationStock[]
+  operationalNotes OperationalNote[]
   aiChatLogs  AiChatLog[]
   aiProposals AiProposal[]
   recipes     Recipe[]
@@ -598,6 +599,17 @@ model WarehouseLocationStock {
   @@unique([tenantId, warehouseItemId, location])
   @@index([tenantId, location])
   @@index([tenantId, warehouseItemId])
+}
+
+model OperationalNote {
+  id        String   @id @default(cuid())
+  tenantId  String
+  area      String
+  text      String
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, area])
 }
 
 model WarehouseEquipment {

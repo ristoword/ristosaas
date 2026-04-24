@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Mic } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Mic, Trash2 } from "lucide-react";
 import { useOrders } from "@/components/orders/orders-context";
 import type { CourseStatus, Order } from "@/components/orders/types";
+import { operationalNotesApi, type OperationalNote } from "@/lib/api-client";
 import { PageHeader } from "@/components/shared/page-header";
 import { TabBar } from "@/components/shared/tab-bar";
 import { KdsColumn } from "@/components/shared/kds-column";
@@ -11,7 +12,7 @@ import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { RecipesTab } from "@/components/shared/recipes-tab";
 
-type VoiceNote = { id: string; text: string; createdAt: string };
+const AREA = "pizzeria" as const;
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -148,37 +149,77 @@ function PizzeriaOrderCard({
 /* ------------------------------------------------------------------ */
 
 function NoteVocaliTab() {
-  const [notes, setNotes] = useState<VoiceNote[]>([]);
+  const [notes, setNotes] = useState<OperationalNote[]>([]);
   const [text, setText] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function save() {
+  useEffect(() => {
+    operationalNotesApi
+      .list(AREA)
+      .then(setNotes)
+      .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento note"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function save() {
     if (!text.trim()) return;
-    setNotes((prev) => [...prev, { id: `vn-${Date.now()}`, text, createdAt: new Date().toLocaleString("it-IT") }]);
-    setText("");
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await operationalNotesApi.create(AREA, text.trim());
+      setNotes((prev) => [created, ...prev]);
+      setText("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore salvataggio");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(id: string) {
+    try {
+      await operationalNotesApi.delete(id);
+      setNotes((prev) => prev.filter((n) => n.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore eliminazione");
+    }
   }
 
   return (
     <div className="space-y-6">
-      <Card title="Nuova nota" headerRight={<Mic className="h-5 w-5 text-rw-accent" />}>
+      <Card title="Nuova nota operativa" headerRight={<Mic className="h-5 w-5 text-rw-accent" />}>
         <div className="space-y-4">
-          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Scrivi una nota…" rows={4} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Es. Forno spento alle 22, prodotto X esaurito…" rows={4} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+          {error && <p className="text-xs text-red-400">{error}</p>}
           <div className="flex gap-3">
-            <button type="button" onClick={save} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85">Salva</button>
+            <button type="button" onClick={() => void save()} disabled={saving || !text.trim()} className="flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {saving ? "Salvataggio…" : "Salva nota"}
+            </button>
             <button type="button" onClick={() => setText("")} className="rounded-xl border border-rw-line px-5 py-2.5 text-sm font-semibold text-rw-muted transition hover:text-rw-ink">Cancella</button>
           </div>
         </div>
       </Card>
 
-      {notes.length > 0 && (
+      <Card title={`Note turno (${notes.length})`} description="Persistite su DB — visibili a tutti gli operatori pizzeria">
+        {loading && <p className="py-4 text-center text-sm text-rw-muted">Caricamento…</p>}
+        {!loading && notes.length === 0 && <p className="py-4 text-center text-sm text-rw-muted">Nessuna nota per questo turno.</p>}
         <div className="space-y-3">
           {notes.map((n) => (
-            <div key={n.id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3">
-              <p className="text-sm text-rw-soft">{n.text}</p>
-              <p className="mt-1 text-xs text-rw-muted">{n.createdAt}</p>
+            <div key={n.id} className="flex items-start justify-between gap-3 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3">
+              <div>
+                <p className="text-sm text-rw-soft">{n.text}</p>
+                <p className="mt-1 text-xs text-rw-muted">{new Date(n.createdAt).toLocaleString("it-IT")}</p>
+              </div>
+              <button type="button" onClick={() => void remove(n.id)} className="shrink-0 text-red-400 hover:text-red-300">
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           ))}
         </div>
-      )}
+      </Card>
     </div>
   );
 }

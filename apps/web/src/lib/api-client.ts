@@ -464,6 +464,19 @@ export const warehouseVoiceApi = {
   append: (transcript: string) => post<WarehouseVoiceLogDto>("/warehouse/voice-log", { transcript }),
 };
 
+export type OperationalNote = {
+  id: string;
+  area: string;
+  text: string;
+  createdAt: string;
+};
+
+export const operationalNotesApi = {
+  list: (area: string) => get<OperationalNote[]>(`/operational-notes?area=${encodeURIComponent(area)}`),
+  create: (area: string, text: string) => post<OperationalNote>("/operational-notes", { area, text }),
+  delete: (id: string) => del<{ deleted: boolean }>(`/operational-notes/${id}`),
+};
+
 export type ArchivioFiscalStub = {
   id: string;
   tenantId: string;

@@ -57,6 +57,11 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const patchStatus = useCallback(async (id: string, status: OrderStatus) => {
     const { order } = await ordersApi.patchStatus(id, status);
     setOrders((prev) => prev.map((o) => (o.id === id ? order : o)));
+    // Notifica il WarehouseProvider che le scorte potrebbero essere cambiate
+    // (scarico automatico avviene su "servito" e "chiuso").
+    if (status === "servito" || status === "chiuso" || status === "annullato") {
+      window.dispatchEvent(new CustomEvent("warehouse:refresh"));
+    }
   }, []);
 
   const patchActiveCourse = useCallback(async (id: string, course: number) => {

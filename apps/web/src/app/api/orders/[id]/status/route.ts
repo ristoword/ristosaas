@@ -136,7 +136,21 @@ async function dischargeCourseFromWarehouse(tenantId: string, order: Order, cour
   const alerts: Array<{ itemId: string; itemName: string; qty: number; minStock: number; level: "warning" | "critical" }> = [];
 
   for (const item of order.items.filter((row) => row.course === course)) {
-    const recipe = await kitchenMenuRepository.findRecipeByName(tenantId, item.name);
+    // Ricerca ricetta: prima via menuItemId → recipeId (linking diretto),
+    // poi fallback per nome (retrocompatibilità con ordini precedenti).
+    let recipe = null;
+    if (item.menuItemId) {
+      const menuItem = await prisma.menuItem.findFirst({
+        where: { id: item.menuItemId, tenantId },
+        select: { recipeId: true },
+      });
+      if (menuItem?.recipeId) {
+        recipe = await kitchenMenuRepository.getRecipe(tenantId, menuItem.recipeId);
+      }
+    }
+    if (!recipe) {
+      recipe = await kitchenMenuRepository.findRecipeByName(tenantId, item.name);
+    }
     if (!recipe) continue;
 
     const report = {

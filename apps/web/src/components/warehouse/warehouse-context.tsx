@@ -53,7 +53,21 @@ export function WarehouseProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    void refresh();
+
+    // Polling ogni 30 secondi per tenere aggiornate le scorte in background.
+    const interval = setInterval(() => void refresh(), 30_000);
+
+    // Ascolta l'evento custom emesso quando un ordine viene servito/chiuso.
+    const handleOrderServed = () => void refresh();
+    window.addEventListener("warehouse:refresh", handleOrderServed);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("warehouse:refresh", handleOrderServed);
+    };
+  }, [refresh]);
 
   const addStock = useCallback(async (item: Omit<StockItem, "id">) => {
     const created = await warehouseApi.create(item);
