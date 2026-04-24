@@ -46,32 +46,43 @@ async function main() {
   }
   const sql = readFileSync(SQL_PATH, "utf8");
 
-  // Split su blocchi DO $$ separati da riga vuota + statement normali con ;
-  // Usa un separatore sicuro: splitta su ; mantenendo i blocchi DO $$ intatti
+  // Parsing robusto: i commenti -- fuori dai blocchi DO $$ vengono ignorati
+  // (non accumulati in current) così non "infettano" l'inizio del chunk successivo.
+  // I commenti dentro DO $$ vengono invece mantenuti perché fanno parte del blocco.
   const chunks = [];
   let current = "";
   let inDollarQuote = false;
 
   for (const line of sql.split("\n")) {
     const trimmed = line.trim();
-    if (trimmed.startsWith("--")) {
-      current += line + "\n";
+
+    // Commento fuori da un blocco dollar-quote: lo saltiamo completamente.
+    // Dentro un blocco DO $$ i commenti sono parte del testo e vanno mantenuti.
+    if (!inDollarQuote && trimmed.startsWith("--")) {
       continue;
     }
-    if (trimmed.includes("$$")) {
+
+    // Ogni $$ in una riga non-commento toglie/mette il flag dollar-quote.
+    // Contiamo le occorrenze per gestire il caso raro di $$ doppio su una riga.
+    const dollarCount = (trimmed.match(/\$\$/g) ?? []).length;
+    if (dollarCount % 2 !== 0) {
       inDollarQuote = !inDollarQuote;
     }
+
     current += line + "\n";
+
+    // Split sul ; solo quando siamo fuori da un blocco dollar-quote.
     if (!inDollarQuote && trimmed.endsWith(";")) {
       const stmt = current.trim();
-      if (stmt && !stmt.startsWith("--")) chunks.push(stmt);
+      if (stmt) chunks.push(stmt);
       current = "";
     }
   }
+  // Eventuale residuo senza ; finale
   if (current.trim()) chunks.push(current.trim());
 
   const results = [];
-  for (const stmt of chunks.filter((s) => s.length > 0 && !s.startsWith("--"))) {
+  for (const stmt of chunks.filter((s) => s.length > 0)) {
     try {
       await prisma.$executeRawUnsafe(stmt);
       results.push({ ok: true, stmt: stmt.slice(0, 60) });
