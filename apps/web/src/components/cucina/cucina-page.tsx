@@ -441,7 +441,7 @@ function RicetteTab() {
                           <input value={ing.name} onChange={(e) => updateIng(idx, "name", e.target.value)} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none" placeholder="Nome ingrediente" />
                         </td>
                         <td className="px-2 py-1.5">
-                          <input type="number" step="0.01" min={0} value={ing.qty || ""} onChange={(e) => updateIng(idx, "qty", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0" />
+                          <input type="number" step="0.001" min={0} value={ing.qty} onChange={(e) => updateIng(idx, "qty", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0" />
                         </td>
                         <td className="px-2 py-1.5">
                           <select value={ing.unit} onChange={(e) => updateIng(idx, "unit", e.target.value)} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none">
@@ -455,10 +455,10 @@ function RicetteTab() {
                           </select>
                         </td>
                         <td className="px-2 py-1.5">
-                          <input type="number" step="0.01" min={0} value={ing.unitCost || ""} onChange={(e) => updateIng(idx, "unitCost", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0.00" />
+                          <input type="number" step="0.01" min={0} value={ing.unitCost} onChange={(e) => updateIng(idx, "unitCost", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0.00" />
                         </td>
                         <td className="px-2 py-1.5">
-                          <input type="number" min={0} max={100} value={ing.wastePct || ""} onChange={(e) => updateIng(idx, "wastePct", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0" />
+                          <input type="number" min={0} max={100} value={ing.wastePct} onChange={(e) => updateIng(idx, "wastePct", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0" />
                         </td>
                         <td className="px-2 py-1.5 text-right text-sm font-medium text-rw-ink tabular-nums">
                           €{lineTotal.toFixed(2)}
