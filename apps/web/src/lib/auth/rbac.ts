@@ -84,7 +84,10 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/archivio", roles: ["supervisor", "owner", "super_admin", "cassa"] },
   { prefix: "/api/haccp", roles: ["cucina", "pizzeria", "bar", "magazzino", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/operational-notes", roles: ["cucina", "pizzeria", "bar", "sala", "cassa", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/shift-plans/sync", roles: ["supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] },
+  // Notifiche: tutti gli utenti autenticati possono leggere e marcare le proprie notifiche.
+  { prefix: "/api/notifications", roles: ["sala", "cucina", "bar", "pizzeria", "cassa", "magazzino", "staff", "supervisor", "owner", "super_admin", "hotel_manager", "reception", "housekeeping"] },
   // Tutti gli utenti autenticati possono gestire le proprie sessioni.
   { prefix: "/api/sessions", roles: ["sala", "cucina", "cassa", "supervisor", "magazzino", "staff", "bar", "pizzeria", "hotel_manager", "reception", "housekeeping", "owner", "super_admin"] },
   // Hardware: configurazione stampanti/display, riservata a owner e super_admin.

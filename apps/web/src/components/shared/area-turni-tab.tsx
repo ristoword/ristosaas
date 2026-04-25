@@ -22,7 +22,7 @@ export function AreaTurniTab({ area }: Props) {
 
   useEffect(() => {
     shiftPlansApi
-      .list(area)
+      .list({ area })
       .then(setShifts)
       .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento turni"))
       .finally(() => setLoading(false));

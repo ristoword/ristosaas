@@ -477,21 +477,56 @@ export const operationalNotesApi = {
   delete: (id: string) => del<{ deleted: boolean }>(`/operational-notes/${id}`),
 };
 
+export type ShiftPlanType = "lavoro" | "ferie" | "malattia" | "permesso" | "riposo";
+
 export type ShiftPlan = {
   id: string;
   area: string;
   day: string;
   staffName: string;
+  staffId: string | null;
+  startTime: string;
+  endTime: string;
   hours: string;
   role: string;
+  shiftType: ShiftPlanType;
+  notes: string;
   createdAt: string;
+  updatedAt: string;
+};
+
+export type ShiftPlanCreate = {
+  area?: string;
+  day: string;
+  staffName: string;
+  staffId?: string | null;
+  startTime?: string;
+  endTime?: string;
+  hours?: string;
+  role?: string;
+  shiftType?: ShiftPlanType;
+  notes?: string;
+};
+
+export type ShiftSyncResult = {
+  updated: Array<{ staffId: string; staffName: string; newStatus: string }>;
+  summary: { totalShifts: number; totalStaff: number };
 };
 
 export const shiftPlansApi = {
-  list: (area: string) => get<ShiftPlan[]>(`/shift-plans?area=${encodeURIComponent(area)}`),
-  create: (data: { area?: string; day: string; staffName: string; hours?: string; role?: string }) =>
-    post<ShiftPlan>("/shift-plans", data),
+  list: (params?: { area?: string; from?: string; to?: string; staffId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.area) qs.set("area", params.area);
+    if (params?.from) qs.set("from", params.from);
+    if (params?.to) qs.set("to", params.to);
+    if (params?.staffId) qs.set("staffId", params.staffId);
+    const q = qs.toString();
+    return get<ShiftPlan[]>(`/shift-plans${q ? `?${q}` : ""}`);
+  },
+  create: (data: ShiftPlanCreate) => post<ShiftPlan>("/shift-plans", data),
+  update: (id: string, data: Partial<ShiftPlanCreate>) => put<ShiftPlan>(`/shift-plans/${id}`, data),
   delete: (id: string) => del<{ deleted: boolean }>(`/shift-plans/${id}`),
+  sync: (from: string, to: string) => post<ShiftSyncResult>("/shift-plans/sync", { from, to }),
 };
 
 export type ArchivioFiscalStub = {
@@ -520,6 +555,37 @@ export const archivioFiscalStubsApi = {
     vatRateNote?: string;
     notes?: string;
   }) => post<ArchivioFiscalStub>("/archivio/fiscal-stubs", payload),
+};
+
+/* ─── Notifications ──────────────────────────────── */
+
+export type AppNotification = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  href: string;
+  read: boolean;
+  createdAt: string;
+};
+
+export type NotificationsResponse = {
+  items: AppNotification[];
+  unreadCount: number;
+};
+
+export const notificationsApi = {
+  list: (params?: { unread?: boolean; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.unread) qs.set("unread", "1");
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return get<NotificationsResponse>(`/notifications${q ? `?${q}` : ""}`);
+  },
+  create: (payload: { type?: string; title: string; message?: string; href?: string; userId?: string | null }) =>
+    post<AppNotification>("/notifications", payload),
+  markRead: (id: string) => patch<{ read: boolean }>(`/notifications/${id}/read`, {}),
+  markAllRead: () => patch<{ marked: number }>("/notifications/read-all", {}),
 };
 
 /* ─── HACCP ───────────────────────────────────────── */

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BedDouble, Bell, CalendarRange, CreditCard, DoorOpen, Sparkles, Users } from "lucide-react";
+import { BedDouble, Bell, CalendarClock, CalendarRange, CreditCard, DoorOpen, Sparkles, UserCheck, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
@@ -142,6 +142,39 @@ export function HotelDashboardPage() {
           </div>
         </Card>
       </div>
+      {/* Staff hotel section */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <Link href="/hotel/turni" className="group rounded-2xl border border-rw-line bg-rw-surfaceAlt p-5 transition hover:border-rw-accent/40 hover:bg-rw-surface">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rw-surface text-rw-accent ring-1 ring-rw-line group-hover:bg-rw-accent group-hover:text-white transition">
+              <CalendarClock className="h-5 w-5" />
+            </span>
+            <p className="font-semibold text-rw-ink">Turni Hotel</p>
+          </div>
+          <p className="text-sm text-rw-soft">Pianificazione settimanale e mensile: reception, housekeeping, front office, portineria e direzione.</p>
+        </Link>
+
+        <Link href="/hotel/staff" className="group rounded-2xl border border-rw-line bg-rw-surfaceAlt p-5 transition hover:border-rw-accent/40 hover:bg-rw-surface">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rw-surface text-rw-accent ring-1 ring-rw-line group-hover:bg-rw-accent group-hover:text-white transition">
+              <Users className="h-5 w-5" />
+            </span>
+            <p className="font-semibold text-rw-ink">Staff Hotel</p>
+          </div>
+          <p className="text-sm text-rw-soft">Gestione dipendenti: reception, concierge, housekeeping, portiere di notte, bellboy, direttore e altro.</p>
+        </Link>
+
+        <Link href="/hotel/staff-hr" className="group rounded-2xl border border-rw-line bg-rw-surfaceAlt p-5 transition hover:border-rw-accent/40 hover:bg-rw-surface">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rw-surface text-rw-accent ring-1 ring-rw-line group-hover:bg-rw-accent group-hover:text-white transition">
+              <UserCheck className="h-5 w-5" />
+            </span>
+            <p className="font-semibold text-rw-ink">HR Hotel</p>
+          </div>
+          <p className="text-sm text-rw-soft">Presenze, ore lavorate, prospetto ferie/malattia e costo personale alberghiero del mese.</p>
+        </Link>
+      </div>
+
       <AiChat context="hotel" open={aiOpen} onClose={() => setAiOpen(false)} title="AI Hotel Front Desk" />
     </div>
   );

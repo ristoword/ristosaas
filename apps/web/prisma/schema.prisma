@@ -247,6 +247,7 @@ model Tenant {
   supervisorStorni SupervisorStorno[]
   warehouseVoiceLogs WarehouseVoiceLog[]
   archivioFiscalStubs ArchivioFiscalStub[]
+  notifications       Notification[]
 }
 
 model BillingSubscription {
@@ -614,17 +615,26 @@ model OperationalNote {
 }
 
 model ShiftPlan {
-  id        String   @id @default(cuid())
-  tenantId  String
-  area      String   @default("cucina")
-  day       String
-  staffName String
-  hours     String   @default("")
-  role      String   @default("")
-  createdAt DateTime @default(now())
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id          String       @id @default(cuid())
+  tenantId    String
+  area        String       @default("cucina")
+  day         String
+  staffName   String
+  staffId     String?
+  startTime   String       @default("")
+  endTime     String       @default("")
+  hours       String       @default("")
+  role        String       @default("")
+  shiftType   String       @default("lavoro")
+  notes       String       @default("")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staffMember StaffMember? @relation(fields: [staffId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, area])
+  @@index([tenantId, day])
+  @@index([tenantId, staffId])
 }
 
 model WarehouseEquipment {
@@ -851,21 +861,22 @@ model DailyClosureReport {
 }
 
 model StaffMember {
-  id        String      @id @default(cuid())
-  tenantId  String
-  name      String
-  role      String
-  email     String
-  phone     String
-  hireDate  DateTime
-  salary    Decimal     @db.Decimal(10, 2)
-  status    StaffStatus
-  hoursWeek Int
-  notes     String
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  tenant    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  shifts    StaffShift[]
+  id         String      @id @default(cuid())
+  tenantId   String
+  name       String
+  role       String
+  email      String
+  phone      String
+  hireDate   DateTime
+  salary     Decimal     @db.Decimal(10, 2)
+  status     StaffStatus
+  hoursWeek  Int
+  notes      String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  shifts     StaffShift[]
+  shiftPlans ShiftPlan[]
 }
 
 model StaffShift {
@@ -1233,4 +1244,21 @@ model ArchivioFiscalStub {
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, kind, createdAt])
+}
+
+/// Notifiche in-app per gli utenti del tenant.
+model Notification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String?
+  type      String   @default("sistema")
+  title     String
+  message   String   @default("")
+  href      String   @default("")
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, read, createdAt])
+  @@index([tenantId, createdAt])
 }

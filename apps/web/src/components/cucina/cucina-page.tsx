@@ -1208,7 +1208,7 @@ function TurniTab() {
 
   useEffect(() => {
     shiftPlansApi
-      .list("cucina")
+      .list({ area: "cucina" })
       .then(setShifts)
       .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento turni"))
       .finally(() => setLoading(false));
