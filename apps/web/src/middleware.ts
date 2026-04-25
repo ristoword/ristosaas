@@ -12,6 +12,7 @@ const PUBLIC = [
   "/menu/",
   "/t/",
   "/r/",
+  "/clock",
   "/gestionale-ristorante-hotel-integrato",
   "/gestionale-ristorante",
   "/blog",

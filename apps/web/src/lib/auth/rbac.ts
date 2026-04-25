@@ -71,6 +71,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/kitchen", roles: ["cucina", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/menu", roles: ["cucina", "sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/warehouse", roles: ["magazzino", "cucina", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/staff/tokens", roles: ["sala", "cucina", "bar", "pizzeria", "cassa", "magazzino", "supervisor", "owner", "super_admin", "hotel_manager", "reception"] },
   { prefix: "/api/staff/shifts/clock", roles: ["staff", "sala", "cucina", "cassa", "bar", "pizzeria", "magazzino", "reception", "hotel_manager", "housekeeping", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/staff/shifts", roles: ["staff", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/staff", roles: ["staff", "supervisor", "owner", "super_admin"] },

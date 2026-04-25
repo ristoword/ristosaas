@@ -5,8 +5,10 @@ import {
   AlertTriangle,
   Clock,
   Edit,
+  ExternalLink,
   Loader2,
   Plus,
+  QrCode,
   Send,
   ToggleLeft,
   ToggleRight,
@@ -37,6 +39,119 @@ const inputCls =
 const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98]";
+
+function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin: string }) {
+  const [tokens, setTokens] = useState<Array<{ id: string; name: string; role: string; token: string }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
+
+  async function generate() {
+    if (staff.length === 0) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/staff/tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffIds: staff.map((s) => s.id) }),
+      });
+      const data = await res.json();
+      setTokens(data.tokens ?? []);
+      setGenerated(true);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }
+
+  const base = appOrigin || "";
+  const clockUrl = `${base}/clock`;
+  const nfcQrImg = clockUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(clockUrl)}` : "";
+
+  return (
+    <Card title="Badge QR & NFC" description="Genera i QR da stampare sui cartellini e il codice NFC per l'ingresso">
+      <div className="space-y-5">
+        {/* NFC Tag section */}
+        <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+          <div className="flex items-start gap-4">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border border-rw-line bg-white p-1.5">
+              {nfcQrImg
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={nfcQrImg} alt="QR NFC ingresso" className="h-full w-full" />
+                : <QrCode className="h-10 w-10 text-gray-300" />
+              }
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-rw-ink text-sm">🏷️ Etichetta NFC all&apos;ingresso</p>
+              <p className="text-xs text-rw-muted mt-1">
+                Programma un&apos;etichetta NFC con l&apos;URL: <span className="font-mono text-rw-accent break-all">{clockUrl}</span>
+              </p>
+              <p className="text-xs text-rw-muted mt-1">
+                Oppure stampa questo QR e posizionalo all&apos;ingresso. Il dipendente tocca l&apos;etichetta o inquadra il QR con il suo telefono (già loggato nell&apos;app).
+              </p>
+              <div className="flex gap-2 mt-3">
+                <a href={clockUrl} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surface px-3 py-1.5 text-xs font-semibold text-rw-ink hover:border-rw-accent/40 transition">
+                  <ExternalLink className="h-3.5 w-3.5" /> Anteprima pagina
+                </a>
+                <button type="button" onClick={async () => { await navigator.clipboard.writeText(clockUrl); }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surface px-3 py-1.5 text-xs font-semibold text-rw-muted hover:text-rw-ink transition">
+                  Copia URL NFC
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Individual QR badges */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-rw-ink">QR Badge individuali</p>
+              <p className="text-xs text-rw-muted">Un QR unico per ogni dipendente — funziona anche senza login</p>
+            </div>
+            <button type="button" onClick={() => void generate()} disabled={loading || staff.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-50 transition">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+              {generated ? "Rigenera" : "Genera badge"}
+            </button>
+          </div>
+
+          {generated && tokens.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+              {tokens.map((t) => {
+                const badgeUrl = `${base}/clock/badge/${t.token}`;
+                const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=6&data=${encodeURIComponent(badgeUrl)}`;
+                return (
+                  <div key={t.id} className="flex flex-col items-center gap-2 rounded-2xl border border-rw-line bg-rw-surface p-3 text-center print:break-inside-avoid">
+                    <div className="flex h-28 w-28 items-center justify-center rounded-xl border border-rw-line bg-white p-1.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qrImg} alt={`Badge ${t.name}`} className="h-full w-full" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-rw-ink leading-tight">{t.name}</p>
+                      <p className="text-xs text-rw-muted capitalize">{t.role}</p>
+                    </div>
+                    <a href={badgeUrl} target="_blank" rel="noreferrer"
+                      className="text-[10px] text-rw-accent hover:underline">
+                      Testa badge
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {generated && tokens.length > 0 && (
+            <div className="mt-3 flex justify-end">
+              <button type="button" onClick={() => window.print()}
+                className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-medium text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition">
+                🖨️ Stampa tutti i badge
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export function StaffPage() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -402,6 +517,8 @@ export function StaffPage() {
           >
             <DataTable columns={staffCols} data={staff} keyExtractor={(r) => r.id} emptyMessage="Nessun dipendente" />
           </Card>
+
+          <StaffBadgesCard staff={staff} appOrigin={typeof window !== "undefined" ? window.location.origin : ""} />
 
           <Card title="Timbrature reali" description="Login/logout personale persistente su DB.">
             <DataTable
