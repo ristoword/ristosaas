@@ -15,7 +15,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { cn } from "@/lib/utils";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
-import { aiOpsApi, haccpApi, shiftPlansApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry, type ShiftPlan } from "@/lib/api-client";
+import { aiOpsApi, haccpApi, roomServiceApi, shiftPlansApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry, type RoomServiceOrder, type ShiftPlan } from "@/lib/api-client";
 import { StockAlertBanner } from "@/components/shared/stock-alert-banner";
 import { LoadErrorBanner } from "@/components/shared/load-error-banner";
 
@@ -53,6 +53,7 @@ function minutesSince(iso: string) {
 
 const TABS = [
   { id: "comande", label: "Comande" },
+  { id: "room-service", label: "Room Service" },
   { id: "ricette", label: "Ricette" },
   { id: "piatti-giorno", label: "Piatti del Giorno" },
   { id: "haccp", label: "HACCP" },
@@ -1297,6 +1298,7 @@ export function CucinaPage() {
   const [activeTab, setActiveTab] = useState("comande");
   const [aiOpen, setAiOpen] = useState(false);
   const [aiSnapshot, setAiSnapshot] = useState<KitchenOperationalSnapshot | null>(null);
+  const [rsOrders, setRsOrders] = useState<RoomServiceOrder[]>([]);
 
   useEffect(() => {
     aiOpsApi
@@ -1304,6 +1306,14 @@ export function CucinaPage() {
       .then(setAiSnapshot)
       .catch((error) => console.error("Failed to fetch kitchen operational insights:", error));
   }, []);
+
+  useEffect(() => {
+    roomServiceApi.list({ category: "food" }).then(setRsOrders).catch(() => {});
+    const t = setInterval(() => roomServiceApi.list({ category: "food" }).then(setRsOrders).catch(() => {}), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  const rsActive = rsOrders.filter((o) => !["delivered", "cancelled"].includes(o.status));
 
   const kitchenOrders = getOrdersForArea("cucina");
 
@@ -1336,7 +1346,15 @@ export function CucinaPage() {
         <AiToggleButton onClick={() => setAiOpen(true)} label="AI Cucina" />
       </PageHeader>
 
-      <TabBar tabs={[...TABS]} active={activeTab} onChange={setActiveTab} />
+      <TabBar
+        tabs={[...TABS].map((t) =>
+          t.id === "room-service" && rsActive.length > 0
+            ? { ...t, label: `Room Service (${rsActive.length})` }
+            : t
+        )}
+        active={activeTab}
+        onChange={setActiveTab}
+      />
 
       <LoadErrorBanner message={loadError} />
       <StockAlertBanner alerts={stockAlerts} onClose={clearStockAlerts} />
@@ -1419,6 +1437,49 @@ export function CucinaPage() {
       {activeTab === "ricette" && <RicetteTab />}
       {activeTab === "piatti-giorno" && <PiattiGiornoTab />}
       {activeTab === "haccp" && <HaccpTab />}
+      {activeTab === "room-service" && (
+        <div className="space-y-4">
+          <Card title="Room Service — Ordini Food" description="Richieste di ristorazione in camera assegnate alla cucina">
+            {rsActive.length === 0 ? (
+              <p className="py-6 text-center text-sm text-rw-muted">Nessun ordine food room service in corso.</p>
+            ) : (
+              <div className="space-y-3">
+                {rsActive.map((o) => (
+                  <div key={o.id} className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-400">
+                          📍 Camera {o.roomCode}
+                        </span>
+                        <span className="text-sm font-semibold text-rw-ink">{o.guestName}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = o.status === "pending" ? "in_preparation" : o.status === "in_preparation" ? "out_for_delivery" : "delivered";
+                          roomServiceApi.update(o.id, { status: next as RoomServiceOrder["status"] })
+                            .then((updated) => setRsOrders((prev) => prev.map((r) => r.id === o.id ? updated : r)))
+                            .catch(() => {});
+                        }}
+                        className="flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/30 transition"
+                      >
+                        {o.status === "pending" ? "▶ Inizia" : o.status === "in_preparation" ? "🚀 Pronto" : "✓ Consegnato"}
+                      </button>
+                    </div>
+                    <div className="space-y-0.5">
+                      {(o.items as Array<{name: string; qty: number; unitPrice: number}>).map((it, i) => (
+                        <p key={i} className="text-xs text-rw-muted">{it.qty}× {it.name}</p>
+                      ))}
+                    </div>
+                    {o.notes && <p className="mt-2 text-xs text-rw-muted italic">"{o.notes}"</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
       {activeTab === "turni" && <TurniTab />}
 
       <AiChat context="cucina" open={aiOpen} onClose={() => setAiOpen(false)} title="AI Cucina" />

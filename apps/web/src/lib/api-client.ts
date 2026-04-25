@@ -557,6 +557,81 @@ export const archivioFiscalStubsApi = {
   }) => post<ArchivioFiscalStub>("/archivio/fiscal-stubs", payload),
 };
 
+/* ─── Room Service ───────────────────────────────── */
+
+export type RoomServiceCategory =
+  | "food" | "laundry" | "minibar" | "shoe_cleaning"
+  | "linen" | "amenities" | "transport" | "other";
+
+export type RoomServiceStatus =
+  | "pending" | "in_preparation" | "out_for_delivery" | "delivered" | "cancelled";
+
+export type RoomServiceItem = { name: string; qty: number; unitPrice: number; notes?: string };
+
+export type RoomServiceOrder = {
+  id: string;
+  roomCode: string;
+  guestName: string;
+  category: RoomServiceCategory;
+  status: RoomServiceStatus;
+  items: RoomServiceItem[];
+  total: number;
+  notes: string;
+  assignedTo: string | null;
+  stayId: string | null;
+  folioId: string | null;
+  chargedToFolio: boolean;
+  folioChargeId: string | null;
+  requestedAt: string;
+  deliveredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RoomServiceCatalogItem = {
+  id: string;
+  name: string;
+  category: RoomServiceCategory;
+  unitPrice: number;
+  unit: string;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const roomServiceApi = {
+  list: (params?: { status?: RoomServiceStatus; category?: RoomServiceCategory; roomCode?: string; assignedTo?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.category) qs.set("category", params.category);
+    if (params?.roomCode) qs.set("roomCode", params.roomCode);
+    if (params?.assignedTo) qs.set("assignedTo", params.assignedTo);
+    const q = qs.toString();
+    return get<RoomServiceOrder[]>(`/hotel/room-service${q ? `?${q}` : ""}`);
+  },
+  create: (data: {
+    roomCode: string; guestName: string; category: RoomServiceCategory;
+    items: RoomServiceItem[]; notes?: string; assignedTo?: string; stayId?: string;
+  }) => post<RoomServiceOrder>("/hotel/room-service", data),
+  update: (id: string, data: { status?: RoomServiceStatus; assignedTo?: string | null; notes?: string }) =>
+    put<RoomServiceOrder>(`/hotel/room-service/${id}`, data),
+  delete: (id: string) => del<{ deleted: boolean }>(`/hotel/room-service/${id}`),
+  charge: (id: string) => post<{ charge: { id: string; amount: number; description: string; postedAt: string } }>(`/hotel/room-service/${id}/charge`, {}),
+  listCatalog: (params?: { category?: RoomServiceCategory; active?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.category) qs.set("category", params.category);
+    if (params?.active === false) qs.set("active", "0");
+    const q = qs.toString();
+    return get<RoomServiceCatalogItem[]>(`/hotel/room-service/catalog${q ? `?${q}` : ""}`);
+  },
+  createCatalogItem: (data: { name: string; category: RoomServiceCategory; unitPrice: number; unit?: string; sortOrder?: number }) =>
+    post<RoomServiceCatalogItem>("/hotel/room-service/catalog", data),
+  updateCatalogItem: (id: string, data: { name?: string; unitPrice?: number; unit?: string; active?: boolean; sortOrder?: number }) =>
+    put<RoomServiceCatalogItem>(`/hotel/room-service/catalog/${id}`, data),
+  deleteCatalogItem: (id: string) => del<{ deleted: boolean }>(`/hotel/room-service/catalog/${id}`),
+};
+
 /* ─── Notifications ──────────────────────────────── */
 
 export type AppNotification = {

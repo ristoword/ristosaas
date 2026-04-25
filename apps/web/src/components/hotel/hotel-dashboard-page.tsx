@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BedDouble, Bell, CalendarClock, CalendarRange, CreditCard, DoorOpen, Sparkles, UserCheck, Users } from "lucide-react";
+import { BedDouble, Bell, CalendarClock, CalendarRange, ConciergeBell, CreditCard, DoorOpen, Sparkles, UserCheck, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
@@ -142,6 +142,17 @@ export function HotelDashboardPage() {
           </div>
         </Card>
       </div>
+      {/* Room Service card */}
+      <Link href="/hotel/room-service" className="group rounded-2xl border border-rw-line bg-rw-surfaceAlt p-5 transition hover:border-rw-accent/40 hover:bg-rw-surface">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rw-surface text-rw-accent ring-1 ring-rw-line group-hover:bg-rw-accent group-hover:text-white transition">
+            <ConciergeBell className="h-5 w-5" />
+          </span>
+          <p className="font-semibold text-rw-ink">Room Service</p>
+        </div>
+        <p className="text-sm text-rw-soft">Food in camera, lavanderia, minibar, pulizia scarpe e servizi extra. Addebito diretto al folio ospite.</p>
+      </Link>
+
       {/* Staff hotel section */}
       <div className="grid gap-6 md:grid-cols-3">
         <Link href="/hotel/turni" className="group rounded-2xl border border-rw-line bg-rw-surfaceAlt p-5 transition hover:border-rw-accent/40 hover:bg-rw-surface">

@@ -150,6 +150,26 @@ enum FolioChargeSource {
   city_tax
   payment
   meal_plan_credit
+  room_service
+}
+
+enum RoomServiceCategory {
+  food
+  laundry
+  minibar
+  shoe_cleaning
+  linen
+  amenities
+  transport
+  other
+}
+
+enum RoomServiceStatus {
+  pending
+  in_preparation
+  out_for_delivery
+  delivered
+  cancelled
 }
 
 enum KeycardStatus {
@@ -246,8 +266,10 @@ model Tenant {
   printRoutes PrintRoute[]
   supervisorStorni SupervisorStorno[]
   warehouseVoiceLogs WarehouseVoiceLog[]
-  archivioFiscalStubs ArchivioFiscalStub[]
-  notifications       Notification[]
+  archivioFiscalStubs      ArchivioFiscalStub[]
+  notifications            Notification[]
+  roomServiceOrders        RoomServiceOrder[]
+  roomServiceCatalogItems  RoomServiceCatalogItem[]
 }
 
 model BillingSubscription {
@@ -1261,4 +1283,49 @@ model Notification {
 
   @@index([tenantId, userId, read, createdAt])
   @@index([tenantId, createdAt])
+}
+
+/// Catalogo voci del servizio in camera (configurabile dall'hotel manager).
+model RoomServiceCatalogItem {
+  id         String              @id @default(cuid())
+  tenantId   String
+  name       String
+  category   RoomServiceCategory
+  unitPrice  Decimal             @db.Decimal(10, 2)
+  unit       String              @default("pz")
+  active     Boolean             @default(true)
+  sortOrder  Int                 @default(0)
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, category])
+  @@index([tenantId, active])
+}
+
+/// Ordine di servizio in camera: food, lavanderia, minibar, pulizia scarpe, ecc.
+model RoomServiceOrder {
+  id             String              @id @default(cuid())
+  tenantId       String
+  stayId         String?
+  folioId        String?
+  roomCode       String
+  guestName      String
+  category       RoomServiceCategory
+  status         RoomServiceStatus   @default(pending)
+  items          Json
+  total          Decimal             @db.Decimal(10, 2)
+  notes          String              @default("")
+  assignedTo     String?
+  requestedAt    DateTime            @default(now())
+  deliveredAt    DateTime?
+  chargedToFolio Boolean             @default(false)
+  folioChargeId  String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  tenant         Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, requestedAt])
+  @@index([tenantId, roomCode])
+  @@index([tenantId, assignedTo, status])
 }

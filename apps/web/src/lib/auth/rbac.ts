@@ -86,6 +86,9 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/operational-notes", roles: ["cucina", "pizzeria", "bar", "sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans/sync", roles: ["supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] },
+  // Room Service hotel: addebito e catalogo solo a hotel_manager+; lettura/creazione a tutto lo staff hotel.
+  { prefix: "/api/hotel/room-service/catalog", roles: ["hotel_manager", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/hotel/room-service", roles: ["staff", "reception", "housekeeping", "hotel_manager", "supervisor", "owner", "super_admin"] },
   // Notifiche: tutti gli utenti autenticati possono leggere e marcare le proprie notifiche.
   { prefix: "/api/notifications", roles: ["sala", "cucina", "bar", "pizzeria", "cassa", "magazzino", "staff", "supervisor", "owner", "super_admin", "hotel_manager", "reception", "housekeeping"] },
   // Tutti gli utenti autenticati possono gestire le proprie sessioni.
