@@ -1,5 +1,14 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getJwtSecret } from "@/lib/auth/constants";
+
+function getQrSecret(): string {
+  // QR_SECRET is independent from JWT_SECRET so rotating sessions doesn't break printed QR codes.
+  // Falls back to JWT_SECRET if not set (backward compatible).
+  const qr = process.env.QR_SECRET?.trim();
+  if (qr && qr.length >= 16) return qr;
+  const jwt = process.env.JWT_SECRET?.trim();
+  if (jwt && jwt.length >= 16) return jwt;
+  return "ristosaas-qr-fallback-secret-v1";
+}
 
 /**
  * Deterministic signed token for public per-room URLs (hotel room service).
@@ -19,7 +28,7 @@ function fromBase64Url(input: string): Buffer {
 }
 
 function shortHmac(payload: string): string {
-  return createHmac("sha256", getJwtSecret()).update(`room:${payload}`).digest("base64").slice(0, 16);
+  return createHmac("sha256", getQrSecret()).update(`room:${payload}`).digest("base64").slice(0, 16);
 }
 
 export function createRoomToken(params: { tenantId: string; roomCode: string }): string {

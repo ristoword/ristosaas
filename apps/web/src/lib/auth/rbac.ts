@@ -21,6 +21,7 @@ export const PUBLIC_API_PREFIXES = [
   "/api/public/table",
   "/api/public/room",
   "/api/public/room-service",
+  "/api/public/qr-test",
   "/api/auth/session-valid",
   "/api/auth/license-valid",
   "/api/auth/entitlements-valid",

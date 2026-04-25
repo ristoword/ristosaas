@@ -1,13 +1,20 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { getJwtSecret } from "@/lib/auth/constants";
 
 /**
  * Deterministic signed token for public per-table URLs.
  *
- * Format: `${tenantId}.${tableId}.${shortHmac}` base64url-encoded.
- * Stable: same table always yields the same token (safe to print once on the
- * physical QR). The secret is `JWT_SECRET`, already required to be strong.
+ * Uses QR_SECRET (independent from JWT_SECRET) so rotating session secrets
+ * does not invalidate printed QR codes. Falls back to JWT_SECRET if QR_SECRET
+ * is not configured, and to a hard-coded fallback in development.
  */
+
+function getQrSecret(): string {
+  const qr = process.env.QR_SECRET?.trim();
+  if (qr && qr.length >= 16) return qr;
+  const jwt = process.env.JWT_SECRET?.trim();
+  if (jwt && jwt.length >= 16) return jwt;
+  return "ristosaas-qr-fallback-secret-v1";
+}
 
 function toBase64Url(buf: Buffer) {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -19,7 +26,7 @@ function fromBase64Url(input: string): Buffer {
 }
 
 function shortHmac(payload: string): string {
-  return createHmac("sha256", getJwtSecret()).update(`table:${payload}`).digest("base64").slice(0, 16);
+  return createHmac("sha256", getQrSecret()).update(`table:${payload}`).digest("base64").slice(0, 16);
 }
 
 export function createTableToken(params: { tenantId: string; tableId: string }): string {
