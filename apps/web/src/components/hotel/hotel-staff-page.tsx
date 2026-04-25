@@ -4,10 +4,12 @@ import { useEffect, useState } from "react";
 import {
   Clock,
   Edit,
+  ExternalLink,
   Loader2,
   LogIn,
   LogOut,
   Plus,
+  QrCode,
   ToggleLeft,
   ToggleRight,
   Users,
@@ -77,6 +79,119 @@ const btnGhost =
   "inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-xs font-medium text-rw-muted hover:text-rw-ink hover:bg-rw-surfaceAlt transition";
 
 /* ─── Component ──────────────────────────────────── */
+
+function HotelBadgesCard({ staff }: { staff: StaffMember[] }) {
+  const [tokens, setTokens] = useState<Array<{ id: string; name: string; role: string; token: string }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [generated, setGenerated] = useState(false);
+  const [appOrigin, setAppOrigin] = useState("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") setAppOrigin(window.location.origin);
+  }, []);
+
+  async function generate() {
+    if (staff.length === 0) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/staff/tokens", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffIds: staff.map((s) => s.id) }),
+      });
+      const data = await res.json();
+      setTokens(data.tokens ?? []);
+      setGenerated(true);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }
+
+  const clockUrl = `${appOrigin}/clock`;
+  const nfcQrImg = appOrigin ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(clockUrl)}` : "";
+
+  return (
+    <Card title="Badge QR & NFC Hotel" description="Sistema timbratura per il personale alberghiero — stesso tag NFC del ristorante">
+      <div className="space-y-5">
+        {/* NFC Tag */}
+        <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+          <div className="flex items-start gap-4">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-xl border border-rw-line bg-white p-1.5">
+              {nfcQrImg
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={nfcQrImg} alt="NFC hotel" className="h-full w-full" />
+                : <QrCode className="h-10 w-10 text-gray-300" />
+              }
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-rw-ink text-sm">🏷️ Tag NFC ingresso hotel</p>
+              <p className="text-xs text-rw-muted mt-1">
+                Stesso tag del ristorante — URL: <span className="font-mono text-rw-accent break-all">{clockUrl}</span>
+              </p>
+              <p className="text-xs text-rw-muted mt-1">
+                Il dipendente avvicina il telefono (già loggato nell&apos;app) → timbra automaticamente.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <a href={clockUrl} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surface px-3 py-1.5 text-xs font-semibold text-rw-ink hover:border-rw-accent/40 transition">
+                  <ExternalLink className="h-3.5 w-3.5" /> Anteprima
+                </a>
+                <button type="button" onClick={async () => { await navigator.clipboard.writeText(clockUrl); }}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surface px-3 py-1.5 text-xs font-semibold text-rw-muted hover:text-rw-ink transition">
+                  Copia URL NFC
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Individual QR badges */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-sm font-semibold text-rw-ink">QR Badge individuali</p>
+              <p className="text-xs text-rw-muted">Un QR per ogni dipendente hotel — funziona senza login su tablet fisso</p>
+            </div>
+            <button type="button" onClick={() => void generate()} disabled={loading || staff.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-50 transition">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+              {generated ? "Rigenera" : "Genera badge"}
+            </button>
+          </div>
+
+          {generated && tokens.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+              {tokens.map((t) => {
+                const badgeUrl = `${appOrigin}/clock/badge/${t.token}`;
+                const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=6&data=${encodeURIComponent(badgeUrl)}`;
+                return (
+                  <div key={t.id} className="flex flex-col items-center gap-2 rounded-2xl border border-rw-line bg-rw-surface p-3 text-center">
+                    <div className="flex h-28 w-28 items-center justify-center rounded-xl border border-rw-line bg-white p-1.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qrImg} alt={`Badge ${t.name}`} className="h-full w-full" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-rw-ink leading-tight">{t.name}</p>
+                      <p className="text-xs text-rw-muted">{hotelRoleLabel(t.role)}</p>
+                    </div>
+                    <a href={badgeUrl} target="_blank" rel="noreferrer" className="text-[10px] text-rw-accent hover:underline">Testa badge</a>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {generated && tokens.length > 0 && (
+            <div className="mt-3 flex justify-end">
+              <button type="button" onClick={() => window.print()}
+                className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-medium text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition">
+                🖨️ Stampa tutti i badge
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+}
 
 export function HotelStaffPage() {
   const [staff, setStaff] = useState<StaffMember[]>([]);
@@ -342,6 +457,9 @@ export function HotelStaffPage() {
           )}
         </Card>
       )}
+
+      {/* Badge QR & NFC */}
+      {!loading && <HotelBadgesCard staff={hotelStaff} />}
 
       {/* Today's timbrature */}
       {!loading && shifts.length > 0 && (
