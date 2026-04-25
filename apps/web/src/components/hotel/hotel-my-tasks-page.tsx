@@ -159,7 +159,7 @@ export function HotelMyTasksPage() {
                   ))}
                 </div>
 
-                {order.notes && <p className="text-xs text-rw-muted italic pl-13">"{order.notes}"</p>}
+                {order.notes && <p className="text-xs text-rw-muted italic pl-13">&quot;{order.notes}&quot;</p>}
 
                 <div className="flex items-center justify-between text-[11px] text-rw-muted pl-13">
                   <span>Richiesto alle {new Date(order.requestedAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</span>

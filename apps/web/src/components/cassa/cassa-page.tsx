@@ -98,7 +98,7 @@ function PayOnlineButton({ total, tableLabel }: { total: number; tableLabel: str
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={qrImg} alt="QR pagamento" className="h-full w-full object-contain" />
             </div>
-            <p className="text-xs text-rw-muted mb-4">L'ospite scansiona e paga con carta. Il link scade automaticamente.</p>
+            <p className="text-xs text-rw-muted mb-4">L&apos;ospite scansiona e paga con carta. Il link scade automaticamente.</p>
             <div className="flex gap-2">
               <button type="button" onClick={async () => { await navigator.clipboard.writeText(qrUrl); }}
                 className="flex-1 rounded-xl border border-rw-line py-2 text-xs font-semibold text-rw-muted hover:bg-rw-surfaceAlt">Copia link</button>

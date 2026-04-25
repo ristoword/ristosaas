@@ -293,7 +293,7 @@ function OrderCard({ order, canManage, canCharge, onStatusChange, onCharge, onDe
         ))}
       </div>
 
-      {order.notes && <p className="text-xs text-rw-muted italic">"{order.notes}"</p>}
+      {order.notes && <p className="text-xs text-rw-muted italic">&quot;{order.notes}&quot;</p>}
 
       <div className="flex items-center justify-between text-[11px] text-rw-muted">
         <span>{new Date(order.requestedAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</span>

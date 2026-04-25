@@ -1471,7 +1471,7 @@ export function CucinaPage() {
                         <p key={i} className="text-xs text-rw-muted">{it.qty}× {it.name}</p>
                       ))}
                     </div>
-                    {o.notes && <p className="mt-2 text-xs text-rw-muted italic">"{o.notes}"</p>}
+                    {o.notes && <p className="mt-2 text-xs text-rw-muted italic">&quot;{o.notes}&quot;</p>}
                   </div>
                 ))}
               </div>

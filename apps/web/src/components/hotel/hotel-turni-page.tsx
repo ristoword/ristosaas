@@ -390,6 +390,8 @@ const tabs = [
   { id: "riepilogo", label: "Riepilogo" },
 ];
 
+const HOTEL_AREA_VALUES = new Set<string>(HOTEL_AREAS.filter((a) => a.value !== "Tutte").map((a) => a.value));
+
 export function HotelTurniPage() {
   const { user } = useAuth();
   const canEdit = !user?.role || !["housekeeping", "reception", "staff"].includes(user.role);
@@ -416,8 +418,6 @@ export function HotelTurniPage() {
   const monthFrom = `${monthYear.year}-${String(monthYear.month + 1).padStart(2, "0")}-01`;
   const monthTo = toIso(new Date(monthYear.year, monthYear.month + 1, 0));
 
-  const hotelAreaValues = new Set<string>(HOTEL_AREAS.filter((a) => a.value !== "Tutte").map((a) => a.value));
-
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
@@ -425,7 +425,7 @@ export function HotelTurniPage() {
         shiftPlansApi.list({ from: monthFrom, to: monthTo }),
         staffApi.list(),
       ]);
-      setPlans(planRows.filter((p) => hotelAreaValues.has(p.area) || isHotelRole(p.area)));
+      setPlans(planRows.filter((p) => HOTEL_AREA_VALUES.has(p.area) || isHotelRole(p.area)));
       setAllStaff(staffRows);
     } catch (e) { setError(e instanceof Error ? e.message : "Errore caricamento"); }
     finally { setLoading(false); }
