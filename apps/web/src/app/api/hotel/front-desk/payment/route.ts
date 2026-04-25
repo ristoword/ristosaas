@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
 
   return ok({
     folio: mapFolio(updatedFolio),
-    charges: charges.map(mapCharge),
+    charges: charges.map((c) => mapCharge(c)),
     balance: nextBalance,
   });
 }

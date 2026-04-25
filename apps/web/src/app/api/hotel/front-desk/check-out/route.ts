@@ -398,7 +398,7 @@ export async function POST(req: NextRequest) {
         keycards: keycards.map(mapCard),
         folio: {
           folio: mapFolio(closedFolio),
-          charges: charges.map(mapCharge),
+          charges: charges.map((c) => mapCharge(c)),
           settlement: lastPayment ? mapCharge(lastPayment) : null,
         },
       };

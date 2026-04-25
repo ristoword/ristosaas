@@ -11,7 +11,7 @@ export type GuestFolio = {
   reservationId?: string | null;
 };
 
-export type FolioChargeSource = "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit";
+export type FolioChargeSource = "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit" | "room_service";
 
 export type FolioCharge = {
   id: string;

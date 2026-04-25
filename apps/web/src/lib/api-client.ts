@@ -900,7 +900,7 @@ export type HotelStay = { id: string; reservationId: string; roomId: string; act
 export type HousekeepingTask = { id: string; roomId: string; assignedTo: string; status: "todo" | "in_progress" | "done"; scheduledFor: string; inspected: boolean };
 export type HotelKeycard = { id: string; roomId: string; reservationId: string; validFrom: string; validUntil: string; status: "attiva" | "scaduta" | "annullata"; issuedBy: string };
 export type GuestFolio = { id: string; tenantId: string; customerId: string; stayId: string | null; currency: string; balance: number; status: "open" | "closed"; guestName?: string | null; roomCode?: string | null; reservationId?: string | null };
-export type FolioCharge = { id: string; folioId: string; source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit"; sourceId: string | null; description: string; amount: number; postedAt: string };
+export type FolioCharge = { id: string; folioId: string; source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit" | "room_service"; sourceId: string | null; description: string; amount: number; postedAt: string };
 
 /** Pagamento manuale reception (checkout hotel, senza Stripe). */
 export type HotelManualPaymentMethod =

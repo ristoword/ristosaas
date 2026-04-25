@@ -78,7 +78,7 @@ export const guestFolioRepository = {
         },
       },
     });
-    return rows.map(mapFolio);
+    return rows.map((r) => mapFolio(r));
   },
   async allCharges(tenantId: string) {
     const rows = await prisma.folioCharge.findMany({
@@ -89,6 +89,6 @@ export const guestFolioRepository = {
       },
       orderBy: { postedAt: "desc" },
     });
-    return rows.map(mapCharge);
+    return rows.map((r) => mapCharge(r));
   },
 };

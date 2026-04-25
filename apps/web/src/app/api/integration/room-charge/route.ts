@@ -146,6 +146,6 @@ export async function POST(req: NextRequest) {
   return ok({
     folio: mapFolio(updatedFolio),
     charge: mapCharge(charge),
-    credits: credits.map(mapCharge),
+    credits: credits.map((c) => mapCharge(c)),
   });
 }
