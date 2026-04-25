@@ -16,6 +16,8 @@ import { cn } from "@/lib/utils";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
 import { aiOpsApi, haccpApi, shiftPlansApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry, type ShiftPlan } from "@/lib/api-client";
+import { StockAlertBanner } from "@/components/shared/stock-alert-banner";
+import { LoadErrorBanner } from "@/components/shared/load-error-banner";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -254,11 +256,15 @@ function RicetteTab() {
   };
   const [editRecipe, setEditRecipe] = useState<RecipeQuickEdit | null>(null);
   const [editIngredients, setEditIngredients] = useState<RecipeIngredient[]>([]);
+  const [editSteps, setEditSteps] = useState<RecipeStep[]>([]);
   const [editRecipeSaving, setEditRecipeSaving] = useState(false);
   const [editRecipeError, setEditRecipeError] = useState<string | null>(null);
 
   const emptyEditIng = (): RecipeIngredient => ({
     id: `ei-${Date.now()}-${Math.random()}`, name: "", qty: 0, unit: "kg", unitCost: 0, wastePct: 0,
+  });
+  const emptyEditStep = (): RecipeStep => ({
+    id: `es-${Date.now()}-${Math.random()}`, order: editSteps.length + 1, text: "",
   });
 
   function updateEditIng(idx: number, field: keyof RecipeIngredient, value: string | number) {
@@ -266,6 +272,12 @@ function RicetteTab() {
   }
   function removeEditIng(idx: number) {
     setEditIngredients((p) => p.filter((_, i) => i !== idx));
+  }
+  function updateEditStep(idx: number, text: string) {
+    setEditSteps((p) => p.map((s, i) => (i === idx ? { ...s, text } : s)));
+  }
+  function removeEditStep(idx: number) {
+    setEditSteps((p) => p.filter((_, i) => i !== idx).map((s, i) => ({ ...s, order: i + 1 })));
   }
 
   const draftRecipe = {
@@ -328,6 +340,7 @@ function RicetteTab() {
       targetFcPct: r.targetFcPct, notes: r.notes,
     });
     setEditIngredients(r.ingredients.length > 0 ? r.ingredients.map((i) => ({ ...i })) : [emptyEditIng()]);
+    setEditSteps(r.steps.length > 0 ? r.steps.map((s) => ({ ...s })) : []);
     setEditRecipeError(null);
   }
 
@@ -337,6 +350,7 @@ function RicetteTab() {
     setEditRecipeError(null);
     try {
       const cleanIngs = editIngredients.filter((i) => i.name.trim());
+      const cleanSteps = editSteps.filter((s) => s.text.trim()).map((s, idx) => ({ ...s, order: idx + 1 }));
       await updateRecipe(editRecipe.id, {
         name: editRecipe.name,
         category: editRecipe.category,
@@ -346,6 +360,7 @@ function RicetteTab() {
         targetFcPct: editRecipe.targetFcPct,
         notes: editRecipe.notes,
         ingredients: cleanIngs,
+        steps: cleanSteps,
       });
       showFlash(`Ricetta "${editRecipe.name}" aggiornata.`);
       setEditRecipe(null);
@@ -721,6 +736,33 @@ function RicetteTab() {
               </div>
               <button type="button" onClick={() => setEditIngredients((p) => [...p, emptyEditIng()])} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rw-accent hover:text-rw-accentSoft">
                 <Plus className="h-3.5 w-3.5" /> Aggiungi ingrediente
+              </button>
+            </div>
+
+            {/* Passaggi */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">Procedimento (passaggi)</p>
+              <div className="space-y-2">
+                {editSteps.map((step, idx) => (
+                  <div key={step.id} className="flex items-start gap-2">
+                    <span className="mt-2.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rw-accent/15 text-xs font-bold text-rw-accent">
+                      {idx + 1}
+                    </span>
+                    <textarea
+                      value={step.text}
+                      onChange={(e) => updateEditStep(idx, e.target.value)}
+                      placeholder={`Passaggio ${idx + 1}…`}
+                      rows={2}
+                      className={cn(inputCls, "flex-1 resize-y")}
+                    />
+                    <button type="button" onClick={() => removeEditStep(idx)} className="mt-2 text-red-400 hover:text-red-300">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={() => setEditSteps((p) => [...p, { id: `es-${Date.now()}`, order: p.length + 1, text: "" }])} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rw-accent hover:text-rw-accentSoft">
+                <Plus className="h-3.5 w-3.5" /> Aggiungi passaggio
               </button>
             </div>
 
@@ -1251,7 +1293,7 @@ function TurniTab() {
 /* ------------------------------------------------------------------ */
 
 export function CucinaPage() {
-  const { getOrdersForArea, patchStatus } = useOrders();
+  const { getOrdersForArea, patchStatus, stockAlerts, clearStockAlerts, loadError } = useOrders();
   const [activeTab, setActiveTab] = useState("comande");
   const [aiOpen, setAiOpen] = useState(false);
   const [aiSnapshot, setAiSnapshot] = useState<KitchenOperationalSnapshot | null>(null);
@@ -1295,6 +1337,9 @@ export function CucinaPage() {
       </PageHeader>
 
       <TabBar tabs={[...TABS]} active={activeTab} onChange={setActiveTab} />
+
+      <LoadErrorBanner message={loadError} />
+      <StockAlertBanner alerts={stockAlerts} onClose={clearStockAlerts} />
 
       {activeTab === "comande" && (
         <div className="space-y-4">

@@ -1,5 +1,5 @@
 # STATO PROGETTO — RistoSaaS
-**Ultimo aggiornamento:** Venerdì 24 Aprile 2026 — 17:14
+**Ultimo aggiornamento:** Venerdì 24 Aprile 2026 — 17:30
 
 ---
 
@@ -67,41 +67,20 @@
 
 ---
 
-## 🟡 DA FARE — Priorità media
+## 🟡 DA FARE — Priorità media (residui)
 
-### 1. Polling ordini KDS
-Le schermate cucina/pizzeria/bar **non si aggiornano automaticamente** quando sala manda una nuova comanda. Bisogna ricaricare la pagina.
-- **Cosa manca:** polling `ordersApi.list()` ogni 15-20s in `OrdersProvider` (come già fatto per magazzino)
-- **File:** `src/components/orders/orders-context.tsx`
-- **Impatto:** operativo — i cuochi devono ricaricare per vedere nuove comande
-
-### 2. Alert stock visibile nelle schermate operative
-Quando uno scarico manda un ingrediente sotto scorta minima, l'alert è nella risposta API (`discharge.alerts`) ma non viene mostrato a cucina/pizzeria/bar.
-- **Cosa manca:** leggere `discharge.alerts` da `patchStatus` e mostrare un toast/banner nella schermata operativa
-- **File:** `src/components/orders/orders-context.tsx` + cucina/pizzeria/bar pages
-- **Impatto:** operativo — nessuno sa che un ingrediente è esaurito
-
-### 3. Feedback errore visibile (context vuoti)
-Se il DB è irraggiungibile, sala/cucina/magazzino mostrano pagine vuote senza messaggio.
-- **Cosa manca:** stato `error: string | null` nei context (ordini, menu, magazzino) + banner errore in UI
-- **File:** tutti e 3 i context + layout dashboard
-- **Impatto:** UX — l'utente non capisce cosa sta succedendo
+### 1. Aggiornamento automatico menu pubblico QR
+Il menu QR non si aggiorna se i piatti cambiano senza ricaricare la pagina cliente.
+- **Cosa manca:** revalidation Next.js o polling client sul menu pubblico
 
 ---
 
-## 🟢 DA FARE — Priorità bassa / futura
-
-### 4. Modifica passi ricetta (steps)
-La modal modifica ricetta ha gli ingredienti ma **non i passaggi** (steps). Modificabili solo ricreando la ricetta.
-- **Cosa manca:** aggiungere tabella steps alla modal di modifica
-
-### 5. Aggiornamento automatico menu pubblico QR
-Il menu QR non si aggiorna se i piatti cambiano senza ricaricare.
-- **Cosa manca:** revalidation Next.js o polling client
-
-### 6. Turni per pizzeria e bar
-`ShiftPlan` supporta già `area`, ma l'UI esiste solo per cucina.
-- **Cosa manca:** aggiungere tab "Turni" in pizzeria-page e bar-page (5 min)
+## ✅ DA FARE → COMPLETATO (chiuso 24/04/2026)
+- [x] Polling ordini KDS ogni 20s — `OrdersProvider` (cucina/pizzeria/bar vedono nuove comande automaticamente)
+- [x] Alert stock visibile — banner rosso in cucina/pizzeria/bar dopo scarico automatico (auto-clear 15s)
+- [x] Feedback errore DB — `LoadErrorBanner` su tutti e 3 i context (ordini/menu/magazzino)
+- [x] Modifica passaggi (steps) ricetta — aggiunto nella modal di modifica ricetta
+- [x] Turni pizzeria e bar — tab "Turni" con `AreaTurniTab` condiviso (infrastruttura DB già pronta)
 
 ---
 

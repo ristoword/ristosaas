@@ -5,6 +5,9 @@ import { Loader2, Mic, Trash2 } from "lucide-react";
 import { useOrders } from "@/components/orders/orders-context";
 import type { CourseStatus, Order } from "@/components/orders/types";
 import { operationalNotesApi, type OperationalNote } from "@/lib/api-client";
+import { StockAlertBanner } from "@/components/shared/stock-alert-banner";
+import { LoadErrorBanner } from "@/components/shared/load-error-banner";
+import { AreaTurniTab } from "@/components/shared/area-turni-tab";
 import { PageHeader } from "@/components/shared/page-header";
 import { TabBar } from "@/components/shared/tab-bar";
 import { KdsColumn } from "@/components/shared/kds-column";
@@ -54,6 +57,7 @@ const TABS = [
   { id: "comande", label: "Comande" },
   { id: "ricette", label: "Ricette pizza" },
   { id: "note", label: "Note vocali" },
+  { id: "turni", label: "Turni" },
 ] as const;
 
 /* ------------------------------------------------------------------ */
@@ -249,7 +253,7 @@ function classifyByAreaState(orders: Order[], area: string) {
 }
 
 export function PizzeriaPage() {
-  const { getOrdersForArea, patchStatus } = useOrders();
+  const { getOrdersForArea, patchStatus, stockAlerts, clearStockAlerts, loadError } = useOrders();
   const [activeTab, setActiveTab] = useState("comande");
 
   const pizzeriaOrders = getOrdersForArea("pizzeria");
@@ -267,6 +271,9 @@ export function PizzeriaPage() {
       </PageHeader>
 
       <TabBar tabs={[...TABS]} active={activeTab} onChange={setActiveTab} />
+
+      <LoadErrorBanner message={loadError} />
+      <StockAlertBanner alerts={stockAlerts} onClose={clearStockAlerts} />
 
       {activeTab === "comande" && (
         <div className="grid gap-4 lg:grid-cols-3">
@@ -322,6 +329,7 @@ export function PizzeriaPage() {
         />
       )}
       {activeTab === "note" && <NoteVocaliTab />}
+      {activeTab === "turni" && <AreaTurniTab area={AREA} />}
     </div>
   );
 }

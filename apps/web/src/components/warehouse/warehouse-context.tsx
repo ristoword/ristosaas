@@ -16,6 +16,7 @@ type WarehouseContextValue = {
   movements: StockMovement[];
   dischargeLogs: DishCostReport[];
   loading: boolean;
+  loadError: string | null;
   addStock: (item: Omit<StockItem, "id">) => Promise<void>;
   loadStock: (productId: string, qty: number, reason?: string) => Promise<void>;
   dischargeForOrder: (orderId: string, items: { name: string; qty: number; ingredients: { name: string; qty: number; unit: string; costPerUnit: number }[] }[]) => DishCostReport[];
@@ -39,6 +40,7 @@ export function WarehouseProvider({ children }: { children: React.ReactNode }) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [dischargeLogs, setDischargeLogs] = useState<DishCostReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -46,8 +48,11 @@ export function WarehouseProvider({ children }: { children: React.ReactNode }) {
       const [stockData, movData] = await Promise.all([warehouseApi.list(), warehouseApi.movements()]);
       setStock(stockData.items);
       setMovements(movData);
+      setLoadError(null);
     } catch (e) {
-      console.error("WarehouseProvider refresh:", e instanceof Error ? e.message : e);
+      const msg = e instanceof Error ? e.message : "Errore caricamento magazzino";
+      console.error("WarehouseProvider refresh:", msg);
+      setLoadError(msg);
     } finally {
       setLoading(false);
     }
@@ -112,7 +117,7 @@ export function WarehouseProvider({ children }: { children: React.ReactNode }) {
   const totalStockValue = useCallback(() => stock.reduce((s, i) => s + (i.totalQty ?? i.qty) * i.costPerUnit, 0), [stock]);
 
   return (
-    <Ctx.Provider value={{ stock, movements, dischargeLogs, loading, addStock, loadStock, dischargeForOrder, manualDischarge, getStockByName, lowStockItems, totalStockValue, refresh }}>
+    <Ctx.Provider value={{ stock, movements, dischargeLogs, loading, loadError, addStock, loadStock, dischargeForOrder, manualDischarge, getStockByName, lowStockItems, totalStockValue, refresh }}>
       {children}
     </Ctx.Provider>
   );

@@ -33,6 +33,7 @@ type MenuContextValue = {
   menuItems: MenuItem[];
   dailyDishes: DailyDish[];
   loading: boolean;
+  loadError: string | null;
   addRecipe: (r: Omit<Recipe, "id" | "createdAt">) => Promise<Recipe>;
   updateRecipe: (id: string, updates: Partial<Omit<Recipe, "id" | "createdAt">>) => Promise<void>;
   removeRecipe: (id: string) => Promise<void>;
@@ -62,6 +63,7 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [dailyDishes, setDailyDishes] = useState<DailyDish[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -74,8 +76,11 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
       setRecipes(r);
       setMenuItems(m);
       setDailyDishes(d);
+      setLoadError(null);
     } catch (e) {
-      console.error("MenuProvider refresh:", e instanceof Error ? e.message : e);
+      const msg = e instanceof Error ? e.message : "Errore caricamento menu";
+      console.error("MenuProvider refresh:", msg);
+      setLoadError(msg);
     } finally {
       setLoading(false);
     }
@@ -175,7 +180,7 @@ export function MenuProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ recipes, menuItems, dailyDishes, loading, addRecipe, updateRecipe, removeRecipe, addToMenu, addToDailyMenu, addMenuItem, updateMenuItem, removeMenuItem, addMenuItemFromDaily, addDailyDish, removeDailyDish, updateDailyDish, addDailyFromMenuItem, refresh }}>
+    <Ctx.Provider value={{ recipes, menuItems, dailyDishes, loading, loadError, addRecipe, updateRecipe, removeRecipe, addToMenu, addToDailyMenu, addMenuItem, updateMenuItem, removeMenuItem, addMenuItemFromDaily, addDailyDish, removeDailyDish, updateDailyDish, addDailyFromMenuItem, refresh }}>
       {children}
     </Ctx.Provider>
   );
