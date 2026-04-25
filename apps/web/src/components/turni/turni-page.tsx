@@ -174,6 +174,7 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
         shiftType,
         role: role.trim(),
         notes: notes.trim(),
+        leaveApproval: ["ferie", "malattia", "permesso"].includes(shiftType) ? "pending" : "approved",
       });
       onClose();
     } catch (e) {

@@ -53,6 +53,9 @@ export function StaffPage() {
   const [fSalary, setFSalary] = useState("");
   const [fHoursWeek, setFHoursWeek] = useState("");
   const [fNotes, setFNotes] = useState("");
+  const [fUserId, setFUserId] = useState<string>("");
+  const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; username: string; role: string }[]>([]);
+  const [linkLoading, setLinkLoading] = useState(false);
 
   const [aDipId, setADipId] = useState("");
   const [aTipo, setATipo] = useState<"ferie" | "malattia" | "permesso">("ferie");
@@ -72,6 +75,8 @@ export function StaffPage() {
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+    // Load tenant users for linking (best-effort)
+    fetch("/api/users").then((r) => r.ok ? r.json() : []).then(setTenantUsers).catch(() => {});
   }, []);
 
   const totale = staff.length;
@@ -86,7 +91,21 @@ export function StaffPage() {
   function resetForm() {
     setFName(""); setFRole("sala"); setFPhone("");
     setFEmail(""); setFHireDate(""); setFSalary(""); setFHoursWeek(""); setFNotes("");
-    setEditingStaffId(null);
+    setFUserId(""); setEditingStaffId(null);
+  }
+
+  async function handleLinkUser() {
+    if (!editingStaffId || !fUserId) return;
+    setLinkLoading(true);
+    try {
+      await fetch("/api/staff/me/link", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ staffId: editingStaffId, userId: fUserId }),
+      });
+      const updated = await staffApi.list();
+      setStaff(updated);
+    } catch { /* ignore */ }
+    finally { setLinkLoading(false); }
   }
 
   function handleEditStaff(member: StaffMember) {
@@ -99,6 +118,7 @@ export function StaffPage() {
     setFSalary(String(member.salary));
     setFHoursWeek(String(member.hoursWeek));
     setFNotes(member.notes);
+    setFUserId(member.userId ?? "");
     if (typeof document !== "undefined") {
       document.querySelector<HTMLInputElement>('input[placeholder="Mario Rossi"]')?.focus();
       document.querySelector('input[placeholder="Mario Rossi"]')?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -181,7 +201,12 @@ export function StaffPage() {
   }
 
   const staffCols = [
-    { key: "name", header: "Nome", render: (r: StaffMember) => <span className="font-medium text-rw-ink">{r.name}</span> },
+    { key: "name", header: "Nome", render: (r: StaffMember) => (
+      <div>
+        <span className="font-medium text-rw-ink">{r.name}</span>
+        {r.userId && <span className="ml-2 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">🔗</span>}
+      </div>
+    )},
     { key: "role", header: "Ruolo", render: (r: StaffMember) => <span className="capitalize">{r.role}</span> },
     {
       key: "status", header: "Stato",
@@ -310,6 +335,26 @@ export function StaffPage() {
                 <input type="number" className={inputCls} value={fHoursWeek} onChange={(e) => setFHoursWeek(e.target.value)} placeholder="40" />
               </div>
               <div><label className={labelCls}>Note</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={fNotes} onChange={(e) => setFNotes(e.target.value)} placeholder="Annotazioni…" /></div>
+
+              {editingStaffId && tenantUsers.length > 0 && (
+                <div className="rounded-xl border border-rw-line/60 bg-rw-surfaceAlt/50 p-3 space-y-2">
+                  <label className={labelCls}>Collega account utente</label>
+                  <p className="text-[11px] text-rw-muted">Associa un account di accesso a questo dipendente per il profilo personale.</p>
+                  <div className="flex gap-2">
+                    <select className={cn(inputCls, "flex-1")} value={fUserId} onChange={(e) => setFUserId(e.target.value)}>
+                      <option value="">— Nessun account collegato —</option>
+                      {tenantUsers.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name} (@{u.username}) [{u.role}]</option>
+                      ))}
+                    </select>
+                    <button type="button" onClick={() => void handleLinkUser()} disabled={linkLoading || !fUserId}
+                      className="shrink-0 rounded-xl bg-rw-accent/15 px-3 py-2 text-xs font-semibold text-rw-accent hover:bg-rw-accent/25 disabled:opacity-50 transition">
+                      {linkLoading ? "…" : "Collega"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <button type="button" className={btnPrimary} onClick={handleAddDipendente}>
                 <UserPlus className="h-4 w-4" /> {editingStaffId ? "Salva modifiche" : "Salva"}
               </button>

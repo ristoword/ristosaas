@@ -9,7 +9,7 @@ const SHIFT_ROLES = ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner",
 const SELECT = {
   id: true, area: true, day: true, staffName: true, staffId: true,
   startTime: true, endTime: true, hours: true, role: true,
-  shiftType: true, notes: true, createdAt: true, updatedAt: true,
+  shiftType: true, notes: true, leaveApproval: true, createdAt: true, updatedAt: true,
 } as const;
 
 function serialize(r: { createdAt: Date; updatedAt: Date; [k: string]: unknown }) {

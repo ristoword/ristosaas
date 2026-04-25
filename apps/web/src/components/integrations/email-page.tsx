@@ -265,6 +265,13 @@ export function EmailPage() {
     [configs, tenantId],
   );
 
+  const [emailLogs, setEmailLogs] = useState<Array<{ id: string; toEmail: string; subject: string; templateSlug: string; status: string; sentAt: string }>>([]);
+
+  useEffect(() => {
+    if (tab !== "log") return;
+    fetch("/api/email-logs?limit=50").then((r) => r.ok ? r.json() : []).then((d) => setEmailLogs(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [tab]);
+
   const logRows = useMemo(() => {
     if (!selectedConfig?.lastTestedAt) return [];
     const ok = selectedConfig.lastTestStatus === "ok";
@@ -547,9 +554,26 @@ export function EmailPage() {
                 data={logRows}
                 keyExtractor={(r) => r.id}
               />
-              {logRows.length === 0 && (
+              {emailLogs.length > 0 && (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-semibold text-rw-muted">Log invii reali dal DB ({emailLogs.length})</p>
+                  <DataTable
+                    columns={[
+                      { key: "sentAt", header: "Data/ora", render: (r) => <span className="text-xs text-rw-ink">{new Date(r.sentAt).toLocaleString("it-IT")}</span> },
+                      { key: "toEmail", header: "Destinatario", render: (r) => <span className="text-xs">{r.toEmail}</span> },
+                      { key: "subject", header: "Oggetto", render: (r) => <span className="text-xs text-rw-soft truncate max-w-xs block">{r.subject}</span> },
+                      { key: "templateSlug", header: "Template", render: (r) => <span className="text-xs text-rw-muted">{r.templateSlug || "—"}</span> },
+                      { key: "status", header: "Stato", render: (r) => <Chip label={r.status} tone={r.status === "sent" ? "success" : "danger"} /> },
+                    ]}
+                    data={emailLogs}
+                    keyExtractor={(r) => r.id}
+                    emptyMessage="Nessun invio registrato."
+                  />
+                </div>
+              )}
+              {logRows.length === 0 && emailLogs.length === 0 && (
                 <p className="mt-4 text-center text-sm text-rw-muted">
-                  Nessun test SMTP registrato per questo tenant. Usa &quot;Registra test SMTP&quot; dopo aver salvato la configurazione.
+                  Nessun invio registrato. Gli invii email verranno tracciati automaticamente qui.
                 </p>
               )}
             </>

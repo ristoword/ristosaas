@@ -341,6 +341,54 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
   const initials = user ? getInitials(user.name) : "?";
 
   return (
+    <>
+    {/* Mobile search overlay */}
+    {searchOpen && (
+      <div className="fixed inset-0 z-50 flex flex-col bg-rw-bg md:hidden">
+        <div className="flex items-center gap-3 border-b border-rw-line bg-rw-surface px-4 py-3">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-rw-muted" />
+            <input
+              autoFocus
+              value={searchQ}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder={t("topbar.search")}
+              autoComplete="off"
+              className="h-12 w-full rounded-2xl border border-rw-line bg-rw-surfaceAlt pl-12 pr-4 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent/30"
+            />
+          </div>
+          <button type="button" onClick={() => { setSearchOpen(false); setSearchQ(""); setSearchResults([]); }}
+            className="shrink-0 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm font-semibold text-rw-muted">
+            Annulla
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {searchResults.length > 0 && searchResults.map((item) => {
+            const Icon = TYPE_ICONS[item.type] ?? Search;
+            return (
+              <button key={item.id} type="button" onClick={() => handleSearchSelect(item)}
+                className="flex w-full items-center gap-3 px-4 py-4 text-left border-b border-rw-line/40 hover:bg-rw-surfaceAlt">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rw-surfaceAlt text-rw-accent">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-rw-ink truncate">{item.title}</p>
+                  <p className="text-xs text-rw-muted truncate">{item.subtitle}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-rw-muted ml-auto" />
+              </button>
+            );
+          })}
+          {searchQ.length >= 2 && searchResults.length === 0 && !searchLoading && (
+            <p className="px-4 py-8 text-center text-sm text-rw-muted">Nessun risultato per «{searchQ}»</p>
+          )}
+          {searchQ.length < 2 && (
+            <p className="px-4 py-6 text-center text-xs text-rw-muted">Digita almeno 2 caratteri per cercare…</p>
+          )}
+        </div>
+      </div>
+    )}
+
     <header className="sticky top-0 z-30 border-b border-rw-line bg-rw-surface/90 px-4 py-3 backdrop-blur-md md:px-8">
       <div className="mx-auto flex max-w-6xl items-center gap-3 md:gap-4">
         <button
@@ -360,6 +408,16 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
           </p>
           <p className="truncate text-sm text-rw-muted capitalize">{today}</p>
         </div>
+
+        {/* Mobile search button */}
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rw-line bg-rw-surfaceAlt text-rw-muted transition hover:text-rw-ink md:hidden"
+          aria-label="Cerca"
+        >
+          <Search className="h-5 w-5" />
+        </button>
 
         <div ref={searchRef} className="hidden min-w-0 flex-1 md:block relative">
           <label className="sr-only" htmlFor="global-search">{t("topbar.search.label")}</label>
@@ -487,5 +545,6 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
         </div>
       </div>
     </header>
+    </>
   );
 }

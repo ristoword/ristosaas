@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> };
 const SELECT = {
   id: true, area: true, day: true, staffName: true, staffId: true,
   startTime: true, endTime: true, hours: true, role: true,
-  shiftType: true, notes: true, createdAt: true, updatedAt: true,
+  shiftType: true, notes: true, leaveApproval: true, createdAt: true, updatedAt: true,
 } as const;
 
 function serialize(r: { createdAt: Date; updatedAt: Date; [k: string]: unknown }) {
@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const data = await body<{
     area?: string; day?: string; staffName?: string; staffId?: string | null;
     startTime?: string; endTime?: string; hours?: string; role?: string;
-    shiftType?: string; notes?: string;
+    shiftType?: string; notes?: string; leaveApproval?: string;
   }>(req);
 
   const row = await prisma.shiftPlan.update({
@@ -48,6 +48,7 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       ...(data.role !== undefined && { role: data.role.trim() }),
       ...(data.shiftType !== undefined && { shiftType: data.shiftType.trim() }),
       ...(data.notes !== undefined && { notes: data.notes.trim() }),
+      ...(data.leaveApproval !== undefined && { leaveApproval: data.leaveApproval.trim() }),
     },
     select: SELECT,
   });

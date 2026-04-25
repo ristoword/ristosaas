@@ -88,6 +88,10 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/operational-notes", roles: ["cucina", "pizzeria", "bar", "sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans/sync", roles: ["supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] },
+  // Log email invii tenant.
+  { prefix: "/api/email-logs", roles: ["owner", "super_admin"] },
+  // Lista utenti tenant (per collegamento staff ↔ user).
+  { prefix: "/api/users", roles: ["supervisor", "owner", "super_admin"] },
   // Ricerca globale: tutti gli utenti autenticati.
   { prefix: "/api/search", roles: ["sala", "cucina", "bar", "pizzeria", "cassa", "magazzino", "staff", "supervisor", "owner", "super_admin", "hotel_manager", "reception", "housekeeping"] },
   // Hotel rooms tokens: generazione QR firmati per le camere.

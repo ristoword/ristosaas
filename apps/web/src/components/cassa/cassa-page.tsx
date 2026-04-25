@@ -9,6 +9,7 @@ import {
   Percent,
   Plus,
   Printer,
+  QrCode,
   Receipt,
   Save,
   Search,
@@ -54,6 +55,62 @@ const BTN_PRIMARY =
 
 const BTN_OUTLINE =
   "inline-flex items-center justify-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink transition hover:border-rw-accent/30 active:scale-[0.98]";
+
+/* ------------------------------------------------------------------ */
+/*  Pay Online Button                                                  */
+/* ------------------------------------------------------------------ */
+
+function PayOnlineButton({ total, tableLabel }: { total: number; tableLabel: string }) {
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  async function generate() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/cassa/payment-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: total, description: `Conto${tableLabel ? ` — Tavolo ${tableLabel}` : ""}` }),
+      });
+      const data = await res.json();
+      setQrUrl(data.url);
+      setOpen(true);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }
+
+  const qrImg = qrUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(qrUrl)}` : "";
+
+  return (
+    <>
+      <button type="button" onClick={() => void generate()} disabled={loading || total <= 0}
+        className={`${BTN_OUTLINE} gap-2`}>
+        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+        Paga online / QR
+      </button>
+      {open && qrUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-xs rounded-3xl border border-rw-line bg-rw-bg p-6 text-center shadow-2xl">
+            <p className="font-display text-xl font-semibold text-rw-ink mb-1">Paga con QR</p>
+            <p className="text-sm text-rw-muted mb-4">Totale: <span className="font-bold text-rw-accent">€ {total.toFixed(2)}</span></p>
+            <div className="mx-auto mb-4 flex h-56 w-56 items-center justify-center rounded-2xl border border-rw-line bg-white p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrImg} alt="QR pagamento" className="h-full w-full object-contain" />
+            </div>
+            <p className="text-xs text-rw-muted mb-4">L'ospite scansiona e paga con carta. Il link scade automaticamente.</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={async () => { await navigator.clipboard.writeText(qrUrl); }}
+                className="flex-1 rounded-xl border border-rw-line py-2 text-xs font-semibold text-rw-muted hover:bg-rw-surfaceAlt">Copia link</button>
+              <button type="button" onClick={() => { setOpen(false); setQrUrl(null); }}
+                className="flex-1 rounded-xl bg-rw-accent py-2 text-xs font-semibold text-white">Chiudi</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -383,6 +440,8 @@ function CassaTab({
               <button type="button" className={BTN_OUTLINE} onClick={() => doFlash("Stampa conto inviata alla stampante virtuale.")}>
                 <Printer className="h-4 w-4" /> Stampa conto
               </button>
+              {/* Pagamento online QR */}
+              <PayOnlineButton total={total} tableLabel={selected?.table ?? ""} />
               <button
                 type="button"
                 className={BTN_PRIMARY}

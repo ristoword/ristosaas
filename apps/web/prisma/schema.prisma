@@ -271,6 +271,7 @@ model Tenant {
   roomServiceOrders        RoomServiceOrder[]
   roomServiceCatalogItems  RoomServiceCatalogItem[]
   emailTemplates           EmailTemplate[]
+  emailLogs                EmailLog[]
 }
 
 model BillingSubscription {
@@ -651,6 +652,7 @@ model ShiftPlan {
   shiftType   String       @default("lavoro")
   notes       String       @default("")
   createdAt   DateTime     @default(now())
+  leaveApproval String       @default("approved")
   updatedAt   DateTime     @updatedAt
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   staffMember StaffMember? @relation(fields: [staffId], references: [id], onDelete: SetNull)
@@ -1270,6 +1272,22 @@ model ArchivioFiscalStub {
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, kind, createdAt])
+}
+
+/// Log degli invii email del tenant (SMTP transazionale).
+model EmailLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  toEmail     String
+  subject     String
+  templateSlug String  @default("")
+  status      String   @default("sent")
+  errorMessage String  @default("")
+  sentAt      DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, sentAt])
+  @@index([tenantId, templateSlug])
 }
 
 /// Template email personalizzabili per il tenant (conferme, notifiche, ecc.).

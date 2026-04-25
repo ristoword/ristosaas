@@ -479,6 +479,8 @@ export const operationalNotesApi = {
 
 export type ShiftPlanType = "lavoro" | "ferie" | "malattia" | "permesso" | "riposo";
 
+export type LeaveApproval = "approved" | "pending" | "rejected";
+
 export type ShiftPlan = {
   id: string;
   area: string;
@@ -491,6 +493,7 @@ export type ShiftPlan = {
   role: string;
   shiftType: ShiftPlanType;
   notes: string;
+  leaveApproval: LeaveApproval;
   createdAt: string;
   updatedAt: string;
 };
@@ -506,6 +509,7 @@ export type ShiftPlanCreate = {
   role?: string;
   shiftType?: ShiftPlanType;
   notes?: string;
+  leaveApproval?: LeaveApproval;
 };
 
 export type ShiftSyncResult = {

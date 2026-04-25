@@ -5,6 +5,7 @@ import {
   Clock,
   Download,
   DollarSign,
+  ExternalLink,
   Info,
   Loader2,
   LogIn,
@@ -20,7 +21,7 @@ import {
   type StaffShift,
 } from "@/lib/api-client";
 import { addDaysIso, formatHumanDate, todayIso } from "@/lib/date-utils";
-import { shiftPlansApi, type ShiftPlan } from "@/lib/api-client";
+import { shiftPlansApi, type ShiftPlan, type LeaveApproval } from "@/lib/api-client";
 
 const tabs = [
   { id: "presenze", label: "Presenze oggi" },
@@ -64,12 +65,18 @@ const SHIFT_TYPE_COLORS: Record<string, string> = {
   riposo: "bg-slate-500/20 text-slate-400",
 };
 
-function FerieCalendar({ staff, shiftPlans, today }: { staff: StaffMember[]; shiftPlans: ShiftPlan[]; today: string }) {
+function FerieCalendar({ staff, shiftPlans: initialPlans, today }: { staff: StaffMember[]; shiftPlans: ShiftPlan[]; today: string }) {
   const [year, setYear] = useState(Number(today.slice(0, 4)));
   const [month, setMonth] = useState(Number(today.slice(5, 7)) - 1);
   const [filterStaff, setFilterStaff] = useState<string>("all");
+  const [plans, setPlans] = useState(initialPlans);
 
-  const assenze = shiftPlans.filter((p) =>
+  async function handleApproval(id: string, leaveApproval: LeaveApproval) {
+    const updated = await shiftPlansApi.update(id, { leaveApproval }).catch(() => null);
+    if (updated) setPlans((prev) => prev.map((p) => p.id === id ? { ...p, leaveApproval } : p));
+  }
+
+  const assenze = plans.filter((p) =>
     ["ferie", "malattia", "permesso", "riposo"].includes(p.shiftType) &&
     p.day.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`) &&
     (filterStaff === "all" || p.staffId === filterStaff || p.staffName === filterStaff),
@@ -131,8 +138,10 @@ function FerieCalendar({ staff, shiftPlans, today }: { staff: StaffMember[]; shi
               <div key={i} className={`min-h-[64px] rounded-xl border p-1.5 ${isToday ? "border-rw-accent/50 bg-rw-accent/5" : "border-rw-line bg-rw-bg"}`}>
                 <div className={`text-xs font-bold mb-1 ${isToday ? "text-rw-accent" : "text-rw-muted"}`}>{dayNum}</div>
                 {dayPlans.map((p, idx) => (
-                  <div key={idx} className={`rounded px-1 py-0.5 text-[9px] font-semibold truncate mb-0.5 ${SHIFT_TYPE_COLORS[p.shiftType] ?? "bg-rw-surfaceAlt text-rw-muted"}`}>
+                  <div key={idx} className={`rounded px-1 py-0.5 text-[9px] font-semibold truncate mb-0.5 ${SHIFT_TYPE_COLORS[p.shiftType] ?? "bg-rw-surfaceAlt text-rw-muted"} ${p.leaveApproval === "rejected" ? "opacity-40 line-through" : p.leaveApproval === "pending" ? "ring-1 ring-amber-400/60" : ""}`}>
                     {p.staffName.split(" ")[0]}
+                    {p.leaveApproval === "pending" && "⏳"}
+                    {p.leaveApproval === "rejected" && "✗"}
                   </div>
                 ))}
               </div>
@@ -140,6 +149,32 @@ function FerieCalendar({ staff, shiftPlans, today }: { staff: StaffMember[]; shi
           })}
         </div>
       </Card>
+
+      {/* Pending leave requests */}
+      {assenze.filter((p) => p.leaveApproval === "pending").length > 0 && (
+        <Card title="Richieste in attesa di approvazione" description="Approva o rifiuta le assenze pianificate">
+          <div className="space-y-2">
+            {assenze.filter((p) => p.leaveApproval === "pending").map((p) => (
+              <div key={p.id} className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
+                <div>
+                  <span className="font-semibold text-rw-ink text-sm">{p.staffName}</span>
+                  <span className="ml-2 text-xs text-rw-muted">{p.shiftType} · {p.day}</span>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => void handleApproval(p.id, "approved")}
+                    className="rounded-lg bg-emerald-500/15 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition">
+                    ✓ Approva
+                  </button>
+                  <button type="button" onClick={() => void handleApproval(p.id, "rejected")}
+                    className="rounded-lg bg-red-500/15 px-2.5 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/25 transition">
+                    ✗ Rifiuta
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {summary.length > 0 && (
         <Card title="Riepilogo assenze del mese" description="Per dipendente">
@@ -291,6 +326,10 @@ export function StaffHrPage() {
           className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-medium text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition">
           <Download className="h-4 w-4" /> Esporta CSV
         </button>
+        <a href="/staff-hr/print" target="_blank"
+          className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-medium text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition">
+          <ExternalLink className="h-4 w-4" /> Stampa PDF
+        </a>
       </PageHeader>
 
       {error && (

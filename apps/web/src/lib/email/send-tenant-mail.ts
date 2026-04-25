@@ -18,6 +18,7 @@ export type TenantMailPayload = {
   bcc?: string | string[];
   replyTo?: string;
   attachments?: TenantMailAttachment[];
+  templateSlug?: string;
 };
 
 export type TenantMailResult =
@@ -86,6 +87,17 @@ export async function sendTenantMail(payload: TenantMailPayload): Promise<Tenant
       })
       .catch(() => {});
 
+    // Log invio riuscito
+    void prisma.emailLog.create({
+      data: {
+        tenantId: payload.tenantId,
+        toEmail: to.join(", "),
+        subject: payload.subject,
+        templateSlug: payload.templateSlug ?? "",
+        status: "sent",
+      },
+    }).catch(() => {});
+
     return { ok: true, messageId: info.messageId };
   } catch (error) {
     logger.warn("tenant_mail_send_failed", {
@@ -98,6 +110,19 @@ export async function sendTenantMail(payload: TenantMailPayload): Promise<Tenant
         data: { lastTestStatus: "fail", lastTestedAt: new Date() },
       })
       .catch(() => {});
+
+    // Log invio fallito
+    void prisma.emailLog.create({
+      data: {
+        tenantId: payload.tenantId,
+        toEmail: to.join(", "),
+        subject: payload.subject,
+        templateSlug: payload.templateSlug ?? "",
+        status: "failed",
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+    }).catch(() => {});
+
     return {
       ok: false,
       reason: "send_failed",
