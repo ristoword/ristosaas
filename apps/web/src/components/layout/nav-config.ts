@@ -305,6 +305,17 @@ export const navSections: NavSection[] = [
         feature: "hotel",
         visibleFor: ["staff", "reception", "housekeeping", "hotel_manager"],
       },
+      {
+        id: "hotel-qr-rooms",
+        label: "QR Camere",
+        hint: "Genera e stampa QR code per ogni camera — gli ospiti ordinano room service autonomamente.",
+        href: "/hotel/qr-rooms",
+        icon: QrCode,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+        visibleFor: ["hotel_manager", "supervisor", "owner", "super_admin"],
+      },
     ],
   },
   {

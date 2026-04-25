@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     where: { id: parsed.tableId, tenantId: parsed.tenantId },
     include: {
       room: { select: { name: true } },
-      tenant: { select: { name: true, accessStatus: true } },
+      tenant: { select: { name: true, slug: true, accessStatus: true } },
     },
   });
   if (!table) return err("Tavolo non trovato.", 404);
@@ -44,6 +44,8 @@ export async function GET(req: NextRequest) {
 
   return ok({
     tenantName: table.tenant.name,
+    tenantSlug: table.tenant.slug,
+    tableId: table.id,
     roomName: table.room?.name ?? null,
     tableName: table.nome,
     seats: table.posti,

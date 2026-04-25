@@ -19,6 +19,8 @@ export const PUBLIC_API_PREFIXES = [
   "/api/billing/stripe/webhook",
   "/api/public/signup",
   "/api/public/table",
+  "/api/public/room",
+  "/api/public/room-service",
   "/api/auth/session-valid",
   "/api/auth/license-valid",
   "/api/auth/entitlements-valid",
@@ -86,6 +88,8 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/operational-notes", roles: ["cucina", "pizzeria", "bar", "sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans/sync", roles: ["supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] },
+  // Hotel rooms tokens: generazione QR firmati per le camere.
+  { prefix: "/api/hotel/rooms/tokens", roles: ["hotel_manager", "reception", "supervisor", "owner", "super_admin"] },
   // Room Service hotel: addebito e catalogo solo a hotel_manager+; lettura/creazione a tutto lo staff hotel.
   { prefix: "/api/hotel/room-service/catalog", roles: ["hotel_manager", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/room-service", roles: ["staff", "reception", "housekeeping", "hotel_manager", "supervisor", "owner", "super_admin"] },

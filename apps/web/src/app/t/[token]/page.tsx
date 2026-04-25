@@ -1,10 +1,12 @@
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 type PublicTablePayload = {
   tenantName: string;
+  tenantSlug: string;
+  tableId: string;
   roomName: string | null;
   tableName: string;
   seats: number;
@@ -30,20 +32,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
   const data = await fetchPublicTable(token);
   if (!data) notFound();
 
-  return (
-    <main className="mx-auto flex min-h-screen max-w-xl flex-col items-center justify-center gap-6 px-6 py-10 text-center">
-      <div className="rounded-3xl border border-rw-line bg-rw-surface p-8 shadow-rw">
-        <p className="text-xs font-semibold uppercase tracking-widest text-rw-muted">{data.tenantName}</p>
-        <h1 className="mt-2 font-display text-3xl font-semibold text-rw-ink">
-          {data.roomName ? `${data.roomName} — ` : ""}
-          {data.tableName}
-        </h1>
-        <p className="mt-2 text-rw-soft">Posti: {data.seats}</p>
-        <p className="mt-6 text-sm text-rw-muted">
-          Pagina di cortesia per il tavolo. L&apos;ordine digitale ospite non è ancora attivo su questa
-          struttura; chiedi al personale di sala per assistenza.
-        </p>
-      </div>
-    </main>
-  );
+  // Redirect to the public menu with the table pre-selected.
+  // The menu page handles ordering, allergen display, etc.
+  redirect(`/menu/${encodeURIComponent(data.tenantSlug)}/${encodeURIComponent(data.tableId)}`);
 }

@@ -11,6 +11,7 @@ const PUBLIC = [
   "/signup",
   "/menu/",
   "/t/",
+  "/r/",
   "/gestionale-ristorante-hotel-integrato",
   "/gestionale-ristorante",
   "/blog",
