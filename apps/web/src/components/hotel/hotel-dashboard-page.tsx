@@ -1,19 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { BedDouble, Bell, CalendarClock, CalendarRange, ConciergeBell, CreditCard, DoorOpen, Sparkles, UserCheck, Users } from "lucide-react";
+import { BedDouble, Bell, CalendarClock, CalendarRange, ConciergeBell, CreditCard, DoorOpen, Sparkles, TrendingUp, UserCheck, Users } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { todayIso } from "@/lib/date-utils";
 
 export function HotelDashboardPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const { rooms, reservations, housekeeping, folios, charges, ratePlans } = useHotel();
   const today = todayIso();
+
+  const revenueStats = useMemo(() => {
+    const totalRooms = rooms.length || 1;
+    const occupied = rooms.filter((r) => r.status === "occupata").length;
+    const occupancyPct = Math.round((occupied / totalRooms) * 100);
+
+    // ADR: average daily rate from active reservations in-house
+    const inHouse = reservations.filter((r) => r.status === "in_casa");
+    const totalRevenue = inHouse.reduce((s, r) => s + (Number(r.rate) || 0), 0);
+    const adr = inHouse.length > 0 ? totalRevenue / inHouse.length : 0;
+
+    // RevPAR = ADR × occupancy%
+    const revPar = adr * (occupied / totalRooms);
+
+    // Monthly revenue from folio charges (hotel source only)
+    const monthStart = today.slice(0, 7) + "-01";
+    const monthlyRevenue = charges
+      .filter((c) => c.source === "hotel" && c.postedAt >= monthStart)
+      .reduce((s, c) => s + (Number(c.amount) || 0), 0);
+
+    return { occupancyPct, occupied, totalRooms, adr, revPar, monthlyRevenue };
+  }, [rooms, reservations, charges, today]);
   const hotelStats = [
     {
       label: "Occupazione",
@@ -60,6 +82,25 @@ export function HotelDashboardPage() {
           <CreditCard className="h-4 w-4" /> Guest Folio
         </Link>
       </PageHeader>
+
+      {/* Revenue KPIs */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "Occupazione", value: `${revenueStats.occupancyPct}%`, sub: `${revenueStats.occupied}/${revenueStats.totalRooms} camere`, color: "text-rw-accent" },
+          { label: "ADR", value: `€ ${revenueStats.adr.toFixed(0)}`, sub: "Tariffa media giornaliera", color: "text-emerald-400" },
+          { label: "RevPAR", value: `€ ${revenueStats.revPar.toFixed(0)}`, sub: "Revenue per camera disponibile", color: "text-amber-400" },
+          { label: "Ricavi mese", value: `€ ${revenueStats.monthlyRevenue.toLocaleString("it-IT", { maximumFractionDigits: 0 })}`, sub: `Addebiti hotel — ${today.slice(0, 7)}`, color: "text-violet-400" },
+        ].map((k) => (
+          <div key={k.label} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-rw-muted">{k.label}</p>
+              <TrendingUp className="h-4 w-4 text-rw-muted" />
+            </div>
+            <p className={`mt-3 font-display text-3xl font-semibold ${k.color}`}>{k.value}</p>
+            <p className="mt-1 text-xs text-rw-muted">{k.sub}</p>
+          </div>
+        ))}
+      </div>
 
       <Card title="Stato struttura" description="Vista sintetica per reception, direzione e operations.">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Clock,
+  Download,
   DollarSign,
   Info,
   Loader2,
@@ -19,10 +20,12 @@ import {
   type StaffShift,
 } from "@/lib/api-client";
 import { addDaysIso, formatHumanDate, todayIso } from "@/lib/date-utils";
+import { shiftPlansApi, type ShiftPlan } from "@/lib/api-client";
 
 const tabs = [
   { id: "presenze", label: "Presenze oggi" },
   { id: "mese", label: "Riepilogo ore" },
+  { id: "ferie", label: "Calendario ferie" },
   { id: "costi", label: "Costo personale" },
 ];
 
@@ -53,10 +56,127 @@ type RowToday = {
   hours: number;
 };
 
+const MONTHS_IT = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+const SHIFT_TYPE_COLORS: Record<string, string> = {
+  ferie: "bg-blue-500/20 text-blue-400",
+  malattia: "bg-red-500/20 text-red-400",
+  permesso: "bg-amber-500/20 text-amber-400",
+  riposo: "bg-slate-500/20 text-slate-400",
+};
+
+function FerieCalendar({ staff, shiftPlans, today }: { staff: StaffMember[]; shiftPlans: ShiftPlan[]; today: string }) {
+  const [year, setYear] = useState(Number(today.slice(0, 4)));
+  const [month, setMonth] = useState(Number(today.slice(5, 7)) - 1);
+  const [filterStaff, setFilterStaff] = useState<string>("all");
+
+  const assenze = shiftPlans.filter((p) =>
+    ["ferie", "malattia", "permesso", "riposo"].includes(p.shiftType) &&
+    p.day.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`) &&
+    (filterStaff === "all" || p.staffId === filterStaff || p.staffName === filterStaff),
+  );
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month + 1, 0);
+  const startOffset = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+  const rows = Math.ceil((startOffset + lastDay.getDate()) / 7);
+
+  const byDay = assenze.reduce<Record<number, ShiftPlan[]>>((acc, p) => {
+    const d = new Date(p.day + "T12:00:00").getDate();
+    if (!acc[d]) acc[d] = [];
+    acc[d].push(p);
+    return acc;
+  }, {});
+
+  const summary = staff.map((s) => {
+    const mine = assenze.filter((p) => p.staffId === s.id || p.staffName === s.name);
+    return { name: s.name, ferie: mine.filter((p) => p.shiftType === "ferie").length, malattia: mine.filter((p) => p.shiftType === "malattia").length, permesso: mine.filter((p) => p.shiftType === "permesso").length };
+  }).filter((s) => s.ferie + s.malattia + s.permesso > 0);
+
+  return (
+    <div className="space-y-4">
+      <Card title={`Calendario ferie — ${MONTHS_IT[month]} ${year}`} description="Assenze pianificate dai turni">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => { if (month === 0) { setMonth(11); setYear((y) => y - 1); } else setMonth((m) => m - 1); }}
+              className="rounded-xl border border-rw-line px-2.5 py-1.5 text-xs text-rw-muted hover:bg-rw-surfaceAlt">◀</button>
+            <span className="text-sm font-semibold text-rw-ink">{MONTHS_IT[month]} {year}</span>
+            <button type="button" onClick={() => { if (month === 11) { setMonth(0); setYear((y) => y + 1); } else setMonth((m) => m + 1); }}
+              className="rounded-xl border border-rw-line px-2.5 py-1.5 text-xs text-rw-muted hover:bg-rw-surfaceAlt">▶</button>
+          </div>
+          <select value={filterStaff} onChange={(e) => setFilterStaff(e.target.value)}
+            className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-ink focus:outline-none">
+            <option value="all">Tutto il personale</option>
+            {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <div className="flex gap-2 ml-auto">
+            {Object.entries(SHIFT_TYPE_COLORS).map(([type, cls]) => (
+              <span key={type} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${cls}`}>{type}</span>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-1">
+          {["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map((d) => (
+            <div key={d} className="py-1.5 text-center text-xs font-bold text-rw-muted">{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: rows * 7 }, (_, i) => {
+            const dayNum = i - startOffset + 1;
+            if (dayNum < 1 || dayNum > lastDay.getDate()) return <div key={i} className="min-h-[64px] rounded-xl bg-rw-surfaceAlt/30" />;
+            const dayPlans = byDay[dayNum] ?? [];
+            const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+            const isToday = iso === today;
+            return (
+              <div key={i} className={`min-h-[64px] rounded-xl border p-1.5 ${isToday ? "border-rw-accent/50 bg-rw-accent/5" : "border-rw-line bg-rw-bg"}`}>
+                <div className={`text-xs font-bold mb-1 ${isToday ? "text-rw-accent" : "text-rw-muted"}`}>{dayNum}</div>
+                {dayPlans.map((p, idx) => (
+                  <div key={idx} className={`rounded px-1 py-0.5 text-[9px] font-semibold truncate mb-0.5 ${SHIFT_TYPE_COLORS[p.shiftType] ?? "bg-rw-surfaceAlt text-rw-muted"}`}>
+                    {p.staffName.split(" ")[0]}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {summary.length > 0 && (
+        <Card title="Riepilogo assenze del mese" description="Per dipendente">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead><tr className="border-b border-rw-line text-xs font-semibold text-rw-muted">
+                <th className="py-2 text-left">Dipendente</th>
+                <th className="py-2 text-center text-blue-400">Ferie</th>
+                <th className="py-2 text-center text-red-400">Malattia</th>
+                <th className="py-2 text-center text-amber-400">Permesso</th>
+              </tr></thead>
+              <tbody>
+                {summary.map((s) => (
+                  <tr key={s.name} className="border-b border-rw-line/40 hover:bg-rw-surfaceAlt/40">
+                    <td className="py-2 font-semibold text-rw-ink">{s.name}</td>
+                    <td className="py-2 text-center text-blue-400">{s.ferie > 0 ? `${s.ferie}g` : "—"}</td>
+                    <td className="py-2 text-center text-red-400">{s.malattia > 0 ? `${s.malattia}g` : "—"}</td>
+                    <td className="py-2 text-center text-amber-400">{s.permesso > 0 ? `${s.permesso}g` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+      {summary.length === 0 && (
+        <p className="py-8 text-center text-sm text-rw-muted">Nessuna assenza pianificata per {MONTHS_IT[month]} {year}. Pianifica le ferie dalla pagina Turni.</p>
+      )}
+    </div>
+  );
+}
+
 export function StaffHrPage() {
   const [tab, setTab] = useState<string>("presenze");
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [shifts, setShifts] = useState<StaffShift[]>([]);
+  const [shiftPlans, setShiftPlans] = useState<ShiftPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,12 +187,14 @@ export function StaffHrPage() {
     setLoading(true);
     setError(null);
     try {
-      const [staffRows, shiftRows] = await Promise.all([
+      const [staffRows, shiftRows, planRows] = await Promise.all([
         staffApi.list(),
         staffApi.listShifts({ from: monthStart, to: addDaysIso(today, 1) }),
+        shiftPlansApi.list({ from: monthStart, to: addDaysIso(today, 31) }),
       ]);
       setStaff(staffRows);
       setShifts(shiftRows);
+      setShiftPlans(planRows);
     } catch (err) {
       setError((err as Error).message || "Errore caricamento dati staff");
     } finally {
@@ -143,12 +265,33 @@ export function StaffHrPage() {
     }
   }
 
+  function exportCsv() {
+    const rows = [
+      ["Dipendente", "Ruolo", "Ore mese", "H/sett. contratto", "Differenza"],
+      ...monthAggregates.map((r) => {
+        const contractH = (staff.find((s) => s.id === r.staffId)?.hoursWeek ?? 40) * 4;
+        return [r.name, r.role, r.hours.toFixed(1), String(contractH), (r.hours - contractH).toFixed(1)];
+      }),
+    ];
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `presenze_${today.slice(0, 7)}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Gestione personale"
         subtitle={`Presenze e ore dal DB reale — aggiornato ${formatHumanDate(today)}`}
-      />
+      >
+        <button type="button" onClick={exportCsv}
+          className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-medium text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition">
+          <Download className="h-4 w-4" /> Esporta CSV
+        </button>
+      </PageHeader>
 
       {error && (
         <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
@@ -327,6 +470,10 @@ export function StaffHrPage() {
             />
           </Card>
         </div>
+      )}
+
+      {tab === "ferie" && (
+        <FerieCalendar staff={staff} shiftPlans={shiftPlans} today={today} />
       )}
 
       {tab === "costi" && (

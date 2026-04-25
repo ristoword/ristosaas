@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Check,
+  Edit2,
   Mail,
+  RotateCcw,
+  Save,
   Send,
   Server,
   CheckCircle2,
@@ -12,6 +16,7 @@ import {
   FileText,
   Settings2,
   Loader2,
+  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
@@ -71,6 +76,124 @@ const EMPTY_SMTP: SmtpDraft = {
   fromAddress: "",
   secure: false,
 };
+
+type DbTemplate = {
+  slug: string; subject: string; body: string; variables: string; customized: boolean; updatedAt: string | null;
+};
+
+const TEMPLATE_NAMES: Record<string, string> = {
+  prenotazione_confermata: "Conferma prenotazione ristorante",
+  prenotazione_annullata: "Annullamento prenotazione",
+  checkin_benvenuto: "Benvenuto al check-in hotel",
+  checkout_riepilogo: "Riepilogo al check-out",
+  ordine_asporto: "Conferma ordine asporto",
+};
+
+const inputCls = "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30";
+
+function EmailTemplatesTab() {
+  const [templates, setTemplates] = useState<DbTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editSlug, setEditSlug] = useState<string | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedSlug, setSavedSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/email-templates").then((r) => r.json()).then((d) => setTemplates(d)).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  function openEdit(t: DbTemplate) {
+    setEditSlug(t.slug); setEditSubject(t.subject); setEditBody(t.body);
+  }
+
+  async function handleSave() {
+    if (!editSlug) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/email-templates/${editSlug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subject: editSubject, body: editBody }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setTemplates((prev) => prev.map((t) => t.slug === editSlug ? { ...t, ...updated, customized: true } : t));
+        setSavedSlug(editSlug);
+        setEditSlug(null);
+        setTimeout(() => setSavedSlug(null), 2500);
+      }
+    } catch { /* ignore */ }
+    finally { setSaving(false); }
+  }
+
+  async function handleReset(slug: string) {
+    if (!confirm("Ripristinare il template predefinito?")) return;
+    await fetch(`/api/email-templates/${slug}`, { method: "DELETE" });
+    const res = await fetch("/api/email-templates").then((r) => r.json()).catch(() => templates);
+    setTemplates(res);
+  }
+
+  if (loading) return <div className="flex items-center gap-2 py-8 text-sm text-rw-muted"><Loader2 className="h-4 w-4 animate-spin" />Caricamento template…</div>;
+
+  return (
+    <Card title="Template email" description="Personalizza i messaggi transazionali. Usa {{variabile}} per i segnaposto.">
+      <div className="space-y-4">
+        {templates.map((t) => (
+          <div key={t.slug} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4 space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="flex items-center gap-2 text-sm font-semibold text-rw-ink">
+                  <FileText className="h-4 w-4 text-rw-accent" />
+                  {TEMPLATE_NAMES[t.slug] ?? t.slug}
+                  {t.customized && <span className="rounded-full bg-rw-accent/15 px-2 py-0.5 text-[10px] font-semibold text-rw-accent">Personalizzato</span>}
+                  {savedSlug === t.slug && <span className="flex items-center gap-1 text-xs text-emerald-400"><Check className="h-3 w-3" />Salvato</span>}
+                </p>
+                {t.variables && <p className="mt-1 text-xs text-rw-muted">Variabili: <span className="font-mono">{t.variables}</span></p>}
+              </div>
+              <div className="flex gap-2 shrink-0">
+                {t.customized && (
+                  <button type="button" onClick={() => void handleReset(t.slug)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rw-line px-2 py-1.5 text-xs text-rw-muted hover:text-red-400 transition">
+                    <RotateCcw className="h-3 w-3" /> Reset
+                  </button>
+                )}
+                <button type="button" onClick={() => editSlug === t.slug ? setEditSlug(null) : openEdit(t)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-rw-line bg-rw-surface px-3 py-1.5 text-xs font-semibold text-rw-ink hover:border-rw-accent/40 transition">
+                  {editSlug === t.slug ? <><X className="h-3.5 w-3.5" /> Annulla</> : <><Edit2 className="h-3.5 w-3.5" /> Modifica</>}
+                </button>
+              </div>
+            </div>
+
+            {editSlug === t.slug ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold text-rw-muted mb-1">Oggetto</label>
+                  <input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-rw-muted mb-1">Corpo del messaggio</label>
+                  <textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={8} className={inputCls + " resize-y font-mono text-xs"} />
+                </div>
+                <button type="button" onClick={() => void handleSave()} disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-50 transition">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                  {saving ? "Salvataggio…" : "Salva template"}
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-rw-line bg-rw-surface p-3">
+                <p className="text-xs text-rw-muted mb-1 font-semibold">Oggetto: {t.subject}</p>
+                <pre className="text-xs text-rw-soft whitespace-pre-wrap font-sans line-clamp-4">{t.body}</pre>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
 
 export function EmailPage() {
   const { user } = useAuth();
@@ -382,32 +505,7 @@ export function EmailPage() {
       )}
 
       {tab === "templates" && (
-        <Card title="Template email" description="Anteprime dei messaggi transazionali previsti (variabili {{nome}}, …). Editing persistente non ancora disponibile.">
-          <div className="space-y-3">
-            {BUILTIN_EMAIL_TEMPLATES.map((t) => (
-              <div key={t.id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-rw-ink">
-                      <FileText className="h-4 w-4 text-rw-accent" /> {t.nome}
-                    </p>
-                    <p className="mt-1 text-xs text-rw-muted">Oggetto: {t.subject}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewTpl(previewTpl === t.id ? null : t.id)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-rw-line bg-rw-surface px-3 py-1.5 text-xs font-semibold text-rw-ink"
-                  >
-                    <Eye className="h-3.5 w-3.5" /> Preview
-                  </button>
-                </div>
-                {previewTpl === t.id && (
-                  <div className="mt-3 rounded-lg border border-rw-line bg-rw-surface p-3 text-sm text-rw-soft">{t.preview}</div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
+        <EmailTemplatesTab />
       )}
 
       {tab === "log" && (

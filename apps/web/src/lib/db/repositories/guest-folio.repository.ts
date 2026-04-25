@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 
@@ -7,7 +8,7 @@ type FolioRow = {
   customerId: string;
   stayId: string | null;
   currency: string;
-  balance: { toNumber: () => number };
+  balance: Prisma.Decimal;
   status: GuestFolio["status"];
   customer?: { name: string | null } | null;
   stay?: {
@@ -42,7 +43,7 @@ function mapCharge(row: {
   source: FolioCharge["source"];
   sourceId: string | null;
   description: string;
-  amount: { toNumber: () => number };
+  amount: Prisma.Decimal;
   postedAt: Date;
 }): FolioCharge {
   return {

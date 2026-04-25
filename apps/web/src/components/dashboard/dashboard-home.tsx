@@ -83,20 +83,21 @@ export function DashboardHome() {
   const quickActions = [
     ...(isRestaurantEnabled
       ? [
-          { title: "Apri un tavolo", body: "Grande, verde, impossibile sbagliare.", icon: Zap },
-          { title: "Controlla la sala", body: "Vedi cosa succede senza perderti.", icon: HeartHandshake },
+          { title: "Apri la sala", body: "Planimetria tavoli, apertura e gestione comande.", icon: Zap, href: "/rooms" },
+          { title: "Vai in cucina", body: "KDS comande attive, HACCP e turni cucina.", icon: HeartHandshake, href: "/cucina" },
         ]
       : []),
     ...(isHotelEnabled
       ? [
-          { title: "Apri il front desk", body: "Check-in, check-out e ospiti in casa.", icon: Hotel },
-          { title: "Controlla le camere", body: "Disponibilità, pulizie e manutenzioni.", icon: BedDouble },
+          { title: "Front desk", body: "Check-in, check-out e ospiti in casa.", icon: Hotel, href: "/hotel/front-desk" },
+          { title: "Camere e housekeeping", body: "Disponibilità, pulizie e room service.", icon: BedDouble, href: "/hotel" },
         ]
       : []),
     {
-      title: "Controllo struttura",
-      body: "Core comune e verticali attivi in base al pacchetto acquistato.",
+      title: "Staff e turni",
+      body: "Presenze, turni settimanali e profilo dipendente.",
       icon: ShieldCheck,
+      href: "/staff",
     },
   ];
 
@@ -242,14 +243,12 @@ export function DashboardHome() {
           {quickActions.map((a) => {
             const Icon = a.icon;
             return (
-              <button
+              <Link
                 key={a.title}
-                type="button"
-                disabled
-                className="group flex flex-col items-start gap-4 rounded-3xl border border-dashed border-rw-line bg-rw-surface p-6 text-left shadow-sm transition hover:border-rw-accent/30 hover:shadow-rw-sm disabled:cursor-not-allowed disabled:opacity-80"
-                title="Azioni rapide allineate ai verticali acquistati."
+                href={a.href}
+                className="group flex flex-col items-start gap-4 rounded-3xl border border-rw-line bg-rw-surface p-6 text-left shadow-sm transition hover:border-rw-accent/30 hover:shadow-rw-sm hover:bg-rw-surfaceAlt"
               >
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rw-surfaceAlt text-rw-accent ring-1 ring-rw-line">
+                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rw-surfaceAlt text-rw-accent ring-1 ring-rw-line group-hover:bg-rw-accent group-hover:text-white group-hover:ring-rw-accent transition">
                   <Icon className="h-7 w-7" aria-hidden />
                 </span>
                 <div>
@@ -262,7 +261,7 @@ export function DashboardHome() {
                   {t("dashboard.workflow")}
                   <ArrowRight className="h-4 w-4" aria-hidden />
                 </span>
-              </button>
+              </Link>
             );
           })}
         </div>

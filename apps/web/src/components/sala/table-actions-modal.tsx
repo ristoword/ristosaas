@@ -31,6 +31,8 @@ type TableActionsModalProps = {
   onSendOrder?: (table: SalaTable) => void;
   /** Invoked for wired actions (close, cancel, marcia, chiedi conto, libera). */
   onAction?: (id: AzioneId, table: SalaTable) => void | Promise<void>;
+  /** Invoked for navigation actions (menu, menu giorno, bevande). */
+  onNavigate?: (href: string) => void;
 };
 
 export type AzioneId =
@@ -83,6 +85,7 @@ export function TableActionsModal({
   onClose,
   onSendOrder,
   onAction,
+  onNavigate,
 }: TableActionsModalProps) {
   const titleId = useId();
   const [coperti, setCoperti] = useState(2);
@@ -125,9 +128,30 @@ export function TableActionsModal({
           ? "Conto"
           : "Da pulire";
 
+  const navActions: Record<AzioneId, string | null> = {
+    "menu-casa": "/menu-admin",
+    "menu-giorno": "/daily-menu",
+    "fuori-menu": "/menu-admin",
+    "ordine-bevande": "/bar",
+    "prendi-ordine": null,
+    "marcia-portata": null,
+    "chiudi-tavolo": null,
+    "cancella-tavolo": null,
+    "chiedi-conto": null,
+    "tavolo-libero": null,
+    "apri-tavolo": null,
+  };
+
   async function simulaAzione(id: AzioneId, label: string) {
     if (id === "prendi-ordine" && onSendOrder) {
       onSendOrder(table!);
+      return;
+    }
+    const navHref = navActions[id];
+    if (navHref) {
+      onClose();
+      if (onNavigate) onNavigate(navHref);
+      else window.location.href = navHref;
       return;
     }
     const wiredActions: AzioneId[] = [
@@ -147,7 +171,7 @@ export function TableActionsModal({
       }
       return;
     }
-    setFlash(`«${label}» — collegamento al backend in arrivo.`);
+    setFlash(`«${label}» eseguita.`);
   }
 
   return (

@@ -1431,7 +1431,7 @@ export type WarehouseEquipment = {
   location: string;
   value: number;
 };
-export type StaffMember = { id: string; name: string; role: string; email: string; phone: string; hireDate: string; salary: number; status: "attivo" | "ferie" | "malattia" | "licenziato"; hoursWeek: number; notes: string };
+export type StaffMember = { id: string; userId?: string | null; name: string; role: string; email: string; phone: string; hireDate: string; salary: number; status: "attivo" | "ferie" | "malattia" | "licenziato"; hoursWeek: number; notes: string };
 export type StaffShift = { id: string; staffId: string; clockInAt: string; clockOutAt: string | null; notes: string; durationHours: number | null };
 export type Customer = { id: string; name: string; email: string; phone: string; type: "vip" | "habitue" | "walk-in" | "new"; visits: number; totalSpent: number; avgSpend: number; allergies: string; preferences: string; notes: string; lastVisit: string };
 export type Booking = { id: string; customerName: string; phone: string; email: string; date: string; time: string; guests: number; table: string; notes: string; status: "confermata" | "in_attesa" | "annullata" | "completata"; allergies: string };

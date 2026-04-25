@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
@@ -13,7 +14,7 @@ function mapFolio(row: {
   customerId: string;
   stayId: string | null;
   currency: string;
-  balance: { toNumber: () => number };
+  balance: Prisma.Decimal;
   status: GuestFolio["status"];
 }): GuestFolio {
   return {
@@ -33,7 +34,7 @@ function mapCharge(row: {
   source: FolioCharge["source"];
   sourceId: string | null;
   description: string;
-  amount: { toNumber: () => number };
+  amount: Prisma.Decimal;
   postedAt: Date;
 }): FolioCharge {
   return {

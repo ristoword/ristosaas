@@ -12,11 +12,12 @@ import type {
 } from "@/lib/api-client";
 
 function mapStaff(row: {
-  id: string; name: string; role: string; email: string; phone: string; hireDate: Date;
+  id: string; userId?: string | null; name: string; role: string; email: string; phone: string; hireDate: Date;
   salary: { toNumber: () => number }; status: string; hoursWeek: number; notes: string;
 }): StaffMember {
   return {
     id: row.id,
+    userId: row.userId ?? null,
     name: row.name,
     role: row.role,
     email: row.email,

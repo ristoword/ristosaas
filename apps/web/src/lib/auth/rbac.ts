@@ -88,6 +88,8 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/operational-notes", roles: ["cucina", "pizzeria", "bar", "sala", "cassa", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans/sync", roles: ["supervisor", "owner", "super_admin"] },
   { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] },
+  // Ricerca globale: tutti gli utenti autenticati.
+  { prefix: "/api/search", roles: ["sala", "cucina", "bar", "pizzeria", "cassa", "magazzino", "staff", "supervisor", "owner", "super_admin", "hotel_manager", "reception", "housekeeping"] },
   // Hotel rooms tokens: generazione QR firmati per le camere.
   { prefix: "/api/hotel/rooms/tokens", roles: ["hotel_manager", "reception", "supervisor", "owner", "super_admin"] },
   // Room Service hotel: addebito e catalogo solo a hotel_manager+; lettura/creazione a tutto lo staff hotel.

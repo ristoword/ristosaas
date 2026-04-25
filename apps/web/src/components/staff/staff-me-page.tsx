@@ -49,7 +49,9 @@ export function StaffMePage() {
     setError(null);
     try {
       const all = await staffApi.list();
+      // Priority: userId match (guaranteed) > email > name (fallback)
       const mine =
+        all.find((s) => s.userId && s.userId === user.id) ??
         all.find((s) => s.email.toLowerCase() === (user.email || "").toLowerCase()) ??
         all.find((s) => s.name.toLowerCase() === (user.name || user.username || "").toLowerCase()) ??
         null;

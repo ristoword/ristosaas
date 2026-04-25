@@ -270,6 +270,7 @@ model Tenant {
   notifications            Notification[]
   roomServiceOrders        RoomServiceOrder[]
   roomServiceCatalogItems  RoomServiceCatalogItem[]
+  emailTemplates           EmailTemplate[]
 }
 
 model BillingSubscription {
@@ -885,6 +886,7 @@ model DailyClosureReport {
 model StaffMember {
   id         String      @id @default(cuid())
   tenantId   String
+  userId     String?     @unique
   name       String
   role       String
   email      String
@@ -899,6 +901,8 @@ model StaffMember {
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   shifts     StaffShift[]
   shiftPlans ShiftPlan[]
+
+  @@index([tenantId, userId])
 }
 
 model StaffShift {
@@ -1266,6 +1270,22 @@ model ArchivioFiscalStub {
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, kind, createdAt])
+}
+
+/// Template email personalizzabili per il tenant (conferme, notifiche, ecc.).
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  tenantId  String
+  slug      String
+  subject   String
+  body      String   @db.Text
+  variables String   @default("")
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
 }
 
 /// Notifiche in-app per gli utenti del tenant.

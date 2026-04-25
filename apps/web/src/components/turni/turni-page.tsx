@@ -5,6 +5,7 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  Download,
   Edit2,
   Loader2,
   Plus,
@@ -706,6 +707,22 @@ export function TurniPage() {
         title="Turni"
         subtitle="Pianificazione settimanale e mensile per area."
       >
+        <button
+          type="button"
+          onClick={() => {
+            const rows = [
+              ["Data", "Area", "Dipendente", "Ruolo", "Tipo", "Inizio", "Fine", "Note"],
+              ...plans.map((p) => [p.day, p.area, p.staffName, p.role, p.shiftType, p.startTime, p.endTime, p.notes]),
+            ];
+            const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
+            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+            const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+            a.download = `turni_${monthFrom}_${monthTo}.csv`; a.click();
+          }}
+          className={btnGhost}
+        >
+          <Download className="h-4 w-4" /> Esporta CSV
+        </button>
         {canSync && (
           <button
             type="button"

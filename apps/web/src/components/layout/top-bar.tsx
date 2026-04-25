@@ -3,17 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bell,
+  BedDouble,
   CalendarClock,
   Check,
   CheckCheck,
   ChevronRight,
+  ClipboardList,
   LogOut,
   Menu,
   Search,
   Settings,
+  UtensilsCrossed,
   User,
+  Users,
+  X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/core/i18n/provider";
 import { useI10n } from "@/core/i10n/formatters";
 import type { Locale } from "@/core/i18n/types";
@@ -21,6 +27,7 @@ import { SUPPORTED_LOCALES } from "@/core/i18n/types";
 import { useAuth } from "@/components/auth/auth-context";
 import { notificationsApi, type AppNotification } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import type { SearchResultItem } from "@/app/api/search/route";
 
 type TopBarProps = {
   onOpenSidebar: () => void;
@@ -215,12 +222,25 @@ function UserMenu({ name, role, email, initials, onLogout }: UserMenuProps) {
   );
 }
 
+/* ─── Search Result Icon ─────────────────────────── */
+
+const TYPE_ICONS: Record<SearchResultItem["type"], React.ElementType> = {
+  ordine: ClipboardList,
+  tavolo: UtensilsCrossed,
+  staff: Users,
+  prenotazione: CalendarClock,
+  camera: BedDouble,
+  voce_menu: UtensilsCrossed,
+  cliente: User,
+};
+
 /* ─── TopBar ─────────────────────────────────────── */
 
 export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
   const { locale, setLocale, t } = useI18n();
   const { formatDate } = useI10n();
   const { user, logout } = useAuth();
+  const router = useRouter();
   const today = formatDate(new Date());
 
   const [notifOpen, setNotifOpen] = useState(false);
@@ -228,6 +248,14 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
+
+  // Search state
+  const [searchQ, setSearchQ] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
@@ -256,10 +284,36 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
     function onClickOutside(e: MouseEvent) {
       if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
       if (userRef.current && !userRef.current.contains(e.target as Node)) setUserOpen(false);
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setSearchOpen(false);
     }
     document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
+
+  function handleSearchChange(q: string) {
+    setSearchQ(q);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (q.trim().length < 2) { setSearchResults([]); setSearchOpen(false); return; }
+    searchTimer.current = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`);
+        if (res.ok) {
+          const data = await res.json();
+          setSearchResults(data.results ?? []);
+          setSearchOpen(true);
+        }
+      } catch { /* ignore */ }
+      finally { setSearchLoading(false); }
+    }, 300);
+  }
+
+  function handleSearchSelect(item: SearchResultItem) {
+    setSearchOpen(false);
+    setSearchQ("");
+    setSearchResults([]);
+    router.push(item.href);
+  }
 
   function toggleNotif() {
     setNotifOpen((o) => !o);
@@ -307,22 +361,60 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
           <p className="truncate text-sm text-rw-muted capitalize">{today}</p>
         </div>
 
-        <div className="hidden min-w-0 flex-1 md:block">
+        <div ref={searchRef} className="hidden min-w-0 flex-1 md:block relative">
           <label className="sr-only" htmlFor="global-search">{t("topbar.search.label")}</label>
           <div className="relative">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-rw-muted"
-              aria-hidden
-            />
+            {searchLoading
+              ? <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 animate-spin rounded-full border-2 border-rw-accent border-t-transparent" />
+              : <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-rw-muted" aria-hidden />
+            }
             <input
               id="global-search"
               name="q"
-              readOnly
+              value={searchQ}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              onFocus={() => { if (searchResults.length > 0) setSearchOpen(true); }}
               placeholder={t("topbar.search")}
-              className="h-12 w-full cursor-not-allowed rounded-2xl border border-rw-line bg-rw-surfaceAlt pl-12 pr-4 text-sm text-rw-muted"
-              title="La ricerca globale si collegherà ai moduli."
+              autoComplete="off"
+              className="h-12 w-full rounded-2xl border border-rw-line bg-rw-surfaceAlt pl-12 pr-10 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30"
             />
+            {searchQ && (
+              <button type="button" onClick={() => { setSearchQ(""); setSearchResults([]); setSearchOpen(false); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-rw-muted hover:text-rw-ink">
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
+          {searchOpen && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 overflow-hidden rounded-2xl border border-rw-line bg-rw-surface shadow-2xl">
+              <div className="max-h-80 overflow-y-auto">
+                {searchResults.map((item) => {
+                  const Icon = TYPE_ICONS[item.type] ?? Search;
+                  return (
+                    <button key={item.id} type="button" onClick={() => handleSearchSelect(item)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-rw-surfaceAlt">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rw-surfaceAlt text-rw-accent">
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-rw-ink truncate">{item.title}</p>
+                        <p className="text-xs text-rw-muted truncate">{item.subtitle}</p>
+                      </div>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-rw-muted ml-auto" />
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="border-t border-rw-line px-4 py-2 text-[11px] text-rw-muted">
+                {searchResults.length} risultati per «{searchQ}»
+              </div>
+            </div>
+          )}
+          {searchOpen && searchResults.length === 0 && searchQ.length >= 2 && !searchLoading && (
+            <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-2xl border border-rw-line bg-rw-surface px-4 py-6 shadow-2xl text-center text-sm text-rw-muted">
+              Nessun risultato per «{searchQ}»
+            </div>
+          )}
         </div>
 
         <label className="hidden text-xs font-semibold text-rw-muted md:flex md:items-center md:gap-2">
