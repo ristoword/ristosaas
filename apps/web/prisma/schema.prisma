@@ -219,6 +219,7 @@ model Tenant {
   warehouseCostHistory WarehouseCostHistory[]
   warehouseLocationStocks WarehouseLocationStock[]
   operationalNotes OperationalNote[]
+  shiftPlans ShiftPlan[]
   aiChatLogs  AiChatLog[]
   aiProposals AiProposal[]
   recipes     Recipe[]
@@ -606,6 +607,20 @@ model OperationalNote {
   tenantId  String
   area      String
   text      String
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, area])
+}
+
+model ShiftPlan {
+  id        String   @id @default(cuid())
+  tenantId  String
+  area      String   @default("cucina")
+  day       String
+  staffName String
+  hours     String   @default("")
+  role      String   @default("")
   createdAt DateTime @default(now())
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

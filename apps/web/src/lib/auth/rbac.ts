@@ -84,6 +84,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/archivio", roles: ["supervisor", "owner", "super_admin", "cassa"] },
   { prefix: "/api/haccp", roles: ["cucina", "pizzeria", "bar", "magazzino", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/operational-notes", roles: ["cucina", "pizzeria", "bar", "sala", "cassa", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] },
   // Tutti gli utenti autenticati possono gestire le proprie sessioni.
   { prefix: "/api/sessions", roles: ["sala", "cucina", "cassa", "supervisor", "magazzino", "staff", "bar", "pizzeria", "hotel_manager", "reception", "housekeeping", "owner", "super_admin"] },
   // Hardware: configurazione stampanti/display, riservata a owner e super_admin.

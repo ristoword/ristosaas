@@ -15,13 +15,12 @@ import { DataTable } from "@/components/shared/data-table";
 import { cn } from "@/lib/utils";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
-import { aiOpsApi, haccpApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry } from "@/lib/api-client";
+import { aiOpsApi, haccpApi, shiftPlansApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry, type ShiftPlan } from "@/lib/api-client";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-type Shift = { id: string; day: string; name: string; hours: string; role: string };
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
@@ -254,8 +253,20 @@ function RicetteTab() {
     portions: number; sellingPrice: number; targetFcPct: number; notes: string;
   };
   const [editRecipe, setEditRecipe] = useState<RecipeQuickEdit | null>(null);
+  const [editIngredients, setEditIngredients] = useState<RecipeIngredient[]>([]);
   const [editRecipeSaving, setEditRecipeSaving] = useState(false);
   const [editRecipeError, setEditRecipeError] = useState<string | null>(null);
+
+  const emptyEditIng = (): RecipeIngredient => ({
+    id: `ei-${Date.now()}-${Math.random()}`, name: "", qty: 0, unit: "kg", unitCost: 0, wastePct: 0,
+  });
+
+  function updateEditIng(idx: number, field: keyof RecipeIngredient, value: string | number) {
+    setEditIngredients((p) => p.map((ing, i) => (i === idx ? { ...ing, [field]: value } : ing)));
+  }
+  function removeEditIng(idx: number) {
+    setEditIngredients((p) => p.filter((_, i) => i !== idx));
+  }
 
   const draftRecipe = {
     name, category, area, portions, sellingPrice, targetFcPct, ivaPct, overheadPct,
@@ -316,6 +327,7 @@ function RicetteTab() {
       portions: r.portions, sellingPrice: r.sellingPrice,
       targetFcPct: r.targetFcPct, notes: r.notes,
     });
+    setEditIngredients(r.ingredients.length > 0 ? r.ingredients.map((i) => ({ ...i })) : [emptyEditIng()]);
     setEditRecipeError(null);
   }
 
@@ -324,6 +336,7 @@ function RicetteTab() {
     setEditRecipeSaving(true);
     setEditRecipeError(null);
     try {
+      const cleanIngs = editIngredients.filter((i) => i.name.trim());
       await updateRecipe(editRecipe.id, {
         name: editRecipe.name,
         category: editRecipe.category,
@@ -332,6 +345,7 @@ function RicetteTab() {
         sellingPrice: editRecipe.sellingPrice,
         targetFcPct: editRecipe.targetFcPct,
         notes: editRecipe.notes,
+        ingredients: cleanIngs,
       });
       showFlash(`Ricetta "${editRecipe.name}" aggiornata.`);
       setEditRecipe(null);
@@ -607,17 +621,18 @@ function RicetteTab() {
         </div>
       )}
 
-      {/* Modal: modifica campi base ricetta */}
+      {/* Modal: modifica ricetta completa (campi base + ingredienti) */}
       {editRecipe && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-rw-line bg-rw-surface p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-rw-line bg-rw-surface p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between sticky top-0 bg-rw-surface pb-2 border-b border-rw-line/40">
               <h2 className="font-display text-lg font-bold text-rw-ink">Modifica ricetta</h2>
               <button type="button" onClick={() => setEditRecipe(null)} className="text-rw-muted hover:text-rw-ink">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <p className="text-xs text-rw-muted">Modifica i campi base. Ingredienti e passaggi si modificano ricreandoli dopo aver eliminato.</p>
+
+            {/* Campi base */}
             <div>
               <label className={labelCls}>Nome ricetta</label>
               <input type="text" className={inputCls} value={editRecipe.name} onChange={(e) => setEditRecipe({ ...editRecipe, name: e.target.value })} />
@@ -640,8 +655,8 @@ function RicetteTab() {
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className={labelCls}>Prezzo (€)</label>
-                <input type="number" step="0.50" min={0} className={inputCls} value={editRecipe.sellingPrice || ""} onChange={(e) => setEditRecipe({ ...editRecipe, sellingPrice: Number(e.target.value) })} />
+                <label className={labelCls}>Prezzo vendita (€)</label>
+                <input type="number" step="0.50" min={0} className={inputCls} value={editRecipe.sellingPrice} onChange={(e) => setEditRecipe({ ...editRecipe, sellingPrice: Number(e.target.value) })} />
               </div>
               <div>
                 <label className={labelCls}>Porzioni</label>
@@ -656,6 +671,59 @@ function RicetteTab() {
               <label className={labelCls}>Note</label>
               <textarea rows={2} className={cn(inputCls, "resize-y")} value={editRecipe.notes} onChange={(e) => setEditRecipe({ ...editRecipe, notes: e.target.value })} />
             </div>
+
+            {/* Ingredienti */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">Ingredienti</p>
+              <div className="overflow-x-auto rounded-xl border border-rw-line">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-rw-line bg-rw-surfaceAlt">
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Ingrediente</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">Qtà</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-16">Unità</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-24">€/unità</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">Scarto%</th>
+                      <th className="w-10" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {editIngredients.map((ing, idx) => (
+                      <tr key={ing.id} className="border-b border-rw-line/50">
+                        <td className="px-2 py-1.5">
+                          <input value={ing.name} onChange={(e) => updateEditIng(idx, "name", e.target.value)} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none" placeholder="Nome ingrediente" />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input type="number" step="0.001" min={0} value={ing.qty} onChange={(e) => updateEditIng(idx, "qty", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0" />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <select value={ing.unit} onChange={(e) => updateEditIng(idx, "unit", e.target.value)} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none">
+                            <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option>
+                            <option value="l">l</option><option value="pz">pz</option>
+                            <option value="cucchiaio">cucchiaio</option><option value="pizzico">pizzico</option>
+                          </select>
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input type="number" step="0.01" min={0} value={ing.unitCost} onChange={(e) => updateEditIng(idx, "unitCost", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0.00" />
+                        </td>
+                        <td className="px-2 py-1.5">
+                          <input type="number" min={0} max={100} value={ing.wastePct} onChange={(e) => updateEditIng(idx, "wastePct", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0" />
+                        </td>
+                        <td className="px-1 py-1.5">
+                          <button type="button" onClick={() => removeEditIng(idx)} className="text-red-400 hover:text-red-300">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" onClick={() => setEditIngredients((p) => [...p, emptyEditIng()])} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rw-accent hover:text-rw-accentSoft">
+                <Plus className="h-3.5 w-3.5" /> Aggiungi ingrediente
+              </button>
+            </div>
+
             {editRecipeError && <p className="text-xs text-red-400">{editRecipeError}</p>}
             <div className="flex gap-3 pt-1">
               <button type="button" className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90" onClick={() => void handleSaveEditRecipe()} disabled={editRecipeSaving}>
@@ -1086,46 +1154,94 @@ function HaccpTab() {
 }
 
 function TurniTab() {
-  const [shifts, setShifts] = useState<Shift[]>([]);
-  const [day, setDay] = useState("");
+  const [shifts, setShifts] = useState<ShiftPlan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [day, setDay] = useState(() => new Date().toISOString().slice(0, 10));
   const [name, setName] = useState("");
   const [hours, setHours] = useState("");
   const [role, setRole] = useState("");
 
-  function add() {
+  useEffect(() => {
+    shiftPlansApi
+      .list("cucina")
+      .then(setShifts)
+      .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento turni"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function add() {
     if (!name.trim()) return;
-    setShifts((prev) => [...prev, { id: `sh-${Date.now()}`, day, name, hours, role }]);
-    setName("");
-    setHours("");
-    setRole("");
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await shiftPlansApi.create({ area: "cucina", day, staffName: name.trim(), hours: hours.trim(), role: role.trim() });
+      setShifts((prev) => [...prev, created].sort((a, b) => a.day.localeCompare(b.day)));
+      setName(""); setHours(""); setRole("");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore salvataggio");
+    } finally {
+      setSaving(false);
+    }
   }
+
+  async function remove(id: string) {
+    try {
+      await shiftPlansApi.delete(id);
+      setShifts((prev) => prev.filter((s) => s.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore eliminazione");
+    }
+  }
+
+  const grouped = shifts.reduce<Record<string, ShiftPlan[]>>((acc, s) => {
+    const k = s.day || "Senza data";
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(s);
+    return acc;
+  }, {});
 
   return (
     <div className="space-y-6">
-      <Card title="Aggiungi turno">
+      <Card title="Aggiungi turno" description="Pianificazione persistita su DB">
         <div className="space-y-4">
           <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent" />
           <div className="grid gap-4 sm:grid-cols-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome operatore" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
             <input value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Ore (es. 8-16)" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Ruolo" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Ruolo (es. Chef, Aiuto)" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
           </div>
-          <button type="button" onClick={add} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85">Aggiungi</button>
+          {error && <p className="text-xs text-red-400">{error}</p>}
+          <button type="button" onClick={() => void add()} disabled={saving || !name.trim()} className="flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {saving ? "Salvataggio…" : "Aggiungi turno"}
+          </button>
         </div>
       </Card>
 
-      {shifts.length > 0 && (
-        <DataTable
-          columns={[
-            { key: "day", header: "Giorno" },
-            { key: "name", header: "Nome" },
-            { key: "hours", header: "Ore" },
-            { key: "role", header: "Ruolo" },
-          ]}
-          data={shifts}
-          keyExtractor={(s) => s.id}
-        />
-      )}
+      {loading && <p className="text-sm text-rw-muted text-center">Caricamento turni…</p>}
+      {!loading && shifts.length === 0 && <p className="text-sm text-rw-muted text-center py-4">Nessun turno pianificato.</p>}
+
+      {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([d, dayShifts]) => (
+        <Card key={d} title={d ? new Date(d + "T12:00:00").toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" }) : "Senza data"} description={`${dayShifts.length} operatori`}>
+          <div className="space-y-1">
+            {dayShifts.map((s) => (
+              <div key={s.id} className="flex items-center justify-between rounded-lg border border-rw-line/50 bg-rw-surfaceAlt px-3 py-2">
+                <div>
+                  <span className="font-semibold text-sm text-rw-ink">{s.staffName}</span>
+                  {s.hours && <span className="ml-2 text-xs text-rw-muted">{s.hours}</span>}
+                  {s.role && <span className="ml-2 rounded bg-rw-accent/15 px-1.5 py-0.5 text-[11px] font-semibold text-rw-accent">{s.role}</span>}
+                </div>
+                <button type="button" onClick={() => void remove(s.id)} className="text-red-400 hover:text-red-300">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      ))}
     </div>
   );
 }

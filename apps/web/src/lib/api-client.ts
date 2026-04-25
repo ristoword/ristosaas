@@ -477,6 +477,23 @@ export const operationalNotesApi = {
   delete: (id: string) => del<{ deleted: boolean }>(`/operational-notes/${id}`),
 };
 
+export type ShiftPlan = {
+  id: string;
+  area: string;
+  day: string;
+  staffName: string;
+  hours: string;
+  role: string;
+  createdAt: string;
+};
+
+export const shiftPlansApi = {
+  list: (area: string) => get<ShiftPlan[]>(`/shift-plans?area=${encodeURIComponent(area)}`),
+  create: (data: { area?: string; day: string; staffName: string; hours?: string; role?: string }) =>
+    post<ShiftPlan>("/shift-plans", data),
+  delete: (id: string) => del<{ deleted: boolean }>(`/shift-plans/${id}`),
+};
+
 export type ArchivioFiscalStub = {
   id: string;
   tenantId: string;
