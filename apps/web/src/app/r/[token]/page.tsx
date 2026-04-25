@@ -1,62 +1,59 @@
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { verifyRoomToken } from "@/lib/security/room-token";
+import { prisma } from "@/lib/db/prisma";
 import { RoomServiceGuestClient } from "./room-service-guest-client";
 
 export const dynamic = "force-dynamic";
 
-type CatalogItem = {
-  id: string;
-  name: string;
-  category: string;
-  unitPrice: number;
-  unit: string;
-};
-
-type RoomPayload = {
-  tenantName: string;
-  tenantSlug: string;
-  room: { code: string; type: string; floor: number };
-  catalog: CatalogItem[];
-};
-
-async function fetchRoomData(token: string): Promise<RoomPayload | null> {
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const host = h.get("host");
-  if (!host) return null;
-  try {
-    const res = await fetch(
-      `${proto}://${host}/api/public/room?token=${encodeURIComponent(token)}`,
-      { cache: "no-store" },
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as RoomPayload;
-  } catch {
-    return null;
-  }
-}
-
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const data = await fetchRoomData(token);
-  if (!data) return { title: "Room Service" };
+  const parsed = verifyRoomToken(token);
+  if (!parsed) return { title: "Room Service" };
+
+  const [tenant, room] = await Promise.all([
+    prisma.tenant.findFirst({ where: { id: parsed.tenantId }, select: { name: true } }),
+    prisma.hotelRoom.findFirst({ where: { tenantId: parsed.tenantId, code: parsed.roomCode }, select: { code: true } }),
+  ]);
+
+  if (!tenant || !room) return { title: "Room Service" };
   return {
-    title: `Room Service — Camera ${data.room.code} | ${data.tenantName}`,
-    description: `Ordina servizi in camera presso ${data.tenantName}`,
+    title: `Room Service — Camera ${room.code} | ${tenant.name}`,
+    description: `Ordina servizi in camera presso ${tenant.name}`,
   };
 }
 
 export default async function Page({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
-  const data = await fetchRoomData(token);
-  if (!data) notFound();
+
+  // Verify HMAC token directly — no HTTP self-call needed
+  const parsed = verifyRoomToken(token);
+  if (!parsed) notFound();
+
+  const [tenant, room, catalog] = await Promise.all([
+    prisma.tenant.findFirst({
+      where: { id: parsed.tenantId, accessStatus: "active" },
+      select: { id: true, name: true, slug: true },
+    }),
+    prisma.hotelRoom.findFirst({
+      where: { tenantId: parsed.tenantId, code: parsed.roomCode },
+      select: { id: true, code: true, roomType: true, floor: true },
+    }),
+    prisma.roomServiceCatalogItem.findMany({
+      where: { tenantId: parsed.tenantId, active: true },
+      orderBy: [{ category: "asc" }, { sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, category: true, unitPrice: true, unit: true },
+    }),
+  ]);
+
+  if (!tenant) notFound();
+  if (!room) notFound();
 
   return (
     <RoomServiceGuestClient
       token={token}
-      tenantName={data.tenantName}
-      room={data.room}
-      catalog={data.catalog}
+      tenantName={tenant.name}
+      room={{ code: room.code, type: room.roomType, floor: room.floor }}
+      catalog={catalog.map((c) => ({ ...c, unitPrice: Number(c.unitPrice) }))}
     />
   );
 }
