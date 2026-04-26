@@ -17,7 +17,7 @@ import { getVisibleNavSections } from "@/components/layout/nav-config";
 import { useAuth, useTenantFeatures } from "@/components/auth/auth-context";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { useI18n } from "@/core/i18n/provider";
-import { useI10n } from "@/core/i10n/formatters";
+import { useI10n } from "@/core/i18n/formatters";
 import { useOrders } from "@/components/orders/orders-context";
 import { reportsApi, type ReportTrendsSnapshot } from "@/lib/api-client";
 import { cn } from "@/lib/utils";

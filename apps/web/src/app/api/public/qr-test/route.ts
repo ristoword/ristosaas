@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { ok } from "@/lib/api/helpers";
 import { verifyTableToken } from "@/lib/security/table-token";
 import { verifyRoomToken } from "@/lib/security/room-token";
@@ -7,10 +7,14 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/public/qr-test?token=xxx&type=table|room
- * Debug endpoint to test if a QR token is valid (no auth required).
- * Remove in production once QR is confirmed working.
+ * Debug-only endpoint to verify QR tokens without authentication.
+ * Disabled in production to avoid exposing token structure details.
  */
 export async function GET(req: NextRequest) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   const token = req.nextUrl.searchParams.get("token") ?? "";
   const type = req.nextUrl.searchParams.get("type") ?? "table";
 

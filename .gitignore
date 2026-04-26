@@ -28,12 +28,6 @@ pnpm-debug.log*
 tmp/
 temp/
 
-# Upload di sviluppo (mantieni le cartelle con .gitkeep)
-apps/api/uploads/temp/*
-!apps/api/uploads/temp/.gitkeep
-apps/api/uploads/mock/*
-!apps/api/uploads/mock/.gitkeep
-
 # OS / editor
 .DS_Store
 Thumbs.db

@@ -1,0 +1,27 @@
+-- =============================================================================
+-- BASELINE MIGRATION — risto-saas
+-- =============================================================================
+-- Questo file rappresenta lo stato del database PRIMA dell'adozione di
+-- `prisma migrate`. Tutti gli ambienti esistenti (Railway, staging, dev locale)
+-- hanno già questo schema applicato tramite i file migrations_*.sql ad hoc.
+--
+-- Per ambienti già esistenti, marcare questa baseline come applicata senza
+-- eseguirla:
+--
+--   pnpm prisma migrate resolve --applied "20240101000000_baseline"
+--
+-- Per ambienti nuovi (greenfield), usare invece:
+--
+--   pnpm prisma migrate deploy
+--
+-- che applicherà la baseline + tutte le migrazioni successive.
+--
+-- IMPORTANTE: non modificare questo file. Le nuove modifiche allo schema vanno
+-- create con `pnpm prisma migrate dev --name <descrizione>`.
+-- =============================================================================
+
+-- Baseline applicata tramite scripts ad hoc (migrations_*.sql).
+-- Lo schema corrente è definito in prisma/schema.prisma.
+-- Questo file è intenzionalmente vuoto: su ambienti esistenti viene marcato
+-- con --applied senza eseguirlo; su ambienti nuovi Prisma genera la DDL
+-- corretta da schema.prisma al momento di `migrate deploy`.

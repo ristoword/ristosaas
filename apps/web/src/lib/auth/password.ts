@@ -15,8 +15,10 @@ export function isHashedPassword(value: string) {
 
 export function verifyPassword(storedPassword: string, plainTextPassword: string) {
   if (!isHashedPassword(storedPassword)) {
-    // Legacy fallback during migration from plain-text password storage.
-    return storedPassword === plainTextPassword;
+    // Plain-text storage is no longer supported. Any remaining plain-text
+    // password must be reset. Returning false forces the user to go through
+    // the "forgot password" / temp-password flow instead of granting access.
+    return false;
   }
 
   const [_prefix, salt, expectedHash] = storedPassword.split("$");

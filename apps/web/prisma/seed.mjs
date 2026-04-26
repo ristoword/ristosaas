@@ -318,6 +318,11 @@ async function upsertHotelRatePlans() {
 }
 
 async function upsertReservations() {
+  // Dates are kept relative to today so the demo data stays fresh on re-seed.
+  const today = new Date();
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  const addDays = (d, n) => { const r = new Date(d); r.setUTCDate(r.getUTCDate() + n); return r; };
+
   const reservations = [
     {
       id: "res_1",
@@ -326,14 +331,14 @@ async function upsertReservations() {
       guestName: "Giovanni Rossi",
       phone: "+39 333 1111111",
       email: "g.rossi@email.it",
-      checkInDate: "2026-04-12",
-      checkOutDate: "2026-04-14",
+      checkInDate: fmt(addDays(today, -1)),
+      checkOutDate: fmt(addDays(today, 2)),
       guests: 2,
       status: "in_casa",
       roomType: "Classic",
       boardType: "bed_breakfast",
-      nights: 2,
-      rate: 180,
+      nights: 3,
+      rate: 330,
       documentCode: "CI123456",
     },
     {
@@ -343,8 +348,8 @@ async function upsertReservations() {
       guestName: "Laura Moretti",
       phone: "+39 333 3333333",
       email: "laura@email.it",
-      checkInDate: "2026-04-13",
-      checkOutDate: "2026-04-16",
+      checkInDate: fmt(addDays(today, 2)),
+      checkOutDate: fmt(addDays(today, 5)),
       guests: 2,
       status: "confermata",
       roomType: "Superior",
@@ -352,6 +357,23 @@ async function upsertReservations() {
       nights: 3,
       rate: 390,
       documentCode: "LM998877",
+    },
+    {
+      id: "res_4",
+      customerId: "cst_2",
+      roomId: "hr_102",
+      guestName: "Anna Bianchi",
+      phone: "+39 333 2222222",
+      email: "anna@email.it",
+      checkInDate: fmt(addDays(today, 3)),
+      checkOutDate: fmt(addDays(today, 6)),
+      guests: 1,
+      status: "confermata",
+      roomType: "Classic",
+      boardType: "room_only",
+      nights: 3,
+      rate: 270,
+      documentCode: "AB667788",
     },
   ];
   await Promise.all(
@@ -399,18 +421,22 @@ async function upsertReservations() {
 }
 
 async function upsertStaysAndFolio() {
+  const checkInAt = new Date();
+  checkInAt.setUTCDate(checkInAt.getUTCDate() - 1);
+  checkInAt.setUTCHours(14, 10, 0, 0);
+
   await prisma.stay.upsert({
     where: { reservationId: "res_1" },
     update: {
       tenantId: TENANT_ID,
-      actualCheckInAt: new Date("2026-04-12T14:10:00Z"),
+      actualCheckInAt: checkInAt,
       actualCheckOutAt: null,
     },
     create: {
       id: "stay_1",
       tenantId: TENANT_ID,
       reservationId: "res_1",
-      actualCheckInAt: new Date("2026-04-12T14:10:00Z"),
+      actualCheckInAt: checkInAt,
       actualCheckOutAt: null,
     },
   });
@@ -485,11 +511,27 @@ async function upsertKeycards() {
 
 async function upsertWarehouse() {
   const items = [
+    // Pizzeria
     { id: "ws_1", name: "Farina 00", category: "Secchi", qty: 120, unit: "kg", minStock: 50, costPerUnit: 0.85, supplier: "Molino Rossi" },
     { id: "ws_2", name: "Mozzarella di bufala", category: "Latticini", qty: 15, unit: "kg", minStock: 10, costPerUnit: 12.5, supplier: "Caseificio Ferrara" },
     { id: "ws_3", name: "Pomodoro San Marzano", category: "Conserve", qty: 80, unit: "kg", minStock: 30, costPerUnit: 2.8, supplier: "Ortofrutticola Sud" },
+    // Condimenti e bevande
     { id: "ws_4", name: "Olio EVO Puglia", category: "Condimenti", qty: 45, unit: "L", minStock: 20, costPerUnit: 8.9, supplier: "Oleificio Ferrante" },
     { id: "ws_5", name: "Vino Montepulciano", category: "Bevande", qty: 36, unit: "bt", minStock: 12, costPerUnit: 4.5, supplier: "Cantina dei Colli" },
+    // Ingredienti Carbonara (necessari per food-cost reale)
+    { id: "ws_6", name: "Pasta secca", category: "Secchi", qty: 60, unit: "kg", minStock: 20, costPerUnit: 2.2, supplier: "Pasta Ruggeri" },
+    { id: "ws_7", name: "Guanciale", category: "Salumi", qty: 8, unit: "kg", minStock: 3, costPerUnit: 14.0, supplier: "Salumeria Norcina" },
+    { id: "ws_8", name: "Uova", category: "Freschi", qty: 300, unit: "pz", minStock: 60, costPerUnit: 0.35, supplier: "Azienda Agricola Valle" },
+    // Bevande bar
+    { id: "ws_9", name: "Caffè arabica", category: "Bevande", qty: 10, unit: "kg", minStock: 3, costPerUnit: 18.0, supplier: "Torrefazione Sud" },
+    { id: "ws_10", name: "Birra artigianale", category: "Bevande", qty: 120, unit: "bt", minStock: 24, costPerUnit: 1.8, supplier: "Birrificio Artigiano" },
+    { id: "ws_11", name: "Acqua minerale", category: "Bevande", qty: 200, unit: "bt", minStock: 50, costPerUnit: 0.35, supplier: "Distributore Locale" },
+    // Carne
+    { id: "ws_12", name: "Filetto di manzo", category: "Carni", qty: 12, unit: "kg", minStock: 4, costPerUnit: 28.0, supplier: "Macelleria Arcuri" },
+    { id: "ws_13", name: "Petto di pollo", category: "Carni", qty: 20, unit: "kg", minStock: 8, costPerUnit: 9.5, supplier: "Macelleria Arcuri" },
+    // Formaggi e latticini
+    { id: "ws_14", name: "Parmigiano Reggiano", category: "Latticini", qty: 6, unit: "kg", minStock: 2, costPerUnit: 22.0, supplier: "Caseificio Ferrara" },
+    { id: "ws_15", name: "Burro", category: "Latticini", qty: 5, unit: "kg", minStock: 2, costPerUnit: 8.5, supplier: "Caseificio Ferrara" },
   ];
 
   await Promise.all(
@@ -633,57 +675,40 @@ async function upsertRestaurantOps() {
     });
   }
 
-  await prisma.menuItem.upsert({
-    where: { id: "mi_carbonara" },
-    update: {
-      tenantId: TENANT_ID,
-      name: "Spaghetti alla Carbonara",
-      category: "Primi",
-      area: "Cucina",
-      price: 14,
-      code: "PRI-001",
-      active: true,
-      recipeId: "rec_carbonara",
-      notes: "Piatto signature",
-      foodCostPct: 31,
-    },
-    create: {
-      id: "mi_carbonara",
-      tenantId: TENANT_ID,
-      name: "Spaghetti alla Carbonara",
-      category: "Primi",
-      area: "Cucina",
-      price: 14,
-      code: "PRI-001",
-      active: true,
-      recipeId: "rec_carbonara",
-      notes: "Piatto signature",
-      foodCostPct: 31,
-    },
-  });
+  const menuItems = [
+    { id: "mi_carbonara", name: "Spaghetti alla Carbonara", category: "Primi", area: "Cucina", price: 14, code: "PRI-001", recipeId: "rec_carbonara", notes: "Piatto signature", foodCostPct: 31 },
+    { id: "mi_margherita", name: "Pizza Margherita", category: "Pizze", area: "Pizzeria", price: 9, code: "PIZ-001", recipeId: "rec_margherita", notes: "Pizza classica", foodCostPct: 28 },
+    { id: "mi_filetto", name: "Filetto di Manzo", category: "Secondi", area: "Cucina", price: 24, code: "SEC-001", recipeId: null, notes: "Servito con patate al forno", foodCostPct: 35 },
+    { id: "mi_pollo", name: "Petto di Pollo alla Griglia", category: "Secondi", area: "Cucina", price: 16, code: "SEC-002", recipeId: null, notes: "Con verdure miste", foodCostPct: 30 },
+    { id: "mi_insalata", name: "Insalata Mista", category: "Contorni", area: "Cucina", price: 5, code: "CON-001", recipeId: null, notes: "", foodCostPct: 15 },
+    { id: "mi_caffe", name: "Caffè Espresso", category: "Bevande", area: "Bar", price: 1.5, code: "BAR-001", recipeId: null, notes: "", foodCostPct: 20 },
+    { id: "mi_birra", name: "Birra Artigianale 33cl", category: "Bevande", area: "Bar", price: 4.5, code: "BAR-002", recipeId: null, notes: "", foodCostPct: 25 },
+    { id: "mi_acqua", name: "Acqua Naturale 75cl", category: "Bevande", area: "Bar", price: 2.5, code: "BAR-003", recipeId: null, notes: "", foodCostPct: 10 },
+    { id: "mi_vino_rosso", name: "Vino Rosso (calice)", category: "Bevande", area: "Bar", price: 5, code: "BAR-004", recipeId: null, notes: "Montepulciano DOC", foodCostPct: 28 },
+    { id: "mi_tiramisu", name: "Tiramisù della Casa", category: "Dolci", area: "Cucina", price: 7, code: "DOL-001", recipeId: null, notes: "Fatto in casa", foodCostPct: 22 },
+  ];
 
-  await prisma.dailyDish.upsert({
-    where: { id: "dd_pizza" },
-    update: {
-      tenantId: TENANT_ID,
-      name: "Pizza Margherita",
-      description: "Pomodoro, mozzarella, basilico",
-      category: "Pizze",
-      price: 9,
-      allergens: "glutine,lattosio",
-      recipeId: "rec_margherita",
-    },
-    create: {
-      id: "dd_pizza",
-      tenantId: TENANT_ID,
-      name: "Pizza Margherita",
-      description: "Pomodoro, mozzarella, basilico",
-      category: "Pizze",
-      price: 9,
-      allergens: "glutine,lattosio",
-      recipeId: "rec_margherita",
-    },
-  });
+  for (const item of menuItems) {
+    await prisma.menuItem.upsert({
+      where: { id: item.id },
+      update: { tenantId: TENANT_ID, name: item.name, category: item.category, area: item.area, price: item.price, code: item.code, active: true, recipeId: item.recipeId, notes: item.notes, foodCostPct: item.foodCostPct },
+      create: { id: item.id, tenantId: TENANT_ID, name: item.name, category: item.category, area: item.area, price: item.price, code: item.code, active: true, recipeId: item.recipeId, notes: item.notes, foodCostPct: item.foodCostPct },
+    });
+  }
+
+  const dailyDishes = [
+    { id: "dd_pizza", name: "Pizza Margherita", description: "Pomodoro, mozzarella, basilico", category: "Pizze", price: 9, allergens: "glutine,lattosio", recipeId: "rec_margherita" },
+    { id: "dd_carbonara", name: "Spaghetti alla Carbonara", description: "Guanciale, uova, pecorino", category: "Primi", price: 14, allergens: "glutine,uova,latte", recipeId: "rec_carbonara" },
+    { id: "dd_filetto", name: "Filetto di Manzo al pepe", description: "Con patate al forno", category: "Secondi", price: 26, allergens: "", recipeId: null },
+    { id: "dd_tiramisu", name: "Tiramisù della Casa", description: "Savoiardo, mascarpone, caffè", category: "Dolci", price: 7, allergens: "glutine,uova,latte", recipeId: null },
+  ];
+  for (const dish of dailyDishes) {
+    await prisma.dailyDish.upsert({
+      where: { id: dish.id },
+      update: { tenantId: TENANT_ID, name: dish.name, description: dish.description, category: dish.category, price: dish.price, allergens: dish.allergens, recipeId: dish.recipeId },
+      create: { id: dish.id, tenantId: TENANT_ID, name: dish.name, description: dish.description, category: dish.category, price: dish.price, allergens: dish.allergens, recipeId: dish.recipeId },
+    });
+  }
 
   await prisma.restaurantOrder.upsert({
     where: { id: "ord_demo_1" },
@@ -1024,6 +1049,53 @@ async function upsertRestaurantLayout() {
   );
 }
 
+async function upsertRoomServiceCatalog() {
+  const items = [
+    { id: "rsc_1", name: "Club Sandwich", category: "food", unitPrice: 14, unit: "pz", sortOrder: 1, active: true },
+    { id: "rsc_2", name: "Insalata Caprese", category: "food", unitPrice: 10, unit: "pz", sortOrder: 2, active: true },
+    { id: "rsc_3", name: "Frutta di Stagione", category: "food", unitPrice: 7, unit: "pz", sortOrder: 3, active: true },
+    { id: "rsc_4", name: "Acqua Naturale 75cl", category: "minibar", unitPrice: 3, unit: "bt", sortOrder: 10, active: true },
+    { id: "rsc_5", name: "Acqua Frizzante 75cl", category: "minibar", unitPrice: 3, unit: "bt", sortOrder: 11, active: true },
+    { id: "rsc_6", name: "Birra in lattina", category: "minibar", unitPrice: 4.5, unit: "pz", sortOrder: 12, active: true },
+    { id: "rsc_7", name: "Vino Bianco (mezza)", category: "minibar", unitPrice: 9, unit: "bt", sortOrder: 13, active: true },
+    { id: "rsc_8", name: "Snack misti", category: "minibar", unitPrice: 5, unit: "pz", sortOrder: 14, active: true },
+    { id: "rsc_9", name: "Colazione in camera", category: "food", unitPrice: 18, unit: "set", sortOrder: 4, active: true },
+    { id: "rsc_10", name: "Lavaggio camicia", category: "laundry", unitPrice: 6, unit: "pz", sortOrder: 20, active: true },
+    { id: "rsc_11", name: "Lavaggio pantalone", category: "laundry", unitPrice: 8, unit: "pz", sortOrder: 21, active: true },
+    { id: "rsc_12", name: "Pulizia scarpe", category: "shoe_cleaning", unitPrice: 5, unit: "pz", sortOrder: 30, active: true },
+    { id: "rsc_13", name: "Cuscino extra", category: "linen", unitPrice: 3, unit: "pz", sortOrder: 40, active: true },
+    { id: "rsc_14", name: "Coperta extra", category: "linen", unitPrice: 4, unit: "pz", sortOrder: 41, active: true },
+    { id: "rsc_15", name: "Kit benvenuto SPA", category: "amenities", unitPrice: 12, unit: "kit", sortOrder: 50, active: true },
+  ];
+
+  await Promise.all(
+    items.map((item) =>
+      prisma.roomServiceCatalogItem.upsert({
+        where: { id: item.id },
+        update: {
+          tenantId: TENANT_ID,
+          name: item.name,
+          category: item.category,
+          unitPrice: item.unitPrice,
+          unit: item.unit,
+          sortOrder: item.sortOrder,
+          active: item.active,
+        },
+        create: {
+          id: item.id,
+          tenantId: TENANT_ID,
+          name: item.name,
+          category: item.category,
+          unitPrice: item.unitPrice,
+          unit: item.unit,
+          sortOrder: item.sortOrder,
+          active: item.active,
+        },
+      }),
+    ),
+  );
+}
+
 async function upsertStaffShifts() {
   await prisma.staffShift.upsert({
     where: { id: "shift_stf_1_today" },
@@ -1059,6 +1131,7 @@ async function main() {
   await upsertKeycards();
   await upsertWarehouse();
   await upsertRestaurantOps();
+  await upsertRoomServiceCatalog();
   await upsertDailyClosureReports();
   await upsertOperationalModules();
   await upsertRestaurantLayout();

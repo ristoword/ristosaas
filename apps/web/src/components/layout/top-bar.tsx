@@ -21,7 +21,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/core/i18n/provider";
-import { useI10n } from "@/core/i10n/formatters";
+import { useI10n } from "@/core/i18n/formatters";
 import type { Locale } from "@/core/i18n/types";
 import { SUPPORTED_LOCALES } from "@/core/i18n/types";
 import { useAuth } from "@/components/auth/auth-context";

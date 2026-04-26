@@ -32,6 +32,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:baseline": "prisma migrate resolve --applied 20240101000000_baseline",
     "prisma:seed": "node prisma/seed.mjs"
   },
   "engines": {
