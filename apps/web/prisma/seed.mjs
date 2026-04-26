@@ -243,39 +243,34 @@ async function upsertTenantLicenseAndEmailConfig() {
   });
 }
 
+/**
+ * Ritorna mappa code → id reale nel DB, creando le camere mancanti.
+ * Non sovrascrive lo status delle camere esistenti (potrebbero avere ospiti).
+ */
 async function upsertRooms() {
   const rooms = [
-    { id: "hr_101", code: "101", floor: 1, capacity: 2, status: "occupata", roomType: "Classic", ratePlanCode: "RP_CLASSIC_BB" },
-    { id: "hr_102", code: "102", floor: 1, capacity: 2, status: "pulita", roomType: "Classic", ratePlanCode: "RP_CLASSIC_RO" },
-    { id: "hr_103", code: "103", floor: 1, capacity: 3, status: "da_pulire", roomType: "Deluxe", ratePlanCode: "RP_DELUXE_HB" },
-    { id: "hr_104", code: "104", floor: 1, capacity: 4, status: "libera", roomType: "Family", ratePlanCode: "RP_FAMILY_FB" },
+    { code: "101", floor: 1, capacity: 2, status: "libera", roomType: "Classic", ratePlanCode: "RP_CLASSIC_BB" },
+    { code: "102", floor: 1, capacity: 2, status: "libera", roomType: "Classic", ratePlanCode: "RP_CLASSIC_RO" },
+    { code: "103", floor: 1, capacity: 3, status: "libera", roomType: "Deluxe", ratePlanCode: "RP_DELUXE_HB" },
+    { code: "104", floor: 1, capacity: 4, status: "libera", roomType: "Family", ratePlanCode: "RP_FAMILY_FB" },
   ];
-  await Promise.all(
-    rooms.map((room) =>
-      prisma.hotelRoom.upsert({
-        where: { id: room.id },
-        update: {
-          tenantId: TENANT_ID,
-          code: room.code,
-          floor: room.floor,
-          capacity: room.capacity,
-          status: room.status,
-          roomType: room.roomType,
-          ratePlanCode: room.ratePlanCode,
-        },
-        create: {
-          id: room.id,
-          tenantId: TENANT_ID,
-          code: room.code,
-          floor: room.floor,
-          capacity: room.capacity,
-          status: room.status,
-          roomType: room.roomType,
-          ratePlanCode: room.ratePlanCode,
-        },
-      }),
-    ),
-  );
+  const codeToId = {};
+  for (const room of rooms) {
+    let existing = await prisma.hotelRoom.findFirst({ where: { tenantId: TENANT_ID, code: room.code } });
+    if (existing) {
+      await prisma.hotelRoom.update({
+        where: { id: existing.id },
+        data: { floor: room.floor, capacity: room.capacity, roomType: room.roomType, ratePlanCode: room.ratePlanCode },
+      });
+      codeToId[room.code] = existing.id;
+    } else {
+      const created = await prisma.hotelRoom.create({
+        data: { tenantId: TENANT_ID, code: room.code, floor: room.floor, capacity: room.capacity, status: room.status, roomType: room.roomType, ratePlanCode: room.ratePlanCode },
+      });
+      codeToId[room.code] = created.id;
+    }
+  }
+  return codeToId;
 }
 
 async function upsertHotelRatePlans() {
@@ -317,7 +312,7 @@ async function upsertHotelRatePlans() {
   );
 }
 
-async function upsertReservations() {
+async function upsertReservations(roomCodeToId) {
   // Dates are kept relative to today so the demo data stays fresh on re-seed.
   const today = new Date();
   const fmt = (d) => d.toISOString().slice(0, 10);
@@ -327,7 +322,7 @@ async function upsertReservations() {
     {
       id: "res_1",
       customerId: "cst_1",
-      roomId: "hr_101",
+      roomId: roomCodeToId["101"] ?? null,
       guestName: "Giovanni Rossi",
       phone: "+39 333 1111111",
       email: "g.rossi@email.it",
@@ -361,7 +356,7 @@ async function upsertReservations() {
     {
       id: "res_4",
       customerId: "cst_2",
-      roomId: "hr_102",
+      roomId: roomCodeToId["102"] ?? null,
       guestName: "Anna Bianchi",
       phone: "+39 333 2222222",
       email: "anna@email.it",
@@ -421,6 +416,13 @@ async function upsertReservations() {
 }
 
 async function upsertStaysAndFolio() {
+  // Verifica che la prenotazione res_1 esista prima di procedere
+  const res1 = await prisma.hotelReservation.findFirst({ where: { id: "res_1", tenantId: TENANT_ID } });
+  if (!res1) {
+    console.log("  Skip stay/folio: prenotazione res_1 non trovata nel DB (già in check-out o diverso ID).");
+    return;
+  }
+
   const checkInAt = new Date();
   checkInAt.setUTCDate(checkInAt.getUTCDate() - 1);
   checkInAt.setUTCHours(14, 10, 0, 0);
@@ -485,24 +487,34 @@ async function upsertStaysAndFolio() {
 }
 
 async function upsertKeycards() {
+  // Risolvi roomId e reservationId reali dal DB
+  const room101 = await prisma.hotelRoom.findFirst({ where: { tenantId: TENANT_ID, code: "101" } });
+  const res1 = await prisma.hotelReservation.findFirst({ where: { tenantId: TENANT_ID, id: "res_1" } });
+  if (!room101 || !res1) {
+    console.log("  Skip keycard: camera 101 o prenotazione res_1 non trovate.");
+    return;
+  }
+  const now = new Date();
+  const validUntil = new Date(res1.checkOutDate);
+  validUntil.setUTCHours(11, 0, 0, 0);
   await prisma.hotelKeycard.upsert({
     where: { id: "card_1" },
     update: {
       tenantId: TENANT_ID,
-      roomId: "hr_101",
+      roomId: room101.id,
       reservationId: "res_1",
-      validFrom: new Date("2026-04-12T14:10:00Z"),
-      validUntil: new Date("2026-04-14T11:00:00Z"),
+      validFrom: now,
+      validUntil,
       status: "attiva",
       issuedBy: "reception",
     },
     create: {
       id: "card_1",
       tenantId: TENANT_ID,
-      roomId: "hr_101",
+      roomId: room101.id,
       reservationId: "res_1",
-      validFrom: new Date("2026-04-12T14:10:00Z"),
-      validUntil: new Date("2026-04-14T11:00:00Z"),
+      validFrom: now,
+      validUntil,
       status: "attiva",
       issuedBy: "reception",
     },
@@ -1125,8 +1137,8 @@ async function main() {
   await upsertUsers();
   await upsertCustomers();
   await upsertHotelRatePlans();
-  await upsertRooms();
-  await upsertReservations();
+  const roomCodeToId = await upsertRooms();
+  await upsertReservations(roomCodeToId);
   await upsertStaysAndFolio();
   await upsertKeycards();
   await upsertWarehouse();
