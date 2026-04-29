@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   AlertTriangle,
+  ChevronDown,
   Clock,
   Edit,
   ExternalLink,
@@ -448,13 +449,24 @@ export function StaffPage() {
               </div>
               <div>
                 <label className={labelCls}>Ruolo</label>
-                <select className={inputCls} value={fRole} onChange={(e) => setFRole(e.target.value)}>
-                  {/* Se il ruolo corrente non è nella lista standard (es. "Cameriere"), lo mostra comunque */}
-                  {!ROLES.includes(fRole) && fRole && (
-                    <option value={fRole}>{fRole}</option>
-                  )}
-                  {ROLES.map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
-                </select>
+                <div className="relative">
+                  <select
+                    className={cn(inputCls, "appearance-none cursor-pointer pr-9")}
+                    value={fRole}
+                    onChange={(e) => setFRole(e.target.value)}
+                  >
+                    {/* Fallback: mostra il valore corrente anche se non è nella lista standard */}
+                    {!ROLES.includes(fRole) && fRole && (
+                      <option value={fRole}>{fRole}</option>
+                    )}
+                    {ROLES.map((r) => (
+                      <option key={r} value={r} className="capitalize bg-rw-surface text-rw-ink">
+                        {r.replace(/_/g, " ")}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className={labelCls}>Telefono</label><input className={inputCls} value={fPhone} onChange={(e) => setFPhone(e.target.value)} placeholder="333-…" /></div>
