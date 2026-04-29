@@ -8,12 +8,13 @@ import { hashPassword } from "@/lib/auth/password";
 
 const ROLES = ["supervisor", "owner", "super_admin"] as const;
 
-// Ruoli che un owner può assegnare ai propri utenti
+// Ruoli di accesso che un owner può assegnare ai propri utenti
 const ASSIGNABLE_ROLES = [
   "sala", "cucina", "bar", "pizzeria", "cassa",
   "magazzino", "supervisor", "staff",
   "reception", "hotel_manager", "housekeeping",
 ] as const;
+type AssignableRole = typeof ASSIGNABLE_ROLES[number];
 
 /** GET /api/users — lista utenti del tenant corrente */
 export async function GET(req: NextRequest) {
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (!/^[a-z0-9_.-]+$/.test(username)) return err("Username: solo lettere minuscole, numeri, punti, trattini, underscore");
   if (!name || name.length < 2) return err("Nome obbligatorio");
   if (!password || password.length < 6) return err("Password obbligatoria (min 6 caratteri)");
-  if (!role || !ASSIGNABLE_ROLES.includes(role as typeof ASSIGNABLE_ROLES[number])) {
+  if (!role || !ASSIGNABLE_ROLES.includes(role as AssignableRole)) {
     return err(`Ruolo non valido. Valori ammessi: ${ASSIGNABLE_ROLES.join(", ")}`);
   }
 

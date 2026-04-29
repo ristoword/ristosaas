@@ -35,22 +35,62 @@ type RichiestaAssenza = {
   stato: "in attesa" | "approvata" | "rifiutata";
 };
 
-const ROLES = [
-  // Ristorante
-  "sala",
-  "cucina",
-  "bar",
-  "pizzeria",
-  "cassa",
-  "supervisor",
+// Ruoli operativi (job title nel record staff — visibili nella lista dipendenti)
+const STAFF_JOB_ROLES = [
+  // Cucina
+  { value: "chef",            label: "Chef",             group: "Cucina" },
+  { value: "sous_chef",       label: "Sous Chef",        group: "Cucina" },
+  { value: "capopartita",     label: "Capopartita",      group: "Cucina" },
+  { value: "demi_chef",       label: "Demi Chef",        group: "Cucina" },
+  { value: "comis_cucina",    label: "Comis di Cucina",  group: "Cucina" },
+  { value: "lavapiatti",      label: "Lavapiatti",       group: "Cucina" },
+  { value: "inserviente",     label: "Inserviente",      group: "Cucina" },
+  // Sala
+  { value: "maitre",          label: "Maître",           group: "Sala" },
+  { value: "chef_de_rang",    label: "Chef de Rang",     group: "Sala" },
+  { value: "demi_chef_sala",  label: "Demi Chef di Sala",group: "Sala" },
+  { value: "comis_sala",      label: "Comis di Sala",    group: "Sala" },
+  // Bar
+  { value: "barman",          label: "Barman",           group: "Bar" },
+  { value: "bartender",       label: "Bartender",        group: "Bar" },
+  { value: "comis_bar",       label: "Comis di Bar",     group: "Bar" },
+  // Pizzeria
+  { value: "capo_pizzaiolo",  label: "Capo Pizzaiolo",   group: "Pizzeria" },
+  { value: "pizzaiolo",       label: "Pizzaiolo",        group: "Pizzeria" },
+  { value: "comis_pizzeria",  label: "Comis di Pizzeria",group: "Pizzeria" },
+  // Cassa
+  { value: "cassiere",        label: "Cassiere",         group: "Cassa" },
   // Hotel
-  "reception",
-  "hotel_manager",
-  "housekeeping",
-  // Magazzino / altro
-  "magazzino",
-  "staff",
+  { value: "receptionist",    label: "Receptionist",     group: "Hotel" },
+  { value: "concierge",       label: "Concierge",        group: "Hotel" },
+  { value: "housekeeping",    label: "Housekeeping",     group: "Hotel" },
+  // Gestione
+  { value: "supervisor",      label: "Supervisor",       group: "Gestione" },
+  { value: "responsabile",    label: "Responsabile",     group: "Gestione" },
+  // Magazzino
+  { value: "magazziniere",    label: "Magazziniere",     group: "Magazzino" },
+  // Altro
+  { value: "cameriere",       label: "Cameriere",        group: "Sala" },
+  { value: "staff",           label: "Staff",            group: "Altro" },
 ];
+
+// Ruoli di accesso (permessi di sistema — usati per il login e i permessi API)
+const USER_ACCESS_ROLES = [
+  { value: "sala",           label: "Sala (camerieri, chef de rang…)",  },
+  { value: "cucina",         label: "Cucina (chef, sous chef, comis…)",  },
+  { value: "bar",            label: "Bar (barman, bartender…)",          },
+  { value: "pizzeria",       label: "Pizzeria (pizzaiolo…)",             },
+  { value: "cassa",          label: "Cassa",                            },
+  { value: "magazzino",      label: "Magazzino",                        },
+  { value: "supervisor",     label: "Supervisor",                       },
+  { value: "reception",      label: "Reception (hotel)",                },
+  { value: "hotel_manager",  label: "Hotel Manager",                    },
+  { value: "housekeeping",   label: "Housekeeping (hotel)",             },
+  { value: "staff",          label: "Staff (base, solo timbratura)",    },
+];
+
+// Alias per retrocompatibilità nel form staff member
+const ROLES = STAFF_JOB_ROLES.map((r) => r.value);
 
 type TenantUser = {
   id: string;
@@ -460,22 +500,29 @@ export function StaffPage() {
                 <input className={inputCls} value={fName} onChange={(e) => setFName(e.target.value)} placeholder="Mario Rossi" />
               </div>
               <div>
-                <label className={labelCls}>Ruolo</label>
+                <label className={labelCls}>Qualifica / Ruolo operativo</label>
                 <div className="relative">
                   <select
                     className={cn(inputCls, "appearance-none cursor-pointer pr-9")}
                     value={fRole}
                     onChange={(e) => setFRole(e.target.value)}
                   >
-                    {/* Fallback: mostra il valore corrente anche se non è nella lista standard */}
+                    {/* Fallback: mostra il valore corrente anche se non è nella lista (es. dati legacy) */}
                     {!ROLES.includes(fRole) && fRole && (
                       <option value={fRole}>{fRole}</option>
                     )}
-                    {ROLES.map((r) => (
-                      <option key={r} value={r} className="capitalize bg-rw-surface text-rw-ink">
-                        {r.replace(/_/g, " ")}
-                      </option>
-                    ))}
+                    {(() => {
+                      const groups = [...new Set(STAFF_JOB_ROLES.map((r) => r.group))];
+                      return groups.map((group) => (
+                        <optgroup key={group} label={group}>
+                          {STAFF_JOB_ROLES.filter((r) => r.group === group).map((r) => (
+                            <option key={r.value} value={r.value} className="bg-rw-surface text-rw-ink">
+                              {r.label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ));
+                    })()}
                   </select>
                   <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
                 </div>
@@ -753,8 +800,8 @@ function AccessiStaffCard({
               <label className={labelCls}>Ruolo</label>
               <div className="relative">
                 <select className={cn(inputCls, "appearance-none cursor-pointer pr-9")} value={uRole} onChange={(e) => setURole(e.target.value)}>
-                  {ROLES.map((r) => (
-                    <option key={r} value={r} className="bg-rw-surface text-rw-ink capitalize">{r.replace(/_/g, " ")}</option>
+                  {USER_ACCESS_ROLES.map((r) => (
+                    <option key={r.value} value={r.value} className="bg-rw-surface text-rw-ink">{r.label}</option>
                   ))}
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
