@@ -32,7 +32,22 @@ type RichiestaAssenza = {
   stato: "in attesa" | "approvata" | "rifiutata";
 };
 
-const ROLES = ["sala", "cucina", "bar", "pizzeria", "cassa", "supervisor"];
+const ROLES = [
+  // Ristorante
+  "sala",
+  "cucina",
+  "bar",
+  "pizzeria",
+  "cassa",
+  "supervisor",
+  // Hotel
+  "reception",
+  "hotel_manager",
+  "housekeeping",
+  // Magazzino / altro
+  "magazzino",
+  "staff",
+];
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30";
@@ -434,6 +449,10 @@ export function StaffPage() {
               <div>
                 <label className={labelCls}>Ruolo</label>
                 <select className={inputCls} value={fRole} onChange={(e) => setFRole(e.target.value)}>
+                  {/* Se il ruolo corrente non è nella lista standard (es. "Cameriere"), lo mostra comunque */}
+                  {!ROLES.includes(fRole) && fRole && (
+                    <option value={fRole}>{fRole}</option>
+                  )}
                   {ROLES.map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
                 </select>
               </div>
