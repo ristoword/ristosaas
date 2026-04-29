@@ -125,7 +125,7 @@ export function MenuAdminPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-print-section="menu">
       <PageHeader title="Gestione Menu" subtitle="Anagrafica piatti e food cost">
         <button type="button" onClick={handlePrint} className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft hover:text-rw-ink">
           <Printer className="h-4 w-4" /> Stampa Menu

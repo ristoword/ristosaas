@@ -27,41 +27,206 @@
   }
 }
 
+/* =====================================================================
+   PRINT STYLES — tutti i documenti stampabili
+   ===================================================================== */
 @media print {
-  body {
-    background: white !important;
-    color: black !important;
+
+  /* 1. Pagina A4 con margini standard */
+  @page {
+    size: A4 portrait;
+    margin: 1.8cm 1.5cm 2cm 1.5cm;
   }
 
-  .print\:hidden {
+  /* 2. Reset corpo — sfondo bianco, testo nero */
+  html,
+  body {
+    background: white !important;
+    background-image: none !important;
+    color: #111 !important;
+    font-size: 11pt !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 3. Nascondi tutta la chrome applicazione */
+  aside,
+  header,
+  nav,
+  [data-sidebar],
+  [data-topbar],
+  [data-no-print],
+  .no-print {
     display: none !important;
   }
 
-  .print\:block {
+  /* 4. Nascondi elementi interattivi e decorativi */
+  button:not([data-print-keep]),
+  input,
+  select,
+  textarea,
+  [role="dialog"],
+  [role="tooltip"],
+  .backdrop-blur-md,
+  .fixed,
+  .sticky {
+    display: none !important;
+  }
+
+  /* 5. Fix layout principale — rimuovi il flex row che include la sidebar */
+  .flex.min-h-dvh,
+  .flex.min-h-screen {
+    display: block !important;
+    min-height: auto !important;
+  }
+
+  /* 6. Content wrapper — full width, niente padding laterale */
+  .flex-1.flex-col,
+  .flex-1.px-4,
+  .flex-1.md\:px-8 {
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* 7. Rimuovi max-width e centering */
+  .mx-auto,
+  .max-w-6xl,
+  .max-w-5xl,
+  .max-w-4xl,
+  .max-w-3xl,
+  .max-w-2xl,
+  .max-w-xl {
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  /* 8. Tutti gli elementi: nero su bianco, niente ombre */
+  * {
+    color: #111 !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    border-color: #ccc !important;
+  }
+
+  /* 9. Card / superfici — bordo sottile leggibile */
+  [class*="rounded"],
+  [class*="border"],
+  [class*="card"] {
+    border-radius: 0 !important;
+  }
+
+  /* 10. Link — non sottolineare */
+  a {
+    text-decoration: none !important;
+    color: #111 !important;
+  }
+
+  /* 11. Tabelle — page break corretto */
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tfoot {
+    display: table-footer-group;
+  }
+  tr {
+    page-break-inside: avoid;
+  }
+  th, td {
+    border: 1px solid #bbb !important;
+    padding: 5pt 7pt !important;
+    font-size: 10pt !important;
+    color: #111 !important;
+    background: white !important;
+  }
+  th {
+    background: #f0f0f0 !important;
+    font-weight: bold !important;
+  }
+
+  /* 12. Headings */
+  h1 { font-size: 18pt !important; font-weight: bold !important; margin-bottom: 8pt !important; }
+  h2 { font-size: 14pt !important; font-weight: bold !important; margin-bottom: 6pt !important; }
+  h3 { font-size: 12pt !important; font-weight: bold !important; margin-bottom: 4pt !important; }
+
+  /* 13. Spazi */
+  .space-y-6 > * + * { margin-top: 12pt !important; }
+  .space-y-4 > * + * { margin-top: 8pt !important; }
+
+  /* 14. Chip/badge — testo semplice */
+  [class*="rounded-full"],
+  [class*="chip"],
+  [class*="badge"],
+  [class*="pill"] {
+    border: 1px solid #888 !important;
+    border-radius: 3pt !important;
+    padding: 1pt 4pt !important;
+    font-size: 9pt !important;
+  }
+
+  /* 15. Grid — passa a colonna singola in stampa */
+  .grid {
     display: block !important;
   }
 
-  .print\:grid {
-    display: grid !important;
+  /* 16. Utilità print esplicite */
+  .print\:hidden { display: none !important; }
+  .print\:block  { display: block !important; }
+  .print\:table  { display: table !important; }
+
+  /* 17. Salto pagina esplicito */
+  .print-page-break        { page-break-before: always !important; }
+  .print-avoid-break       { page-break-inside: avoid !important; }
+  .print-keep-together     { page-break-inside: avoid !important; }
+
+  /* ─── HACCP — documento ufficiale ─────────────────────────── */
+  [data-print-section="haccp"] {
+    page-break-before: always;
+  }
+  [data-print-section="haccp"] .haccp-doc-header {
+    display: block !important;
+    border-bottom: 2px solid #111 !important;
+    margin-bottom: 12pt !important;
+    padding-bottom: 8pt !important;
+  }
+  [data-print-section="haccp"] .haccp-doc-footer {
+    display: block !important;
+    border-top: 1px solid #888 !important;
+    margin-top: 12pt !important;
+    padding-top: 6pt !important;
+    font-size: 8pt !important;
+    color: #555 !important;
   }
 
-  .print\:grid-cols-1 {
-    grid-template-columns: 1fr !important;
+  /* ─── Menu / Menu del giorno — layout pulito ──────────────── */
+  [data-print-section="menu"] {
+    page-break-before: always;
+    font-family: Georgia, serif !important;
+  }
+  [data-print-section="menu"] h1 {
+    text-align: center !important;
+    font-size: 22pt !important;
+    border-bottom: 2px solid #111 !important;
+    padding-bottom: 8pt !important;
+    margin-bottom: 14pt !important;
+  }
+  [data-print-section="menu"] h2 {
+    font-size: 13pt !important;
+    border-bottom: 1px solid #999 !important;
+    margin-top: 14pt !important;
+    padding-bottom: 3pt !important;
   }
 
-  nav, header, aside, [data-sidebar] {
-    display: none !important;
-  }
-
-  main {
-    margin: 0 !important;
-    padding: 1rem !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  * {
-    border-color: #e5e7eb !important;
-    box-shadow: none !important;
+  /* ─── Staff presenze — uguale a print/page.tsx ─────────────── */
+  [data-print-section="staff"] table th {
+    background: #e8e8e8 !important;
   }
 }

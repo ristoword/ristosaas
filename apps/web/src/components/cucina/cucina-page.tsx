@@ -1126,8 +1126,27 @@ function HaccpTab() {
   }
 
   return (
-    <div className="space-y-6">
-      <Card title="Registrazione HACCP" description="Log persistente delle rilevazioni HACCP (temperature, sanificazioni, ricezioni merce).">
+    <div className="space-y-6" data-print-section="haccp">
+      {/* Intestazione visibile solo in stampa — documento ufficiale */}
+      <div className="haccp-doc-header hidden">
+        <h1 style={{ fontSize: "18pt", fontWeight: "bold", marginBottom: "4pt" }}>Registro HACCP — Controllo Igienico-Sanitario</h1>
+        <p style={{ fontSize: "10pt" }}>Data stampa: {new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}</p>
+        <p style={{ fontSize: "9pt", color: "#555", marginTop: "2pt" }}>Documento generato da RistoSaaS — conservare agli atti per ispezioni sanitarie</p>
+      </div>
+
+      <Card title="Registrazione HACCP"
+        description="Log persistente delle rilevazioni HACCP (temperature, sanificazioni, ricezioni merce)."
+        headerRight={
+          <button
+            type="button"
+            data-print-keep="true"
+            onClick={() => window.print()}
+            className="no-print inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-1.5 text-xs font-semibold text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition"
+          >
+            🖨️ Stampa registri
+          </button>
+        }
+      >
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
@@ -1181,7 +1200,7 @@ function HaccpTab() {
                 key: "actions",
                 header: "",
                 render: (r: ApiHaccpEntry) => (
-                  <button type="button" onClick={() => removeEntry(r.id)} className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/20">
+                  <button type="button" onClick={() => removeEntry(r.id)} className="no-print rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/20">
                     Elimina
                   </button>
                 ),
@@ -1192,6 +1211,12 @@ function HaccpTab() {
           />
         )}
       </Card>
+
+      {/* Footer visibile solo in stampa */}
+      <div className="haccp-doc-footer hidden">
+        <p>Totale rilevazioni: {entries.length} · Stampato il {new Date().toLocaleDateString("it-IT")} alle {new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</p>
+        <p style={{ marginTop: "24pt" }}>Firma responsabile: _______________________________ &nbsp;&nbsp;&nbsp; Data: _______________</p>
+      </div>
     </div>
   );
 }
