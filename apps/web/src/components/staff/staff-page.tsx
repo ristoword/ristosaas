@@ -7,10 +7,12 @@ import {
   Clock,
   Edit,
   ExternalLink,
+  KeyRound,
   Loader2,
   Plus,
   QrCode,
   Send,
+  Trash2,
   ToggleLeft,
   ToggleRight,
   UserPlus,
@@ -49,6 +51,16 @@ const ROLES = [
   "magazzino",
   "staff",
 ];
+
+type TenantUser = {
+  id: string;
+  name: string;
+  username: string;
+  role: string;
+  email?: string | null;
+  mustChangePassword?: boolean;
+  isLocked?: boolean;
+};
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30";
@@ -185,7 +197,7 @@ export function StaffPage() {
   const [fHoursWeek, setFHoursWeek] = useState("");
   const [fNotes, setFNotes] = useState("");
   const [fUserId, setFUserId] = useState<string>("");
-  const [tenantUsers, setTenantUsers] = useState<{ id: string; name: string; username: string; role: string }[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
   const [linkLoading, setLinkLoading] = useState(false);
 
   const [aDipId, setADipId] = useState("");
@@ -649,8 +661,161 @@ export function StaffPage() {
           >
             <DataTable columns={roleCols} data={staffPerRole} keyExtractor={(r) => r.role} emptyMessage="Nessun ruolo" />
           </Card>
+
+          <AccessiStaffCard tenantUsers={tenantUsers} onUsersChange={setTenantUsers} />
         </div>
       </div>
     </div>
+  );
+}
+
+/* ─── Componente Gestione Accessi ─────────────────────────────────── */
+
+function AccessiStaffCard({
+  tenantUsers,
+  onUsersChange,
+}: {
+  tenantUsers: TenantUser[];
+  onUsersChange: (users: TenantUser[]) => void;
+}) {
+  const [uName, setUName] = useState("");
+  const [uUsername, setUUsername] = useState("");
+  const [uEmail, setUEmail] = useState("");
+  const [uPassword, setUPassword] = useState("");
+  const [uRole, setURole] = useState("sala");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveOk, setSaveOk] = useState<string | null>(null);
+
+  const inputCls =
+    "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30";
+  const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
+
+  async function handleCreate() {
+    if (!uName.trim() || !uUsername.trim() || !uPassword.trim()) return;
+    setSaving(true);
+    setSaveError(null);
+    setSaveOk(null);
+    try {
+      const res = await fetch("/api/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: uName.trim(), username: uUsername.trim(), email: uEmail.trim() || undefined, password: uPassword, role: uRole }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setSaveError(data.error || "Errore nella creazione"); return; }
+      setSaveOk(`Account "${uUsername}" creato. Al primo login dovrà cambiare la password.`);
+      setUName(""); setUUsername(""); setUEmail(""); setUPassword(""); setURole("sala");
+      // Ricarica lista utenti
+      const updated = await fetch("/api/users").then((r) => r.ok ? r.json() : tenantUsers);
+      onUsersChange(updated);
+    } catch {
+      setSaveError("Errore di rete");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(userId: string, username: string) {
+    if (!confirm(`Eliminare l'account "${username}"? L'utente non potrà più accedere.`)) return;
+    try {
+      const res = await fetch(`/api/users?id=${userId}`, { method: "DELETE" });
+      if (!res.ok) { const d = await res.json(); alert(d.error || "Errore eliminazione"); return; }
+      onUsersChange(tenantUsers.filter((u) => u.id !== userId));
+    } catch { alert("Errore di rete"); }
+  }
+
+  return (
+    <Card
+      title="Accessi Staff"
+      description="Crea username e password per ogni membro dello staff. Al primo accesso dovranno cambiare la password."
+    >
+      <div className="space-y-5">
+        {/* Form creazione */}
+        <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt/40 p-4 space-y-3">
+          <p className="text-xs font-semibold text-rw-muted uppercase tracking-wide">Nuovo accesso</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Nome completo</label>
+              <input className={inputCls} value={uName} onChange={(e) => setUName(e.target.value)} placeholder="Mario Rossi" />
+            </div>
+            <div>
+              <label className={labelCls}>Username (per il login)</label>
+              <input className={inputCls} value={uUsername} onChange={(e) => setUUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, ""))} placeholder="mario.rossi" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={labelCls}>Password temporanea</label>
+              <input type="text" className={inputCls} value={uPassword} onChange={(e) => setUPassword(e.target.value)} placeholder="min 6 caratteri" />
+            </div>
+            <div>
+              <label className={labelCls}>Ruolo</label>
+              <div className="relative">
+                <select className={cn(inputCls, "appearance-none cursor-pointer pr-9")} value={uRole} onChange={(e) => setURole(e.target.value)}>
+                  {ROLES.map((r) => (
+                    <option key={r} value={r} className="bg-rw-surface text-rw-ink capitalize">{r.replace(/_/g, " ")}</option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Email (opzionale)</label>
+            <input type="email" className={inputCls} value={uEmail} onChange={(e) => setUEmail(e.target.value)} placeholder="mario@email.it" />
+          </div>
+          {saveError && <p className="text-xs font-semibold text-red-400">{saveError}</p>}
+          {saveOk && <p className="text-xs font-semibold text-emerald-400">{saveOk}</p>}
+          <button
+            type="button"
+            onClick={() => void handleCreate()}
+            disabled={saving || !uName.trim() || !uUsername.trim() || !uPassword.trim()}
+            className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-50 transition"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+            Crea accesso
+          </button>
+        </div>
+
+        {/* Lista utenti esistenti */}
+        {tenantUsers.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-rw-muted uppercase tracking-wide">Account attivi ({tenantUsers.length})</p>
+            {tenantUsers.map((u) => (
+              <div key={u.id} className="flex items-center justify-between rounded-xl border border-rw-line bg-rw-surface px-4 py-3 gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-sm text-rw-ink truncate">{u.name}</span>
+                    {u.mustChangePassword && (
+                      <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">cambio pwd</span>
+                    )}
+                    {u.isLocked && (
+                      <span className="rounded-full bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-red-400">bloccato</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-rw-muted font-mono">@{u.username}</span>
+                    <span className="text-rw-line">·</span>
+                    <span className="text-xs text-rw-soft capitalize">{u.role.replace(/_/g, " ")}</span>
+                    {u.email && <><span className="text-rw-line">·</span><span className="text-xs text-rw-muted">{u.email}</span></>}
+                  </div>
+                </div>
+                {u.role !== "owner" && u.role !== "super_admin" && (
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(u.id, u.username)}
+                    className="shrink-0 rounded-lg p-1.5 text-rw-muted hover:bg-red-500/10 hover:text-red-400 transition"
+                    title="Elimina account"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
