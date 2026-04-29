@@ -74,12 +74,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // Se email non fornita genero un placeholder locale non reale
+    const resolvedEmail = email || `${username}@staff.local`;
+
     const user = await prisma.user.create({
       data: {
         tenantId,
         username,
         name,
-        email: email || null,
+        email: resolvedEmail,
         role,
         passwordHash: hashPassword(password),
         mustChangePassword: true,
