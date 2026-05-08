@@ -125,14 +125,14 @@ export function MenuAdminPage() {
   }
 
   return (
-    <div className="space-y-6" data-print-section="menu">
+    <div className="space-y-6">
       <PageHeader title="Gestione Menu" subtitle="Anagrafica piatti e food cost">
         <button type="button" onClick={handlePrint} className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft hover:text-rw-ink">
           <Printer className="h-4 w-4" /> Stampa Menu
         </button>
       </PageHeader>
 
-      <div className="flex flex-wrap gap-3 print:hidden">
+      <div className="flex flex-wrap gap-3" data-no-print>
         <Chip label="Piatti totali" value={menuItems.length} tone="default" />
         <Chip label="Attivi" value={menuItems.filter((d) => d.active).length} tone="success" />
         <Chip label="Categorie" value={new Set(menuItems.map((d) => d.category)).size} tone="info" />
@@ -297,25 +297,25 @@ export function MenuAdminPage() {
         </Card>
       </div>
 
-      {/* Print view */}
-      <div className="hidden print:block">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold">Menu</h1>
-          <p className="text-sm text-gray-500">{new Date().toLocaleDateString("it-IT", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+      {/* ── Area stampabile Menu permanente ──────────────────── */}
+      <div data-print-content>
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: "bold", margin: 0 }}>Menu</h1>
+          <p style={{ fontSize: "0.85rem", marginTop: "0.4rem" }}>{new Date().toLocaleDateString("it-IT", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
         </div>
         {CATEGORIES.map((cat) => {
           const items = menuItems.filter((d) => d.category === cat && d.active);
           if (items.length === 0) return null;
           return (
-            <div key={cat} className="mb-4">
-              <h2 className="text-lg font-bold border-b border-gray-300 pb-1 mb-2">{cat}</h2>
+            <div key={cat} style={{ marginBottom: "1.2rem" }}>
+              <h2 style={{ fontSize: "1rem", fontWeight: "bold", borderBottom: "2px solid #374151", paddingBottom: "0.25rem", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{cat}</h2>
               {items.map((d) => (
-                <div key={d.id} className="flex justify-between py-1">
+                <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "0.35rem 0", borderBottom: "1px solid #e5e7eb" }}>
                   <div>
-                    <span className="font-medium">{d.name}</span>
-                    {d.notes && <span className="text-xs text-gray-500 ml-2">({d.notes})</span>}
+                    <span style={{ fontWeight: 600 }}>{d.name}</span>
+                    {d.notes && <span style={{ fontSize: "0.75rem", color: "#6b7280", marginLeft: "0.5rem" }}>({d.notes})</span>}
                   </div>
-                  <span className="font-semibold">€{d.price.toFixed(2)}</span>
+                  <span style={{ fontWeight: 700 }}>€{d.price.toFixed(2)}</span>
                 </div>
               ))}
             </div>

@@ -1125,98 +1125,185 @@ function HaccpTab() {
     }
   }
 
+  const printDate = new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" });
+
   return (
-    <div className="space-y-6" data-print-section="haccp">
-      {/* Intestazione visibile solo in stampa — documento ufficiale */}
-      <div className="haccp-doc-header hidden">
-        <h1 style={{ fontSize: "18pt", fontWeight: "bold", marginBottom: "4pt" }}>Registro HACCP — Controllo Igienico-Sanitario</h1>
-        <p style={{ fontSize: "10pt" }}>Data stampa: {new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" })}</p>
-        <p style={{ fontSize: "9pt", color: "#555", marginTop: "2pt" }}>Documento generato da RistoSaaS — conservare agli atti per ispezioni sanitarie</p>
+    <div className="space-y-6">
+      {/* Form di registrazione — nascosto in stampa */}
+      <div data-no-print>
+        <Card title="Registrazione HACCP" description="Log persistente delle rilevazioni HACCP (temperature, sanificazioni, ricezioni merce).">
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-rw-muted">Tipo rilevazione</span>
+                <select value={type} onChange={(e) => setType(e.target.value as ApiHaccpEntry["type"])} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent">
+                  {(Object.keys(HACCP_TYPE_LABELS) as Array<keyof typeof HACCP_TYPE_LABELS>).map((t) => (
+                    <option key={t} value={t}>{HACCP_TYPE_LABELS[t]}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-rw-muted">Data e ora</span>
+                <input type="datetime-local" value={recordedAt} onChange={(e) => setRecordedAt(e.target.value)} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+              </label>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-rw-muted">Postazione / punto di controllo</span>
+                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="es. Frigo cucina 1" className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold text-rw-muted">Temperatura °C (opzionale)</span>
+                <div className="flex items-center gap-2">
+                  <ThermometerSun className="h-4 w-4 text-rw-muted" />
+                  <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="es. 4.2" className="flex-1 rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+                </div>
+              </label>
+            </div>
+            <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder="Operatore" className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note…" rows={3} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            {error ? <p className="text-xs text-red-400">{error}</p> : null}
+            <button type="button" onClick={save} disabled={saving} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
+              {saving ? "Salvataggio…" : "Registra"}
+            </button>
+          </div>
+        </Card>
       </div>
 
-      <Card title="Registrazione HACCP"
-        description="Log persistente delle rilevazioni HACCP (temperature, sanificazioni, ricezioni merce)."
+      {/* Storico + pulsante stampa */}
+      <Card
+        title="Storico rilevazioni"
+        description={loading ? "Caricamento…" : `${entries.length} rilevazioni (ultime 100)`}
         headerRight={
-          <button
-            type="button"
-            data-print-keep="true"
-            onClick={() => window.print()}
-            className="no-print inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-1.5 text-xs font-semibold text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition"
-          >
-            🖨️ Stampa registri
-          </button>
+          entries.length > 0 ? (
+            <button
+              type="button"
+              data-no-print
+              onClick={() => window.print()}
+              className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft hover:text-rw-ink transition"
+            >
+              🖨️ Stampa documento HACCP
+            </button>
+          ) : undefined
         }
       >
-        <div className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-rw-muted">Tipo rilevazione</span>
-              <select value={type} onChange={(e) => setType(e.target.value as ApiHaccpEntry["type"])} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent">
-                {(Object.keys(HACCP_TYPE_LABELS) as Array<keyof typeof HACCP_TYPE_LABELS>).map((t) => (
-                  <option key={t} value={t}>{HACCP_TYPE_LABELS[t]}</option>
-                ))}
-              </select>
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-rw-muted">Data e ora</span>
-              <input type="datetime-local" value={recordedAt} onChange={(e) => setRecordedAt(e.target.value)} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            </label>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-rw-muted">Postazione / punto di controllo</span>
-              <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="es. Frigo cucina 1" className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold text-rw-muted">Temperatura °C (opzionale)</span>
-              <div className="flex items-center gap-2">
-                <ThermometerSun className="h-4 w-4 text-rw-muted" />
-                <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="es. 4.2" className="flex-1 rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+        {/* ── Contenuto stampabile HACCP ─────────────────────── */}
+        <div data-print-content>
+          {/* Intestazione documento — visibile SOLO in stampa */}
+          <div className="hidden" style={{ display: "none" }}
+            ref={(el) => {
+              if (el) {
+                // Applica stile solo in print via JS (il CSS @media print lo rende visibile)
+                el.setAttribute("data-print-header", "true");
+              }
+            }}
+          />
+          <style>{`
+            @media print {
+              [data-print-header] { display: block !important; }
+              [data-print-header-hide] { display: none !important; }
+            }
+          `}</style>
+
+          {/* Header documento HACCP — visibile solo in stampa */}
+          <div data-print-header style={{ display: "none" }}
+            className="mb-6 border-b-2 border-black pb-4"
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="text-2xl font-bold uppercase tracking-wide">Registro HACCP</div>
+                <div className="text-sm mt-1">Sistema di autocontrollo igienico-sanitario</div>
+                <div className="text-sm">D.Lgs. 193/2007 — Reg. CE 852/2004</div>
               </div>
-            </label>
+              <div className="text-right text-sm">
+                <div className="font-semibold">Data stampa: {printDate}</div>
+                <div className="mt-1">N° rilevazioni: {entries.length}</div>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-8 text-sm">
+              <div>
+                <span className="font-semibold">Struttura:</span>
+                <span className="ml-2 border-b border-black inline-block w-40">&nbsp;</span>
+              </div>
+              <div>
+                <span className="font-semibold">Responsabile HACCP:</span>
+                <span className="ml-2 border-b border-black inline-block w-32">&nbsp;</span>
+              </div>
+            </div>
           </div>
-          <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder="Operatore" className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note…" rows={3} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-          {error ? <p className="text-xs text-red-400">{error}</p> : null}
-          <button type="button" onClick={save} disabled={saving} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
-            {saving ? "Salvataggio…" : "Registra"}
-          </button>
+
+          {/* Tabella dati */}
+          {!loading && entries.length === 0 ? (
+            <p className="py-4 text-center text-sm text-rw-muted">Nessuna rilevazione HACCP registrata.</p>
+          ) : (
+            <>
+              {/* Versione schermo (DataTable) */}
+              <div data-print-header-hide>
+                <DataTable
+                  columns={[
+                    { key: "recordedAt", header: "Data/ora", render: (r: ApiHaccpEntry) => <span className="text-rw-ink">{new Date(r.recordedAt).toLocaleString("it-IT")}</span> },
+                    { key: "type", header: "Tipo", render: (r: ApiHaccpEntry) => <span className="text-rw-soft">{HACCP_TYPE_LABELS[r.type] ?? r.type}</span> },
+                    { key: "location", header: "Postazione" },
+                    { key: "tempC", header: "Temp °C", render: (r: ApiHaccpEntry) => (r.tempC != null ? `${r.tempC.toFixed(1)}°` : "—") },
+                    { key: "operator", header: "Operatore" },
+                    { key: "notes", header: "Note", render: (r: ApiHaccpEntry) => <span className="text-rw-muted">{r.notes || "—"}</span> },
+                    {
+                      key: "actions",
+                      header: "",
+                      render: (r: ApiHaccpEntry) => (
+                        <button type="button" onClick={() => removeEntry(r.id)} className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/20">
+                          Elimina
+                        </button>
+                      ),
+                    },
+                  ]}
+                  data={entries}
+                  keyExtractor={(r) => r.id}
+                />
+              </div>
+              {/* Versione stampa (tabella HTML nativa — più affidabile per @media print) */}
+              <table style={{ display: "none" }} data-print-header className="w-full text-sm border-collapse">
+                <thead>
+                  <tr>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Data e ora</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Tipo rilevazione</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Postazione</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-center text-xs font-bold">Temp °C</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Operatore</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Note / Esito</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((r) => (
+                    <tr key={r.id}>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{new Date(r.recordedAt).toLocaleString("it-IT")}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{HACCP_TYPE_LABELS[r.type] ?? r.type}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{r.location || "—"}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs text-center font-semibold">{r.tempC != null ? `${r.tempC.toFixed(1)}°` : "—"}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{r.operator || "—"}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{r.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {/* Footer firme — solo in stampa */}
+          <div data-print-header style={{ display: "none" }} className="mt-10 grid grid-cols-2 gap-16 text-sm">
+            <div>
+              <div className="mb-8 font-semibold">Firma Operatore</div>
+              <div className="border-b border-black w-full">&nbsp;</div>
+              <div className="mt-1 text-xs text-gray-600">Nome e firma</div>
+            </div>
+            <div>
+              <div className="mb-8 font-semibold">Firma Responsabile HACCP</div>
+              <div className="border-b border-black w-full">&nbsp;</div>
+              <div className="mt-1 text-xs text-gray-600">Nome e firma</div>
+            </div>
+          </div>
         </div>
       </Card>
-
-      <Card title="Storico rilevazioni" description={loading ? "Caricamento…" : `${entries.length} rilevazioni (ultime 100)`}>
-        {!loading && entries.length === 0 ? (
-          <p className="py-4 text-center text-sm text-rw-muted">Nessuna rilevazione HACCP registrata.</p>
-        ) : (
-          <DataTable
-            columns={[
-              { key: "recordedAt", header: "Data/ora", render: (r: ApiHaccpEntry) => <span className="text-rw-ink">{new Date(r.recordedAt).toLocaleString("it-IT")}</span> },
-              { key: "type", header: "Tipo", render: (r: ApiHaccpEntry) => <span className="text-rw-soft">{HACCP_TYPE_LABELS[r.type] ?? r.type}</span> },
-              { key: "location", header: "Postazione" },
-              { key: "tempC", header: "Temp °C", render: (r: ApiHaccpEntry) => (r.tempC != null ? `${r.tempC.toFixed(1)}°` : "—") },
-              { key: "operator", header: "Operatore" },
-              { key: "notes", header: "Note", render: (r: ApiHaccpEntry) => <span className="text-rw-muted">{r.notes || "—"}</span> },
-              {
-                key: "actions",
-                header: "",
-                render: (r: ApiHaccpEntry) => (
-                  <button type="button" onClick={() => removeEntry(r.id)} className="no-print rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/20">
-                    Elimina
-                  </button>
-                ),
-              },
-            ]}
-            data={entries}
-            keyExtractor={(r) => r.id}
-          />
-        )}
-      </Card>
-
-      {/* Footer visibile solo in stampa */}
-      <div className="haccp-doc-footer hidden">
-        <p>Totale rilevazioni: {entries.length} · Stampato il {new Date().toLocaleDateString("it-IT")} alle {new Date().toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</p>
-        <p style={{ marginTop: "24pt" }}>Firma responsabile: _______________________________ &nbsp;&nbsp;&nbsp; Data: _______________</p>
-      </div>
     </div>
   );
 }

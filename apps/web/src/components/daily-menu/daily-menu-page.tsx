@@ -75,20 +75,21 @@ export function DailyMenuPage() {
   }
 
   return (
-    <div className="space-y-6" data-print-section="menu">
+    <div className="space-y-6">
       <PageHeader title="Menu del Giorno" subtitle="Piatti speciali e proposte giornaliere">
         <button type="button" onClick={handlePrint} className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft hover:text-rw-ink print:hidden">
           <Printer className="h-4 w-4" /> Stampa
         </button>
       </PageHeader>
 
-      <div className="flex flex-wrap items-center gap-4 print:hidden">
+      <div className="flex flex-wrap items-center gap-4" data-no-print>
         <Chip label="Stato" value={menuActive ? "Attivo" : "Vuoto"} tone={menuActive ? "success" : "warn"} />
         <Chip label="Piatti" value={dailyDishes.length} tone="default" />
         {recipes.length > 0 && <Chip label="Ricette disponibili" value={recipes.length} tone="accent" />}
       </div>
 
-      {/* Add form */}
+      {/* Add form — nascosto in stampa */}
+      <div data-no-print>
       <Card title="Aggiungi piatto del giorno" headerRight={<Plus className="h-4 w-4 text-rw-accent" />}>
         <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" onSubmit={handleAdd}>
           <div>
@@ -121,8 +122,10 @@ export function DailyMenuPage() {
         </form>
       </Card>
 
-      {/* Dishes by category (screen) */}
-      <div className="print:hidden">
+      </div>
+
+      {/* Piatti per schermo */}
+      <div data-no-print>
         {grouped.map((g) => (
           <div key={g.category} className="space-y-2 mb-4">
             <h3 className="text-sm font-bold uppercase tracking-wide text-rw-muted">{g.category}</h3>
@@ -151,33 +154,37 @@ export function DailyMenuPage() {
             </div>
           </div>
         ))}
-
         {dailyDishes.length === 0 && (
           <p className="py-12 text-center text-sm text-rw-muted">Nessun piatto nel menu del giorno.</p>
         )}
       </div>
 
-      {/* Print-only view */}
-      <div className="hidden print:block">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold">Menu del Giorno</h1>
-          <p className="text-sm text-gray-500">{new Date().toLocaleDateString("it-IT", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
+      {/* ── Area stampabile — solo il menu pulito ─────────────── */}
+      <div data-print-content>
+        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: "bold", margin: 0 }}>Menu del Giorno</h1>
+          <p style={{ fontSize: "0.9rem", marginTop: "0.4rem" }}>
+            {new Date().toLocaleDateString("it-IT", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          </p>
         </div>
         {grouped.map((g) => (
-          <div key={g.category} className="mb-4">
-            <h2 className="text-lg font-bold border-b border-gray-300 pb-1 mb-2">{g.category}</h2>
+          <div key={g.category} style={{ marginBottom: "1.2rem" }}>
+            <h2 style={{ fontSize: "1rem", fontWeight: "bold", borderBottom: "2px solid #374151", paddingBottom: "0.25rem", marginBottom: "0.5rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>{g.category}</h2>
             {g.items.map((d) => (
-              <div key={d.id} className="py-1.5">
-                <div className="flex justify-between">
-                  <span className="font-medium">{d.name}</span>
-                  <span className="font-semibold">€{d.price.toFixed(2)}</span>
+              <div key={d.id} style={{ padding: "0.4rem 0", borderBottom: "1px solid #e5e7eb" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontWeight: 600 }}>{d.name}</span>
+                  <span style={{ fontWeight: 700 }}>€{d.price.toFixed(2)}</span>
                 </div>
-                {d.description && <p className="text-xs text-gray-500">{d.description}</p>}
-                {d.allergens && <p className="text-[10px] text-gray-400 italic">Allergeni: {d.allergens}</p>}
+                {d.description && <p style={{ fontSize: "0.8rem", color: "#6b7280", margin: "0.1rem 0 0" }}>{d.description}</p>}
+                {d.allergens && <p style={{ fontSize: "0.7rem", color: "#9ca3af", fontStyle: "italic", margin: "0.1rem 0 0" }}>Allergeni: {d.allergens}</p>}
               </div>
             ))}
           </div>
         ))}
+        {dailyDishes.length === 0 && (
+          <p style={{ textAlign: "center", color: "#9ca3af" }}>Nessun piatto nel menu del giorno.</p>
+        )}
       </div>
 
       {/* Edit modal */}
