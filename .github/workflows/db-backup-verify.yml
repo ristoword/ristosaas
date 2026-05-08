@@ -31,6 +31,13 @@ jobs:
           sudo apt-get update
           # Installa pg_dump v18 che corrisponde al server Railway
           sudo apt-get install -y postgresql-client-18
+          # Imposta v18 come default nel PATH (sovrascrive il v16 di sistema)
+          sudo update-alternatives --install /usr/bin/pg_dump pg_dump /usr/lib/postgresql/18/bin/pg_dump 180
+          sudo update-alternatives --install /usr/bin/pg_restore pg_restore /usr/lib/postgresql/18/bin/pg_restore 180
+          sudo update-alternatives --install /usr/bin/psql psql /usr/lib/postgresql/18/bin/psql 180
+          # Verifica versione installata
+          pg_dump --version
+          psql --version
 
       - name: Validate secret presence
         run: |
