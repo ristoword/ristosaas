@@ -46,7 +46,27 @@ export async function POST(req: NextRequest) {
   });
   if (!tenant) return err("Struttura non attiva.", 403);
 
-  const total = data.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
+  const catalogItemIds = data.items
+    .map((i) => i.catalogItemId)
+    .filter((id): id is string => !!id);
+
+  const catalogItems = catalogItemIds.length > 0
+    ? await prisma.roomServiceCatalogItem.findMany({
+        where: { id: { in: catalogItemIds }, tenantId: parsed.tenantId, active: true },
+        select: { id: true, unitPrice: true, name: true },
+      })
+    : [];
+
+  const catalogMap = new Map(catalogItems.map((c) => [c.id, c]));
+
+  const serverItems = data.items.map((it) => {
+    const catalogEntry = it.catalogItemId ? catalogMap.get(it.catalogItemId) : undefined;
+    const unitPrice = catalogEntry ? Number(catalogEntry.unitPrice) : it.unitPrice;
+    const name = catalogEntry ? catalogEntry.name : it.name;
+    return { ...it, name, unitPrice };
+  });
+
+  const total = serverItems.reduce((s, it) => s + it.qty * it.unitPrice, 0);
   if (total < 0) return err("Totale non valido.", 400);
 
   const order = await prisma.roomServiceOrder.create({
@@ -55,7 +75,7 @@ export async function POST(req: NextRequest) {
       roomCode: parsed.roomCode,
       guestName: data.guestName?.trim() || "Ospite",
       category: data.category,
-      items: data.items,
+      items: serverItems,
       total,
       notes: data.notes?.trim() ?? "",
     },
