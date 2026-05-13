@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, fireAndForget } from "@/lib/api/helpers";
 import { prisma } from "@/lib/db/prisma";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { verifyRoomToken } from "@/lib/security/room-token";
@@ -85,15 +85,18 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  void prisma.notification.create({
-    data: {
-      tenantId: parsed.tenantId,
-      type: "room_service",
-      title: `Room Service — Camera ${order.roomCode}`,
-      message: `Nuova richiesta ${order.category} da ospite (QR)`,
-      href: "/hotel/room-service",
-    },
-  }).catch(() => {});
+  fireAndForget(
+    prisma.notification.create({
+      data: {
+        tenantId: parsed.tenantId,
+        type: "room_service",
+        title: `Room Service — Camera ${order.roomCode}`,
+        message: `Nuova richiesta ${order.category} da ospite (QR)`,
+        href: "/hotel/room-service",
+      },
+    }),
+    "notification:room-service-public",
+  );
 
   return ok({
     ...order,

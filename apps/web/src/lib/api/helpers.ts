@@ -13,6 +13,17 @@ export async function body<T>(req: Request): Promise<T> {
   return req.json() as Promise<T>;
 }
 
+/**
+ * Fire-and-forget a promise with error logging instead of silent swallowing.
+ * Use for non-critical side-effects (notifications, session touch, etc.).
+ */
+export function fireAndForget(promise: Promise<unknown>, context: string) {
+  void promise.catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn("fire_and_forget_failed", { context, error: message });
+  });
+}
+
 type RouteContext = { params?: Promise<Record<string, string>> };
 type RouteHandler = (req: NextRequest, ctx: RouteContext) => Promise<NextResponse>;
 
