@@ -52,8 +52,20 @@ async function fetchPlatformGates(origin: string, tenantId: string | null): Prom
   }
 }
 
+const SECURITY_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "X-DNS-Prefetch-Control": "off",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+};
+
 function withRequestId(res: NextResponse, requestId: string) {
   res.headers.set("x-request-id", requestId);
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    res.headers.set(key, value);
+  }
   return res;
 }
 
