@@ -1,4 +1,5 @@
 const STRIPE_API_BASE = "https://api.stripe.com/v1";
+const STRIPE_TIMEOUT_MS = 15_000;
 
 type StripeRequestResult<T> = {
   ok: true;
@@ -26,6 +27,7 @@ export async function stripePostForm<T>(path: string, params: URLSearchParams): 
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: params.toString(),
+    signal: AbortSignal.timeout(STRIPE_TIMEOUT_MS),
   });
 
   const payload = await response.json().catch(() => null) as any;
@@ -45,6 +47,7 @@ export async function stripeGet<T>(path: string): Promise<StripeRequestResult<T>
     headers: {
       Authorization: `Bearer ${secret}`,
     },
+    signal: AbortSignal.timeout(STRIPE_TIMEOUT_MS),
   });
 
   const payload = (await response.json().catch(() => null)) as any;

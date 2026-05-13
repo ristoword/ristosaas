@@ -160,6 +160,7 @@ export async function POST(req: NextRequest) {
         { role: "user", content: message },
       ],
     }),
+    signal: AbortSignal.timeout(30_000),
   });
 
   if (!response.ok) {
