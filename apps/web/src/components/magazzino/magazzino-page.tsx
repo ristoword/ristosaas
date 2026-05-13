@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect, useCallback } from "react";
-import { ArrowDownUp, ArrowLeftRight, Download, Edit2, Loader2, Plus, Save, Search, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDownUp, ArrowLeftRight, CalendarClock, ChevronDown, ChevronUp, Download, Edit2, Loader2, Minus, Package, Plus, Save, Search, ShoppingCart, Sparkles, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
@@ -87,73 +87,445 @@ export function MagazzinoPage() {
   );
 }
 
+type ProductForm = {
+  name: string; category: string; qty: number; unit: string;
+  minStock: number; costPerUnit: number; supplier: string;
+  lotNumber: string; expiryDate: string;
+};
+
+const EMPTY_FORM: ProductForm = {
+  name: "", category: "", qty: 0, unit: "kg",
+  minStock: 0, costPerUnit: 0, supplier: "",
+  lotNumber: "", expiryDate: "",
+};
+
+const UNITS = ["kg", "g", "L", "mL", "pz", "bt", "ct", "lt", "m", "cm"];
+
 function CentraleTab() {
-  const { stock, addStock } = useWarehouse();
+  const { stock, addStock, refresh } = useWarehouse();
   const [search, setSearch] = useState("");
-  const [form, setForm] = useState({ name: "", category: "", qty: 0, unit: "kg", minStock: 0, costPerUnit: 0, supplier: "" });
+  const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
+
+  // Modal modifica prodotto
+  const [editItem, setEditItem] = useState<StockItem | null>(null);
+  const [editForm, setEditForm] = useState<ProductForm>(EMPTY_FORM);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Modal aggiustamento scorte rapido (+/-)
+  const [adjItem, setAdjItem] = useState<StockItem | null>(null);
+  const [adjMode, setAdjMode] = useState<"add" | "remove">("add");
+  const [adjQty, setAdjQty] = useState("");
+  const [adjReason, setAdjReason] = useState("");
+  const [adjSaving, setAdjSaving] = useState(false);
+  const [adjError, setAdjError] = useState<string | null>(null);
+
+  const [flash, setFlash] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filtered = useMemo(
-    () => stock.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase()) || p.supplier.toLowerCase().includes(search.toLowerCase())),
+    () => stock.filter((p) =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.category.toLowerCase().includes(search.toLowerCase()) ||
+      p.supplier.toLowerCase().includes(search.toLowerCase()) ||
+      (p.lotNumber ?? "").toLowerCase().includes(search.toLowerCase())
+    ),
     [stock, search],
   );
 
-  function handleAdd() {
-    if (!form.name.trim()) return;
-    addStock(form);
-    setForm({ name: "", category: "", qty: 0, unit: "kg", minStock: 0, costPerUnit: 0, supplier: "" });
+  function showFlash(msg: string) {
+    setFlash(msg);
+    setTimeout(() => setFlash(null), 3500);
   }
 
-  function handleVoice(text: string) {
-    setForm((f) => ({ ...f, name: text }));
+  // Aggiunta nuovo prodotto
+  function handleAdd() {
+    if (!form.name.trim()) return;
+    void addStock({
+      ...form,
+      lotNumber: form.lotNumber || null,
+      expiryDate: form.expiryDate || null,
+    } as any);
+    setForm(EMPTY_FORM);
+    showFlash(`"${form.name}" aggiunto al magazzino.`);
+  }
+
+  // Apertura modifica
+  function openEdit(item: StockItem) {
+    setEditItem(item);
+    setEditForm({
+      name: item.name,
+      category: item.category,
+      qty: item.qty,
+      unit: item.unit,
+      minStock: item.minStock,
+      costPerUnit: item.costPerUnit,
+      supplier: item.supplier,
+      lotNumber: item.lotNumber ?? "",
+      expiryDate: item.expiryDate ? item.expiryDate.slice(0, 10) : "",
+    });
+    setEditError(null);
+  }
+
+  // Salvataggio modifica
+  async function handleEditSave() {
+    if (!editItem) return;
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await warehouseApi.update(editItem.id, {
+        name: editForm.name.trim(),
+        category: editForm.category.trim(),
+        qty: editForm.qty,
+        unit: editForm.unit,
+        minStock: editForm.minStock,
+        costPerUnit: editForm.costPerUnit,
+        supplier: editForm.supplier.trim(),
+        lotNumber: editForm.lotNumber.trim() || null,
+        expiryDate: editForm.expiryDate || null,
+      } as any);
+      await refresh();
+      setEditItem(null);
+      showFlash(`"${editForm.name}" aggiornato.`);
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : "Errore salvataggio");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  // Apertura aggiustamento scorte
+  function openAdj(item: StockItem, mode: "add" | "remove") {
+    setAdjItem(item);
+    setAdjMode(mode);
+    setAdjQty("");
+    setAdjReason(mode === "add" ? "Carico manuale" : "Scarico manuale");
+    setAdjError(null);
+  }
+
+  // Salvataggio aggiustamento scorte
+  async function handleAdjSave() {
+    if (!adjItem) return;
+    const qty = parseFloat(adjQty.replace(",", "."));
+    if (isNaN(qty) || qty <= 0) { setAdjError("Inserisci una quantità valida"); return; }
+    setAdjSaving(true);
+    setAdjError(null);
+    try {
+      await warehouseApi.createMovement({
+        warehouseItemId: adjItem.id,
+        type: adjMode === "add" ? "carico" : "scarico",
+        qty,
+        reason: adjReason.trim() || (adjMode === "add" ? "Carico manuale" : "Scarico manuale"),
+        toLocation: adjMode === "add" ? "MAGAZZINO_CENTRALE" : undefined,
+        fromLocation: adjMode === "remove" ? "MAGAZZINO_CENTRALE" : undefined,
+      });
+      await refresh();
+      setAdjItem(null);
+      showFlash(`${adjMode === "add" ? "+" : "-"}${qty} ${adjItem.unit} di "${adjItem.name}" registrati.`);
+    } catch (e) {
+      setAdjError(e instanceof Error ? e.message : "Errore");
+    } finally {
+      setAdjSaving(false);
+    }
+  }
+
+  // Elimina prodotto
+  async function handleDelete(id: string, name: string) {
+    try {
+      await warehouseApi.delete(id);
+      await refresh();
+      setDeleteId(null);
+      showFlash(`"${name}" eliminato dal magazzino.`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Impossibile eliminare");
+    }
+  }
+
+  // Expiry color
+  function expiryTone(dateStr?: string | null) {
+    if (!dateStr) return null;
+    const diff = (new Date(dateStr).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    if (diff < 0) return "text-red-400 font-semibold";
+    if (diff <= 7) return "text-orange-400 font-semibold";
+    if (diff <= 30) return "text-amber-400";
+    return "text-rw-muted";
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.8fr)]">
-      <Card
-        title="Nuovo prodotto"
-        description="Manuale o con comando vocale"
-        headerRight={
-          <VoiceButton
-            compact
-            onResult={(text) => {
-              handleVoice(text);
-              void persistWarehouseVoice(text);
-            }}
-          />
-        }
-      >
-        <div className="space-y-3">
-          <div><label className={LABEL}>Nome prodotto</label><input className={INPUT} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="es. Farina Manitoba" /></div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div><label className={LABEL}>Categoria</label><input className={INPUT} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Secchi, Latticini…" /></div>
-            <div><label className={LABEL}>Unità</label><select className={INPUT} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}><option value="kg">kg</option><option value="L">L</option><option value="pz">pz</option><option value="bt">bt</option><option value="ct">ct</option></select></div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div><label className={LABEL}>Quantità</label><input type="number" min="0" className={INPUT} value={form.qty || ""} onChange={(e) => setForm({ ...form, qty: parseFloat(e.target.value) || 0 })} placeholder="0" /></div>
-            <div><label className={LABEL}>Scorta minima</label><input type="number" min="0" className={INPUT} value={form.minStock || ""} onChange={(e) => setForm({ ...form, minStock: parseFloat(e.target.value) || 0 })} placeholder="0" /></div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div><label className={LABEL}>Costo unitario (€)</label><input type="number" min="0" step="0.01" className={INPUT} value={form.costPerUnit || ""} onChange={(e) => setForm({ ...form, costPerUnit: parseFloat(e.target.value) || 0 })} placeholder="0.00" /></div>
-            <div><label className={LABEL}>Fornitore</label><input className={INPUT} value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Nome fornitore" /></div>
-          </div>
-          <button type="button" className={cn(BTN_PRIMARY, "w-full")} onClick={handleAdd}><Plus className="h-4 w-4" /> Aggiungi prodotto</button>
+    <div className="space-y-6">
+      {flash && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">
+          {flash}
         </div>
-      </Card>
+      )}
 
-      <Card title="Inventario" description={`${filtered.length} prodotti`} headerRight={<div className="relative w-52"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" /><input className={cn(INPUT, "pl-9")} placeholder="Cerca…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>}>
-        <DataTable
-          columns={[
-            { key: "name", header: "Prodotto", render: (r: StockItem) => (<div><span className="font-medium text-rw-ink">{r.name}</span>{r.qty <= r.minStock && (<span className="ml-2 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-400">Sotto scorta</span>)}</div>) },
-            { key: "category", header: "Categoria" },
-            { key: "qty", header: "Qtà", render: (r: StockItem) => `${r.qty} ${r.unit}` },
-            { key: "costPerUnit", header: "Costo/u", render: (r: StockItem) => `€ ${r.costPerUnit.toFixed(2)}` },
-            { key: "supplier", header: "Fornitore" },
-          ]}
-          data={filtered}
-          keyExtractor={(r) => r.id}
-          emptyMessage="Nessun prodotto trovato"
-        />
-      </Card>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.8fr)]">
+        {/* Form nuovo prodotto */}
+        <Card
+          title="Nuovo prodotto"
+          description="Manuale o con comando vocale"
+          headerRight={
+            <VoiceButton compact onResult={(text) => {
+              setForm((f) => ({ ...f, name: text }));
+              void persistWarehouseVoice(text);
+            }} />
+          }
+        >
+          <div className="space-y-3">
+            <div><label className={LABEL}>Nome prodotto *</label><input className={INPUT} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="es. Farina Manitoba" /></div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><label className={LABEL}>Categoria</label><input className={INPUT} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Secchi, Latticini…" /></div>
+              <div>
+                <label className={LABEL}>Unità di misura</label>
+                <div className="relative">
+                  <select className={cn(INPUT, "appearance-none pr-8")} value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
+                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><label className={LABEL}>Quantità iniziale</label><input type="number" min="0" step="0.001" className={INPUT} value={form.qty || ""} onChange={(e) => setForm({ ...form, qty: parseFloat(e.target.value) || 0 })} placeholder="0" /></div>
+              <div><label className={LABEL}>Scorta minima</label><input type="number" min="0" step="0.001" className={INPUT} value={form.minStock || ""} onChange={(e) => setForm({ ...form, minStock: parseFloat(e.target.value) || 0 })} placeholder="0" /></div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><label className={LABEL}>Costo unitario (€)</label><input type="number" min="0" step="0.01" className={INPUT} value={form.costPerUnit || ""} onChange={(e) => setForm({ ...form, costPerUnit: parseFloat(e.target.value) || 0 })} placeholder="0.00" /></div>
+              <div><label className={LABEL}>Fornitore</label><input className={INPUT} value={form.supplier} onChange={(e) => setForm({ ...form, supplier: e.target.value })} placeholder="Nome fornitore" /></div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><label className={LABEL}>N° Lotto</label><input className={INPUT} value={form.lotNumber} onChange={(e) => setForm({ ...form, lotNumber: e.target.value })} placeholder="es. LOT-2025-001" /></div>
+              <div><label className={LABEL}>Data scadenza</label><input type="date" className={INPUT} value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} /></div>
+            </div>
+            <button type="button" className={cn(BTN_PRIMARY, "w-full")} onClick={handleAdd}><Plus className="h-4 w-4" /> Aggiungi prodotto</button>
+          </div>
+        </Card>
+
+        {/* Inventario con edit + +/- */}
+        <Card
+          title="Inventario Centrale"
+          description={`${filtered.length} prodotti`}
+          headerRight={
+            <div className="relative w-52">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
+              <input className={cn(INPUT, "pl-9")} placeholder="Cerca prodotto, lotto…" value={search} onChange={(e) => setSearch(e.target.value)} />
+            </div>
+          }
+        >
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-8 text-rw-muted">
+              <Package className="h-8 w-8 opacity-40" />
+              <p className="text-sm">Nessun prodotto trovato</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-rw-line bg-rw-surfaceAlt">
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Prodotto</th>
+                    <th className="px-2 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">Qtà</th>
+                    <th className="px-2 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">Costo/u</th>
+                    <th className="px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Lotto</th>
+                    <th className="px-2 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Scadenza</th>
+                    <th className="px-2 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-rw-muted">Scorte</th>
+                    <th className="w-10 px-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((item) => {
+                    const sottoScorta = item.qty <= item.minStock;
+                    const scadTone = expiryTone(item.expiryDate);
+                    return (
+                      <tr key={item.id} className="group border-b border-rw-line/40 hover:bg-rw-surfaceAlt/40">
+                        <td className="px-3 py-2.5">
+                          <div className="font-medium text-rw-ink">{item.name}</div>
+                          <div className="text-xs text-rw-muted">{item.category}{item.supplier ? ` · ${item.supplier}` : ""}</div>
+                          {sottoScorta && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-red-400 mt-0.5">
+                              <AlertTriangle className="h-3 w-3" /> Sotto scorta
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2.5 text-right tabular-nums font-semibold text-rw-ink whitespace-nowrap">
+                          {item.qty.toFixed(3)} <span className="text-xs text-rw-muted">{item.unit}</span>
+                        </td>
+                        <td className="px-2 py-2.5 text-right tabular-nums text-rw-soft">€{item.costPerUnit.toFixed(2)}</td>
+                        <td className="px-2 py-2.5 text-xs text-rw-soft font-mono">{item.lotNumber || "—"}</td>
+                        <td className={cn("px-2 py-2.5 text-xs whitespace-nowrap", scadTone ?? "text-rw-muted")}>
+                          {item.expiryDate
+                            ? <span className="inline-flex items-center gap-1"><CalendarClock className="h-3 w-3" />{new Date(item.expiryDate).toLocaleDateString("it-IT")}</span>
+                            : "—"
+                          }
+                        </td>
+                        <td className="px-2 py-2.5">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              type="button"
+                              title={`Aumenta scorte di ${item.name}`}
+                              onClick={() => openAdj(item, "add")}
+                              className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-1.5 text-emerald-400 hover:bg-emerald-500/20 transition"
+                            >
+                              <ChevronUp className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              title={`Diminuisci scorte di ${item.name}`}
+                              onClick={() => openAdj(item, "remove")}
+                              className="rounded-lg border border-red-500/30 bg-red-500/10 p-1.5 text-red-400 hover:bg-red-500/20 transition"
+                            >
+                              <ChevronDown className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-2 py-2.5">
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+                            <button type="button" title="Modifica prodotto" onClick={() => openEdit(item)} className="rounded-lg border border-rw-line p-1.5 text-rw-muted hover:text-rw-accent transition">
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button type="button" title="Elimina prodotto" onClick={() => setDeleteId(item.id)} className="rounded-lg border border-red-500/20 p-1.5 text-red-400 hover:bg-red-500/10 transition">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+      </div>
+
+      {/* Modal MODIFICA PRODOTTO */}
+      <Modal open={!!editItem} onClose={() => setEditItem(null)} title={`Modifica — ${editItem?.name ?? ""}`} wide>
+        <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><label className={LABEL}>Nome prodotto *</label><input className={INPUT} value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} /></div>
+            <div><label className={LABEL}>Categoria</label><input className={INPUT} value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} /></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div><label className={LABEL}>Quantità attuale</label><input type="number" min="0" step="0.001" className={INPUT} value={editForm.qty || ""} onChange={(e) => setEditForm({ ...editForm, qty: parseFloat(e.target.value) || 0 })} /></div>
+            <div>
+              <label className={LABEL}>Unità</label>
+              <div className="relative">
+                <select className={cn(INPUT, "appearance-none pr-8")} value={editForm.unit} onChange={(e) => setEditForm({ ...editForm, unit: e.target.value })}>
+                  {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
+              </div>
+            </div>
+            <div><label className={LABEL}>Scorta minima</label><input type="number" min="0" step="0.001" className={INPUT} value={editForm.minStock || ""} onChange={(e) => setEditForm({ ...editForm, minStock: parseFloat(e.target.value) || 0 })} /></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div><label className={LABEL}>Costo unitario (€)</label><input type="number" min="0" step="0.01" className={INPUT} value={editForm.costPerUnit || ""} onChange={(e) => setEditForm({ ...editForm, costPerUnit: parseFloat(e.target.value) || 0 })} /></div>
+            <div><label className={LABEL}>Fornitore</label><input className={INPUT} value={editForm.supplier} onChange={(e) => setEditForm({ ...editForm, supplier: e.target.value })} /></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 rounded-xl border border-rw-accent/20 bg-rw-accent/5 p-3">
+            <div>
+              <label className={cn(LABEL, "text-rw-accent")}>N° Lotto</label>
+              <input className={INPUT} value={editForm.lotNumber} onChange={(e) => setEditForm({ ...editForm, lotNumber: e.target.value })} placeholder="es. LOT-2025-001" />
+            </div>
+            <div>
+              <label className={cn(LABEL, "text-rw-accent")}>Data scadenza</label>
+              <input type="date" className={INPUT} value={editForm.expiryDate} onChange={(e) => setEditForm({ ...editForm, expiryDate: e.target.value })} />
+            </div>
+          </div>
+          {editError && <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{editError}</p>}
+          <div className="flex gap-3">
+            <button type="button" className={cn(BTN_PRIMARY, "flex-1")} onClick={() => void handleEditSave()} disabled={editSaving}>
+              {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {editSaving ? "Salvataggio…" : "Salva modifiche"}
+            </button>
+            <button type="button" className="rounded-xl border border-rw-line px-4 py-2.5 text-sm font-semibold text-rw-muted hover:text-rw-ink" onClick={() => setEditItem(null)}>
+              Annulla
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal AGGIUSTAMENTO SCORTE +/- */}
+      <Modal
+        open={!!adjItem}
+        onClose={() => setAdjItem(null)}
+        title={adjMode === "add" ? `Aumenta scorte — ${adjItem?.name}` : `Diminuisci scorte — ${adjItem?.name}`}
+      >
+        <div className="space-y-4">
+          {adjItem && (
+            <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm">
+              <span className="text-rw-muted">Scorta attuale: </span>
+              <span className="font-bold text-rw-ink">{adjItem.qty.toFixed(3)} {adjItem.unit}</span>
+              {adjItem.lotNumber && <span className="ml-3 text-xs text-rw-muted">Lotto: {adjItem.lotNumber}</span>}
+            </div>
+          )}
+          <div>
+            <label className={LABEL}>
+              {adjMode === "add"
+                ? <span className="text-emerald-400">Quantità da aggiungere ({adjItem?.unit})</span>
+                : <span className="text-red-400">Quantità da togliere ({adjItem?.unit})</span>
+              }
+            </label>
+            <div className="flex items-center gap-3">
+              {adjMode === "add"
+                ? <ChevronUp className="h-5 w-5 text-emerald-400 shrink-0" />
+                : <ChevronDown className="h-5 w-5 text-red-400 shrink-0" />
+              }
+              <input
+                type="number"
+                min="0"
+                step="0.001"
+                autoFocus
+                className={cn(INPUT, "text-lg font-bold")}
+                value={adjQty}
+                onChange={(e) => setAdjQty(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+          </div>
+          <div>
+            <label className={LABEL}>Motivo / Causale</label>
+            <input className={INPUT} value={adjReason} onChange={(e) => setAdjReason(e.target.value)} placeholder="es. Ricezione fornitore, scarico manuale…" />
+          </div>
+          {adjError && <p className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">{adjError}</p>}
+          <button
+            type="button"
+            className={cn(
+              "w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition",
+              adjMode === "add" ? "bg-emerald-600 hover:bg-emerald-500" : "bg-red-600 hover:bg-red-500"
+            )}
+            onClick={() => void handleAdjSave()}
+            disabled={adjSaving || !adjQty}
+          >
+            {adjSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : adjMode === "add" ? <Plus className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
+            {adjSaving ? "Registrazione…" : adjMode === "add" ? "Aggiungi scorte" : "Togli scorte"}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal CONFERMA ELIMINAZIONE */}
+      <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Conferma eliminazione">
+        <div className="space-y-4">
+          <p className="text-sm text-rw-soft">
+            Sei sicuro di voler eliminare <strong className="text-rw-ink">{stock.find((s) => s.id === deleteId)?.name}</strong>?
+            Tutti i movimenti associati verranno conservati nello storico.
+          </p>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-500"
+              onClick={() => {
+                const item = stock.find((s) => s.id === deleteId);
+                if (item) void handleDelete(item.id, item.name);
+              }}
+            >
+              <Trash2 className="h-4 w-4" /> Elimina
+            </button>
+            <button type="button" className="rounded-xl border border-rw-line px-4 py-2.5 text-sm font-semibold text-rw-muted hover:text-rw-ink" onClick={() => setDeleteId(null)}>
+              Annulla
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

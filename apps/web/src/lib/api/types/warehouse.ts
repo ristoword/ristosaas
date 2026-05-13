@@ -7,6 +7,8 @@ export type StockItem = {
   minStock: number;
   costPerUnit: number;
   supplier: string;
+  lotNumber?: string | null;
+  expiryDate?: string | null;
 };
 
 export type WarehouseLocation =

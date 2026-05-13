@@ -21,6 +21,8 @@ function mapItem(row: {
   minStock: { toNumber: () => number };
   costPerUnit: { toNumber: () => number };
   supplier: string;
+  lotNumber?: string | null;
+  expiryDate?: Date | null;
 }): StockItem {
   return {
     id: row.id,
@@ -31,6 +33,8 @@ function mapItem(row: {
     minStock: row.minStock.toNumber(),
     costPerUnit: row.costPerUnit.toNumber(),
     supplier: row.supplier,
+    lotNumber: row.lotNumber ?? null,
+    expiryDate: row.expiryDate ? row.expiryDate.toISOString().slice(0, 10) : null,
   };
 }
 
