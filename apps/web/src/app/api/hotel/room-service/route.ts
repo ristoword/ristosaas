@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, fireAndForget } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     select: SELECT,
   });
 
-  void prisma.notification.create({
+  fireAndForget(prisma.notification.create({
     data: {
       tenantId,
       type: "room_service",
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
       message: `Nuova richiesta ${row.category} per ${row.guestName}`,
       href: "/hotel/room-service",
     },
-  }).catch(() => {});
+  }), "notification:room-service-created");
 
   return ok(serialize(row), 201);
 }

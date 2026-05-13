@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, fireAndForget } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   // Avanza automaticamente bozza -> inviato quando si manda l'email
   if (order.status === "bozza") {
-    await purchaseOrdersRepository.setStatus(tenantId, order.id, "inviato").catch(() => {});
+    fireAndForget(purchaseOrdersRepository.setStatus(tenantId, order.id, "inviato"), "purchase-order:auto-status-update");
   }
 
   return ok({ ok: true, messageId: result.messageId, recipients });

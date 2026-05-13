@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, fireAndForget } from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { userSessionsRepository } from "@/lib/db/repositories/user-sessions.repository";
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   if (user.jti) {
     const active = await userSessionsRepository.isActive(user.jti).catch(() => true);
     if (!active) return err("Session revoked. Please login again.", 401);
-    await userSessionsRepository.touch(user.jti).catch(() => {});
+    fireAndForget(userSessionsRepository.touch(user.jti), "session:touch");
   }
 
   return ok({ valid: true });

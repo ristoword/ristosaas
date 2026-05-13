@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err } from "@/lib/api/helpers";
+import { ok, err, fireAndForget } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     data: { chargedToFolio: true, folioChargeId: charge.id, folioId },
   });
 
-  void prisma.notification.create({
+  fireAndForget(prisma.notification.create({
     data: {
       tenantId,
       type: "room_service_charge",
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       message: `€${Number(order.total).toFixed(2)} addebitato al conto di ${order.guestName}`,
       href: "/hotel/folio",
     },
-  }).catch(() => {});
+  }), "notification:room-service-charge");
 
   return ok({ charge: { ...charge, amount: Number(charge.amount), postedAt: charge.postedAt.toISOString() } });
 }
