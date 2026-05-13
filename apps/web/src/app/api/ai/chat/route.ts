@@ -144,24 +144,37 @@ export async function POST(req: NextRequest) {
     systemPrompt = `${systemPrompt}\n\n${kitchenSnapshotToPrompt(snapshot)}`;
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: DEFAULT_MODEL,
-      temperature: TEMPERATURE,
-      max_tokens: MAX_TOKENS,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...safeHistory,
-        { role: "user", content: message },
-      ],
-    }),
-    signal: AbortSignal.timeout(30_000),
+  const openaiBody = JSON.stringify({
+    model: DEFAULT_MODEL,
+    temperature: TEMPERATURE,
+    max_tokens: MAX_TOKENS,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...safeHistory,
+      { role: "user", content: message },
+    ],
   });
+
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: openaiBody,
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (response.status < 500) break;
+    } catch (fetchError) {
+      if (attempt >= 2) throw fetchError;
+    }
+    await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+  }
+
+  if (!response) return err("OpenAI non raggiungibile dopo multipli tentativi.", 502);
 
   if (!response.ok) {
     const errorText = await response.text();
