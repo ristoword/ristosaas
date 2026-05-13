@@ -73,13 +73,22 @@ export function StripePage() {
 
   const payments = useMemo(
     () =>
-      events.map((event) => ({
-        id: event.id,
-        data: event.createdAt.slice(0, 10),
-        importo: 0,
-        stato: event.status === "processed" ? "riuscito" : "fallito",
-        descrizione: event.type,
-      })),
+      events.map((event) => {
+        let importo = 0;
+        const obj = (event.payload as Record<string, unknown>)?.data;
+        const data = (obj as Record<string, unknown>)?.object as Record<string, unknown> | undefined;
+        if (data) {
+          const raw = data.amount_paid ?? data.amount_due ?? data.amount_total ?? data.amount ?? 0;
+          importo = typeof raw === "number" ? raw / 100 : 0;
+        }
+        return {
+          id: event.id,
+          data: event.createdAt.slice(0, 10),
+          importo,
+          stato: event.status === "processed" ? "riuscito" : "fallito",
+          descrizione: event.type,
+        };
+      }),
     [events],
   );
 

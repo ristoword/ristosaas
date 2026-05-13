@@ -190,6 +190,22 @@ function EmailTemplatesTab() {
             )}
           </div>
         ))}
+
+        {templates.length === 0 && (
+          <div className="space-y-3">
+            <p className="text-sm text-rw-muted">Nessun template transazionale configurato. Anteprima dei template predefiniti:</p>
+            {BUILTIN_EMAIL_TEMPLATES.map((tpl) => (
+              <div key={tpl.id} className="rounded-xl border border-dashed border-rw-line bg-rw-surface p-4">
+                <p className="flex items-center gap-2 text-sm font-semibold text-rw-ink">
+                  <Eye className="h-4 w-4 text-rw-muted" />
+                  {tpl.nome}
+                </p>
+                <p className="mt-1 text-xs text-rw-muted">Oggetto: {tpl.subject}</p>
+                <p className="mt-1 text-xs text-rw-soft">{tpl.preview}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </Card>
   );

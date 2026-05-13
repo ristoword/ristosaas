@@ -150,7 +150,7 @@ export function HotelMyTasksPage() {
                   <span className="text-sm font-bold text-rw-ink shrink-0">{euro(order.total)}</span>
                 </div>
 
-                <div className="space-y-0.5 pl-13">
+                <div className="space-y-0.5 pl-[3.25rem]">
                   {(order.items as RoomServiceItem[]).map((it, i) => (
                     <div key={i} className="flex justify-between text-xs text-rw-muted">
                       <span>{it.qty}× {it.name}</span>
@@ -159,9 +159,9 @@ export function HotelMyTasksPage() {
                   ))}
                 </div>
 
-                {order.notes && <p className="text-xs text-rw-muted italic pl-13">&quot;{order.notes}&quot;</p>}
+                {order.notes && <p className="text-xs text-rw-muted italic pl-[3.25rem]">&quot;{order.notes}&quot;</p>}
 
-                <div className="flex items-center justify-between text-[11px] text-rw-muted pl-13">
+                <div className="flex items-center justify-between text-[11px] text-rw-muted pl-[3.25rem]">
                   <span>Richiesto alle {new Date(order.requestedAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</span>
                 </div>
 

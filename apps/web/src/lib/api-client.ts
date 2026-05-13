@@ -1211,6 +1211,7 @@ export type BillingEvent = {
   status: string;
   createdAt: string;
   processedAt: string | null;
+  payload?: Record<string, unknown>;
 };
 
 export type BillingReadinessCheck = {

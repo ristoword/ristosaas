@@ -20,6 +20,7 @@ function buildLinks(locale: Locale, copy: HomepageCopy) {
     { href: `${base}#come-funziona`, label: copy.navComeFunziona },
     { href: `${base}#funzioni`, label: copy.navFunzioni },
     { href: pillarPath(locale), label: copy.navIntegrato },
+    { href: blogIndexPath(locale), label: "Blog" },
     { href: `${base}#demo`, label: copy.navDemo },
   ];
 }
@@ -150,13 +151,6 @@ export function LandingNavbar({ locale = "it" }: Props = {}) {
                 {link.label}
               </a>
             ))}
-            <Link
-              href={blogIndexPath(locale)}
-              onClick={() => setOpen(false)}
-              className="rounded-xl px-3 py-2.5 text-sm font-medium text-landing-soft transition-colors hover:bg-white/5 hover:text-landing-ink"
-            >
-              Blog
-            </Link>
             <Link
               href={restaurantPath(locale)}
               onClick={() => setOpen(false)}

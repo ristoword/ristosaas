@@ -1,19 +1,61 @@
 import { BarChart3, BedDouble, Boxes, Receipt, Users2, Utensils, Wallet } from "lucide-react";
 import { DashboardShowcase } from "./DashboardShowcase";
+import type { Locale } from "@/core/i18n/types";
 
 const PREVIEW_DASHBOARD_IMAGE =
   process.env.NEXT_PUBLIC_LANDING_DASHBOARD_IMAGE?.trim() || undefined;
 
-const MODULES = [
-  { title: "Ristorante", body: "Sala, cucina, bar, delivery.", Icon: Utensils },
-  { title: "Hotel", body: "Reception, camere, housekeeping.", Icon: BedDouble },
-  { title: "Staff", body: "Turni, shift, presenze reali.", Icon: Users2 },
-  { title: "Magazzino", body: "Scorte, carichi, scarichi, lotti.", Icon: Boxes },
-  { title: "Billing", body: "Stripe, licenze, fatture.", Icon: Wallet },
-  { title: "Analytics", body: "KPI live, trend, forecast.", Icon: BarChart3 },
-];
+type ModuleCopy = { title: string; body: string; Icon: typeof Utensils };
 
-export function DashboardPreview() {
+const MODULES: Record<Locale, ModuleCopy[]> = {
+  it: [
+    { title: "Ristorante", body: "Sala, cucina, bar, delivery.", Icon: Utensils },
+    { title: "Hotel", body: "Reception, camere, housekeeping.", Icon: BedDouble },
+    { title: "Staff", body: "Turni, shift, presenze reali.", Icon: Users2 },
+    { title: "Magazzino", body: "Scorte, carichi, scarichi, lotti.", Icon: Boxes },
+    { title: "Billing", body: "Stripe, licenze, fatture.", Icon: Wallet },
+    { title: "Analytics", body: "KPI live, trend, forecast.", Icon: BarChart3 },
+  ],
+  en: [
+    { title: "Restaurant", body: "Floor, kitchen, bar, delivery.", Icon: Utensils },
+    { title: "Hotel", body: "Front desk, rooms, housekeeping.", Icon: BedDouble },
+    { title: "Staff", body: "Shifts, schedules, real attendance.", Icon: Users2 },
+    { title: "Warehouse", body: "Stock, loads, unloads, batches.", Icon: Boxes },
+    { title: "Billing", body: "Stripe, licenses, invoices.", Icon: Wallet },
+    { title: "Analytics", body: "Live KPIs, trends, forecast.", Icon: BarChart3 },
+  ],
+  nl: [
+    { title: "Restaurant", body: "Zaal, keuken, bar, bezorging.", Icon: Utensils },
+    { title: "Hotel", body: "Receptie, kamers, huishouding.", Icon: BedDouble },
+    { title: "Personeel", body: "Diensten, roosters, presentielijst.", Icon: Users2 },
+    { title: "Magazijn", body: "Voorraad, ontvangst, uitgifte, partijen.", Icon: Boxes },
+    { title: "Facturatie", body: "Stripe, licenties, facturen.", Icon: Wallet },
+    { title: "Analytics", body: "Live KPI's, trends, prognose.", Icon: BarChart3 },
+  ],
+};
+
+const COPY = {
+  it: {
+    heading: "Un pannello che parla la lingua di chi lavora.",
+    sub: "KPI reali, non decorativi. Ordini live accanto a prenotazioni camera. Una sola interfaccia, adattiva su desktop, tablet, smartphone — e con modalità touch per la sala.",
+    stripe: "Pagamenti e licenze gestiti nativamente via Stripe, con riconciliazione automatica.",
+  },
+  en: {
+    heading: "A dashboard that speaks the language of your team.",
+    sub: "Real KPIs, not decorative. Live orders alongside room reservations. One adaptive interface for desktop, tablet and smartphone — with touch mode for the floor.",
+    stripe: "Payments and licenses managed natively via Stripe, with automatic reconciliation.",
+  },
+  nl: {
+    heading: "Een dashboard dat de taal van je team spreekt.",
+    sub: "Echte KPI's, niet decoratief. Live bestellingen naast kamerreserveringen. Eén adaptieve interface voor desktop, tablet en smartphone — met touchmodus voor de zaal.",
+    stripe: "Betalingen en licenties native beheerd via Stripe, met automatische afstemming.",
+  },
+} as const;
+
+export function DashboardPreview({ locale = "it" }: { locale?: Locale }) {
+  const modules = MODULES[locale];
+  const copy = COPY[locale];
+
   return (
     <section id="demo" className="relative py-24 md:py-32">
       <div
@@ -28,15 +70,14 @@ export function DashboardPreview() {
               Dashboard
             </p>
             <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-landing-ink sm:text-4xl md:text-5xl">
-              Un pannello che parla la lingua di chi lavora.
+              {copy.heading}
             </h2>
             <p className="mt-4 max-w-xl text-landing-soft">
-              KPI reali, non decorativi. Ordini live accanto a prenotazioni camera.
-              Una sola interfaccia, adattiva su desktop, tablet, smartphone — e con modalità touch per la sala.
+              {copy.sub}
             </p>
 
             <div className="mt-10 grid gap-4 sm:grid-cols-2">
-              {MODULES.map((mod) => (
+              {modules.map((mod) => (
                 <div
                   key={mod.title}
                   className="flex items-start gap-3 rounded-2xl border border-landing-line bg-landing-card p-4 transition-colors hover:border-landing-magenta/40"
@@ -56,7 +97,7 @@ export function DashboardPreview() {
 
             <div className="mt-10 flex items-center gap-3 rounded-2xl border border-landing-line bg-landing-card px-4 py-3 text-sm text-landing-soft">
               <Receipt className="h-4 w-4 text-landing-magentaSoft" aria-hidden />
-              Pagamenti e licenze gestiti nativamente via Stripe, con riconciliazione automatica.
+              {copy.stripe}
             </div>
           </div>
 

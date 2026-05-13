@@ -24,7 +24,7 @@ export function LocaleHomepage({ locale }: { locale: Locale }) {
         <HeroShowcase locale={locale} />
         <IntegrationFlowSection locale={locale} />
         <FeatureCards locale={locale} />
-        <DashboardPreview />
+        <DashboardPreview locale={locale} />
         <BenefitsSection locale={locale} />
         <BrandTrustSection locale={locale} />
         <ContactSection locale={locale} />
