@@ -23,6 +23,36 @@ function hashKey(raw: string) {
 }
 
 /**
+ * In-memory fallback rate limiter used when DB is unavailable.
+ * Keeps a Map of key → timestamp[] (sliding window).
+ * Periodically prunes stale entries to avoid unbounded memory growth.
+ */
+const memStore = new Map<string, number[]>();
+let lastPrune = Date.now();
+const PRUNE_INTERVAL_MS = 120_000;
+
+function memRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
+  const now = Date.now();
+  if (now - lastPrune > PRUNE_INTERVAL_MS) {
+    lastPrune = now;
+    for (const [k, ts] of memStore) {
+      const filtered = ts.filter((t) => now - t < windowMs);
+      if (filtered.length === 0) memStore.delete(k);
+      else memStore.set(k, filtered);
+    }
+  }
+
+  const timestamps = (memStore.get(key) ?? []).filter((t) => now - t < windowMs);
+  if (timestamps.length >= limit) {
+    const resetInMs = Math.max(0, timestamps[0]! + windowMs - now);
+    return { allowed: false, remaining: 0, resetInMs, limit, windowMs };
+  }
+  timestamps.push(now);
+  memStore.set(key, timestamps);
+  return { allowed: true, remaining: Math.max(0, limit - timestamps.length), resetInMs: windowMs, limit, windowMs };
+}
+
+/**
  * DB-backed rolling window rate limiter.
  *
  * We use a rolling count of rows inside the window instead of an atomic
@@ -76,8 +106,7 @@ export async function applyRateLimit(rawKey: string, opts: RateLimitOptions): Pr
       windowMs: opts.windowMs,
     };
   } catch {
-    // fail-open: never brick auth due to rate-limit storage
-    return { allowed: true, remaining: opts.limit, resetInMs: opts.windowMs, limit: opts.limit, windowMs: opts.windowMs };
+    return memRateLimit(keyHash, opts.limit, opts.windowMs);
   }
 }
 

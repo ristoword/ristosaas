@@ -22,7 +22,6 @@ const PUBLIC = [
   "/robots.txt",
   "/api/auth/login",
   "/api/auth/refresh",
-  "/api/health",
 ];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/email-settings", "/super-admin", "/dev-access"];
 
@@ -33,6 +32,38 @@ let gatesCache: { key: string; value: Gates; exp: number } = {
   exp: 0,
 };
 
+const SESSION_VERSION_CACHE_MS = 60_000;
+const sessionVersionCache = new Map<string, { version: number; exp: number }>();
+
+async function isSessionVersionStale(
+  origin: string,
+  userId: string,
+  tokenVersion: number,
+  cookie: string,
+): Promise<boolean> {
+  const now = Date.now();
+  const cached = sessionVersionCache.get(userId);
+  if (cached && now < cached.exp) {
+    return cached.version !== tokenVersion;
+  }
+  try {
+    const url = new URL("/api/auth/session-valid", origin);
+    const res = await fetch(url.toString(), {
+      cache: "no-store",
+      headers: { cookie: `${SESSION_COOKIE}=${cookie}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (res.status === 401) {
+      sessionVersionCache.set(userId, { version: -1, exp: now + SESSION_VERSION_CACHE_MS });
+      return true;
+    }
+    sessionVersionCache.set(userId, { version: tokenVersion, exp: now + SESSION_VERSION_CACHE_MS });
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 async function fetchPlatformGates(origin: string, tenantId: string | null): Promise<Gates> {
   const key = tenantId ?? "";
   const now = Date.now();
@@ -40,7 +71,10 @@ async function fetchPlatformGates(origin: string, tenantId: string | null): Prom
   try {
     const url = new URL("/api/health/gates", origin);
     if (tenantId) url.searchParams.set("tenantId", tenantId);
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(url.toString(), {
+      cache: "no-store",
+      headers: { "x-middleware-internal": "1" },
+    });
     const data = (await res.json()) as Partial<Gates>;
     const value: Gates = {
       maintenanceMode: !!data.maintenanceMode,
@@ -53,8 +87,20 @@ async function fetchPlatformGates(origin: string, tenantId: string | null): Prom
   }
 }
 
+const SECURITY_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "X-DNS-Prefetch-Control": "off",
+  "Strict-Transport-Security": "max-age=63072000; includeSubDomains; preload",
+};
+
 function withRequestId(res: NextResponse, requestId: string) {
   res.headers.set("x-request-id", requestId);
+  for (const [key, value] of Object.entries(SECURITY_HEADERS)) {
+    res.headers.set(key, value);
+  }
   return res;
 }
 
@@ -103,6 +149,13 @@ export async function middleware(req: NextRequest) {
     if (pathname === "/api/orders" && req.method === "POST") return nextWithRequestId(req, requestId);
     if (!user) return jsonWithRequestId({ error: "Unauthorized" }, { status: 401 }, requestId);
 
+    if (
+      !pathname.startsWith("/api/auth/") &&
+      await isSessionVersionStale(req.nextUrl.origin, user.userId, user.sessionVersion, token!)
+    ) {
+      return jsonWithRequestId({ error: "Session expired. Please login again." }, { status: 401 }, requestId);
+    }
+
     const requiredRoles = getApiRequiredRoles(pathname);
     if (requiredRoles && !canAccessWithRole(user.role, requiredRoles)) {
       return jsonWithRequestId({ error: "Forbidden" }, { status: 403 }, requestId);
@@ -145,6 +198,17 @@ export async function middleware(req: NextRequest) {
   }
 
   if (!user) {
+    const loginUrl = req.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set("redirect", pathname);
+    return redirectWithRequestId(loginUrl, requestId);
+  }
+
+  if (
+    pathname !== "/login" &&
+    pathname !== "/change-password" &&
+    await isSessionVersionStale(req.nextUrl.origin, user.userId, user.sessionVersion, token!)
+  ) {
     const loginUrl = req.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.searchParams.set("redirect", pathname);

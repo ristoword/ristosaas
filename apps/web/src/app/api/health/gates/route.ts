@@ -4,8 +4,18 @@ import { isMaintenanceMode } from "@/lib/db/repositories/platform.repository";
 
 export const dynamic = "force-dynamic";
 
-/** Public read for edge middleware: maintenance + optional tenant block (by tenantId). */
+/**
+ * Internal-only read for edge middleware: maintenance + optional tenant block.
+ * Rejects external callers by checking for an internal middleware header.
+ */
 export async function GET(req: NextRequest) {
+  const isInternal =
+    req.headers.get("x-middleware-internal") === "1" ||
+    req.headers.get("sec-fetch-site") === "same-origin";
+  if (!isInternal) {
+    return NextResponse.json({ maintenanceMode: false, tenantBlocked: false });
+  }
+
   const tenantId = req.nextUrl.searchParams.get("tenantId");
   const maintenanceMode = await isMaintenanceMode();
   let tenantBlocked = false;

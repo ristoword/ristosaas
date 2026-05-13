@@ -1,14 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-
-function getQrSecret(): string {
-  // QR_SECRET is independent from JWT_SECRET so rotating sessions doesn't break printed QR codes.
-  // Falls back to JWT_SECRET if not set (backward compatible).
-  const qr = process.env.QR_SECRET?.trim();
-  if (qr && qr.length >= 16) return qr;
-  const jwt = process.env.JWT_SECRET?.trim();
-  if (jwt && jwt.length >= 16) return jwt;
-  return "ristosaas-qr-fallback-secret-v1";
-}
+import { getQrSecret } from "@/lib/security/qr-secret";
 
 /**
  * Deterministic signed token for public per-room URLs (hotel room service).

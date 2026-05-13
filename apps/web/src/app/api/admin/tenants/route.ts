@@ -4,6 +4,7 @@ import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { adminRepository } from "@/lib/db/repositories/admin.repository";
 import { recordAdminAudit } from "@/lib/observability/admin-audit";
+import { validatePasswordStrength } from "@/lib/auth/password";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 
@@ -104,7 +105,8 @@ export async function POST(req: NextRequest) {
   if (!payload?.adminUser?.username?.trim()) return err("Admin username required");
   if (!payload?.adminUser?.email?.trim()) return err("Admin email required");
   if (!payload?.adminUser?.name?.trim()) return err("Admin name required");
-  if (!payload?.adminUser?.password || payload.adminUser.password.length < 8) return err("Admin password min 8 chars");
+  const adminPwError = validatePasswordStrength(payload?.adminUser?.password ?? "");
+  if (adminPwError) return err(adminPwError);
 
   const normalizedSlug = payload.slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/-{2,}/g, "-");
   const billingCycle = payload.billingCycle === "annual" ? "annual" : "monthly";

@@ -27,7 +27,16 @@ export const PUBLIC_API_PREFIXES = [
   "/api/auth/entitlements-valid",
   "/api/ai/proposals/schedule/daily",
   "/api/jobs/billing/reconcile-all",
+  "/api/health/live",
+  "/api/health/gates",
 ] as const;
+
+/**
+ * Exact paths that bypass JWT (not prefix — only the exact path).
+ * /api/health is the readiness probe and must stay public,
+ * but /api/health/ai exposes config and must require auth.
+ */
+export const PUBLIC_API_EXACT = ["/api/health"] as const;
 
 /**
  * Matrice unica di verita' per RBAC lato API.
@@ -107,6 +116,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/sessions", roles: ["sala", "cucina", "cassa", "supervisor", "magazzino", "staff", "bar", "pizzeria", "hotel_manager", "reception", "housekeeping", "owner", "super_admin"] },
   // Hardware: configurazione stampanti/display, riservata a owner e super_admin.
   { prefix: "/api/hardware", roles: ["owner", "super_admin"] },
+  { prefix: "/api/health/ai", roles: ["owner", "super_admin"] },
 ] as const;
 
 export function canAccessWithRole(role: string, required: readonly UserRole[]) {
@@ -122,7 +132,10 @@ export function canAccessWithRole(role: string, required: readonly UserRole[]) {
 }
 
 export function isPublicApiPath(pathname: string) {
-  return PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  return (
+    PUBLIC_API_PREFIXES.some((prefix) => pathname.startsWith(prefix)) ||
+    PUBLIC_API_EXACT.some((exact) => pathname === exact)
+  );
 }
 
 export function getApiRequiredRoles(pathname: string) {

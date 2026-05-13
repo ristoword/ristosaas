@@ -26,6 +26,14 @@ function systemPromptForContext(context: string) {
       "Focus: priorita comande, corsi, tempi servizio, allergeni, food cost e standard operativi.",
     hotel:
       "Focus: front desk, check-in/check-out, occupazione camere, folio, keycard, housekeeping e pagamenti soggiorno.",
+    prenotazioni:
+      "Focus: prenotazioni ristorante, gestione clienti abituali, allergeni e intolleranze, richieste specifiche, abitudini dei clienti, preferenze tavolo, gestione disponibilità, conferme e cancellazioni.",
+    magazzino:
+      "Focus: inventario, scorte minime, lotti in scadenza, movimenti di carico/scarico, riordini fornitori, FIFO e food cost ingredienti.",
+    bar:
+      "Focus: comande bevande, cocktail, servizio al bancone, gestione scorte drink, tempistiche servizio.",
+    pizzeria:
+      "Focus: comande pizze, gestione impasti, tempi forno, varianti e personalizzazioni, flusso ordini.",
     default:
       "Focus: supporto operativo generale su ristorante/hotel/integration.",
   };
@@ -144,23 +152,37 @@ export async function POST(req: NextRequest) {
     systemPrompt = `${systemPrompt}\n\n${kitchenSnapshotToPrompt(snapshot)}`;
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: DEFAULT_MODEL,
-      temperature: TEMPERATURE,
-      max_tokens: MAX_TOKENS,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...safeHistory,
-        { role: "user", content: message },
-      ],
-    }),
+  const openaiBody = JSON.stringify({
+    model: DEFAULT_MODEL,
+    temperature: TEMPERATURE,
+    max_tokens: MAX_TOKENS,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...safeHistory,
+      { role: "user", content: message },
+    ],
   });
+
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: openaiBody,
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (response.status < 500) break;
+    } catch (fetchError) {
+      if (attempt >= 2) throw fetchError;
+    }
+    await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+  }
+
+  if (!response) return err("OpenAI non raggiungibile dopo multipli tentativi.", 502);
 
   if (!response.ok) {
     const errorText = await response.text();

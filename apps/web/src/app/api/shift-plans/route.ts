@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, fireAndForget } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -78,15 +78,18 @@ export async function POST(req: NextRequest) {
     select: SELECT,
   });
 
-  void prisma.notification.create({
-    data: {
-      tenantId,
-      type: "turno_creato",
-      title: "Nuovo turno pianificato",
-      message: `${row.staffName} — ${row.area} — ${row.day}`,
-      href: "/turni",
-    },
-  }).catch(() => {});
+  fireAndForget(
+    prisma.notification.create({
+      data: {
+        tenantId,
+        type: "turno_creato",
+        title: "Nuovo turno pianificato",
+        message: `${row.staffName} — ${row.area} — ${row.day}`,
+        href: "/turni",
+      },
+    }),
+    "notification:shift-plan-created",
+  );
 
   return ok(serialize(row), 201);
 }

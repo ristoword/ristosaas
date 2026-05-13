@@ -22,7 +22,7 @@ export function FinalCta({ locale = "it" }: { locale?: Locale } = {}) {
             className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-landing-bg to-transparent"
           />
 
-          <div className="relative grid gap-10 px-8 py-14 md:grid-cols-[1.2fr_1fr] md:px-14 md:py-20" id="demo">
+          <div className="relative grid gap-10 px-8 py-14 md:grid-cols-[1.2fr_1fr] md:px-14 md:py-20" id="cta">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-landing-magentaSoft">
                 {copy.finalEyebrow}
