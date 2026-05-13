@@ -71,7 +71,10 @@ async function fetchPlatformGates(origin: string, tenantId: string | null): Prom
   try {
     const url = new URL("/api/health/gates", origin);
     if (tenantId) url.searchParams.set("tenantId", tenantId);
-    const res = await fetch(url.toString(), { cache: "no-store" });
+    const res = await fetch(url.toString(), {
+      cache: "no-store",
+      headers: { "x-middleware-internal": "1" },
+    });
     const data = (await res.json()) as Partial<Gates>;
     const value: Gates = {
       maintenanceMode: !!data.maintenanceMode,
