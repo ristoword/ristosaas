@@ -9,7 +9,13 @@ export function err(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
 
+const MAX_BODY_SIZE = 1_048_576; // 1 MB
+
 export async function body<T>(req: Request): Promise<T> {
+  const contentLength = req.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
+    throw new Error("Request body too large");
+  }
   return req.json() as Promise<T>;
 }
 

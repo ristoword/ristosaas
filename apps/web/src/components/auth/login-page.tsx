@@ -77,25 +77,27 @@ export function LoginPage() {
           </div>
         </form>
 
-        <div className="rounded-2xl border border-rw-line bg-rw-surface/50 p-4">
-          <p className="text-xs font-semibold text-rw-muted mb-2">Account demo:</p>
-          <div className="grid grid-cols-2 gap-1.5 text-xs text-rw-soft">
-            {[
-              { u: "owner", p: "owner123", r: "Owner" },
-              { u: "sala", p: "sala123", r: "Sala" },
-              { u: "cucina", p: "cucina123", r: "Cucina" },
-              { u: "cassa", p: "cassa123", r: "Cassa" },
-              { u: "supervisor", p: "super123", r: "Supervisor" },
-              { u: "magazzino", p: "magazzino123", r: "Magazzino" },
-              { u: "hotel", p: "hotel123", r: "Hotel Manager" },
-              { u: "reception", p: "reception123", r: "Reception" },
-            ].map((d) => (
-              <button key={d.u} type="button" onClick={() => { setUsername(d.u); setPassword(d.p); }} className="rounded-lg border border-rw-line/50 bg-rw-surfaceAlt px-2 py-1.5 text-left hover:border-rw-accent/30">
-                <span className="font-semibold text-rw-ink">{d.u}</span> <span className="text-rw-muted">· {d.r}</span>
-              </button>
-            ))}
+        {process.env.NODE_ENV !== "production" && (
+          <div className="rounded-2xl border border-rw-line bg-rw-surface/50 p-4">
+            <p className="text-xs font-semibold text-rw-muted mb-2">Account demo:</p>
+            <div className="grid grid-cols-2 gap-1.5 text-xs text-rw-soft">
+              {[
+                { u: "owner", p: "owner123", r: "Owner" },
+                { u: "sala", p: "sala123", r: "Sala" },
+                { u: "cucina", p: "cucina123", r: "Cucina" },
+                { u: "cassa", p: "cassa123", r: "Cassa" },
+                { u: "supervisor", p: "super123", r: "Supervisor" },
+                { u: "magazzino", p: "magazzino123", r: "Magazzino" },
+                { u: "hotel", p: "hotel123", r: "Hotel Manager" },
+                { u: "reception", p: "reception123", r: "Reception" },
+              ].map((d) => (
+                <button key={d.u} type="button" onClick={() => { setUsername(d.u); setPassword(d.p); }} className="rounded-lg border border-rw-line/50 bg-rw-surfaceAlt px-2 py-1.5 text-left hover:border-rw-accent/30">
+                  <span className="font-semibold text-rw-ink">{d.u}</span> <span className="text-rw-muted">· {d.r}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
