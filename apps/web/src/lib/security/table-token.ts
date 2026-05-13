@@ -1,20 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-
-/**
- * Deterministic signed token for public per-table URLs.
- *
- * Uses QR_SECRET (independent from JWT_SECRET) so rotating session secrets
- * does not invalidate printed QR codes. Falls back to JWT_SECRET if QR_SECRET
- * is not configured, and to a hard-coded fallback in development.
- */
-
-function getQrSecret(): string {
-  const qr = process.env.QR_SECRET?.trim();
-  if (qr && qr.length >= 16) return qr;
-  const jwt = process.env.JWT_SECRET?.trim();
-  if (jwt && jwt.length >= 16) return jwt;
-  return "ristosaas-qr-fallback-secret-v1";
-}
+import { getQrSecret } from "@/lib/security/qr-secret";
 
 function toBase64Url(buf: Buffer) {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
