@@ -13,6 +13,21 @@ export function isHashedPassword(value: string) {
   return value.startsWith(`${SCRYPT_PREFIX}$`);
 }
 
+const MIN_PASSWORD_LENGTH = 12;
+
+/**
+ * Validates password strength. Returns null if valid, error message otherwise.
+ */
+export function validatePasswordStrength(password: string): string | null {
+  if (!password || password.length < MIN_PASSWORD_LENGTH) {
+    return `La password deve avere almeno ${MIN_PASSWORD_LENGTH} caratteri.`;
+  }
+  if (!/[a-z]/.test(password)) return "La password deve contenere almeno una lettera minuscola.";
+  if (!/[A-Z]/.test(password)) return "La password deve contenere almeno una lettera maiuscola.";
+  if (!/[0-9]/.test(password)) return "La password deve contenere almeno un numero.";
+  return null;
+}
+
 export function verifyPassword(storedPassword: string, plainTextPassword: string) {
   if (!isHashedPassword(storedPassword)) {
     // Plain-text storage is no longer supported. Any remaining plain-text

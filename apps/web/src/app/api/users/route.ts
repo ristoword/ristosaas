@@ -4,7 +4,7 @@ import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
-import { hashPassword } from "@/lib/auth/password";
+import { hashPassword, validatePasswordStrength } from "@/lib/auth/password";
 
 const ROLES = ["supervisor", "owner", "super_admin"] as const;
 
@@ -62,7 +62,9 @@ export async function POST(req: NextRequest) {
   if (!username || username.length < 3) return err("Username obbligatorio (min 3 caratteri)");
   if (!/^[a-z0-9_.-]+$/.test(username)) return err("Username: solo lettere minuscole, numeri, punti, trattini, underscore");
   if (!name || name.length < 2) return err("Nome obbligatorio");
-  if (!password || password.length < 6) return err("Password obbligatoria (min 6 caratteri)");
+  if (!password) return err("Password obbligatoria.");
+  const pwError = validatePasswordStrength(password);
+  if (pwError) return err(pwError);
   if (!role || !ASSIGNABLE_ROLES.includes(role as AssignableRole)) {
     return err(`Ruolo non valido. Valori ammessi: ${ASSIGNABLE_ROLES.join(", ")}`);
   }

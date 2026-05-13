@@ -3,6 +3,7 @@ import { err, body } from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
 import { issueAuthSession } from "@/lib/auth/session-tracking";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
+import { validatePasswordStrength } from "@/lib/auth/password";
 
 export async function POST(req: NextRequest) {
   const user = getRequestUser(req);
@@ -10,7 +11,8 @@ export async function POST(req: NextRequest) {
 
   const { currentPassword, newPassword } = await body<{ currentPassword: string; newPassword: string }>(req);
   if (!currentPassword || !newPassword) return err("Both fields required");
-  if (newPassword.length < 6) return err("La nuova password deve avere almeno 6 caratteri.");
+  const pwError = validatePasswordStrength(newPassword);
+  if (pwError) return err(pwError);
 
   const changed = await authUsersRepository.changePassword(user.id, currentPassword, newPassword);
   if (!changed.ok && changed.reason === "wrong_password") return err("Password attuale errata.");
