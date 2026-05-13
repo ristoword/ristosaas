@@ -22,7 +22,6 @@ const PUBLIC = [
   "/robots.txt",
   "/api/auth/login",
   "/api/auth/refresh",
-  "/api/health",
 ];
 const INTERNAL_ONLY = ["/licenses", "/stripe", "/email-settings", "/super-admin", "/dev-access"];
 
