@@ -1406,6 +1406,8 @@ export type StockItem = {
   minStock: number;
   costPerUnit: number;
   supplier: string;
+  lotNumber?: string | null;
+  expiryDate?: string | null;
   /** Scorte nei reparti (escluso il centrale). Presente nella risposta di listItemsWithLocations. */
   locationStocks?: { location: string; qty: number }[];
   /** Totale centrale + reparti. */
