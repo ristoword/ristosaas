@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import type { Order, OrderItem } from "@/lib/api/types/orders";
-import { ok, err } from "@/lib/api/helpers";
+import { ok, err, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { ordersRepository } from "@/lib/db/repositories/orders.repository";
@@ -44,7 +44,7 @@ function isPublicMenuOrderBody(v: unknown): v is PublicMenuOrderBody {
 }
 
 /** GET /api/orders?status=in_attesa&area=cucina&table=5 */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { searchParams } = req.nextUrl;
@@ -57,10 +57,10 @@ export async function GET(req: NextRequest) {
     offset: Number(searchParams.get("offset") || 0),
   });
   return ok(results);
-}
+});
 
 /** POST /api/orders — staff (autenticato) o menu pubblico (`source: "public_menu"`). */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   let parsed: unknown;
   try {
     parsed = await req.json();
@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
   };
   const order = await ordersRepository.create(getTenantId(), orderPayload);
   return ok(order, 201);
-}
+});
 
 function buildCourseStates(items: OrderItem[]): Record<string, "queued" | "in_attesa" | "in_preparazione" | "pronto" | "servito"> {
   const courseNums = [...new Set(items.map((item) => item.course))].sort((a, b) => a - b);

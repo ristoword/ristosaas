@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -18,7 +18,7 @@ function serialize(r: { unitPrice: unknown; createdAt: Date; updatedAt: Date; [k
 }
 
 /** GET /api/hotel/room-service/catalog?category=food&active=1 */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...READ_ROLES]);
   if (guard.error) return guard.error;
 
@@ -38,10 +38,10 @@ export async function GET(req: NextRequest) {
   });
 
   return ok(rows.map(serialize));
-}
+});
 
 /** POST /api/hotel/room-service/catalog */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...CATALOG_ROLES]);
   if (guard.error) return guard.error;
 
@@ -70,4 +70,4 @@ export async function POST(req: NextRequest) {
   });
 
   return ok(serialize(row), 201);
-}
+});

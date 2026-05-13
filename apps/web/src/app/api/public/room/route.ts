@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { prisma } from "@/lib/db/prisma";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { verifyRoomToken } from "@/lib/security/room-token";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
  * Public read-only lookup for a hotel room + room service catalog.
  * No auth required — token is HMAC-signed and rate-limited.
  */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const rl = await applyRateLimit(clientIpFromRequest(req), {
     bucket: "public:room",
     limit: 60,
@@ -55,4 +55,4 @@ export async function GET(req: NextRequest) {
     },
     catalog: catalog.map((c) => ({ ...c, unitPrice: Number(c.unitPrice) })),
   });
-}
+});

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -8,7 +8,7 @@ const ROLES = ["owner", "super_admin"] as const;
 type Ctx = { params: Promise<{ slug: string }> };
 
 /** PUT /api/email-templates/:slug — salva/aggiorna template */
-export async function PUT(req: NextRequest, ctx: Ctx) {
+export const PUT = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...ROLES]);
   if (guard.error) return guard.error;
 
@@ -27,10 +27,10 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   });
 
   return ok({ ...template, updatedAt: template.updatedAt.toISOString() });
-}
+});
 
 /** DELETE /api/email-templates/:slug — ripristina default */
-export async function DELETE(req: NextRequest, ctx: Ctx) {
+export const DELETE = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...ROLES]);
   if (guard.error) return guard.error;
 
@@ -39,4 +39,4 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
 
   await prisma.emailTemplate.deleteMany({ where: { tenantId, slug } });
   return ok({ reset: true });
-}
+});

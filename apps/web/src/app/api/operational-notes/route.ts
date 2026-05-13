@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -17,7 +17,7 @@ function isValidArea(v: unknown): v is NoteArea {
 }
 
 /** GET /api/operational-notes?area=pizzeria */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...NOTE_ROLES]);
   if (guard.error) return guard.error;
 
@@ -33,10 +33,10 @@ export async function GET(req: NextRequest) {
   });
 
   return ok(rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })));
-}
+});
 
 /** POST /api/operational-notes */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...NOTE_ROLES]);
   if (guard.error) return guard.error;
 
@@ -52,4 +52,4 @@ export async function POST(req: NextRequest) {
   });
 
   return ok({ ...row, createdAt: row.createdAt.toISOString() }, 201);
-}
+});

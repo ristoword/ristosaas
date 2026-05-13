@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { isMaintenanceMode } from "@/lib/db/repositories/platform.repository";
 
+import { withErrorHandler } from "@/lib/api/helpers";
 export const dynamic = "force-dynamic";
 
 /**
  * Internal-only read for edge middleware: maintenance + optional tenant block.
  * Rejects external callers by checking for an internal middleware header.
  */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const isInternal =
     req.headers.get("x-middleware-internal") === "1" ||
     req.headers.get("sec-fetch-site") === "same-origin";
@@ -27,4 +28,4 @@ export async function GET(req: NextRequest) {
     tenantBlocked = row?.accessStatus === "blocked";
   }
   return NextResponse.json({ maintenanceMode, tenantBlocked });
-}
+});

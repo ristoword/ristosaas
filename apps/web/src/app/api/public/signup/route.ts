@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { prisma } from "@/lib/db/prisma";
 import { stripePostForm } from "@/lib/billing/stripe-client";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
@@ -54,7 +54,7 @@ function validEmail(value: string) {
  * rate-limited and validated. It never writes to the DB directly: the source
  * of truth for tenant provisioning stays the Stripe webhook.
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const ip = clientIpFromRequest(req);
   const rl = await applyRateLimit(ip, {
     bucket: "public:signup",
@@ -143,4 +143,4 @@ export async function POST(req: NextRequest) {
   if (!created.data.url) return err("Sessione Stripe senza URL.", 502);
 
   return ok({ id: created.data.id, url: created.data.url });
-}
+});

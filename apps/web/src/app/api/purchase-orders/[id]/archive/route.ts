@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { archivedSupplierOrdersRepository } from "@/lib/db/repositories/archived-supplier-orders.repository";
@@ -10,7 +10,7 @@ const ROLES = ["owner", "supervisor", "magazzino", "cassa", "super_admin"] as co
 type Ctx = { params: Promise<{ id: string }> };
 
 /** POST /api/purchase-orders/:id/archive — archivia documento (bozza o ordine emesso). */
-export async function POST(req: NextRequest, ctx: Ctx) {
+export const POST = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -33,4 +33,4 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const order = await purchaseOrdersRepository.get(tenantId, id);
   if (!order) return err("Ordine non trovato.", 404);
   return ok({ order });
-}
+});

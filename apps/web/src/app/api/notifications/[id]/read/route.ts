@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err } from "@/lib/api/helpers";
+import { ok, err, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -13,7 +13,7 @@ const ALL_ROLES = [
 type Ctx = { params: Promise<{ id: string }> };
 
 /** PATCH /api/notifications/:id/read */
-export async function PATCH(req: NextRequest, ctx: Ctx) {
+export const PATCH = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...ALL_ROLES]);
   if (guard.error) return guard.error;
 
@@ -25,4 +25,4 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 
   await prisma.notification.update({ where: { id }, data: { read: true } });
   return ok({ read: true });
-}
+});

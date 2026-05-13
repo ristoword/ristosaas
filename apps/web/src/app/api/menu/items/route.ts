@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import type { MenuItem } from "@/lib/api/types/kitchen";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.repository";
@@ -8,14 +8,14 @@ import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.reposi
 const MENU_ROLES = ["cucina", "sala", "cassa", "supervisor", "owner", "super_admin"] as const;
 
 /** GET /api/menu/items */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   return ok(await kitchenMenuRepository.allMenuItems(getTenantId()));
-}
+});
 
 /** POST /api/menu/items — add menu item (optionally from recipe) */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...MENU_ROLES]);
   if (guard.error) return guard.error;
   const data = await body<Omit<MenuItem, "id"> & { fromRecipeId?: string }>(req);
@@ -60,4 +60,4 @@ export async function POST(req: NextRequest) {
     foodCostPct,
   });
   return ok(item, 201);
-}
+});

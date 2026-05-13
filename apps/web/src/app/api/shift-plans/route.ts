@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body, fireAndForget } from "@/lib/api/helpers";
+import { ok, err, body, fireAndForget, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -17,7 +17,7 @@ function serialize(r: { createdAt: Date; updatedAt: Date; [k: string]: unknown }
 }
 
 /** GET /api/shift-plans?area=cucina&from=2024-01-01&to=2024-01-31&staffId=xxx */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...SHIFT_ROLES]);
   if (guard.error) return guard.error;
 
@@ -45,10 +45,10 @@ export async function GET(req: NextRequest) {
   });
 
   return ok(rows.map(serialize));
-}
+});
 
 /** POST /api/shift-plans */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...SHIFT_ROLES]);
   if (guard.error) return guard.error;
 
@@ -92,4 +92,4 @@ export async function POST(req: NextRequest) {
   );
 
   return ok(serialize(row), 201);
-}
+});

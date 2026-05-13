@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, body } from "@/lib/api/helpers";
+import { ok, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -11,7 +11,7 @@ const ALL_ROLES = [
 ] as const;
 
 /** GET /api/notifications?unread=1&limit=30 */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ALL_ROLES]);
   if (guard.error) return guard.error;
 
@@ -41,10 +41,10 @@ export async function GET(req: NextRequest) {
     items: rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
     unreadCount,
   });
-}
+});
 
 /** POST /api/notifications — internal use (called from other API routes) */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ALL_ROLES]);
   if (guard.error) return guard.error;
 
@@ -64,4 +64,4 @@ export async function POST(req: NextRequest) {
   });
 
   return ok({ ...row, createdAt: row.createdAt.toISOString() }, 201);
-}
+});

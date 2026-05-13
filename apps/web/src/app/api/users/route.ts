@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -17,7 +17,7 @@ const ASSIGNABLE_ROLES = [
 type AssignableRole = typeof ASSIGNABLE_ROLES[number];
 
 /** GET /api/users — lista utenti del tenant corrente */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ROLES]);
   if (guard.error) return guard.error;
 
@@ -36,10 +36,10 @@ export async function GET(req: NextRequest) {
     ...u,
     isLocked: u.lockedUntil ? new Date(u.lockedUntil) > new Date() : false,
   })));
-}
+});
 
 /** POST /api/users — crea un nuovo utente per il tenant corrente (solo owner/super_admin) */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, ["owner", "super_admin"]);
   if (guard.error) return guard.error;
 
@@ -108,10 +108,10 @@ export async function POST(req: NextRequest) {
     }
     throw e;
   }
-}
+});
 
 /** DELETE /api/users?id=... — elimina utente del tenant (solo owner/super_admin) */
-export async function DELETE(req: NextRequest) {
+export const DELETE = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, ["owner", "super_admin"]);
   if (guard.error) return guard.error;
 
@@ -139,4 +139,4 @@ export async function DELETE(req: NextRequest) {
   });
 
   return ok({ deleted: true });
-}
+});

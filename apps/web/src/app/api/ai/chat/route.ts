@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { err, ok, body } from "@/lib/api/helpers";
+import { err, ok, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
@@ -82,7 +82,7 @@ function kitchenSnapshotToPrompt(snapshot: Awaited<ReturnType<typeof aiKitchenRe
   ].join("\n");
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   const user = guard.user;
@@ -220,4 +220,4 @@ export async function POST(req: NextRequest) {
   });
 
   return ok({ reply: content });
-}
+});

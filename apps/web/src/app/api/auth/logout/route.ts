@@ -5,7 +5,8 @@ import { SESSION_COOKIE } from "@/lib/auth/session.edge";
 import { userSessionsRepository } from "@/lib/db/repositories/user-sessions.repository";
 import { logger } from "@/lib/observability/logger";
 
-export async function POST(req: NextRequest) {
+import { withErrorHandler } from "@/lib/api/helpers";
+export const POST = withErrorHandler(async (req) => {
   const sessionToken = req.cookies.get(SESSION_COOKIE)?.value;
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
 
@@ -34,4 +35,4 @@ export async function POST(req: NextRequest) {
   clearSessionCookie(res);
   clearRefreshCookie(res);
   return res;
-}
+});

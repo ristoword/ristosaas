@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -10,7 +10,7 @@ const ALL_ROLES = [
 ] as const;
 
 /** GET /api/staff/me — returns the StaffMember linked to the current user */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ALL_ROLES]);
   if (guard.error) return guard.error;
 
@@ -48,4 +48,4 @@ export async function GET(req: NextRequest) {
     hoursWeek: member.hoursWeek,
     notes: member.notes,
   });
-}
+});

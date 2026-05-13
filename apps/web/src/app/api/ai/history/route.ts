@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   const user = guard.user;
@@ -21,4 +21,4 @@ export async function GET(req: NextRequest) {
       createdAt: row.createdAt.toISOString(),
     })),
   );
-}
+});

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body, fireAndForget } from "@/lib/api/helpers";
+import { ok, err, body, fireAndForget, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -29,7 +29,7 @@ function serialize(r: { requestedAt: Date; createdAt: Date; updatedAt: Date; del
 }
 
 /** GET /api/hotel/room-service?status=pending&category=food&roomCode=101 */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...RS_ROLES]);
   if (guard.error) return guard.error;
 
@@ -55,10 +55,10 @@ export async function GET(req: NextRequest) {
   });
 
   return ok(rows.map(serialize));
-}
+});
 
 /** POST /api/hotel/room-service */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...RS_ROLES]);
   if (guard.error) return guard.error;
 
@@ -115,4 +115,4 @@ export async function POST(req: NextRequest) {
   }), "notification:room-service-created");
 
   return ok(serialize(row), 201);
-}
+});

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
@@ -7,7 +7,7 @@ import type { StockItem } from "@/lib/api/types/warehouse";
 
 const WAREHOUSE_ROLES = ["magazzino", "cucina", "pizzeria", "bar", "supervisor", "owner", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const items = await warehouseRepository.listItemsWithLocations(getTenantId());
@@ -29,13 +29,13 @@ export async function GET(req: NextRequest) {
     alerts,
     totalValue: items.reduce((s, i) => s + (i.totalQty ?? i.qty) * i.costPerUnit, 0),
   });
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, ["magazzino", "supervisor", "owner", "super_admin"]);
   if (guard.error) return guard.error;
   const data = await body<Omit<StockItem, "id">>(req);
   if (!data.name?.trim()) return err("name is required");
   const item = await warehouseRepository.createItem(getTenantId(), data);
   return ok(item, 201);
-}
+});

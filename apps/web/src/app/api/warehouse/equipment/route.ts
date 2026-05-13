@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
@@ -7,14 +7,14 @@ import type { WarehouseEquipment } from "@/lib/api/types/warehouse";
 
 const WAREHOUSE_ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const rows = await warehouseRepository.listEquipment(getTenantId());
   return ok(rows);
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const data = await body<Omit<WarehouseEquipment, "id">>(req);
@@ -26,4 +26,4 @@ export async function POST(req: NextRequest) {
     value: Number.isFinite(data.value) ? Math.max(0, data.value) : 0,
   });
   return ok(item, 201);
-}
+});

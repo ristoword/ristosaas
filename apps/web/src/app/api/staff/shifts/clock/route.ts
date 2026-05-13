@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { operationsRepository } from "@/lib/db/repositories/operations.repository";
 
 const STAFF_SHIFT_ROLES = ["owner", "supervisor", "staff", "super_admin"] as const;
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, STAFF_SHIFT_ROLES);
   if (guard.error) return guard.error;
 
@@ -26,4 +26,4 @@ export async function POST(req: NextRequest) {
   const shift = await operationsRepository.staffShifts.clockOut(tenantId, payload.staffId, payload.notes);
   if (!shift) return err("No active shift for this staff member", 409);
   return ok(shift);
-}
+});

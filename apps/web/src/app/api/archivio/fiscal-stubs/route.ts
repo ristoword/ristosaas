@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import {
@@ -12,7 +12,7 @@ function parseKind(raw: string | null): ArchivioFiscalStubKind | null {
   return null;
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   if (guard.user?.role === "super_admin") {
@@ -21,9 +21,9 @@ export async function GET(req: NextRequest) {
   const kind = parseKind(new URL(req.url).searchParams.get("kind"));
   if (!kind) return err('Parametro "kind" richiesto: entrata o cassa.', 400);
   return ok(await archivioFiscalStubRepository.list(getTenantId(), kind));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   if (guard.user?.role === "super_admin") {
@@ -51,4 +51,4 @@ export async function POST(req: NextRequest) {
     notes: typeof data.notes === "string" ? data.notes : "",
   });
   return ok(row, 201);
-}
+});

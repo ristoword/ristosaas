@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { ok, body } from "@/lib/api/helpers";
+import { ok, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { haccpRepository, type HaccpEntryType } from "@/lib/db/repositories/haccp.repository";
 
 const HACCP_ROLES = ["owner", "supervisor", "cucina", "pizzeria", "bar", "magazzino", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, HACCP_ROLES);
   if (guard.error) return guard.error;
   const url = new URL(req.url);
@@ -23,9 +23,9 @@ export async function GET(req: NextRequest) {
       limit,
     }),
   );
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, HACCP_ROLES);
   if (guard.error) return guard.error;
   const data = await body<{
@@ -38,4 +38,4 @@ export async function POST(req: NextRequest) {
   }>(req);
   const item = await haccpRepository.create(getTenantId(), data);
   return ok(item, 201);
-}
+});

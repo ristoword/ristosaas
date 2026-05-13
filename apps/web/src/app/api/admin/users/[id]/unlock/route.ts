@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { recordAdminAudit } from "@/lib/observability/admin-audit";
@@ -7,7 +7,7 @@ import { recordAdminAudit } from "@/lib/observability/admin-audit";
 const ADMIN_ROLES = ["super_admin"] as const;
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function POST(req: NextRequest, ctx: Ctx) {
+export const POST = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -21,4 +21,4 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     req,
   });
   return ok({ user });
-}
+});

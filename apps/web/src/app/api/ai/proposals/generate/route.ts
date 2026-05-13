@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, ok } from "@/lib/api/helpers";
+import { body, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository";
@@ -8,7 +8,7 @@ import { sendOperationalAlert } from "@/lib/observability/alerts";
 
 const ALLOWED_ROLES = ["owner", "supervisor", "cucina", "magazzino", "super_admin"] as const;
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, ALLOWED_ROLES);
   if (guard.error) return guard.error;
   const tenantId = guard.user.tenantId || getTenantId();
@@ -44,4 +44,4 @@ export async function POST(req: NextRequest) {
     proposals,
     generated: proposals.length,
   });
-}
+});

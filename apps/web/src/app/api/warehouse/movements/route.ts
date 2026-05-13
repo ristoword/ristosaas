@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
@@ -13,12 +13,12 @@ function isValidLocation(v: unknown): v is WarehouseLocation {
   return typeof v === "string" && (WAREHOUSE_LOCATIONS as string[]).includes(v);
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_READ_ROLES]);
   if (guard.error) return guard.error;
   const movements = await warehouseRepository.listMovements(getTenantId());
   return ok(movements);
-}
+});
 
 type MovementBody = {
   warehouseItemId: string;
@@ -32,7 +32,7 @@ type MovementBody = {
   newQty?: number;
 };
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
 
@@ -130,4 +130,4 @@ export async function POST(req: NextRequest) {
   }
 
   return err("type non supportato", 400);
-}
+});

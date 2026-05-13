@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { ok, err } from "@/lib/api/helpers";
+import { ok, err, withErrorHandler} from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 import { prisma } from "@/lib/db/prisma";
 import type { LicenseStatus, TenantProfile } from "@/lib/auth/types";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const user = getRequestUser(req);
   if (!user) return err("User not found", 401);
   const validSession = await authUsersRepository.isSessionVersionValid(user.id, user.sessionVersion ?? 0);
@@ -49,4 +49,4 @@ export async function GET(req: NextRequest) {
   }
 
   return ok({ ...user, tenant: tenantProfile });
-}
+});

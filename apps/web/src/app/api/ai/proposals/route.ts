@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiProposalsRepository } from "@/lib/db/repositories/ai-proposals.repository";
 
 const ALLOWED_ROLES = ["owner", "supervisor", "cucina", "magazzino", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, ALLOWED_ROLES);
   if (guard.error) return guard.error;
   const tenantId = guard.user.tenantId || getTenantId();
@@ -30,8 +30,8 @@ export async function GET(req: NextRequest) {
     onlyOpen,
   });
   return ok({ proposals });
-}
+});
 
-export async function POST() {
+export const POST = withErrorHandler(async () => {
   return err("Use /api/ai/proposals/generate to create proposals", 405);
-}
+});

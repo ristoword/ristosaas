@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
@@ -197,7 +197,7 @@ async function sumChargesForFolio(tx: Prisma.TransactionClient, folioId: string)
   return rows.reduce((s, c) => s + c.amount.toNumber(), 0);
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
@@ -411,4 +411,4 @@ export async function POST(req: NextRequest) {
     }
     throw e;
   }
-}
+});

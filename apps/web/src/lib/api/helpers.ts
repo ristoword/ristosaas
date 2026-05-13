@@ -30,8 +30,8 @@ export function fireAndForget(promise: Promise<unknown>, context: string) {
   });
 }
 
-type RouteContext = { params?: Promise<Record<string, string>> };
-type RouteHandler = (req: NextRequest, ctx: RouteContext) => Promise<NextResponse>;
+type RouteContext = { params: Promise<Record<string, string>> };
+type RouteHandler = (req: NextRequest, ctx: RouteContext) => Promise<NextResponse> | NextResponse;
 
 /**
  * Wraps an API route handler with try/catch, logging, and consistent error responses.

@@ -1,13 +1,13 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { billingRepository } from "@/lib/db/repositories/billing.repository";
 
 const BILLING_ROLES = ["owner", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, BILLING_ROLES);
   if (guard.error) return guard.error;
   return ok(await billingRepository.readiness(getTenantId()));
-}
+});

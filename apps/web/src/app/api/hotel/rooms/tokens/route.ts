@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -11,7 +11,7 @@ const TOKEN_ROLES = ["hotel_manager", "reception", "supervisor", "owner", "super
  * POST /api/hotel/rooms/tokens
  * Generate deterministic HMAC-signed tokens for a batch of hotel room codes.
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...TOKEN_ROLES]);
   if (guard.error) return guard.error;
 
@@ -38,4 +38,4 @@ export async function POST(req: NextRequest) {
   }));
 
   return ok({ tokens });
-}
+});

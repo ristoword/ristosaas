@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
@@ -8,7 +8,7 @@ import type { WarehouseEquipment } from "@/lib/api/types/warehouse";
 const WAREHOUSE_ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function PUT(req: NextRequest, ctx: Ctx) {
+export const PUT = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -18,13 +18,13 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const updated = await warehouseRepository.updateEquipment(getTenantId(), id, updates);
   if (!updated) return err("Equipment not found", 404);
   return ok(updated);
-}
+});
 
-export async function DELETE(req: NextRequest, ctx: Ctx) {
+export const DELETE = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await warehouseRepository.deleteEquipment(getTenantId(), id);
   if (!deleted) return err("Equipment not found", 404);
   return ok({ deleted: true });
-}
+});

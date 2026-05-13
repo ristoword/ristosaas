@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { adminRepository } from "@/lib/db/repositories/admin.repository";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 
-export async function POST(req: NextRequest, context: { params: Promise<{ tenantId: string }> }) {
+export const POST = withErrorHandler(async (req, context) => {
   const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
 
@@ -20,4 +20,4 @@ export async function POST(req: NextRequest, context: { params: Promise<{ tenant
     if (message === "tenant_not_found") return err("Tenant not found", 404);
     return err("Unable to bootstrap tenant", 500);
   }
-}
+});

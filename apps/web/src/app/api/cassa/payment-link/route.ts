@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { stripePostForm } from "@/lib/billing/stripe-client";
 
@@ -10,7 +10,7 @@ const ROLES = ["sala", "cassa", "supervisor", "owner", "super_admin"] as const;
  * Crea un Stripe Checkout Session per il pagamento online di un conto.
  * Se Stripe non è configurato restituisce un URL placeholder.
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ROLES]);
   if (guard.error) return guard.error;
 
@@ -50,4 +50,4 @@ export async function POST(req: NextRequest) {
   }
 
   return ok({ url: result.data.url, sessionId: result.data.id, stripeConfigured: true });
-}
+});

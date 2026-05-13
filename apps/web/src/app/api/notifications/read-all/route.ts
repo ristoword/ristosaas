@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -11,7 +11,7 @@ const ALL_ROLES = [
 ] as const;
 
 /** PATCH /api/notifications/read-all — mark all notifications as read for current user */
-export async function PATCH(req: NextRequest) {
+export const PATCH = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ALL_ROLES]);
   if (guard.error) return guard.error;
 
@@ -24,4 +24,4 @@ export async function PATCH(req: NextRequest) {
   });
 
   return ok({ marked: count });
-}
+});

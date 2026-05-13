@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err } from "@/lib/api/helpers";
+import { ok, err, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -20,7 +20,7 @@ export type SearchResultItem = {
 };
 
 /** GET /api/search?q=xxx — ricerca unificata */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ALL_ROLES]);
   if (guard.error) return guard.error;
 
@@ -144,4 +144,4 @@ export async function GET(req: NextRequest) {
   } catch { /* non-fatal */ }
 
   return ok({ query: q, results: results.slice(0, 30) });
-}
+});

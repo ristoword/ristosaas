@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { billingRepository } from "@/lib/db/repositories/billing.repository";
@@ -7,7 +7,7 @@ import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/sec
 
 const BILLING_ROLES = ["owner", "super_admin"] as const;
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, BILLING_ROLES);
   if (guard.error) return guard.error;
 
@@ -27,4 +27,4 @@ export async function POST(req: NextRequest) {
   }
 
   return ok(await billingRepository.reconcileTenantFromLatestSubscription(getTenantId()));
-}
+});

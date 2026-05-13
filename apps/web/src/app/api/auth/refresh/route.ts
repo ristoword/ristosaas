@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { err } from "@/lib/api/helpers";
+import { err, withErrorHandler} from "@/lib/api/helpers";
 import { REFRESH_COOKIE } from "@/lib/auth/constants";
 import { clearRefreshCookie, clearSessionCookie, verifyRefreshToken } from "@/lib/auth/session";
 import { issueAuthSession } from "@/lib/auth/session-tracking";
@@ -8,7 +8,7 @@ import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const refreshToken = req.cookies.get(REFRESH_COOKIE)?.value;
   if (!refreshToken) return err("Refresh token missing", 401);
 
@@ -85,4 +85,4 @@ export async function POST(req: NextRequest) {
     { previousJti: refreshClaims.jti ?? null },
   );
   return res;
-}
+});

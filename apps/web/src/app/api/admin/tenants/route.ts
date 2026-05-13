@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { adminRepository } from "@/lib/db/repositories/admin.repository";
 import { recordAdminAudit } from "@/lib/observability/admin-audit";
@@ -53,7 +53,7 @@ function tenantDbMigrationHint(error: unknown): string | null {
   return null;
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
 
@@ -77,9 +77,9 @@ export async function GET(req: NextRequest) {
     if (hint) return err(dev ? `${hint} (${detail})` : hint, 500);
     return err("Impossibile caricare l'elenco tenant.", 500);
   }
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
 
@@ -169,4 +169,4 @@ export async function POST(req: NextRequest) {
     if (message && message.length > 0 && message.length < 280 && dev) return err(`Impossibile creare il tenant: ${message}`, 500);
     return err("Impossibile creare il tenant. Controlla i log del server o applica le migrazioni SQL se mancanti.", 500);
   }
-}
+});

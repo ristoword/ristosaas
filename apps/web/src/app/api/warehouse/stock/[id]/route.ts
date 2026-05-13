@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
@@ -9,7 +9,7 @@ const WAREHOUSE_ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as c
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function PUT(req: NextRequest, ctx: Ctx) {
+export const PUT = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -19,13 +19,13 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const updated = await warehouseRepository.updateItem(getTenantId(), id, updates);
   if (!updated) return err("Stock item not found", 404);
   return ok(updated);
-}
+});
 
-export async function DELETE(req: NextRequest, ctx: Ctx) {
+export const DELETE = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await warehouseRepository.deleteItem(getTenantId(), id);
   if (!deleted) return err("Not found", 404);
   return ok({ deleted: true });
-}
+});

@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
 
 const WAREHOUSE_ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
   const { productId, qty, reason } = await body<{ productId: string; qty: number; reason?: string }>(req);
@@ -24,4 +24,4 @@ export async function POST(req: NextRequest) {
     reason: reason || "Carico manuale",
   });
   return ok({ item: updated, movement: "recorded" });
-}
+});

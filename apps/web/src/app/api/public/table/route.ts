@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { prisma } from "@/lib/db/prisma";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { verifyTableToken } from "@/lib/security/table-token";
@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * name, table label and seats). No prices, no orders, no guest data.
  * Rate-limited by IP to prevent scraping.
  */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const rl = await applyRateLimit(clientIpFromRequest(req), {
     bucket: "public:table",
     limit: 60,
@@ -50,4 +50,4 @@ export async function GET(req: NextRequest) {
     tableName: table.nome,
     seats: table.posti,
   });
-}
+});

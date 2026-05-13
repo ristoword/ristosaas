@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { userSessionsRepository } from "@/lib/db/repositories/user-sessions.repository";
 
@@ -8,7 +8,7 @@ import { userSessionsRepository } from "@/lib/db/repositories/user-sessions.repo
  * Super admin puo' passare ?scope=tenant per vedere tutte le sessioni
  * attive del proprio tenant (utile per audit rapido).
  */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   const { user } = guard;
@@ -30,4 +30,4 @@ export async function GET(req: NextRequest) {
     ? await userSessionsRepository.listActiveForUser(user.id)
     : await userSessionsRepository.listAllForUser(user.id, 100);
   return ok({ sessions: rows, self: user.jti ?? null });
-}
+});

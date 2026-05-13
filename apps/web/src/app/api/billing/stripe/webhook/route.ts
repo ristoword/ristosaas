@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest } from "next/server";
-import { ok, err } from "@/lib/api/helpers";
+import { ok, err, withErrorHandler} from "@/lib/api/helpers";
 import { billingRepository } from "@/lib/db/repositories/billing.repository";
 
 function parseStripeSignature(header: string | null) {
@@ -28,7 +28,7 @@ function verifyWebhookSignature(rawBody: string, header: string | null, secret: 
   return timingSafeEqual(expected, provided);
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) return err("STRIPE_WEBHOOK_SECRET missing", 500);
 
@@ -42,4 +42,4 @@ export async function POST(req: NextRequest) {
   const event = JSON.parse(rawBody);
   const result = await billingRepository.processStripeEvent(event);
   return ok(result);
-}
+});

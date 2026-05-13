@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { purchaseOrdersRepository } from "@/lib/db/repositories/purchase-orders.repository";
@@ -8,17 +8,17 @@ const ROLES = ["owner", "supervisor", "magazzino", "cassa", "super_admin"] as co
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(req: NextRequest, ctx: Ctx) {
+export const GET = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const row = await purchaseOrdersRepository.get(getTenantId(), id);
   if (!row) return err("Ordine non trovato.", 404);
   return ok(row);
-}
+});
 
 /** PATCH /api/purchase-orders/:id — cambia stato (es. bozza -> inviato). */
-export async function PATCH(req: NextRequest, ctx: Ctx) {
+export const PATCH = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -37,4 +37,4 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   } catch (error) {
     return err(error instanceof Error ? error.message : "Aggiornamento fallito.", 400);
   }
-}
+});

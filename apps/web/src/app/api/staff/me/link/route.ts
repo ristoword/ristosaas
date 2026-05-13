@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 const LINK_ROLES = ["supervisor", "owner", "super_admin"] as const;
 
 /** POST /api/staff/me/link — collega un userId a un StaffMember (solo manager) */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...LINK_ROLES]);
   if (guard.error) return guard.error;
 
@@ -28,4 +28,4 @@ export async function POST(req: NextRequest) {
   });
 
   return ok(updated);
-}
+});

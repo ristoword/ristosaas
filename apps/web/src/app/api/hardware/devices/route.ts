@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, ok } from "@/lib/api/helpers";
+import { body, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import {
@@ -10,13 +10,13 @@ import {
   type HardwareDepartment,
 } from "@/lib/db/repositories/hardware.repository";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   return ok(await hardwareRepository.listDevices(getTenantId()));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   const data = await body<{
@@ -31,4 +31,4 @@ export async function POST(req: NextRequest) {
   }>(req);
   const created = await hardwareRepository.createDevice(getTenantId(), data);
   return ok(created, 201);
-}
+});

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { err, body } from "@/lib/api/helpers";
+import { err, body, withErrorHandler} from "@/lib/api/helpers";
 import { issueAuthSession } from "@/lib/auth/session-tracking";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const { username, password } = await body<{ username: string; password: string }>(req);
   if (!username || !password) return err("username and password required");
 
@@ -71,4 +71,4 @@ export async function POST(req: NextRequest) {
   });
 
   return res;
-}
+});

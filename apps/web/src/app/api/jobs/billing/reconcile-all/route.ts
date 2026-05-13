@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { prisma } from "@/lib/db/prisma";
 import { billingRepository } from "@/lib/db/repositories/billing.repository";
 import { sendOperationalAlert } from "@/lib/observability/alerts";
@@ -17,7 +17,7 @@ import { verifyInternalSignature } from "@/lib/security/internal-signature";
  *     x-scheduler-signature: HMAC_SHA256(AI_SCHEDULER_TOKEN,
  *       `${ts}.POST./api/jobs/billing/reconcile-all.`)
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const sharedSecret = process.env.AI_SCHEDULER_TOKEN?.trim();
   if (!sharedSecret) return err("AI_SCHEDULER_TOKEN non configurato", 500);
 
@@ -66,4 +66,4 @@ export async function POST(req: NextRequest) {
   }
 
   return ok({ tenants: tenants.length, reconciled, skipped, failures: failures.length });
-}
+});

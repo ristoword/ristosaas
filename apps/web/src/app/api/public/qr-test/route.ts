@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { verifyTableToken } from "@/lib/security/table-token";
 import { verifyRoomToken } from "@/lib/security/room-token";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * Debug-only endpoint to verify QR tokens without authentication.
  * Disabled in production to avoid exposing token structure details.
  */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   if (process.env.NODE_ENV === "production") {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
@@ -33,4 +33,4 @@ export async function GET(req: NextRequest) {
   } catch (e) {
     return ok({ ok: false, error: e instanceof Error ? e.message : "unknown error" });
   }
-}
+});

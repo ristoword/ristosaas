@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
@@ -48,7 +48,7 @@ function mapCharge(row: {
   };
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, INTEGRATION_ROLES);
   if (guard.error) return guard.error;
 
@@ -148,4 +148,4 @@ export async function POST(req: NextRequest) {
     charge: mapCharge(charge),
     credits: credits.map((c) => mapCharge(c)),
   });
-}
+});

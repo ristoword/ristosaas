@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
   const limit = Number(req.nextUrl.searchParams.get("limit") || 100);
@@ -18,4 +18,4 @@ export async function GET(req: NextRequest) {
       offset: Number.isFinite(offset) ? offset : 0,
     }),
   );
-}
+});

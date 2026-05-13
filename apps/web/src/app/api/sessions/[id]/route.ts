@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { userSessionsRepository } from "@/lib/db/repositories/user-sessions.repository";
 
@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * proprie sessioni; super admin puo' revocare qualsiasi sessione
  * del proprio tenant (utile quando un dispositivo viene perso).
  */
-export async function DELETE(req: NextRequest, ctx: Ctx) {
+export const DELETE = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   const { user } = guard;
@@ -33,4 +33,4 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   const revoked = await userSessionsRepository.revokeById(id, user.id);
   if (!revoked) return err("Sessione non trovata", 404);
   return ok({ session: revoked });
-}
+});

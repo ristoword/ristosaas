@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { ordersRepository } from "@/lib/db/repositories/orders.repository";
@@ -19,7 +19,7 @@ type Ctx = { params: Promise<{ id: string }> };
  *
  * Also sets this course as the current `activeCourse`, so KDS columns align.
  */
-export async function POST(req: NextRequest, ctx: Ctx) {
+export const POST = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -44,4 +44,4 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   if (!updated) return err("Order not found", 404);
 
   return ok(updated);
-}
+});

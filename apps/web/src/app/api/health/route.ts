@@ -5,9 +5,10 @@ import { getOrCreateRequestId } from "@/lib/observability/request-context";
 import { sendOperationalAlert } from "@/lib/observability/alerts";
 import { captureException } from "@/lib/observability/sentry-lite";
 
+import { withErrorHandler } from "@/lib/api/helpers";
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
+export const GET = withErrorHandler(async (req) => {
   const requestId = getOrCreateRequestId(req.headers);
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -49,4 +50,4 @@ export async function GET(req: Request) {
     res.headers.set("x-request-id", requestId);
     return res;
   }
-}
+});

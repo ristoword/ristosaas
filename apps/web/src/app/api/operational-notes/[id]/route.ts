@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err } from "@/lib/api/helpers";
+import { ok, err, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -12,7 +12,7 @@ const NOTE_ROLES = [
 type Ctx = { params: Promise<{ id: string }> };
 
 /** DELETE /api/operational-notes/:id */
-export async function DELETE(req: NextRequest, ctx: Ctx) {
+export const DELETE = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...NOTE_ROLES]);
   if (guard.error) return guard.error;
 
@@ -27,4 +27,4 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
 
   await prisma.operationalNote.delete({ where: { id } });
   return ok({ deleted: true });
-}
+});

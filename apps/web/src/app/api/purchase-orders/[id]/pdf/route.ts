@@ -5,6 +5,7 @@ import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { purchaseOrdersRepository } from "@/lib/db/repositories/purchase-orders.repository";
 import { renderPurchaseOrderPdf } from "@/lib/pdf/purchase-order-pdf";
 
+import { withErrorHandler } from "@/lib/api/helpers";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ const ROLES = ["owner", "supervisor", "magazzino", "cassa", "super_admin"] as co
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function GET(req: NextRequest, ctx: Ctx) {
+export const GET = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -42,4 +43,4 @@ export async function GET(req: NextRequest, ctx: Ctx) {
       "Cache-Control": "private, no-store",
     },
   });
-}
+});

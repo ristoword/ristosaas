@@ -1,29 +1,29 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { operationsRepository } from "@/lib/db/repositories/operations.repository";
 type Ctx = { params: Promise<{ id: string }> };
 const ASPORTO_ROLES = ["owner", "supervisor", "sala", "cassa", "super_admin"] as const;
-export async function GET(req: NextRequest, ctx: Ctx) {
+export const GET = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ASPORTO_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const i = await operationsRepository.asporto.get(getTenantId(), id);
   return i ? ok(i) : err("Not found", 404);
-}
-export async function PUT(req: NextRequest, ctx: Ctx) {
+});
+export const PUT = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ASPORTO_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const u = await body<any>(req);
   const up = await operationsRepository.asporto.update(getTenantId(), id, u);
   return up ? ok(up) : err("Not found", 404);
-}
-export async function DELETE(req: NextRequest, ctx: Ctx) {
+});
+export const DELETE = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ASPORTO_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const deleted = await operationsRepository.asporto.delete(getTenantId(), id);
   return deleted ? ok({ deleted: true }) : err("Not found", 404);
-}
+});

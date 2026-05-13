@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import { err, ok, fireAndForget } from "@/lib/api/helpers";
+import { err, ok, fireAndForget, withErrorHandler} from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { userSessionsRepository } from "@/lib/db/repositories/user-sessions.repository";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const user = getRequestUser(req);
   if (!user) return err("Unauthorized", 401);
 
@@ -18,4 +18,4 @@ export async function GET(req: NextRequest) {
   }
 
   return ok({ valid: true });
-}
+});

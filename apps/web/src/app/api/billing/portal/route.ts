@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
@@ -8,7 +8,7 @@ import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/sec
 
 const BILLING_ROLES = ["owner", "super_admin"] as const;
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, BILLING_ROLES);
   if (guard.error) return guard.error;
 
@@ -51,4 +51,4 @@ export async function POST(req: NextRequest) {
   if (!created.ok) return err(created.error, created.status === 500 ? 500 : 502);
 
   return ok({ id: created.data.id, url: created.data.url });
-}
+});

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { withErrorHandler } from "@/lib/api/helpers";
 export const dynamic = "force-dynamic";
 
 /**
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
  * Use this from monitoring / dev-access to catch missing or malformed env
  * without burning OpenAI quota.
  */
-export async function GET() {
+export const GET = withErrorHandler(async () => {
   const rawKey = process.env.OPENAI_API_KEY?.trim() ?? "";
   const model = process.env.OPENAI_MODEL?.trim() || "gpt-4o-mini";
   const maxTokens = Number(process.env.OPENAI_MAX_TOKENS ?? 700);
@@ -44,4 +45,4 @@ export async function GET() {
     },
     { status: status === "ok" ? 200 : 503 },
   );
-}
+});

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -14,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * NON ricalcola retroattivamente le quantità: quella logica è già avvenuta.
  * Per correggere le quantità usare una rettifica.
  */
-export async function PATCH(req: NextRequest, ctx: Ctx) {
+export const PATCH = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
 
@@ -52,4 +52,4 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     note: updated.note,
     orderId: updated.orderId || undefined,
   });
-}
+});

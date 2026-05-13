@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { operationsRepository } from "@/lib/db/repositories/operations.repository";
 
 const STAFF_SHIFT_ROLES = ["owner", "supervisor", "staff", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, STAFF_SHIFT_ROLES);
   if (guard.error) return guard.error;
 
@@ -20,4 +20,4 @@ export async function GET(req: NextRequest) {
     to: to ? new Date(`${to}T23:59:59Z`) : undefined,
   });
   return ok(shifts);
-}
+});

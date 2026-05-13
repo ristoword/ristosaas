@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { err, body } from "@/lib/api/helpers";
+import { err, body, withErrorHandler} from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
 import { issueAuthSession } from "@/lib/auth/session-tracking";
 import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { validatePasswordStrength } from "@/lib/auth/password";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const user = getRequestUser(req);
   if (!user) return err("Not authenticated", 401);
 
@@ -35,4 +35,4 @@ export async function POST(req: NextRequest) {
     { previousJti: user.jti ?? null },
   );
   return res;
-}
+});

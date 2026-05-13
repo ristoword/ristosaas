@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { guestFolioRepository } from "@/lib/db/repositories/guest-folio.repository";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 
 const INTEGRATION_ROLES = ["hotel_manager", "reception", "cassa", "supervisor", "owner", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, INTEGRATION_ROLES);
   if (guard.error) return guard.error;
   const folios = await guestFolioRepository.allFolios(getTenantId());
   return ok(folios);
-}
+});

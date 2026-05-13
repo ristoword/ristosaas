@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { adminRepository } from "@/lib/db/repositories/admin.repository";
 import { sendTenantMail } from "@/lib/email/send-tenant-mail";
@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db/prisma";
 const ADMIN_ROLES = ["super_admin"] as const;
 type Ctx = { params: Promise<{ tenantId: string }> };
 
-export async function POST(req: NextRequest, ctx: Ctx) {
+export const POST = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ADMIN_ROLES);
   if (guard.error) return guard.error;
   const { tenantId } = await ctx.params;
@@ -60,4 +60,4 @@ export async function POST(req: NextRequest, ctx: Ctx) {
 
   const updated = await adminRepository.testEmailConfig(tenantId, true);
   return ok({ ...updated, messageId: result.messageId, recipient });
-}
+});

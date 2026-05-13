@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -16,7 +16,7 @@ type SyncResult = {
  * Analizza i turni pianificati nel range dato e aggiorna lo StaffMember.status
  * in base al tipo di turno prevalente del giorno corrente.
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...SYNC_ROLES]);
   if (guard.error) return guard.error;
 
@@ -83,4 +83,4 @@ export async function POST(req: NextRequest) {
       totalStaff: staffStatusMap.size,
     },
   });
-}
+});

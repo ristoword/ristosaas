@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { getRequestUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/db/prisma";
 
@@ -64,7 +64,7 @@ function getRequiredFeatures(pathname: string): FeatureCode[] {
   return [];
 }
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const user = getRequestUser(req);
   if (!user) return err("Unauthorized", 401);
 
@@ -114,4 +114,4 @@ export async function GET(req: NextRequest) {
     requiredFeatures: required,
     enabledFeatures: [...enabledFeatures],
   });
-}
+});

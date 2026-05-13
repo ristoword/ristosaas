@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -8,7 +8,7 @@ import { createStaffToken } from "@/lib/security/staff-token";
 const TOKEN_ROLES = ["supervisor", "owner", "super_admin", "sala", "cucina", "bar", "pizzeria", "cassa", "hotel_manager", "reception"] as const;
 
 /** POST /api/staff/tokens — genera token badge per un gruppo di staff member */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...TOKEN_ROLES]);
   if (guard.error) return guard.error;
 
@@ -32,4 +32,4 @@ export async function POST(req: NextRequest) {
   }));
 
   return ok({ tokens });
-}
+});

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -19,7 +19,7 @@ function serialize(r: { createdAt: Date; updatedAt: Date; [k: string]: unknown }
 }
 
 /** PUT /api/shift-plans/:id */
-export async function PUT(req: NextRequest, ctx: Ctx) {
+export const PUT = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...SHIFT_ROLES]);
   if (guard.error) return guard.error;
 
@@ -54,10 +54,10 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   });
 
   return ok(serialize(row));
-}
+});
 
 /** DELETE /api/shift-plans/:id */
-export async function DELETE(req: NextRequest, ctx: Ctx) {
+export const DELETE = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...SHIFT_ROLES]);
   if (guard.error) return guard.error;
 
@@ -69,4 +69,4 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
 
   await prisma.shiftPlan.delete({ where: { id } });
   return ok({ deleted: true });
-}
+});

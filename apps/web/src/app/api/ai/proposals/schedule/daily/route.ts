@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository";
 import { aiProposalsRepository } from "@/lib/db/repositories/ai-proposals.repository";
 import { prisma } from "@/lib/db/prisma";
 import { sendOperationalAlert } from "@/lib/observability/alerts";
 import { verifyInternalSignature } from "@/lib/security/internal-signature";
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const sharedSecret = process.env.AI_SCHEDULER_TOKEN?.trim();
   if (!sharedSecret) return err("AI_SCHEDULER_TOKEN non configurato", 500);
   const signature = req.headers.get("x-scheduler-signature") || "";
@@ -48,4 +48,4 @@ export async function POST(req: NextRequest) {
   });
 
   return ok({ tenants: tenants.length, generated });
-}
+});

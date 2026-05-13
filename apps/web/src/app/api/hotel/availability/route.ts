@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { err, ok } from "@/lib/api/helpers";
+import { err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { hotelReservationsRepository } from "@/lib/db/repositories/hotel-reservations.repository";
@@ -12,7 +12,7 @@ import type { HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
 const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
@@ -73,4 +73,4 @@ export async function GET(req: NextRequest) {
     rooms: availableRooms,
     ratePlans,
   });
-}
+});

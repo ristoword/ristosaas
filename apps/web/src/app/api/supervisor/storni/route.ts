@@ -1,19 +1,19 @@
 import { NextRequest } from "next/server";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { supervisorStorniRepository } from "@/lib/db/repositories/supervisor-storni.repository";
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   if (guard.user?.role === "super_admin") {
     return err("Operazione disponibile solo nel contesto tenant.", 400);
   }
   return ok(await supervisorStorniRepository.list(getTenantId()));
-}
+});
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   if (guard.user?.role === "super_admin") {
@@ -38,4 +38,4 @@ export async function POST(req: NextRequest) {
     note: typeof data.note === "string" ? data.note : "",
   });
   return ok(row, 201);
-}
+});

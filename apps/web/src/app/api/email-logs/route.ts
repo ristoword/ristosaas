@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 const ROLES = ["owner", "super_admin"] as const;
 
 /** GET /api/email-logs?limit=50 */
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, [...ROLES]);
   if (guard.error) return guard.error;
 
@@ -22,4 +22,4 @@ export async function GET(req: NextRequest) {
   });
 
   return ok(rows.map((r) => ({ ...r, sentAt: r.sentAt.toISOString() })));
-}
+});

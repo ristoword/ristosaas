@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok, fireAndForget } from "@/lib/api/helpers";
+import { body, err, ok, fireAndForget, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
@@ -31,7 +31,7 @@ function fmtDate(iso: string | null) {
  * Invia al fornitore un'email con il riepilogo ordine. Allega il PDF se
  * attachPdf=true (default). Usa la TenantEmailConfig del tenant.
  */
-export async function POST(req: NextRequest, ctx: Ctx) {
+export const POST = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -139,4 +139,4 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   }
 
   return ok({ ok: true, messageId: result.messageId, recipients });
-}
+});

@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { ok } from "@/lib/api/helpers";
+import { ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository";
 
 const KITCHEN_AI_ROLES = ["owner", "supervisor", "cucina", "super_admin"] as const;
 
-export async function GET(req: NextRequest) {
+export const GET = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, KITCHEN_AI_ROLES);
   if (guard.error) return guard.error;
   const tenantId = guard.user.tenantId || getTenantId();
@@ -19,4 +19,4 @@ export async function GET(req: NextRequest) {
   }
   const snapshot = await aiKitchenRepository.snapshot(tenantId, periodDays);
   return ok(snapshot);
-}
+});

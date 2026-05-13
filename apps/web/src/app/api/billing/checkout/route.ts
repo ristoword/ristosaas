@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
@@ -37,7 +37,7 @@ function validCycle(value: unknown): value is BillingCycle {
   return value === "monthly" || value === "annual";
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const guard = await requireApiUser(req, BILLING_ROLES);
   if (guard.error) return guard.error;
 
@@ -100,4 +100,4 @@ export async function POST(req: NextRequest) {
   if (!created.data.url) return err("Stripe checkout session missing URL", 502);
 
   return ok({ id: created.data.id, url: created.data.url });
-}
+});

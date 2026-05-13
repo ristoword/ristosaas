@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, fireAndForget } from "@/lib/api/helpers";
+import { ok, err, fireAndForget, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
@@ -9,7 +9,7 @@ const CHARGE_ROLES = ["hotel_manager", "supervisor", "owner", "super_admin"] as 
 type Ctx = { params: Promise<{ id: string }> };
 
 /** POST /api/hotel/room-service/:id/charge — addebita ordine al folio dell'ospite */
-export async function POST(req: NextRequest, ctx: Ctx) {
+export const POST = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...CHARGE_ROLES]);
   if (guard.error) return guard.error;
 
@@ -80,4 +80,4 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   }), "notification:room-service-charge");
 
   return ok({ charge: { ...charge, amount: Number(charge.amount), postedAt: charge.postedAt.toISOString() } });
-}
+});

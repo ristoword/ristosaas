@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { purchaseOrdersRepository } from "@/lib/db/repositories/purchase-orders.repository";
@@ -9,17 +9,17 @@ const ROLES = ["owner", "supervisor", "magazzino", "cassa", "super_admin"] as co
 type Ctx = { params: Promise<{ id: string }> };
 
 /** GET /api/suppliers/:id/orders — elenco ordini emessi al fornitore. */
-export async function GET(req: NextRequest, ctx: Ctx) {
+export const GET = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
   const tenantId = getTenantId();
   const orders = await purchaseOrdersRepository.list(tenantId, { supplierId: id });
   return ok(orders);
-}
+});
 
 /** POST /api/suppliers/:id/orders — crea un nuovo ordine fornitore. */
-export async function POST(req: NextRequest, ctx: Ctx) {
+export const POST = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -50,4 +50,4 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   } catch (error) {
     return err(error instanceof Error ? error.message : "Creazione ordine fallita.", 400);
   }
-}
+});

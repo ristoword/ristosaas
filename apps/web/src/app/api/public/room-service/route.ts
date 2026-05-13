@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { body, err, ok, fireAndForget } from "@/lib/api/helpers";
+import { body, err, ok, fireAndForget, withErrorHandler} from "@/lib/api/helpers";
 import { prisma } from "@/lib/db/prisma";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { verifyRoomToken } from "@/lib/security/room-token";
@@ -14,7 +14,7 @@ type OrderItem = { catalogItemId?: string; name: string; qty: number; unitPrice:
  * Guest-facing: create a room service order without authentication.
  * Requires a valid HMAC room token in the body.
  */
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req) => {
   const rl = await applyRateLimit(clientIpFromRequest(req), {
     bucket: "public:room-service",
     limit: 20,
@@ -103,4 +103,4 @@ export async function POST(req: NextRequest) {
     total: Number(order.total),
     requestedAt: order.requestedAt.toISOString(),
   }, 201);
-}
+});

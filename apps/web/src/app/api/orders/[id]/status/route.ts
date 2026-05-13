@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import type { Order, OrderStatus } from "@/lib/api/types/orders";
-import { ok, err, body } from "@/lib/api/helpers";
+import { ok, err, body, withErrorHandler} from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { ordersRepository } from "@/lib/db/repositories/orders.repository";
@@ -27,7 +27,7 @@ type Ctx = { params: Promise<{ id: string }> };
  *
  * Handles course progression logic + warehouse discharge on "servito"/"chiuso".
  */
-export async function PATCH(req: NextRequest, ctx: Ctx) {
+export const PATCH = withErrorHandler(async (req, ctx) => {
   const guard = await requireApiUser(req, [...ORDER_ROLES]);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
@@ -112,7 +112,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
 
   return ok({ order: updated, discharge, archived });
-}
+});
 
 async function getAlreadyDischargedCourses(tenantId: string, orderId: string) {
   const rows = await prisma.warehouseMovement.findMany({
