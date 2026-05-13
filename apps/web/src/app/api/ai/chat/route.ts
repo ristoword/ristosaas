@@ -26,6 +26,14 @@ function systemPromptForContext(context: string) {
       "Focus: priorita comande, corsi, tempi servizio, allergeni, food cost e standard operativi.",
     hotel:
       "Focus: front desk, check-in/check-out, occupazione camere, folio, keycard, housekeeping e pagamenti soggiorno.",
+    prenotazioni:
+      "Focus: prenotazioni ristorante, gestione clienti abituali, allergeni e intolleranze, richieste specifiche, abitudini dei clienti, preferenze tavolo, gestione disponibilità, conferme e cancellazioni.",
+    magazzino:
+      "Focus: inventario, scorte minime, lotti in scadenza, movimenti di carico/scarico, riordini fornitori, FIFO e food cost ingredienti.",
+    bar:
+      "Focus: comande bevande, cocktail, servizio al bancone, gestione scorte drink, tempistiche servizio.",
+    pizzeria:
+      "Focus: comande pizze, gestione impasti, tempi forno, varianti e personalizzazioni, flusso ordini.",
     default:
       "Focus: supporto operativo generale su ristorante/hotel/integration.",
   };
