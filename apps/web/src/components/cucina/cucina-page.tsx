@@ -1411,6 +1411,7 @@ export function CucinaPage() {
   const [aiOpen, setAiOpen] = useState(false);
   const [aiSnapshot, setAiSnapshot] = useState<KitchenOperationalSnapshot | null>(null);
   const [rsOrders, setRsOrders] = useState<RoomServiceOrder[]>([]);
+  const [rsError, setRsError] = useState<string | null>(null);
 
   useEffect(() => {
     aiOpsApi
@@ -1552,6 +1553,7 @@ export function CucinaPage() {
       {activeTab === "room-service" && (
         <div className="space-y-4">
           <Card title="Room Service — Ordini Food" description="Richieste di ristorazione in camera assegnate alla cucina">
+            {rsError && <p className="mb-3 text-sm font-medium text-red-400">{rsError}</p>}
             {rsActive.length === 0 ? (
               <p className="py-6 text-center text-sm text-rw-muted">Nessun ordine food room service in corso.</p>
             ) : (
@@ -1570,8 +1572,8 @@ export function CucinaPage() {
                         onClick={() => {
                           const next = o.status === "pending" ? "in_preparation" : o.status === "in_preparation" ? "out_for_delivery" : "delivered";
                           roomServiceApi.update(o.id, { status: next as RoomServiceOrder["status"] })
-                            .then((updated) => setRsOrders((prev) => prev.map((r) => r.id === o.id ? updated : r)))
-                            .catch(() => {});
+                            .then((updated) => { setRsOrders((prev) => prev.map((r) => r.id === o.id ? updated : r)); setRsError(null); })
+                            .catch((e: Error) => setRsError(e.message));
                         }}
                         className="flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/30 transition"
                       >

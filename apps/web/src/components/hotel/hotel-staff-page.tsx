@@ -102,10 +102,11 @@ function HotelBadgesCard({ staff }: { staff: StaffMember[] }) {
       const data = await res.json();
       setTokens(data.tokens ?? []);
       setGenerated(true);
-    } catch { /* ignore */ }
+    } catch (e) { setBadgeError(e instanceof Error ? e.message : "Errore generazione badge"); }
     finally { setLoading(false); }
   }
 
+  const [badgeError, setBadgeError] = useState<string | null>(null);
   const clockUrl = `${appOrigin}/clock`;
   const nfcQrImg = appOrigin ? qrImageUrl(clockUrl, 160, 8) : "";
 

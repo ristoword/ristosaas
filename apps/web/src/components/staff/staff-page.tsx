@@ -112,10 +112,12 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
   const [tokens, setTokens] = useState<Array<{ id: string; name: string; role: string; token: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
+  const [badgeError, setBadgeError] = useState<string | null>(null);
 
   async function generate() {
     if (staff.length === 0) return;
     setLoading(true);
+    setBadgeError(null);
     try {
       const res = await fetch("/api/staff/tokens", {
         method: "POST",
@@ -125,7 +127,7 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
       const data = await res.json();
       setTokens(data.tokens ?? []);
       setGenerated(true);
-    } catch { /* ignore */ }
+    } catch (e) { setBadgeError(e instanceof Error ? e.message : "Errore generazione badge"); }
     finally { setLoading(false); }
   }
 
@@ -287,7 +289,7 @@ export function StaffPage() {
       });
       const updated = await staffApi.list();
       setStaff(updated);
-    } catch { /* ignore */ }
+    } catch (e) { setError(e instanceof Error ? e.message : "Errore collegamento utente"); }
     finally { setLinkLoading(false); }
   }
 

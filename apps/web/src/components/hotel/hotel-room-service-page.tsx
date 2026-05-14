@@ -347,7 +347,7 @@ function CatalogManager() {
   useEffect(() => {
     roomServiceApi.listCatalog({ active: false })
       .then(setItems)
-      .catch(() => {})
+      .catch((e: Error) => setErr(e.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -363,14 +363,14 @@ function CatalogManager() {
   }
 
   async function toggleActive(item: RoomServiceCatalogItem) {
-    const updated = await roomServiceApi.updateCatalogItem(item.id, { active: !item.active }).catch(() => null);
+    const updated = await roomServiceApi.updateCatalogItem(item.id, { active: !item.active }).catch((e: Error) => { setErr(e.message); return null; });
     if (updated) setItems((prev) => prev.map((i) => i.id === item.id ? updated : i));
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Eliminare questa voce?")) return;
-    await roomServiceApi.deleteCatalogItem(id).catch(() => {});
-    setItems((prev) => prev.filter((i) => i.id !== id));
+    const ok = await roomServiceApi.deleteCatalogItem(id).then(() => true).catch((e: Error) => { setErr(e.message); return false; });
+    if (ok) setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
   const grouped = CATEGORIES.reduce<Record<string, RoomServiceCatalogItem[]>>((acc, cat) => {
@@ -534,8 +534,8 @@ export function HotelRoomServicePage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Eliminare questa richiesta?")) return;
-    await roomServiceApi.delete(id).catch(() => {});
-    setOrders((prev) => prev.filter((o) => o.id !== id));
+    const ok = await roomServiceApi.delete(id).then(() => true).catch((e: Error) => { setError(e.message); return false; });
+    if (ok) setOrders((prev) => prev.filter((o) => o.id !== id));
   }
 
   const visibleTabs = showCatalog ? TABS : TABS.filter((t) => t.id !== "catalogo");

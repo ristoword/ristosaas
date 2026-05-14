@@ -64,19 +64,22 @@ function PayOnlineButton({ total, tableLabel }: { total: number; tableLabel: str
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   async function generate() {
     setLoading(true);
+    setLinkError(null);
     try {
       const res = await fetch("/api/cassa/payment-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: total, description: `Conto${tableLabel ? ` — Tavolo ${tableLabel}` : ""}` }),
       });
+      if (!res.ok) { setLinkError("Impossibile generare il link di pagamento"); return; }
       const data = await res.json();
       setQrUrl(data.url);
       setOpen(true);
-    } catch { /* ignore */ }
+    } catch (e) { setLinkError(e instanceof Error ? e.message : "Errore di connessione"); }
     finally { setLoading(false); }
   }
 
@@ -89,6 +92,7 @@ function PayOnlineButton({ total, tableLabel }: { total: number; tableLabel: str
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
         Paga online / QR
       </button>
+      {linkError && <p className="text-xs font-medium text-red-400 mt-1">{linkError}</p>}
       {open && qrUrl && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
           <div className="w-full max-w-xs rounded-3xl border border-rw-line bg-rw-bg p-6 text-center shadow-2xl">

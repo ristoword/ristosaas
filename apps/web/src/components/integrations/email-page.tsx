@@ -101,7 +101,7 @@ function EmailTemplatesTab() {
   const [savedSlug, setSavedSlug] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/email-templates").then((r) => r.json()).then((d) => setTemplates(d)).catch(() => {}).finally(() => setLoading(false));
+    fetch("/api/email-templates").then((r) => r.json()).then((d) => setTemplates(d)).catch(() => setTemplates([])).finally(() => setLoading(false));
   }, []);
 
   function openEdit(t: DbTemplate) {
@@ -124,7 +124,7 @@ function EmailTemplatesTab() {
         setEditSlug(null);
         setTimeout(() => setSavedSlug(null), 2500);
       }
-    } catch { /* ignore */ }
+    } catch { setSavedSlug(null); }
     finally { setSaving(false); }
   }
 
