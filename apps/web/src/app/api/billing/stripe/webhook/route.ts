@@ -39,7 +39,15 @@ export const POST = withErrorHandler(async (req) => {
     return err("Invalid webhook signature", 400);
   }
 
-  const event = JSON.parse(rawBody);
+  let event: { id: string; type: string; data?: { object?: Record<string, unknown> } };
+  try {
+    event = JSON.parse(rawBody);
+  } catch {
+    return err("Invalid JSON payload", 400);
+  }
+  if (!event?.id || !event?.type) {
+    return err("Invalid Stripe event: missing id or type", 400);
+  }
   const result = await billingRepository.processStripeEvent(event);
   return ok(result);
 });

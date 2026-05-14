@@ -366,6 +366,7 @@ model User {
   updatedAt    DateTime @updatedAt
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   sessions     UserSession[]
+  staffProfile StaffMember?
 }
 
 model UserSession {
@@ -530,6 +531,9 @@ model HousekeepingTask {
   scheduledFor     DateTime
   tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   room             HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, scheduledFor])
+  @@index([tenantId, status])
 }
 
 model GuestFolio {
@@ -544,6 +548,9 @@ model GuestFolio {
   customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   stay       Stay?        @relation(fields: [stayId], references: [id], onDelete: SetNull)
   charges     FolioCharge[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
 }
 
 model FolioCharge {
@@ -555,6 +562,8 @@ model FolioCharge {
   amount      Decimal           @db.Decimal(10, 2)
   postedAt    DateTime          @default(now())
   folio       GuestFolio        @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([folioId])
 }
 
 model HotelKeycard {
@@ -792,6 +801,8 @@ model RecipeIngredient {
   wastePct  Decimal  @db.Decimal(5, 2)
   recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   warehouseItem WarehouseItem? @relation(fields: [warehouseItemId], references: [id], onDelete: SetNull)
+
+  @@index([recipeId])
 }
 
 model RecipeStep {
@@ -800,6 +811,8 @@ model RecipeStep {
   stepOrder Int
   text      String
   recipe    Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([recipeId])
 }
 
 model MenuItem {
@@ -837,6 +850,8 @@ model DailyDish {
   updatedAt   DateTime @updatedAt
   tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   recipe      Recipe?  @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
 }
 
 model RestaurantOrder {
@@ -912,6 +927,7 @@ model StaffMember {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   shifts     StaffShift[]
   shiftPlans ShiftPlan[]
 
@@ -989,6 +1005,8 @@ model CateringEvent {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, date])
 }
 
 model TakeawayOrder {
@@ -1006,6 +1024,9 @@ model TakeawayOrder {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
   tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
 }
 
 model ArchivedOrder {

@@ -14,6 +14,9 @@ function getQrSecret(): string {
   if (qr && qr.length >= 16) return qr;
   const jwt = process.env.JWT_SECRET?.trim();
   if (jwt && jwt.length >= 16) return jwt;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("QR_SECRET or JWT_SECRET (>= 16 chars) is required in production");
+  }
   return "ristosaas-qr-fallback-secret-v1";
 }
 

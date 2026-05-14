@@ -22,6 +22,7 @@ cd apps/web
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ristosimply npx prisma db push --accept-data-loss
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ristosimply npx prisma migrate resolve --applied "20240101000000_baseline"
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ristosimply npx prisma migrate resolve --applied "20260513000000_warehouse_lot_expiry"
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ristosimply npx prisma migrate resolve --applied "20260514000000_add_indexes_and_relations"
 node prisma/seed.mjs
 ```
 
