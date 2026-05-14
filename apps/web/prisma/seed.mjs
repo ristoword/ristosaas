@@ -1129,6 +1129,142 @@ async function upsertStaffShifts() {
   });
 }
 
+async function upsertWarehouseMovements() {
+  const today = new Date().toISOString().slice(0, 10);
+  const movements = [
+    { id: "wm_1", warehouseItemId: "wi_farina", type: "carico", qty: 25, reason: "Rifornimento fornitore", note: "Ordine settimanale", date: new Date(`${today}T07:00:00Z`), userId: "usr_owner" },
+    { id: "wm_2", warehouseItemId: "wi_pomodoro", type: "carico", qty: 10, reason: "Rifornimento fornitore", note: "", date: new Date(`${today}T07:15:00Z`), userId: "usr_owner" },
+    { id: "wm_3", warehouseItemId: "wi_farina", type: "scarico", qty: 5, reason: "Uso cucina", note: "Impasto pizza", date: new Date(`${today}T10:00:00Z`), userId: "usr_cucina" },
+    { id: "wm_4", warehouseItemId: "wi_mozzarella", type: "scarico_comanda", qty: 2, reason: "Ordine #ord_1", note: "", date: new Date(`${today}T12:30:00Z`), userId: "usr_cucina" },
+  ];
+  for (const m of movements) {
+    await prisma.warehouseMovement.upsert({
+      where: { id: m.id },
+      update: { tenantId: TENANT_ID, warehouseItemId: m.warehouseItemId, type: m.type, qty: m.qty, reason: m.reason, note: m.note, date: m.date, userId: m.userId },
+      create: { id: m.id, tenantId: TENANT_ID, warehouseItemId: m.warehouseItemId, type: m.type, qty: m.qty, reason: m.reason, note: m.note, date: m.date, userId: m.userId },
+    });
+  }
+}
+
+async function upsertHousekeeping() {
+  const today = new Date().toISOString().slice(0, 10);
+  const tasks = [
+    { id: "hk_1", roomId: "room_101", status: "done", scheduledFor: new Date(`${today}T08:00:00Z`), assignedToUserId: null },
+    { id: "hk_2", roomId: "room_102", status: "todo", scheduledFor: new Date(`${today}T09:00:00Z`), assignedToUserId: null },
+    { id: "hk_3", roomId: "room_201", status: "in_progress", scheduledFor: new Date(`${today}T10:00:00Z`), assignedToUserId: null },
+  ];
+  for (const t of tasks) {
+    await prisma.housekeepingTask.upsert({
+      where: { id: t.id },
+      update: { tenantId: TENANT_ID, roomId: t.roomId, status: t.status, scheduledFor: t.scheduledFor, assignedToUserId: t.assignedToUserId },
+      create: { id: t.id, tenantId: TENANT_ID, roomId: t.roomId, status: t.status, scheduledFor: t.scheduledFor, assignedToUserId: t.assignedToUserId },
+    });
+  }
+}
+
+async function upsertCateringEvents() {
+  const nextWeek = new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10);
+  await prisma.cateringEvent.upsert({
+    where: { id: "cat_1" },
+    update: {},
+    create: {
+      id: "cat_1", tenantId: TENANT_ID, name: "Matrimonio Rossi-Bianchi", date: new Date(`${nextWeek}T18:00:00Z`),
+      guests: 80, venue: "Villa dei Cedri", budget: 4800, status: "confermato", contact: "Marco Rossi",
+      phone: "+39 333 1234567", menu: "Antipasto misto, Risotto allo zafferano, Branzino al forno, Torta nuziale",
+      notes: "Allergie: 3 ospiti celiaci", depositPaid: true,
+    },
+  });
+  await prisma.cateringEvent.upsert({
+    where: { id: "cat_2" },
+    update: {},
+    create: {
+      id: "cat_2", tenantId: TENANT_ID, name: "Cena aziendale TechCorp", date: new Date(Date.now() + 14 * 86400_000),
+      guests: 40, venue: "Sala conferenze interna", budget: 2000, status: "in_trattativa", contact: "Laura Verdi",
+      phone: "+39 340 7654321", menu: "Buffet finger food + drink",
+      notes: "Richiesta area per presentazione proiettore", depositPaid: false,
+    },
+  });
+}
+
+async function upsertTakeawayOrders() {
+  const today = new Date().toISOString().slice(0, 10);
+  await prisma.takeawayOrder.upsert({
+    where: { id: "ta_1" },
+    update: {},
+    create: {
+      id: "ta_1", tenantId: TENANT_ID, customerName: "Giuseppe Verdi", phone: "+39 345 1112233",
+      items: JSON.parse('[{"name":"Pizza Margherita","qty":2,"price":9},{"name":"Birra 33cl","qty":2,"price":4.5}]'),
+      total: 27, status: "pronto", pickupTime: "19:30", notes: "Citofonare al secondo piano",
+      type: "asporto", address: "",
+    },
+  });
+  await prisma.takeawayOrder.upsert({
+    where: { id: "ta_2" },
+    update: {},
+    create: {
+      id: "ta_2", tenantId: TENANT_ID, customerName: "Anna Neri", phone: "+39 347 9998877",
+      items: JSON.parse('[{"name":"Spaghetti Carbonara","qty":1,"price":14},{"name":"Tiramisù","qty":1,"price":7}]'),
+      total: 21, status: "in_preparazione", pickupTime: "20:00", notes: "",
+      type: "delivery", address: "Via Roma 42, 00100",
+    },
+  });
+}
+
+async function upsertWarehouseEquipment() {
+  const equipment = [
+    { id: "eq_1", name: "Forno combinato Rational", category: "Cucina", qty: 1, location: "Cucina principale", status: "operativo", value: 12000 },
+    { id: "eq_2", name: "Abbattitore temperatura", category: "Cucina", qty: 1, location: "Cucina principale", status: "operativo", value: 4500 },
+    { id: "eq_3", name: "Lavastoviglie industriale", category: "Cucina", qty: 2, location: "Area lavaggio", status: "operativo", value: 3200 },
+    { id: "eq_4", name: "Macchina caffè espresso", category: "Bar", qty: 1, location: "Bar", status: "operativo", value: 6000 },
+  ];
+  for (const eq of equipment) {
+    await prisma.warehouseEquipment.upsert({
+      where: { id: eq.id },
+      update: { tenantId: TENANT_ID, name: eq.name, category: eq.category, qty: eq.qty, location: eq.location, status: eq.status, value: eq.value },
+      create: { id: eq.id, tenantId: TENANT_ID, name: eq.name, category: eq.category, qty: eq.qty, location: eq.location, status: eq.status, value: eq.value },
+    });
+  }
+}
+
+async function upsertNotifications() {
+  const now = new Date();
+  const notifications = [
+    { id: "notif_1", type: "stock_alert", title: "Scorta bassa: Mozzarella", body: "La quantità di Mozzarella di Bufala è sotto la soglia minima (2 kg rimanenti).", readAt: null },
+    { id: "notif_2", type: "booking", title: "Nuova prenotazione", body: "Prenotazione per 4 persone alle 20:30 — Tavolo T3.", readAt: new Date(now.getTime() - 3600_000) },
+    { id: "notif_3", type: "hotel", title: "Check-in previsto", body: "Ospite Mario Rossi — Camera 101, arrivo previsto ore 14:00.", readAt: null },
+  ];
+  for (const n of notifications) {
+    await prisma.notification.upsert({
+      where: { id: n.id },
+      update: {},
+      create: { id: n.id, tenantId: TENANT_ID, type: n.type, title: n.title, body: n.body, readAt: n.readAt, createdAt: now },
+    });
+  }
+}
+
+async function upsertHaccpEntries() {
+  const today = new Date().toISOString().slice(0, 10);
+  const entries = [
+    { id: "haccp_1", area: "cucina", checkType: "temperatura_frigo", value: 3.2, unit: "°C", notes: "Frigo 1 — OK", operator: "Chef Mario" },
+    { id: "haccp_2", area: "cucina", checkType: "temperatura_frigo", value: 4.1, unit: "°C", notes: "Frigo 2 — OK", operator: "Chef Mario" },
+    { id: "haccp_3", area: "cucina", checkType: "pulizia", value: 1, unit: "bool", notes: "Pulizia superfici completata", operator: "Luca" },
+  ];
+  for (const e of entries) {
+    await prisma.haccpEntry.upsert({
+      where: { id: e.id },
+      update: {},
+      create: { id: e.id, tenantId: TENANT_ID, area: e.area, checkType: e.checkType, value: e.value, unit: e.unit, notes: e.notes, operator: e.operator, recordedAt: new Date(`${today}T06:30:00Z`) },
+    });
+  }
+}
+
+async function upsertStaffMemberUserLink() {
+  await prisma.staffMember.update({
+    where: { id: "stf_1" },
+    data: { userId: "usr_sala" },
+  }).catch(() => {});
+}
+
 async function main() {
   await ensurePlatformConfig();
   await upsertTenant();
@@ -1142,12 +1278,20 @@ async function main() {
   await upsertStaysAndFolio();
   await upsertKeycards();
   await upsertWarehouse();
+  await upsertWarehouseMovements();
+  await upsertWarehouseEquipment();
+  await upsertHousekeeping();
   await upsertRestaurantOps();
   await upsertRoomServiceCatalog();
   await upsertDailyClosureReports();
   await upsertOperationalModules();
   await upsertRestaurantLayout();
   await upsertStaffShifts();
+  await upsertStaffMemberUserLink();
+  await upsertCateringEvents();
+  await upsertTakeawayOrders();
+  await upsertNotifications();
+  await upsertHaccpEntries();
   console.log("Seed completato con successo.");
 }
 

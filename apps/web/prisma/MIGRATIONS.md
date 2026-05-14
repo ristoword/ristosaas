@@ -23,15 +23,26 @@ Dopodiché il database è allineato con Prisma Migrate e pronto a ricevere nuove
 
 ## Setup su ambiente NUOVO (greenfield)
 
+La baseline è intenzionalmente vuota (il DDL storico è nei file `migrations_*.sql`).
+Per un database nuovo, usa `prisma db push` per creare lo schema, poi marca le
+migrazioni come già applicate:
+
 ```bash
 # 1. Crea il database PostgreSQL e imposta DATABASE_URL in .env
-# 2. Applica tutte le migrazioni (baseline inclusa)
-pnpm prisma:migrate:deploy
-# 3. Genera il client Prisma
+# 2. Crea lo schema completo da schema.prisma
+DATABASE_URL=... npx prisma db push --accept-data-loss
+# 3. Marca le migrazioni come applicate (NON usare migrate deploy su DB vuoto)
+DATABASE_URL=... npx prisma migrate resolve --applied "20240101000000_baseline"
+DATABASE_URL=... npx prisma migrate resolve --applied "20260513000000_warehouse_lot_expiry"
+DATABASE_URL=... npx prisma migrate resolve --applied "20260514000000_add_indexes_and_relations"
+# 4. Genera il client Prisma
 pnpm prisma:generate
-# 4. Esegui il seed (opzionale)
+# 5. Esegui il seed (opzionale)
 pnpm prisma:seed
 ```
+
+> **Nota:** `prisma migrate deploy` su un database vuoto non funziona perché la
+> baseline è vuota. Usare sempre `db push` + `migrate resolve` per ambienti nuovi.
 
 ---
 
