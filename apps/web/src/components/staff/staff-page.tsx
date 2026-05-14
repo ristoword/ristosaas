@@ -18,7 +18,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, qrImageUrl } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { Card } from "@/components/shared/card";
@@ -131,7 +131,7 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
 
   const base = appOrigin || "";
   const clockUrl = `${base}/clock`;
-  const nfcQrImg = clockUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(clockUrl)}` : "";
+  const nfcQrImg = clockUrl ? qrImageUrl(clockUrl, 160, 8) : "";
 
   return (
     <Card title="Badge QR & NFC" description="Genera i QR da stampare sui cartellini e il codice NFC per l'ingresso">
@@ -186,7 +186,7 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
               {tokens.map((t) => {
                 const badgeUrl = `${base}/clock/badge/${t.token}`;
-                const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=6&data=${encodeURIComponent(badgeUrl)}`;
+                const qrImg = qrImageUrl(badgeUrl, 140, 6);
                 return (
                   <div key={t.id} className="flex flex-col items-center gap-2 rounded-2xl border border-rw-line bg-rw-surface p-3 text-center print:break-inside-avoid">
                     <div className="flex h-28 w-28 items-center justify-center rounded-xl border border-rw-line bg-white p-1.5">

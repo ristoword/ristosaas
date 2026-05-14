@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { Card } from "@/components/shared/card";
 import { tablesApi, type SalaTable } from "@/lib/api-client";
+import { qrImageUrl } from "@/lib/utils";
 
 type TokenizedTable = SalaTable & { token?: string };
 
@@ -220,7 +221,7 @@ export function QrTablesPage() {
         {tables.map((table) => {
           const url = printUrl(table.token);
           const qrImg = url
-            ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(url)}`
+            ? qrImageUrl(url, 180, 0)
             : "";
           return (
             <div

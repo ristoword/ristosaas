@@ -16,7 +16,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, qrImageUrl } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { TabBar } from "@/components/shared/tab-bar";
@@ -80,7 +80,7 @@ function PayOnlineButton({ total, tableLabel }: { total: number; tableLabel: str
     finally { setLoading(false); }
   }
 
-  const qrImg = qrUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=${encodeURIComponent(qrUrl)}` : "";
+  const qrImg = qrUrl ? qrImageUrl(qrUrl, 220) : "";
 
   return (
     <>

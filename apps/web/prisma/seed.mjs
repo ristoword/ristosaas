@@ -688,16 +688,16 @@ async function upsertRestaurantOps() {
   }
 
   const menuItems = [
-    { id: "mi_carbonara", name: "Spaghetti alla Carbonara", category: "Primi", area: "Cucina", price: 14, code: "PRI-001", recipeId: "rec_carbonara", notes: "Piatto signature", foodCostPct: 31 },
-    { id: "mi_margherita", name: "Pizza Margherita", category: "Pizze", area: "Pizzeria", price: 9, code: "PIZ-001", recipeId: "rec_margherita", notes: "Pizza classica", foodCostPct: 28 },
-    { id: "mi_filetto", name: "Filetto di Manzo", category: "Secondi", area: "Cucina", price: 24, code: "SEC-001", recipeId: null, notes: "Servito con patate al forno", foodCostPct: 35 },
-    { id: "mi_pollo", name: "Petto di Pollo alla Griglia", category: "Secondi", area: "Cucina", price: 16, code: "SEC-002", recipeId: null, notes: "Con verdure miste", foodCostPct: 30 },
-    { id: "mi_insalata", name: "Insalata Mista", category: "Contorni", area: "Cucina", price: 5, code: "CON-001", recipeId: null, notes: "", foodCostPct: 15 },
-    { id: "mi_caffe", name: "Caffè Espresso", category: "Bevande", area: "Bar", price: 1.5, code: "BAR-001", recipeId: null, notes: "", foodCostPct: 20 },
-    { id: "mi_birra", name: "Birra Artigianale 33cl", category: "Bevande", area: "Bar", price: 4.5, code: "BAR-002", recipeId: null, notes: "", foodCostPct: 25 },
-    { id: "mi_acqua", name: "Acqua Naturale 75cl", category: "Bevande", area: "Bar", price: 2.5, code: "BAR-003", recipeId: null, notes: "", foodCostPct: 10 },
-    { id: "mi_vino_rosso", name: "Vino Rosso (calice)", category: "Bevande", area: "Bar", price: 5, code: "BAR-004", recipeId: null, notes: "Montepulciano DOC", foodCostPct: 28 },
-    { id: "mi_tiramisu", name: "Tiramisù della Casa", category: "Dolci", area: "Cucina", price: 7, code: "DOL-001", recipeId: null, notes: "Fatto in casa", foodCostPct: 22 },
+    { id: "mi_carbonara", name: "Spaghetti alla Carbonara", category: "Primi", area: "cucina", price: 14, code: "PRI-001", recipeId: "rec_carbonara", notes: "Piatto signature", foodCostPct: 31 },
+    { id: "mi_margherita", name: "Pizza Margherita", category: "Pizze", area: "pizzeria", price: 9, code: "PIZ-001", recipeId: "rec_margherita", notes: "Pizza classica", foodCostPct: 28 },
+    { id: "mi_filetto", name: "Filetto di Manzo", category: "Secondi", area: "cucina", price: 24, code: "SEC-001", recipeId: null, notes: "Servito con patate al forno", foodCostPct: 35 },
+    { id: "mi_pollo", name: "Petto di Pollo alla Griglia", category: "Secondi", area: "cucina", price: 16, code: "SEC-002", recipeId: null, notes: "Con verdure miste", foodCostPct: 30 },
+    { id: "mi_insalata", name: "Insalata Mista", category: "Contorni", area: "cucina", price: 5, code: "CON-001", recipeId: null, notes: "", foodCostPct: 15 },
+    { id: "mi_caffe", name: "Caffè Espresso", category: "Bevande", area: "bar", price: 1.5, code: "BAR-001", recipeId: null, notes: "", foodCostPct: 20 },
+    { id: "mi_birra", name: "Birra Artigianale 33cl", category: "Bevande", area: "bar", price: 4.5, code: "BAR-002", recipeId: null, notes: "", foodCostPct: 25 },
+    { id: "mi_acqua", name: "Acqua Naturale 75cl", category: "Bevande", area: "bar", price: 2.5, code: "BAR-003", recipeId: null, notes: "", foodCostPct: 10 },
+    { id: "mi_vino_rosso", name: "Vino Rosso (calice)", category: "Bevande", area: "bar", price: 5, code: "BAR-004", recipeId: null, notes: "Montepulciano DOC", foodCostPct: 28 },
+    { id: "mi_tiramisu", name: "Tiramisù della Casa", category: "Dolci", area: "cucina", price: 7, code: "DOL-001", recipeId: null, notes: "Fatto in casa", foodCostPct: 22 },
   ];
 
   for (const item of menuItems) {

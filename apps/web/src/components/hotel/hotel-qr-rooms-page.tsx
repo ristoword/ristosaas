@@ -10,7 +10,7 @@ import {
   QrCode,
   RefreshCw,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, qrImageUrl } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
@@ -203,7 +203,7 @@ export function HotelQrRoomsPage() {
           {filtered.map((room) => {
             const url = roomUrl(room.token);
             const qrImg = url
-              ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=10&data=${encodeURIComponent(url)}`
+              ? qrImageUrl(url, 200)
               : "";
             return (
               <div

@@ -14,7 +14,7 @@ import {
   ToggleRight,
   Users,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, qrImageUrl } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
@@ -107,7 +107,7 @@ function HotelBadgesCard({ staff }: { staff: StaffMember[] }) {
   }
 
   const clockUrl = `${appOrigin}/clock`;
-  const nfcQrImg = appOrigin ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(clockUrl)}` : "";
+  const nfcQrImg = appOrigin ? qrImageUrl(clockUrl, 160, 8) : "";
 
   return (
     <Card title="Badge QR & NFC Hotel" description="Sistema timbratura per il personale alberghiero — stesso tag NFC del ristorante">
@@ -162,7 +162,7 @@ function HotelBadgesCard({ staff }: { staff: StaffMember[] }) {
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
               {tokens.map((t) => {
                 const badgeUrl = `${appOrigin}/clock/badge/${t.token}`;
-                const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=6&data=${encodeURIComponent(badgeUrl)}`;
+                const qrImg = qrImageUrl(badgeUrl, 140, 6);
                 return (
                   <div key={t.id} className="flex flex-col items-center gap-2 rounded-2xl border border-rw-line bg-rw-surface p-3 text-center">
                     <div className="flex h-28 w-28 items-center justify-center rounded-xl border border-rw-line bg-white p-1.5">
