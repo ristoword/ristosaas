@@ -19,12 +19,10 @@ import { Card } from "@/components/shared/card";
 import {
   shiftPlansApi,
   staffApi,
-  hotelApi,
   type ShiftPlan,
   type ShiftPlanCreate,
   type ShiftPlanType,
   type StaffMember,
-  type HotelRoom,
 } from "@/lib/api-client";
 import { useAuth } from "@/components/auth/auth-context";
 import { isHotelRole, HOTEL_ROLES, hotelRoleLabel } from "@/components/hotel/hotel-staff-page";
@@ -86,39 +84,15 @@ const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 const btnPrimary = "inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98] disabled:opacity-50";
 const btnGhost = "inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-medium text-rw-muted transition hover:bg-rw-surfaceAlt hover:text-rw-ink active:scale-[0.98]";
 
-/* ─── Room status labels ─────────────────────────── */
-
-function roomStatusLabel(status: string): string {
-  switch (status) {
-    case "da_pulire": return "Da pulire";
-    case "manutenzione": return "Manutenzione";
-    case "fuori_servizio": return "Fuori servizio";
-    case "libera": return "Libera";
-    case "pulita": return "Pulita";
-    case "occupata": return "Occupata";
-    default: return status;
-  }
-}
-
-function roomStatusColor(status: string): string {
-  switch (status) {
-    case "da_pulire": return "text-amber-400";
-    case "manutenzione":
-    case "fuori_servizio": return "text-red-400";
-    default: return "text-rw-muted";
-  }
-}
-
 /* ─── Modal ──────────────────────────────────────── */
 
 type ModalProps = {
   open: boolean; onClose: () => void; staff: StaffMember[];
   initial?: Partial<ShiftPlan & { day: string; area: string }>;
   onSave: (data: ShiftPlanCreate) => Promise<void>; editId?: string;
-  rooms: HotelRoom[];
 };
 
-function ShiftModal({ open, onClose, staff, initial, onSave, editId, rooms }: ModalProps) {
+function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProps) {
   const [day, setDay] = useState(initial?.day ?? toIso(new Date()));
   const [area, setArea] = useState<string>(initial?.area ?? "reception");
   const [staffId, setStaffId] = useState(initial?.staffId ?? "");
@@ -128,16 +102,10 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId, rooms }: Mo
   const [shiftType, setShiftType] = useState<ShiftPlanType>(initial?.shiftType ?? "lavoro");
   const [role, setRole] = useState(initial?.role ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
-  const [selectedRooms, setSelectedRooms] = useState<string[]>(initial?.assignedRooms ?? []);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const hotelStaff = staff.filter((s) => isHotelRole(s.role));
-
-  const assignableRooms = useMemo(() =>
-    rooms.filter((r) => ["da_pulire", "fuori_servizio", "manutenzione", "libera", "pulita", "occupata"].includes(r.status)),
-    [rooms]
-  );
 
   useEffect(() => {
     if (open) {
@@ -146,7 +114,6 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId, rooms }: Mo
       setStartTime(initial?.startTime ?? "07:00"); setEndTime(initial?.endTime ?? "15:00");
       setShiftType(initial?.shiftType ?? "lavoro"); setRole(initial?.role ?? "");
       setNotes(initial?.notes ?? ""); setErr(null);
-      setSelectedRooms(initial?.assignedRooms ?? []);
     }
   }, [open, initial]);
 
@@ -156,21 +123,11 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId, rooms }: Mo
     if (m) { setStaffName(m.name); setRole(m.role); }
   }
 
-  function toggleRoom(roomId: string) {
-    setSelectedRooms((prev) =>
-      prev.includes(roomId) ? prev.filter((id) => id !== roomId) : [...prev, roomId]
-    );
-  }
-
   async function handleSave() {
     if (!staffName.trim()) { setErr("Seleziona o inserisci un operatore"); return; }
     setSaving(true); setErr(null);
     try {
-      await onSave({
-        day, area, staffId: staffId || null, staffName: staffName.trim(),
-        startTime, endTime, shiftType, role: role.trim(), notes: notes.trim(),
-        assignedRooms: area === "housekeeping" ? selectedRooms : null,
-      });
+      await onSave({ day, area, staffId: staffId || null, staffName: staffName.trim(), startTime, endTime, shiftType, role: role.trim(), notes: notes.trim() });
       onClose();
     } catch (e) { setErr(e instanceof Error ? e.message : "Errore salvataggio"); }
     finally { setSaving(false); }
@@ -180,12 +137,12 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId, rooms }: Mo
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl border border-rw-line bg-rw-bg shadow-2xl max-h-[90vh] flex flex-col">
-        <div className="flex items-center justify-between border-b border-rw-line px-6 py-4 shrink-0">
+      <div className="w-full max-w-lg rounded-2xl border border-rw-line bg-rw-bg shadow-2xl">
+        <div className="flex items-center justify-between border-b border-rw-line px-6 py-4">
           <h2 className="font-display text-lg font-semibold text-rw-ink">{editId ? "Modifica turno" : "Nuovo turno hotel"}</h2>
           <button type="button" onClick={onClose} className="text-rw-muted hover:text-rw-ink"><X className="h-5 w-5" /></button>
         </div>
-        <div className="space-y-4 p-6 overflow-y-auto flex-1">
+        <div className="space-y-4 p-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div><label className={labelCls}>Data</label><input type="date" value={day} onChange={(e) => setDay(e.target.value)} className={inputCls} /></div>
             <div>
@@ -231,35 +188,10 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId, rooms }: Mo
               <div><label className={labelCls}>Fine turno</label><input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={inputCls} /></div>
             </div>
           )}
-          {area === "housekeeping" && shiftType === "lavoro" && (
-            <div>
-              <label className={labelCls}>Camere da assegnare</label>
-              {assignableRooms.length === 0 ? (
-                <p className="text-xs text-rw-muted">Nessuna camera disponibile.</p>
-              ) : (
-                <div className="max-h-40 overflow-y-auto rounded-xl border border-rw-line bg-rw-surfaceAlt p-2 space-y-1">
-                  {assignableRooms.map((room) => {
-                    const checked = selectedRooms.includes(room.id);
-                    return (
-                      <label key={room.id} className={cn("flex items-center gap-2 rounded-lg px-2 py-1.5 cursor-pointer transition", checked ? "bg-rw-accent/10" : "hover:bg-rw-surfaceAlt")}>
-                        <input type="checkbox" checked={checked} onChange={() => toggleRoom(room.id)} className="h-3.5 w-3.5 rounded border-rw-line text-rw-accent focus:ring-rw-accent/30" />
-                        <span className="text-sm font-medium text-rw-ink">{room.code}</span>
-                        <span className="text-[10px] text-rw-muted">P{room.floor} · {room.roomType}</span>
-                        <span className={cn("ml-auto text-[10px] font-semibold", roomStatusColor(room.status))}>{roomStatusLabel(room.status)}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-              {selectedRooms.length > 0 && (
-                <p className="mt-1 text-xs text-rw-accent">{selectedRooms.length} {selectedRooms.length === 1 ? "camera selezionata" : "camere selezionate"}</p>
-              )}
-            </div>
-          )}
           <div><label className={labelCls}>Note</label><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note opzionali…" className={inputCls} /></div>
           {err && <p className="text-xs text-red-400">{err}</p>}
         </div>
-        <div className="flex justify-end gap-3 border-t border-rw-line px-6 py-4 shrink-0">
+        <div className="flex justify-end gap-3 border-t border-rw-line px-6 py-4">
           <button type="button" onClick={onClose} className={btnGhost}>Annulla</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving} className={btnPrimary}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -305,9 +237,6 @@ function WeekView({ weekStart, plans, filterArea, canEdit, onAdd, onEdit, onDele
                     {p.shiftType === "lavoro" && p.startTime && p.endTime
                       ? <div className="opacity-80">{p.startTime}–{p.endTime}</div>
                       : <div className="opacity-70">{shiftTypeLabel(p.shiftType)}</div>}
-                    {p.assignedRooms && p.assignedRooms.length > 0 && (
-                      <div className="mt-0.5 opacity-70 text-[9px]">{p.assignedRooms.length} camere</div>
-                    )}
                     {filterArea === "Tutte" && <div className="mt-0.5 opacity-60 uppercase tracking-wide text-[9px]">{p.area}</div>}
                     {canEdit && (
                       <div className="absolute right-1 top-1 hidden group-hover:flex gap-0.5">
@@ -471,7 +400,6 @@ export function HotelTurniPage() {
   const [tab, setTab] = useState("settimana");
   const [plans, setPlans] = useState<ShiftPlan[]>([]);
   const [allStaff, setAllStaff] = useState<StaffMember[]>([]);
-  const [hotelRooms, setHotelRooms] = useState<HotelRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -493,14 +421,12 @@ export function HotelTurniPage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [planRows, staffRows, roomRows] = await Promise.all([
+      const [planRows, staffRows] = await Promise.all([
         shiftPlansApi.list({ from: monthFrom, to: monthTo }),
         staffApi.list(),
-        hotelApi.listRooms(),
       ]);
       setPlans(planRows.filter((p) => HOTEL_AREA_VALUES.has(p.area) || isHotelRole(p.area)));
       setAllStaff(staffRows);
-      setHotelRooms(roomRows);
     } catch (e) { setError(e instanceof Error ? e.message : "Errore caricamento"); }
     finally { setLoading(false); }
   }, [monthFrom, monthTo]);
@@ -623,7 +549,7 @@ export function HotelTurniPage() {
       )}
 
       <ShiftModal open={modalOpen} onClose={() => setModalOpen(false)} staff={allStaff}
-        initial={modalInitial} editId={editId} onSave={handleSave} rooms={hotelRooms} />
+        initial={modalInitial} editId={editId} onSave={handleSave} />
     </div>
   );
 }
