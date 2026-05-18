@@ -97,8 +97,8 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/archivio", roles: ["supervisor", "owner", "super_admin", "cassa"] },
   { prefix: "/api/haccp", roles: ["cucina", "pizzeria", "bar", "magazzino", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/operational-notes", roles: ["cucina", "pizzeria", "bar", "sala", "cassa", "supervisor", "owner", "super_admin"] },
-  { prefix: "/api/shift-plans/sync", roles: ["supervisor", "owner", "super_admin"] },
-  { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/shift-plans/sync", roles: ["supervisor", "owner", "super_admin", "hotel_manager"] },
+  { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin", "hotel_manager"] },
   // Log email invii tenant.
   { prefix: "/api/email-logs", roles: ["owner", "super_admin"] },
   // Lista utenti tenant (per collegamento staff ↔ user).

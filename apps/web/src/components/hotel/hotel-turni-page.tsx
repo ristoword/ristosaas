@@ -493,14 +493,13 @@ export function HotelTurniPage() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const [planRows, staffRows, roomRows] = await Promise.all([
+      const [planRows, staffRows] = await Promise.all([
         shiftPlansApi.list({ from: monthFrom, to: monthTo }),
         staffApi.list(),
-        hotelApi.listRooms(),
       ]);
       setPlans(planRows.filter((p) => HOTEL_AREA_VALUES.has(p.area) || isHotelRole(p.area)));
       setAllStaff(staffRows);
-      setHotelRooms(roomRows);
+      hotelApi.listRooms().then(setHotelRooms).catch(() => {});
     } catch (e) { setError(e instanceof Error ? e.message : "Errore caricamento"); }
     finally { setLoading(false); }
   }, [monthFrom, monthTo]);
@@ -529,8 +528,12 @@ export function HotelTurniPage() {
 
   async function handleDelete(id: string) {
     if (!confirm("Eliminare questo turno?")) return;
-    await shiftPlansApi.delete(id);
-    setPlans((prev) => prev.filter((p) => p.id !== id));
+    try {
+      await shiftPlansApi.delete(id);
+      setPlans((prev) => prev.filter((p) => p.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore eliminazione turno");
+    }
   }
 
   async function handleSync() {
