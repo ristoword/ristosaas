@@ -11,21 +11,35 @@ export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
+  const tenantId = getTenantId();
+
   const rows = await prisma.housekeepingTask.findMany({
-    where: { tenantId: getTenantId() },
+    where: { tenantId },
     orderBy: [{ scheduledFor: "asc" }, { id: "asc" }],
     select: {
       id: true,
       roomId: true,
       status: true,
       scheduledFor: true,
+      assignedToUserId: true,
     },
   });
+
+  const staffIds = rows.map((r) => r.assignedToUserId).filter(Boolean) as string[];
+  const staffMembers = staffIds.length > 0
+    ? await prisma.staffMember.findMany({
+        where: { tenantId, id: { in: staffIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const staffMap = new Map(staffMembers.map((s) => [s.id, s.name]));
 
   const tasks: HousekeepingTask[] = rows.map((item) => ({
     id: item.id,
     roomId: item.roomId,
-    assignedTo: "Housekeeping",
+    assignedTo: item.assignedToUserId
+      ? (staffMap.get(item.assignedToUserId) ?? item.assignedToUserId)
+      : "Non assegnato",
     status: item.status === "in_progress" ? "in_progress" : item.status === "done" ? "done" : "todo",
     scheduledFor: item.scheduledFor.toISOString().slice(0, 10),
     inspected: false,
