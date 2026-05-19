@@ -56,12 +56,10 @@ export async function POST(req: NextRequest) {
   const data = await body<{
     area?: string; day: string; staffName: string; staffId?: string;
     startTime?: string; endTime?: string; hours?: string; role?: string;
-    shiftType?: string; notes?: string; assignedRooms?: string[];
+    shiftType?: string; notes?: string;
   }>(req);
 
   if (!data.staffName?.trim()) return err("staffName è obbligatorio", 400);
-
-  const assignedRooms = Array.isArray(data.assignedRooms) ? data.assignedRooms : null;
 
   const row = await prisma.shiftPlan.create({
     data: {
@@ -76,29 +74,9 @@ export async function POST(req: NextRequest) {
       role: data.role?.trim() || "",
       shiftType: data.shiftType?.trim() || "lavoro",
       notes: data.notes?.trim() || "",
-      assignedRooms: assignedRooms ?? undefined,
     },
     select: SELECT,
   });
-
-  if (assignedRooms && assignedRooms.length > 0 && data.area?.trim() === "housekeeping") {
-    const scheduledFor = new Date((data.day?.trim() || new Date().toISOString().slice(0, 10)) + "T08:00:00");
-    const assignedToUserId = data.staffId?.trim() || data.staffName.trim();
-
-    fireAndForget(
-      prisma.housekeepingTask.createMany({
-        data: assignedRooms.map((roomId) => ({
-          tenantId,
-          roomId,
-          assignedToUserId,
-          status: "todo",
-          scheduledFor,
-        })),
-        skipDuplicates: true,
-      }),
-      "housekeeping:assign-rooms-from-shift",
-    );
-  }
 
   fireAndForget(
     prisma.notification.create({

@@ -493,7 +493,6 @@ export type ShiftPlan = {
   role: string;
   shiftType: ShiftPlanType;
   notes: string;
-  assignedRooms: string[] | null;
   leaveApproval: LeaveApproval;
   createdAt: string;
   updatedAt: string;
@@ -510,7 +509,6 @@ export type ShiftPlanCreate = {
   role?: string;
   shiftType?: ShiftPlanType;
   notes?: string;
-  assignedRooms?: string[] | null;
   leaveApproval?: LeaveApproval;
 };
 
