@@ -647,24 +647,23 @@ model OperationalNote {
 }
 
 model ShiftPlan {
-  id            String       @id @default(cuid())
-  tenantId      String
-  area          String       @default("cucina")
-  day           String
-  staffName     String
-  staffId       String?
-  startTime     String       @default("")
-  endTime       String       @default("")
-  hours         String       @default("")
-  role          String       @default("")
-  shiftType     String       @default("lavoro")
-  notes         String       @default("")
-  assignedRooms Json?
-  createdAt     DateTime     @default(now())
+  id          String       @id @default(cuid())
+  tenantId    String
+  area        String       @default("cucina")
+  day         String
+  staffName   String
+  staffId     String?
+  startTime   String       @default("")
+  endTime     String       @default("")
+  hours       String       @default("")
+  role        String       @default("")
+  shiftType   String       @default("lavoro")
+  notes       String       @default("")
+  createdAt   DateTime     @default(now())
   leaveApproval String       @default("approved")
-  updatedAt     DateTime     @updatedAt
-  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  staffMember   StaffMember? @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  updatedAt   DateTime     @updatedAt
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  staffMember StaffMember? @relation(fields: [staffId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, area])
   @@index([tenantId, day])
