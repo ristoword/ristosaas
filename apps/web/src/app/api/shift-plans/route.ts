@@ -3,8 +3,7 @@ import { ok, err, body, fireAndForget } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
-
-const SHIFT_ROLES = ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] as const;
+import { SHIFT_ROLES } from "@/lib/auth/roles";
 
 const SELECT = {
   id: true, area: true, day: true, staffName: true, staffId: true,
