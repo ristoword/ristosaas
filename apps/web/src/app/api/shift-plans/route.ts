@@ -80,9 +80,16 @@ export async function POST(req: NextRequest) {
     select: SELECT,
   });
 
-  if (assignedRooms && assignedRooms.length > 0 && data.area?.trim() === "housekeeping") {
+  if (assignedRooms && assignedRooms.length > 0 && data.area?.trim().toLowerCase() === "housekeeping") {
     const scheduledFor = new Date((data.day?.trim() || new Date().toISOString().slice(0, 10)) + "T08:00:00");
     const assignedToUserId = data.staffId?.trim() || data.staffName.trim();
+
+    console.log("🏨 Creating housekeeping tasks:", { 
+      tenantId, 
+      assignedRooms, 
+      assignedToUserId, 
+      scheduledFor 
+    });
 
     fireAndForget(
       prisma.housekeepingTask.createMany({
