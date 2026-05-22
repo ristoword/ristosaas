@@ -21,6 +21,8 @@ export async function GET(req: NextRequest) {
   if (guard.error) return guard.error;
 
   const tenantId = getTenantId();
+  if (!tenantId) return err("Tenant non trovato", 401);
+
   const p = req.nextUrl.searchParams;
   const area = p.get("area") || undefined;
   const from = p.get("from") || undefined;
@@ -52,11 +54,26 @@ export async function POST(req: NextRequest) {
   if (guard.error) return guard.error;
 
   const tenantId = getTenantId();
-  const data = await body<{
-    area?: string; day: string; staffName: string; staffId?: string;
-    startTime?: string; endTime?: string; hours?: string; role?: string;
-    shiftType?: string; notes?: string; assignedRooms?: string[];
-  }>(req);
+  if (!tenantId) {
+    console.error("❌ getTenantId() returned null");
+    return err("Tenant non trovato. Per favore, effettua il login di nuovo.", 401);
+  }
+
+  console.log("📝 POST /api/shift-plans - tenantId:", tenantId);
+
+  let data;
+  try {
+    data = await body<{
+      area?: string; day: string; staffName: string; staffId?: string;
+      startTime?: string; endTime?: string; hours?: string; role?: string;
+      shiftType?: string; notes?: string; assignedRooms?: string[];
+    }>(req);
+    console.log("📦 Request body:", data);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("❌ Error parsing request body:", message);
+    return err(`Errore nella lettura dei dati: ${message}`, 400);
+  }
 
   if (!data.staffName?.trim()) return err("staffName è obbligatorio", 400);
   if (!data.day?.trim()) return err("day è obbligatorio", 400);
@@ -129,6 +146,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("❌ Error creating shift plan:", message);
+    console.error("❌ Full error:", error);
     return err(`Errore nella creazione del turno: ${message}`, 500);
   }
 }
