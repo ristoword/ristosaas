@@ -59,65 +59,76 @@ export async function POST(req: NextRequest) {
   }>(req);
 
   if (!data.staffName?.trim()) return err("staffName è obbligatorio", 400);
+  if (!data.day?.trim()) return err("day è obbligatorio", 400);
 
   const assignedRooms = Array.isArray(data.assignedRooms) ? data.assignedRooms : null;
 
-  const row = await prisma.shiftPlan.create({
-    data: {
-      tenantId,
-      area: data.area?.trim() || "cucina",
-      day: data.day?.trim() || "",
-      staffName: data.staffName.trim(),
-      staffId: data.staffId?.trim() || null,
-      startTime: data.startTime?.trim() || "",
-      endTime: data.endTime?.trim() || "",
-      hours: data.hours?.trim() || "",
-      role: data.role?.trim() || "",
-      shiftType: data.shiftType?.trim() || "lavoro",
-      notes: data.notes?.trim() || "",
-      assignedRooms: assignedRooms ?? undefined,
-    },
-    select: SELECT,
-  });
-
-  if (assignedRooms && assignedRooms.length > 0 && data.area?.trim().toLowerCase() === "housekeeping") {
-    const scheduledFor = new Date((data.day?.trim() || new Date().toISOString().slice(0, 10)) + "T08:00:00");
-    const assignedToUserId = data.staffId?.trim() || data.staffName.trim();
-
-    console.log("🏨 Creating housekeeping tasks:", { 
-      tenantId, 
-      assignedRooms, 
-      assignedToUserId, 
-      scheduledFor 
-    });
-
-    fireAndForget(
-      prisma.housekeepingTask.createMany({
-        data: assignedRooms.map((roomId) => ({
-          tenantId,
-          roomId,
-          assignedToUserId,
-          status: "todo",
-          scheduledFor,
-        })),
-        skipDuplicates: true,
-      }),
-      "housekeeping:assign-rooms-from-shift",
-    );
-  }
-
-  fireAndForget(
-    prisma.notification.create({
+  try {
+    const row = await prisma.shiftPlan.create({
       data: {
         tenantId,
-        type: "turno_creato",
-        title: "Nuovo turno pianificato",
-        message: `${row.staffName} — ${row.area} — ${row.day}`,
-        href: "/turni",
+        area: data.area?.trim() || "cucina",
+        day: data.day.trim(),
+        staffName: data.staffName.trim(),
+        staffId: data.staffId?.trim() || null,
+        startTime: data.startTime?.trim() || "",
+        endTime: data.endTime?.trim() || "",
+        hours: data.hours?.trim() || "",
+        role: data.role?.trim() || "",
+        shiftType: data.shiftType?.trim() || "lavoro",
+        notes: data.notes?.trim() || "",
+        assignedRooms: assignedRooms ?? undefined,
       },
-    }),
-    "notification:shift-plan-created",
-  );
+      select: SELECT,
+    });
 
-  return ok(serialize(row), 201);
+    console.log("✅ ShiftPlan created:", { id: row.id, staffName: row.staffName, area: row.area });
+
+    // Crea housekeeping tasks se necessario
+    if (assignedRooms && assignedRooms.length > 0 && data.area?.trim().toLowerCase() === "housekeeping") {
+      const scheduledFor = new Date(row.day + "T08:00:00");
+      const assignedToUserId = data.staffId?.trim() || data.staffName.trim();
+
+      console.log("🏨 Creating housekeeping tasks:", { 
+        tenantId, 
+        assignedRooms, 
+        assignedToUserId, 
+        scheduledFor 
+      });
+
+      fireAndForget(
+        prisma.housekeepingTask.createMany({
+          data: assignedRooms.map((roomId) => ({
+            tenantId,
+            roomId,
+            assignedToUserId,
+            status: "todo",
+            scheduledFor,
+          })),
+          skipDuplicates: true,
+        }),
+        "housekeeping:assign-rooms-from-shift",
+      );
+    }
+
+    // Crea notifica
+    fireAndForget(
+      prisma.notification.create({
+        data: {
+          tenantId,
+          type: "turno_creato",
+          title: "Nuovo turno pianificato",
+          message: `${row.staffName} — ${row.area} — ${row.day}`,
+          href: "/turni",
+        },
+      }),
+      "notification:shift-plan-created",
+    );
+
+    return ok(serialize(row), 201);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("❌ Error creating shift plan:", message);
+    return err(`Errore nella creazione del turno: ${message}`, 500);
+  }
 }
