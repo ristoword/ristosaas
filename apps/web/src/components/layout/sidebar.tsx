@@ -25,9 +25,8 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
       <aside
         id="app-sidebar"
         aria-label="Menu principale"
-        data-sidebar="true"
         className={cn(
-          "fixed inset-y-0 left-0 z-40 flex w-[min(18.5rem,88vw)] flex-col border-r border-white/10 bg-rw-sidebar text-white shadow-rw transition-transform duration-rw no-print",
+          "fixed inset-y-0 left-0 z-40 flex w-[min(18.5rem,88vw)] flex-col border-r border-white/10 bg-rw-sidebar text-white shadow-rw transition-transform duration-rw",
           "md:sticky md:top-0 md:h-dvh md:z-0 md:translate-x-0 md:shadow-none md:self-start md:shrink-0",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
         )}

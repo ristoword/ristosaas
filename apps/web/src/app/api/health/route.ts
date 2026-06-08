@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const requestId = getOrCreateRequestId(req.headers);
   try {
-    await prisma.$queryRaw`SELECT 1`;
+    await prisma.platformConfig.findFirst({ select: { id: true } });
     const res = NextResponse.json(
       {
         status: "ok",

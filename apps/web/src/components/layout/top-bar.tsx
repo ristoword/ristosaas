@@ -389,7 +389,7 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
       </div>
     )}
 
-    <header className="sticky top-0 z-30 border-b border-rw-line bg-rw-surface/90 px-4 py-3 backdrop-blur-md md:px-8 no-print" data-topbar="true">
+    <header className="sticky top-0 z-30 border-b border-rw-line bg-rw-surface/90 px-4 py-3 backdrop-blur-md md:px-8">
       <div className="mx-auto flex max-w-6xl items-center gap-3 md:gap-4">
         <button
           type="button"

@@ -62,23 +62,29 @@ export const authUsersRepository = {
     return user;
   },
   async findByUsername(username: string) {
-    const user = await prisma.user.findFirst({
-      where: { username: { equals: username, mode: "insensitive" } },
-      select: {
-        id: true,
-        tenantId: true,
-        username: true,
-        passwordHash: true,
-        name: true,
-        role: true,
-        email: true,
-        sessionVersion: true,
-        mustChangePassword: true,
-        failedLoginAttempts: true,
-        lockedUntil: true,
-      },
+    const trimmed = username.trim();
+    const select = {
+      id: true,
+      tenantId: true,
+      username: true,
+      passwordHash: true,
+      name: true,
+      role: true,
+      email: true,
+      sessionVersion: true,
+      mustChangePassword: true,
+      failedLoginAttempts: true,
+      lockedUntil: true,
+    } as const;
+
+    // Exact match first: avoids ILIKE issues on some pooler / PG deployments.
+    const exact = await prisma.user.findUnique({ where: { username: trimmed }, select });
+    if (exact) return exact;
+
+    return prisma.user.findFirst({
+      where: { username: { equals: trimmed, mode: "insensitive" } },
+      select,
     });
-    return user;
   },
   async registerFailedLogin(username: string) {
     const user = await this.findByUsername(username);
