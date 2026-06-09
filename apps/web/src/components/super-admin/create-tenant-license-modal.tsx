@@ -15,17 +15,35 @@ function slugify(name: string) {
 }
 
 function randomPassword(length = 14) {
-  const chars = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789#!";
-  let out = "";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const upper = "ABCDEFGHJKMNPQRSTUVWXYZ";
+  const digits = "23456789";
+  const special = "#!@$";
+  const all = lower + upper + digits + special;
   const cryptoObj = typeof globalThis.crypto !== "undefined" ? globalThis.crypto : null;
+  const getRand = (pool: string) => {
+    if (cryptoObj?.getRandomValues) {
+      const buf = new Uint32Array(1);
+      cryptoObj.getRandomValues(buf);
+      return pool[buf[0] % pool.length];
+    }
+    return pool[Math.floor(Math.random() * pool.length)];
+  };
+  // Guarantee at least one of each required category
+  const mandatory = [getRand(lower), getRand(upper), getRand(digits)];
+  const rest: string[] = [];
+  for (let i = mandatory.length; i < length; i++) rest.push(getRand(all) ?? "");
+  // Shuffle
+  const combined = [...mandatory, ...rest];
   if (cryptoObj?.getRandomValues) {
-    const buf = new Uint32Array(length);
+    const buf = new Uint32Array(combined.length);
     cryptoObj.getRandomValues(buf);
-    for (let i = 0; i < length; i++) out += chars[buf[i] % chars.length];
-    return out;
+    for (let i = combined.length - 1; i > 0; i--) {
+      const j = buf[i] % (i + 1);
+      [combined[i], combined[j]] = [combined[j] ?? "", combined[i] ?? ""];
+    }
   }
-  for (let i = 0; i < length; i++) out += chars[Math.floor(Math.random() * chars.length)];
-  return out;
+  return combined.join("");
 }
 
 type Props = {
@@ -98,8 +116,20 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
       setError("Nome owner, email e username sono obbligatori.");
       return;
     }
-    if (!ownerPassword || ownerPassword.length < 8) {
-      setError("Password owner: minimo 8 caratteri.");
+    if (!ownerPassword || ownerPassword.length < 12) {
+      setError("Password owner: minimo 12 caratteri.");
+      return;
+    }
+    if (!/[a-z]/.test(ownerPassword)) {
+      setError("Password owner: deve contenere almeno una lettera minuscola.");
+      return;
+    }
+    if (!/[A-Z]/.test(ownerPassword)) {
+      setError("Password owner: deve contenere almeno una lettera maiuscola.");
+      return;
+    }
+    if (!/[0-9]/.test(ownerPassword)) {
+      setError("Password owner: deve contenere almeno un numero.");
       return;
     }
 
@@ -315,7 +345,7 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
                 </p>
               </label>
               <label className="mt-3 block">
-                <span className="text-xs font-semibold text-rw-muted">Password iniziale (min 8 caratteri)</span>
+                <span className="text-xs font-semibold text-rw-muted">Password iniziale (min 12 car., maiusc. + num.)</span>
                 <div className="mt-1 flex gap-2">
                   <input
                     type="text"

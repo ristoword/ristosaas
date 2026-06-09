@@ -17,7 +17,8 @@ export type UserRole =
   | "hotel_manager"
   | "reception"
   | "housekeeping"
-  | "super_admin";
+  | "super_admin"
+  | "reseller";
 
 export type TenantLicenseSummary = {
   status: "trial" | "active" | "expired" | "suspended";

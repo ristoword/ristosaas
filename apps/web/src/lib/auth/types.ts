@@ -11,7 +11,8 @@ export type UserRole =
   | "hotel_manager"
   | "reception"
   | "housekeeping"
-  | "super_admin";
+  | "super_admin"
+  | "reseller";
 
 export type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
 export type LicenseStatus = "trial" | "active" | "expired" | "suspended";
