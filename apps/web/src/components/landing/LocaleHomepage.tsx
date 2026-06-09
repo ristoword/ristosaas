@@ -2,6 +2,7 @@ import { BenefitsSection } from "@/components/landing/BenefitsSection";
 import { BrandTrustSection } from "@/components/landing/BrandTrustSection";
 import { ContactSection } from "@/components/landing/ContactSection";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
+import { DemoVideoSection } from "@/components/landing/DemoVideoSection";
 import { FeatureCards } from "@/components/landing/FeatureCards";
 import { FinalCta } from "@/components/landing/FinalCta";
 import { HeroShowcase } from "@/components/landing/HeroShowcase";
@@ -22,6 +23,7 @@ export function LocaleHomepage({ locale }: { locale: Locale }) {
       <LandingNavbar locale={locale} />
       <main>
         <HeroShowcase locale={locale} />
+        <DemoVideoSection />
         <IntegrationFlowSection locale={locale} />
         <FeatureCards locale={locale} />
         <DashboardPreview />
