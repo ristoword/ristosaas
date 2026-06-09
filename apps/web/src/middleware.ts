@@ -129,9 +129,9 @@ export async function middleware(req: NextRequest) {
     const token = req.cookies.get(SESSION_COOKIE)?.value;
     const session = token ? await verifyEdgeSessionToken(token) : null;
     if (session) {
-      const dashUrl = req.nextUrl.clone();
-      dashUrl.pathname = "/dashboard";
-      return redirectWithRequestId(dashUrl, requestId);
+      const targetUrl = req.nextUrl.clone();
+      targetUrl.pathname = session.role === "reseller" ? "/controllo-vendite" : "/dashboard";
+      return redirectWithRequestId(targetUrl, requestId);
     }
     return nextWithRequestId(req, requestId);
   }
@@ -225,6 +225,13 @@ export async function middleware(req: NextRequest) {
     const dashboardUrl = req.nextUrl.clone();
     dashboardUrl.pathname = "/dashboard";
     return redirectWithRequestId(dashboardUrl, requestId);
+  }
+
+  // Reseller can only access their portal — redirect everything else to it
+  if (user.role === "reseller" && pathname !== "/controllo-vendite" && !pathname.startsWith("/api/")) {
+    const resellerUrl = req.nextUrl.clone();
+    resellerUrl.pathname = "/controllo-vendite";
+    return redirectWithRequestId(resellerUrl, requestId);
   }
 
   if (user.role !== "super_admin") {

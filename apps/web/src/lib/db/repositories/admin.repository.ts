@@ -191,6 +191,8 @@ export const adminRepository = {
     seats: number;
     /** Months until license expires (default 12). Clamped 1–120. */
     licenseDurationMonths?: number;
+    /** Optional partner/reseller code to tag this license. */
+    partnerCode?: string;
     adminUser: {
       username: string;
       email: string;
@@ -245,6 +247,7 @@ export const adminRepository = {
           usedSeats: 1,
           activatedAt: now,
           expiresAt,
+          ...(payload.partnerCode ? { partnerCode: payload.partnerCode } : {}),
         },
       });
 

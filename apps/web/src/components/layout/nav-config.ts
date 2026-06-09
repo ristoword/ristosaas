@@ -22,6 +22,7 @@ import {
   Globe,
   KeyRound,
   LayoutDashboard,
+  LineChart,
   Mail,
   MapPin,
   Maximize,
@@ -539,6 +540,20 @@ export const navSections: NavSection[] = [
         icon: Mail,
         ready: true,
         visibleFor: ["super_admin"],
+      },
+    ],
+  },
+  {
+    title: "Partner",
+    items: [
+      {
+        id: "controllo-vendite",
+        label: "Controllo Vendite",
+        hint: "I tuoi clienti, licenze attive e commissioni.",
+        href: "/controllo-vendite",
+        icon: LineChart,
+        ready: true,
+        visibleFor: ["reseller", "super_admin"],
       },
     ],
   },

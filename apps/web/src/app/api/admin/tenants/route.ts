@@ -91,6 +91,8 @@ export async function POST(req: NextRequest) {
     seats?: number;
     /** Whole months until license expiry (e.g. 1, 6, 12). Default 12. Max 120. */
     licenseDurationMonths?: number;
+    /** Optional partner code to tag this license with a reseller partner. */
+    partnerCode?: string;
     adminUser: {
       username: string;
       email: string;
@@ -118,6 +120,8 @@ export async function POST(req: NextRequest) {
     licenseDurationMonths = m;
   }
 
+  const partnerCode = payload.partnerCode?.trim() || undefined;
+
   try {
     const created = await adminRepository.createTenantWithLicense({
       name: payload.name.trim(),
@@ -126,6 +130,7 @@ export async function POST(req: NextRequest) {
       billingCycle,
       seats,
       licenseDurationMonths,
+      partnerCode,
       adminUser: {
         username: payload.adminUser.username.trim(),
         email: payload.adminUser.email.trim().toLowerCase(),

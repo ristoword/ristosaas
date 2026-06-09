@@ -357,6 +357,7 @@ model User {
   name         String
   email        String   @unique
   role         String
+  partnerCode  String?
   sessionVersion Int @default(0)
   mustChangePassword Boolean @default(false)
   failedLoginAttempts Int @default(0)
@@ -425,9 +426,23 @@ model TenantLicense {
   usedSeats    Int
   activatedAt  DateTime
   expiresAt    DateTime
+  partnerCode  String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  partner      Partner?      @relation(fields: [partnerCode], references: [code])
+}
+
+model Partner {
+  id              String          @id @default(cuid())
+  code            String          @unique
+  name            String
+  country         String
+  licensePrice    Float
+  commissionEuros Float
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  licenses        TenantLicense[]
 }
 
 model TenantEmailConfig {

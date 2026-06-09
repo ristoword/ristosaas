@@ -48,6 +48,8 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
   const [seats, setSeats] = useState(25);
   const [licenseDurationMonths, setLicenseDurationMonths] = useState<1 | 6 | 12>(12);
 
+  const [partnerCode, setPartnerCode] = useState("");
+
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerUsername, setOwnerUsername] = useState("");
@@ -63,6 +65,7 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
     setBillingCycle("monthly");
     setSeats(25);
     setLicenseDurationMonths(12);
+    setPartnerCode("");
     setOwnerName("");
     setOwnerEmail("");
     setOwnerUsername("");
@@ -109,6 +112,7 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
         billingCycle,
         seats,
         licenseDurationMonths,
+        partnerCode: partnerCode.trim() || undefined,
         adminUser: {
           username: ownerUsername.trim(),
           email: ownerEmail.trim().toLowerCase(),
@@ -260,6 +264,18 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
                   </select>
                 </label>
               </div>
+              <label className="mt-3 block">
+                <span className="text-xs font-semibold text-rw-muted">Codice partner (opzionale)</span>
+                <input
+                  value={partnerCode}
+                  onChange={(e) => setPartnerCode(e.target.value)}
+                  className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 font-mono text-sm text-rw-ink"
+                  placeholder="es. indonesia"
+                />
+                <p className="mt-1 text-[11px] leading-snug text-rw-muted">
+                  Se venduta tramite partner, inserisci il codice (es. <code className="text-rw-soft">indonesia</code>).
+                </p>
+              </label>
             </div>
 
             <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt/50 p-3">

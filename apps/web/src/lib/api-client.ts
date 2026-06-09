@@ -1287,6 +1287,7 @@ export const api = {
         billingCycle?: "monthly" | "annual";
         seats?: number;
         licenseDurationMonths?: number;
+        partnerCode?: string;
         adminUser: {
           username: string;
           email: string;
