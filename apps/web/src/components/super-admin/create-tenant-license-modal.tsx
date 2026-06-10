@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useId, useState } from "react";
-import { KeyRound, Loader2, X } from "lucide-react";
+import { Check, Copy, KeyRound, Loader2, X } from "lucide-react";
 import { api, type AdminTenantOnboardingResult } from "@/lib/api-client";
 
 function slugify(name: string) {
@@ -57,6 +57,8 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<AdminTenantOnboardingResult | null>(null);
+  const [donePassword, setDonePassword] = useState<string>("");
+  const [copied, setCopied] = useState<string | null>(null);
 
   const [tenantName, setTenantName] = useState("");
   const [slug, setSlug] = useState("");
@@ -73,9 +75,18 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
   const [ownerUsername, setOwnerUsername] = useState("");
   const [ownerPassword, setOwnerPassword] = useState("");
 
+  const copyToClipboard = (text: string, key: string) => {
+    void navigator.clipboard.writeText(text).then(() => {
+      setCopied(key);
+      setTimeout(() => setCopied(null), 2000);
+    });
+  };
+
   const resetForm = useCallback(() => {
     setError(null);
     setDone(null);
+    setDonePassword("");
+    setCopied(null);
     setTenantName("");
     setSlug("");
     setSlugTouched(false);
@@ -151,6 +162,7 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
           role: "owner",
         },
       });
+      setDonePassword(ownerPassword);
       setDone(result);
       onCreated();
     } catch (err) {
@@ -194,7 +206,7 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
           <div className="space-y-4">
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-rw-ink">
               <p className="font-semibold text-emerald-400">Tenant e licenza creati</p>
-              <ul className="mt-2 list-inside list-disc space-y-1 text-rw-soft">
+              <ul className="mt-2 space-y-1.5 text-rw-soft">
                 <li>
                   Tenant: <strong>{done.tenant.name}</strong> ({done.tenant.slug})
                 </li>
@@ -202,13 +214,59 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
                   Chiave licenza:{" "}
                   <code className="rounded bg-rw-surfaceAlt px-1 py-0.5 text-xs text-rw-accent">{done.license.key}</code>
                 </li>
-                <li>Scadenza licenza: {new Date(done.license.expiresAt).toLocaleDateString("it-IT")}</li>
-                <li>
-                  Owner login: <strong>{done.adminUser.username}</strong> ({done.adminUser.email})
-                </li>
+                <li>Scadenza: {new Date(done.license.expiresAt).toLocaleDateString("it-IT")}</li>
               </ul>
-              <p className="mt-3 text-xs text-rw-muted">Comunica al cliente username, password temporanea e che al primo login dovrà impostare una nuova password.</p>
             </div>
+
+            <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt/70 p-3 text-sm">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-rw-muted">Credenziali da comunicare al cliente</p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-rw-surface px-3 py-2">
+                  <div>
+                    <span className="text-[11px] text-rw-muted">Username</span>
+                    <p className="font-mono text-sm font-semibold text-rw-ink">{done.adminUser.username}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(done.adminUser.username, "username")}
+                    className="shrink-0 rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink"
+                    title="Copia username"
+                  >
+                    {copied === "username" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-rw-surface px-3 py-2">
+                  <div>
+                    <span className="text-[11px] text-rw-muted">Password provvisoria</span>
+                    <p className="font-mono text-sm font-semibold text-rw-accent">{donePassword}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(donePassword, "password")}
+                    className="shrink-0 rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink"
+                    title="Copia password"
+                  >
+                    {copied === "password" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-2 rounded-lg bg-rw-surface px-3 py-2">
+                  <div>
+                    <span className="text-[11px] text-rw-muted">Email</span>
+                    <p className="font-mono text-sm text-rw-soft">{done.adminUser.email}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(done.adminUser.email, "email")}
+                    className="shrink-0 rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink"
+                    title="Copia email"
+                  >
+                    {copied === "email" ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-rw-muted">Al primo accesso il cliente dovrà impostare una nuova password.</p>
+            </div>
+
             <button
               type="button"
               onClick={handleClose}
