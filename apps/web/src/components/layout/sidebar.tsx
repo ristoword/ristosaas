@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { getVisibleNavSections } from "./nav-config";
 import { useAuth } from "@/components/auth/auth-context";
 import { useI18n } from "@/core/i18n/provider";
+import type { Locale } from "@/core/i18n/types";
+import { SUPPORTED_LOCALES } from "@/core/i18n/types";
 
 type SidebarProps = {
   mobileOpen: boolean;
@@ -16,9 +18,9 @@ type SidebarProps = {
 export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const { t } = useI18n();
+  const { locale, setLocale, t } = useI18n();
 
-  const sections = getVisibleNavSections(user?.role);
+  const sections = getVisibleNavSections(user?.role, t);
 
   return (
     <>
@@ -76,7 +78,7 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
                           </span>
                           {!item.ready ? (
                             <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-rw-sidebarMuted">
-                              Presto
+                              {t("sidebar.comingSoon")}
                             </span>
                           ) : null}
                         </span>
@@ -93,7 +95,7 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
                         <div
                           aria-disabled="true"
                           className="flex cursor-not-allowed items-start gap-3 rounded-2xl px-2 py-2 text-left opacity-60"
-                          title="Collegamento in arrivo con i prossimi moduli."
+                          title={t("sidebar.comingSoon.tooltip")}
                         >
                           {content}
                         </div>
@@ -122,7 +124,22 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
           ))}
         </nav>
 
-        <div className="border-t border-white/10 px-4 py-4">
+        <div className="border-t border-white/10 px-4 py-4 space-y-3">
+          {/* Language selector — visible on mobile where top-bar hides it */}
+          <div className="flex items-center gap-2 md:hidden">
+            <span className="text-xs font-semibold text-rw-sidebarMuted">{t("locale.label")}:</span>
+            <select
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as Locale)}
+              className="flex-1 h-9 rounded-xl border border-white/15 bg-white/10 px-2 text-xs font-semibold text-white"
+            >
+              {SUPPORTED_LOCALES.map((loc) => (
+                <option key={loc} value={loc} className="bg-gray-900 text-white">
+                  {t(`locale.${loc}`)}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex items-center gap-2 rounded-2xl bg-white/5 px-3 py-2.5 text-xs text-rw-sidebarMuted">
             <Sparkles className="h-4 w-4 shrink-0 text-rw-accentSoft" aria-hidden />
             <span>

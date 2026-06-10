@@ -58,11 +58,12 @@ export type NavItem = {
   feature?: AppFeature;
 };
 
-export type NavSection = { title: string; items: NavItem[] };
+export type NavSection = { title: string; key: string; items: NavItem[] };
 
 export const navSections: NavSection[] = [
   {
     title: "Oggi",
+    key: "oggi",
     items: [
       {
         id: "dashboard",
@@ -84,6 +85,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Operatività",
+    key: "operativita",
     items: [
       {
         id: "rooms",
@@ -179,6 +181,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Hotel",
+    key: "hotel",
     items: [
       {
         id: "hotel",
@@ -330,6 +333,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Gestione",
+    key: "gestione",
     items: [
       {
         id: "magazzino",
@@ -395,6 +399,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Persone",
+    key: "persone",
     items: [
       {
         id: "staff",
@@ -451,6 +456,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Archivio",
+    key: "archivio",
     items: [
       {
         id: "archivio",
@@ -472,6 +478,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Sistema",
+    key: "sistema",
     items: [
       {
         id: "hardware",
@@ -522,6 +529,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Integrazioni",
+    key: "integrazioni",
     items: [
       {
         id: "stripe",
@@ -545,6 +553,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Partner",
+    key: "partner",
     items: [
       {
         id: "controllo-vendite",
@@ -559,6 +568,7 @@ export const navSections: NavSection[] = [
   },
   {
     title: "Admin",
+    key: "admin",
     items: [
       {
         id: "super-admin",
@@ -582,19 +592,29 @@ export const navSections: NavSection[] = [
   },
 ];
 
-export function getVisibleNavSections(userRole?: UserRole | null) {
+export function getVisibleNavSections(
+  userRole?: UserRole | null,
+  t?: (key: string) => string,
+) {
   const isSuperAdmin = userRole === "super_admin";
   return navSections
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) => {
-        if (!hasVerticalEnabled(item.vertical)) return false;
-        if (!hasFeatureEnabled(item.feature)) return false;
-        if (!item.ready && !isSuperAdmin) return false;
-        if (!item.visibleFor) return true;
-        if (!userRole) return false;
-        return item.visibleFor.includes(userRole);
-      }),
+      title: t ? (t(`nav.section.${section.key}`) || section.title) : section.title,
+      items: section.items
+        .filter((item) => {
+          if (!hasVerticalEnabled(item.vertical)) return false;
+          if (!hasFeatureEnabled(item.feature)) return false;
+          if (!item.ready && !isSuperAdmin) return false;
+          if (!item.visibleFor) return true;
+          if (!userRole) return false;
+          return item.visibleFor.includes(userRole);
+        })
+        .map((item) => ({
+          ...item,
+          label: t ? (t(`nav.${item.id}.label`) || item.label) : item.label,
+          hint: t ? (t(`nav.${item.id}.hint`) || item.hint) : item.hint,
+        })),
     }))
     .filter((section) => section.items.length > 0);
 }

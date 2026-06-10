@@ -44,14 +44,14 @@ function getInitials(name: string) {
     .join("");
 }
 
-function relativeTime(iso: string) {
+function relativeTime(iso: string, t: (k: string) => string) {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "Adesso";
-  if (mins < 60) return `${mins} min fa`;
+  if (mins < 1) return t("time.now");
+  if (mins < 60) return t("time.min").replace("{n}", String(mins));
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h fa`;
-  return `${Math.floor(hrs / 24)}g fa`;
+  if (hrs < 24) return t("time.hours").replace("{n}", String(hrs));
+  return t("time.days").replace("{n}", String(Math.floor(hrs / 24)));
 }
 
 const NOTIFICATION_ICONS: Record<string, string> = {
@@ -69,13 +69,14 @@ type NotifPanelProps = {
   onMarkRead: (id: string) => void;
   onMarkAll: () => void;
   loading: boolean;
+  t: (k: string) => string;
 };
 
-function NotificationPanel({ items, onMarkRead, onMarkAll, loading }: NotifPanelProps) {
+function NotificationPanel({ items, onMarkRead, onMarkAll, loading, t }: NotifPanelProps) {
   return (
     <div className="absolute right-0 top-full mt-2 z-50 w-80 overflow-hidden rounded-2xl border border-rw-line bg-rw-surface shadow-2xl">
       <div className="flex items-center justify-between border-b border-rw-line px-4 py-3">
-        <h3 className="text-sm font-bold text-rw-ink">Notifiche</h3>
+        <h3 className="text-sm font-bold text-rw-ink">{t("topbar.notifications")}</h3>
         {items.some((n) => !n.read) && (
           <button
             type="button"
@@ -83,19 +84,19 @@ function NotificationPanel({ items, onMarkRead, onMarkAll, loading }: NotifPanel
             className="flex items-center gap-1 text-xs text-rw-accent hover:underline"
           >
             <CheckCheck className="h-3.5 w-3.5" />
-            Segna tutto come letto
+            {t("topbar.notifications.markall")}
           </button>
         )}
       </div>
 
       <div className="max-h-[380px] overflow-y-auto">
         {loading && (
-          <div className="py-8 text-center text-xs text-rw-muted">Caricamento…</div>
+          <div className="py-8 text-center text-xs text-rw-muted">{t("topbar.notifications.loading")}</div>
         )}
         {!loading && items.length === 0 && (
           <div className="flex flex-col items-center gap-2 py-10">
             <Bell className="h-8 w-8 text-rw-line" />
-            <p className="text-xs text-rw-muted">Nessuna notifica.</p>
+            <p className="text-xs text-rw-muted">{t("topbar.notifications.empty")}</p>
           </div>
         )}
         {!loading && items.map((n) => (
@@ -123,7 +124,7 @@ function NotificationPanel({ items, onMarkRead, onMarkAll, loading }: NotifPanel
               {n.message && (
                 <p className="mt-0.5 text-[11px] leading-snug text-rw-muted line-clamp-2">{n.message}</p>
               )}
-              <p className="mt-1 text-[10px] text-rw-muted/60">{relativeTime(n.createdAt)}</p>
+              <p className="mt-1 text-[10px] text-rw-muted/60">{relativeTime(n.createdAt, t)}</p>
             </div>
           </button>
         ))}
@@ -134,7 +135,7 @@ function NotificationPanel({ items, onMarkRead, onMarkAll, loading }: NotifPanel
           href="/staff-me"
           className="flex items-center justify-between text-xs text-rw-muted hover:text-rw-accent transition"
         >
-          <span>Le tue presenze e turni</span>
+          <span>{t("topbar.notifications.shifts")}</span>
           <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </div>
@@ -150,25 +151,10 @@ type UserMenuProps = {
   email: string;
   initials: string;
   onLogout: () => void;
+  t: (k: string) => string;
 };
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "Proprietario",
-  super_admin: "Super Admin",
-  sala: "Sala",
-  cucina: "Cucina",
-  bar: "Bar",
-  pizzeria: "Pizzeria",
-  cassa: "Cassa",
-  supervisor: "Supervisor",
-  magazzino: "Magazzino",
-  staff: "Staff",
-  hotel_manager: "Hotel Manager",
-  reception: "Reception",
-  housekeeping: "Housekeeping",
-};
-
-function UserMenu({ name, role, email, initials, onLogout }: UserMenuProps) {
+function UserMenu({ name, role, email, initials, onLogout, t }: UserMenuProps) {
   return (
     <div className="absolute right-0 top-full mt-2 z-50 w-64 overflow-hidden rounded-2xl border border-rw-line bg-rw-surface shadow-2xl">
       <div className="flex items-center gap-3 border-b border-rw-line px-4 py-4">
@@ -179,7 +165,7 @@ function UserMenu({ name, role, email, initials, onLogout }: UserMenuProps) {
           <p className="truncate text-sm font-semibold text-rw-ink">{name}</p>
           <p className="truncate text-xs text-rw-muted">{email}</p>
           <span className="mt-0.5 inline-block rounded-md bg-rw-accent/10 px-1.5 py-0.5 text-[10px] font-semibold text-rw-accent">
-            {ROLE_LABELS[role] ?? role}
+            {t(`role.${role}`) || role}
           </span>
         </div>
       </div>
@@ -190,21 +176,21 @@ function UserMenu({ name, role, email, initials, onLogout }: UserMenuProps) {
           className="flex items-center gap-3 px-4 py-2.5 text-sm text-rw-ink transition hover:bg-rw-surfaceAlt"
         >
           <User className="h-4 w-4 text-rw-muted" />
-          Il mio profilo
+          {t("topbar.user.profile")}
         </Link>
         <Link
           href="/turni"
           className="flex items-center gap-3 px-4 py-2.5 text-sm text-rw-ink transition hover:bg-rw-surfaceAlt"
         >
           <CalendarClock className="h-4 w-4 text-rw-muted" />
-          I miei turni
+          {t("topbar.user.shifts")}
         </Link>
         <Link
           href="/owner"
           className="flex items-center gap-3 px-4 py-2.5 text-sm text-rw-ink transition hover:bg-rw-surfaceAlt"
         >
           <Settings className="h-4 w-4 text-rw-muted" />
-          Impostazioni
+          {t("topbar.user.settings")}
         </Link>
       </div>
 
@@ -215,7 +201,7 @@ function UserMenu({ name, role, email, initials, onLogout }: UserMenuProps) {
           className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition hover:bg-red-500/10"
         >
           <LogOut className="h-4 w-4" />
-          Esci
+          {t("topbar.user.logout")}
         </button>
       </div>
     </div>
@@ -359,7 +345,7 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
           </div>
           <button type="button" onClick={() => { setSearchOpen(false); setSearchQ(""); setSearchResults([]); }}
             className="shrink-0 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm font-semibold text-rw-muted">
-            Annulla
+            {t("topbar.search.cancel")}
           </button>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -380,10 +366,10 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
             );
           })}
           {searchQ.length >= 2 && searchResults.length === 0 && !searchLoading && (
-            <p className="px-4 py-8 text-center text-sm text-rw-muted">Nessun risultato per «{searchQ}»</p>
+            <p className="px-4 py-8 text-center text-sm text-rw-muted">{t("topbar.search.empty").replace("{q}", searchQ)}</p>
           )}
           {searchQ.length < 2 && (
-            <p className="px-4 py-6 text-center text-xs text-rw-muted">Digita almeno 2 caratteri per cercare…</p>
+            <p className="px-4 py-6 text-center text-xs text-rw-muted">{t("topbar.search.minchars")}</p>
           )}
         </div>
       </div>
@@ -404,7 +390,7 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
 
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-semibold text-rw-ink md:text-xl">
-            {user ? `Ciao, ${user.name.split(" ")[0]}` : t("topbar.greeting")}
+            {user ? t("topbar.greeting.user").replace("{name}", user.name.split(" ")[0] ?? user.name) : t("topbar.greeting")}
           </p>
           <p className="truncate text-sm text-rw-muted capitalize">{today}</p>
         </div>
@@ -464,13 +450,13 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
                 })}
               </div>
               <div className="border-t border-rw-line px-4 py-2 text-[11px] text-rw-muted">
-                {searchResults.length} risultati per «{searchQ}»
+                {t("topbar.search.results").replace("{n}", String(searchResults.length)).replace("{q}", searchQ)}
               </div>
             </div>
           )}
           {searchOpen && searchResults.length === 0 && searchQ.length >= 2 && !searchLoading && (
             <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-2xl border border-rw-line bg-rw-surface px-4 py-6 shadow-2xl text-center text-sm text-rw-muted">
-              Nessun risultato per «{searchQ}»
+              {t("topbar.search.empty").replace("{q}", searchQ)}
             </div>
           )}
         </div>
@@ -515,6 +501,7 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
               onMarkRead={(id) => void handleMarkRead(id)}
               onMarkAll={() => void handleMarkAll()}
               loading={notifLoading}
+              t={t}
             />
           )}
         </div>
@@ -525,7 +512,7 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
             type="button"
             onClick={toggleUser}
             className={cn(
-              "hidden h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rw-accent to-rw-accentSoft text-sm font-bold text-white shadow-rw-sm transition hover:opacity-90 active:scale-[0.97] sm:flex",
+              "flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-rw-accent to-rw-accentSoft text-sm font-bold text-white shadow-rw-sm transition hover:opacity-90 active:scale-[0.97]",
               userOpen && "ring-2 ring-rw-accent ring-offset-2 ring-offset-rw-bg",
             )}
             aria-label="Menu utente"
@@ -540,6 +527,7 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
               email={user.email}
               initials={initials}
               onLogout={() => void logout()}
+              t={t}
             />
           )}
         </div>
