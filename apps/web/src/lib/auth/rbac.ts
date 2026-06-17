@@ -29,6 +29,8 @@ export const PUBLIC_API_PREFIXES = [
   "/api/jobs/billing/reconcile-all",
   "/api/health/live",
   "/api/health/gates",
+  "/api/orders/public-append",
+  "/api/orders/public-bill",
 ] as const;
 
 /**

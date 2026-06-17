@@ -1,7 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ClipboardList,
+  CreditCard,
+  HandCoins,
+  Minus,
+  Plus,
+  ShoppingCart,
+  Trash2,
+} from "lucide-react";
 import type { PublicMenuItem } from "@/lib/db/repositories/public-menu.repository";
 
 type CartLine = {
@@ -10,6 +20,18 @@ type CartLine = {
   unitPrice: number;
   qty: number;
 };
+
+type SentOrder = {
+  course: number;
+  items: CartLine[];
+  sentAt: string;
+};
+
+const SESSION_KEY_PREFIX = "rw_qr_order_";
+
+function getSessionKey(tenantSlug: string, tableId: string | null) {
+  return `${SESSION_KEY_PREFIX}${tenantSlug}_${tableId ?? "notable"}`;
+}
 
 function groupByMenuCategory(items: PublicMenuItem[]): Map<string, PublicMenuItem[]> {
   const m = new Map<string, PublicMenuItem[]>();
@@ -55,10 +77,7 @@ function MenuSection({
             {list.map((dish) => {
               const q = qtyFor(dish.id);
               return (
-                <li
-                  key={dish.id}
-                  className="rounded-xl border border-rw-line bg-rw-surfaceAlt/60 px-4 py-3"
-                >
+                <li key={dish.id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt/60 px-4 py-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0 flex-1">
                       <p className="font-semibold text-rw-ink">{dish.name}</p>
@@ -76,8 +95,7 @@ function MenuSection({
                           onClick={() => onAdd(dish)}
                           className="inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98]"
                         >
-                          <Plus className="h-4 w-4" />
-                          Aggiungi
+                          <Plus className="h-4 w-4" /> Aggiungi
                         </button>
                       ) : (
                         <div className="flex items-center justify-between gap-2 rounded-xl border border-rw-line bg-rw-surface px-2 py-1.5">
@@ -122,15 +140,40 @@ export function PublicMenuClient({
   tenantName: string;
   tenantSlug: string;
   items: PublicMenuItem[];
-  /** Id riga tavolo (QR); se assente, ordine senza tavolo collegato. */
   tableId?: string | null;
-  /** Nome tavolo mostrato in pagina (es. T1). */
   tableLabel?: string | null;
 }) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
+
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [sentOrders, setSentOrders] = useState<SentOrder[]>([]);
+  const [showSentOrders, setShowSentOrders] = useState(false);
+
+  const [billLoading, setBillLoading] = useState(false);
+  const [billError, setBillError] = useState<string | null>(null);
+  const [billRequested, setBillRequested] = useState(false);
+
+  const sessionKey = getSessionKey(tenantSlug, tableId);
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(sessionKey);
+      if (saved) {
+        const data = JSON.parse(saved) as { orderId: string; sentOrders: SentOrder[] };
+        if (data.orderId) setActiveOrderId(data.orderId);
+        if (data.sentOrders) setSentOrders(data.sentOrders);
+      }
+    } catch { /* ignore */ }
+  }, [sessionKey]);
+
+  const persistSession = useCallback((orderId: string, orders: SentOrder[]) => {
+    try {
+      sessionStorage.setItem(sessionKey, JSON.stringify({ orderId, sentOrders: orders }));
+    } catch { /* ignore */ }
+  }, [sessionKey]);
 
   const qtyById = useMemo(() => {
     const m = new Map<string, number>();
@@ -152,6 +195,7 @@ export function PublicMenuClient({
       }
       return [...prev, { menuItemId: dish.id, name: dish.name, unitPrice: dish.price, qty: 1 }];
     });
+    setSubmitOk(false);
   }
 
   function deltaQty(dish: PublicMenuItem, delta: number) {
@@ -182,35 +226,75 @@ export function PublicMenuClient({
     setCart((prev) => prev.filter((l) => l.menuItemId !== menuItemId));
   }
 
-  async function submitOrder(payOnline: boolean) {
+  async function submitOrder() {
     if (cart.length === 0 || submitting) return;
     setSubmitting(true);
     setSubmitError(null);
     setSubmitOk(false);
+
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: "public_menu",
-          tenantSlug,
-          payOnline,
-          items: cart.map((l) => ({ menuItemId: l.menuItemId, qty: l.qty })),
-          ...(tableId?.trim() ? { tableId: tableId.trim() } : {}),
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as {
-        error?: string;
-        stripeCheckoutUrl?: string;
-      };
-      if (!res.ok) {
-        setSubmitError(data.error || `Errore ${res.status}`);
-        return;
+      if (activeOrderId) {
+        // Append to existing order
+        const res = await fetch("/api/orders/public-append", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenantSlug,
+            orderId: activeOrderId,
+            items: cart.map((l) => ({ menuItemId: l.menuItemId, qty: l.qty })),
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { error?: string; data?: { course: number } };
+        if (!res.ok) {
+          if (res.status === 404) {
+            // Order was closed/deleted, create a new one
+            setActiveOrderId(null);
+            setSentOrders([]);
+            persistSession("", []);
+            setSubmitError("L'ordine precedente è stato chiuso. Riprova per crearne uno nuovo.");
+            return;
+          }
+          setSubmitError(data.error || `Errore ${res.status}`);
+          return;
+        }
+        const courseNum = data.data?.course ?? sentOrders.length + 2;
+        const newSent: SentOrder = {
+          course: courseNum,
+          items: [...cart],
+          sentAt: new Date().toISOString(),
+        };
+        const updatedSent = [...sentOrders, newSent];
+        setSentOrders(updatedSent);
+        persistSession(activeOrderId, updatedSent);
+      } else {
+        // Create new order
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: "public_menu",
+            tenantSlug,
+            payOnline: false,
+            items: cart.map((l) => ({ menuItemId: l.menuItemId, qty: l.qty })),
+            ...(tableId?.trim() ? { tableId: tableId.trim() } : {}),
+          }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { error?: string; data?: { id: string } };
+        if (!res.ok) {
+          setSubmitError(data.error || `Errore ${res.status}`);
+          return;
+        }
+        const orderId = data.data?.id ?? "";
+        setActiveOrderId(orderId);
+        const newSent: SentOrder = {
+          course: 1,
+          items: [...cart],
+          sentAt: new Date().toISOString(),
+        };
+        setSentOrders([newSent]);
+        persistSession(orderId, [newSent]);
       }
-      if (payOnline && typeof data.stripeCheckoutUrl === "string" && data.stripeCheckoutUrl.length > 0) {
-        window.location.assign(data.stripeCheckoutUrl);
-        return;
-      }
+
       setCart([]);
       setSubmitOk(true);
     } catch {
@@ -220,9 +304,79 @@ export function PublicMenuClient({
     }
   }
 
+  async function requestBill(payOnline: boolean) {
+    if (!activeOrderId || billLoading) return;
+    setBillLoading(true);
+    setBillError(null);
+
+    try {
+      const res = await fetch("/api/orders/public-bill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantSlug,
+          orderId: activeOrderId,
+          payOnline,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        data?: { stripeCheckoutUrl?: string; totalEuros?: number; message?: string };
+      };
+      if (!res.ok) {
+        setBillError(data.error || `Errore ${res.status}`);
+        return;
+      }
+
+      if (payOnline && data.data?.stripeCheckoutUrl) {
+        window.location.assign(data.data.stripeCheckoutUrl);
+        return;
+      }
+
+      setBillRequested(true);
+      // Clear session for this table
+      try { sessionStorage.removeItem(sessionKey); } catch { /* ignore */ }
+    } catch {
+      setBillError("Connessione non riuscita. Riprova.");
+    } finally {
+      setBillLoading(false);
+    }
+  }
+
   const total = useMemo(() => cart.reduce((s, l) => s + l.unitPrice * l.qty, 0), [cart]);
+  const grandTotal = useMemo(() => {
+    let t = 0;
+    for (const o of sentOrders) {
+      for (const l of o.items) t += l.unitPrice * l.qty;
+    }
+    return t;
+  }, [sentOrders]);
+
   const food = items.filter((i) => i.kind === "food");
   const drink = items.filter((i) => i.kind === "drink");
+
+  if (billRequested) {
+    return (
+      <div className="mx-auto max-w-2xl space-y-6 pb-10 text-center">
+        <header>
+          <p className="text-xs font-semibold uppercase tracking-widest text-rw-muted">Menu</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold text-rw-ink">{tenantName}</h1>
+        </header>
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-8">
+          <HandCoins className="mx-auto h-12 w-12 text-emerald-400" />
+          <h2 className="mt-4 font-display text-xl font-semibold text-emerald-300">Conto richiesto</h2>
+          <p className="mt-2 text-sm text-rw-soft">
+            Lo staff arriverà al tuo tavolo con il conto. Grazie!
+          </p>
+          {grandTotal > 0 && (
+            <p className="mt-4 font-display text-3xl font-bold text-emerald-400">
+              €{grandTotal.toFixed(2)}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-10 pb-40">
@@ -235,21 +389,99 @@ export function PublicMenuClient({
           </p>
         ) : null}
         <p className="mt-2 text-sm text-rw-muted">
-          Aggiungi piatti al carrello. Puoi pagare online con carta (Stripe) o inviare la comanda senza pagamento e
-          saldare in sala.
+          Aggiungi piatti al carrello e invia l&apos;ordine. Puoi ordinare più volte — alla fine chiedi il conto per pagare tutto insieme.
         </p>
       </header>
 
+      {/* Previously sent orders */}
+      {sentOrders.length > 0 && (
+        <section className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+          <button
+            type="button"
+            onClick={() => setShowSentOrders(!showSentOrders)}
+            className="flex w-full items-center justify-between gap-2"
+          >
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-emerald-400" />
+              <span className="font-semibold text-rw-ink">
+                {sentOrders.length} {sentOrders.length === 1 ? "ordine inviato" : "ordini inviati"}
+              </span>
+              <span className="text-sm text-rw-muted">· Totale €{grandTotal.toFixed(2)}</span>
+            </div>
+            {showSentOrders ? (
+              <ChevronUp className="h-4 w-4 text-rw-muted" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-rw-muted" />
+            )}
+          </button>
+          {showSentOrders && (
+            <div className="mt-4 space-y-3">
+              {sentOrders.map((o, idx) => (
+                <div key={idx} className="rounded-xl border border-rw-line bg-rw-surface p-3">
+                  <p className="text-xs font-semibold text-rw-muted">
+                    Ordine #{idx + 1} — {new Date(o.sentAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                  <ul className="mt-2 space-y-1">
+                    {o.items.map((item) => (
+                      <li key={item.menuItemId} className="flex justify-between text-sm">
+                        <span className="text-rw-ink">{item.qty}× {item.name}</span>
+                        <span className="tabular-nums text-rw-soft">€{(item.unitPrice * item.qty).toFixed(2)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Bill buttons */}
+          <div className="mt-4 space-y-2">
+            {billError && (
+              <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+                {billError}
+              </p>
+            )}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => void requestBill(true)}
+                disabled={billLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-rw-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-rw-accent/90 disabled:opacity-60 sm:flex-1"
+              >
+                <CreditCard className="h-4 w-4" />
+                {billLoading ? "Caricamento…" : `Paga online €${grandTotal.toFixed(2)}`}
+              </button>
+              <button
+                type="button"
+                onClick={() => void requestBill(false)}
+                disabled={billLoading}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm font-semibold text-rw-ink transition hover:border-rw-accent/40 disabled:opacity-60 sm:flex-1"
+              >
+                <HandCoins className="h-4 w-4" />
+                {billLoading ? "…" : "Chiedi il conto"}
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       <MenuSection
         title="Cibo"
-        subtitle="Piatti e portate (categorie come da menu admin: Pizze, Primi, …)."
+        subtitle="Piatti e portate."
         items={food}
         onAdd={addItem}
         qtyFor={qtyFor}
         onDelta={deltaQty}
       />
 
-      <MenuSection title="Bevande" subtitle="Bevande e categorie assimilate." items={drink} onAdd={addItem} qtyFor={qtyFor} onDelta={deltaQty} />
+      <MenuSection
+        title="Bevande"
+        subtitle="Bevande e categorie assimilate."
+        items={drink}
+        onAdd={addItem}
+        qtyFor={qtyFor}
+        onDelta={deltaQty}
+      />
 
       {items.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-rw-line bg-rw-surface px-6 py-10 text-center text-sm text-rw-muted">
@@ -307,8 +539,7 @@ export function PublicMenuClient({
                     onClick={() => removeLine(line.menuItemId)}
                     className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 px-2 py-1.5 text-xs font-semibold text-red-300 hover:bg-red-500/10"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Rimuovi
+                    <Trash2 className="h-3.5 w-3.5" /> Rimuovi
                   </button>
                 </div>
               </li>
@@ -325,44 +556,54 @@ export function PublicMenuClient({
           ) : null}
           {submitOk ? (
             <p className="mt-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100">
-              Ordine inviato. Lo staff lo riceverà a breve.
+              Ordine inviato! Puoi continuare ad aggiungere altri piatti o bevande.
             </p>
           ) : null}
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <div className="mt-4">
             <button
               type="button"
-              onClick={() => void submitOrder(true)}
+              onClick={() => void submitOrder()}
               disabled={submitting}
-              className="w-full rounded-xl bg-rw-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-rw-accent/90 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.99] sm:flex-1"
+              className="w-full rounded-xl bg-rw-accent px-4 py-3 text-sm font-semibold text-white transition hover:bg-rw-accent/90 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.99]"
             >
-              {submitting ? "Reindirizzamento…" : "Paga con carta e invia"}
-            </button>
-            <button
-              type="button"
-              onClick={() => void submitOrder(false)}
-              disabled={submitting}
-              className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm font-semibold text-rw-ink transition hover:border-rw-accent/40 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.99] sm:flex-1"
-            >
-              {submitting ? "Invio…" : "Invia senza pagare"}
+              {submitting ? "Invio…" : activeOrderId ? "Invia ordine aggiuntivo" : "Invia ordine"}
             </button>
           </div>
         </section>
       ) : null}
 
+      {/* Fixed bottom bar */}
       {cart.length > 0 ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-rw-line bg-rw-surface/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
           <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">Totale</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">Carrello</p>
               <p className="font-display text-xl font-semibold text-rw-accent">€{total.toFixed(2)}</p>
             </div>
             <button
               type="button"
-              onClick={() => void submitOrder(true)}
+              onClick={() => void submitOrder()}
               disabled={submitting}
               className="shrink-0 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 disabled:opacity-60"
             >
-              {submitting ? "…" : "Paga"}
+              {submitting ? "…" : "Invia"}
+            </button>
+          </div>
+        </div>
+      ) : sentOrders.length > 0 && cart.length === 0 ? (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-rw-line bg-rw-surface/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">Totale</p>
+              <p className="font-display text-xl font-semibold text-rw-accent">€{grandTotal.toFixed(2)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void requestBill(false)}
+              disabled={billLoading}
+              className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-60"
+            >
+              {billLoading ? "…" : "Chiedi il conto"}
             </button>
           </div>
         </div>

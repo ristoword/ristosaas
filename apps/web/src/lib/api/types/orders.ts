@@ -6,7 +6,8 @@ export type OrderStatus =
   | "pronto"
   | "servito"
   | "chiuso"
-  | "annullato";
+  | "annullato"
+  | "conto_richiesto";
 export type OrderArea = "sala" | "cucina" | "bar" | "pizzeria";
 
 /** Pagamento online (Stripe) per ordini da menu pubblico. */

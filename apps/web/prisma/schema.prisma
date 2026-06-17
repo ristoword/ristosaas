@@ -107,6 +107,7 @@ enum RestaurantOrderStatus {
   servito
   chiuso
   annullato
+  conto_richiesto
 }
 
 enum RestaurantOrderOnlinePaymentStatus {

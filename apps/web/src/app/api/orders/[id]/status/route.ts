@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   }
   const { status, course: targetCourse } = parsed;
   if (!status) return err("status is required");
-  const validStatuses: OrderStatus[] = ["in_attesa", "in_preparazione", "pronto", "servito", "chiuso", "annullato", "pending"];
+  const validStatuses: OrderStatus[] = ["in_attesa", "in_preparazione", "pronto", "servito", "chiuso", "annullato", "pending", "conto_richiesto"];
   if (!validStatuses.includes(status)) return err(`Invalid status: ${status}`, 400);
 
   const cs = { ...order.courseStates };
