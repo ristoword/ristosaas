@@ -119,9 +119,9 @@ export function SuperAdminPage() {
     try {
       const res = await fetch("/api/admin/online", { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json() as { data: { onlineUsers: OnlineUser[]; summary: OnlineSummary } };
-      setOnlineUsers(json.data.onlineUsers);
-      setOnlineSummary(json.data.summary);
+      const json = await res.json() as { onlineUsers: OnlineUser[]; summary: OnlineSummary };
+      setOnlineUsers(json.onlineUsers);
+      setOnlineSummary(json.summary);
     } catch (e) {
       setOnlineError(e instanceof Error ? e.message : "Errore caricamento");
     } finally {
