@@ -5,18 +5,23 @@ import Link from "next/link";
 import {
   Activity,
   Building2,
+  Globe,
   HardDrive,
   Key,
+  Monitor,
   Plus,
+  Radio,
   Search,
   Server,
   ShieldAlert,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   ToggleLeft,
   ToggleRight,
   UnlockKeyhole,
   RefreshCcw,
+  Users,
   Wrench,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -29,6 +34,7 @@ import { CreateTenantLicenseModal } from "@/components/super-admin/create-tenant
 
 const tabs = [
   { id: "dashboard", label: "Dashboard" },
+  { id: "monitor", label: "Monitor Live" },
   { id: "tenants", label: "Tenants" },
   { id: "licenses", label: "Licenze" },
   { id: "maintenance", label: "Manutenzione" },
@@ -41,6 +47,14 @@ type License = { id: string; key: string; tenant: string; plan: string; status: 
 
 const tenantStatusTone = { active: "success", blocked: "danger" } as const;
 const licenseStatusTone = { trial: "warn", active: "success", expired: "danger", suspended: "warn" } as const;
+
+function formatRelativeTime(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (diff < 60) return "Ora";
+  if (diff < 3600) return `${Math.floor(diff / 60)} min fa`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ore fa`;
+  return `${Math.floor(diff / 86400)} giorni fa`;
+}
 
 function formatProcessUptime(sec: number) {
   const d = Math.floor(sec / 86400);
@@ -78,7 +92,42 @@ export function SuperAdminPage() {
   const [tenantActionId, setTenantActionId] = useState<string | null>(null);
   const [listLoadError, setListLoadError] = useState<string | null>(null);
 
+  type OnlineUser = {
+    sessionId: string;
+    userId: string;
+    username: string;
+    name: string;
+    role: string;
+    tenantId: string | null;
+    tenantName: string;
+    ipAddress: string;
+    userAgent: string;
+    lastSeenAt: string;
+    issuedAt: string;
+  };
+  type OnlineSummary = { totalOnline: number; tenantsOnline: number; activeSessions: number; thresholdMinutes: number };
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [onlineSummary, setOnlineSummary] = useState<OnlineSummary | null>(null);
+  const [onlineLoading, setOnlineLoading] = useState(false);
+  const [onlineError, setOnlineError] = useState<string | null>(null);
+
   const assistantUrl = process.env.NEXT_PUBLIC_SUPERADMIN_ASSISTANT_URL?.trim() ?? "";
+
+  const refreshOnline = useCallback(async () => {
+    setOnlineLoading(true);
+    setOnlineError(null);
+    try {
+      const res = await fetch("/api/admin/online", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json() as { data: { onlineUsers: OnlineUser[]; summary: OnlineSummary } };
+      setOnlineUsers(json.data.onlineUsers);
+      setOnlineSummary(json.data.summary);
+    } catch (e) {
+      setOnlineError(e instanceof Error ? e.message : "Errore caricamento");
+    } finally {
+      setOnlineLoading(false);
+    }
+  }, []);
 
   const refreshLists = useCallback(() => {
     Promise.all([api.admin.users.list(), api.admin.tenants.list(), api.admin.licenses.list(), api.admin.emailConfig.list()])
@@ -119,6 +168,13 @@ export function SuperAdminPage() {
   useEffect(() => {
     refreshLists();
   }, [refreshLists]);
+
+  useEffect(() => {
+    if (tab !== "monitor") return;
+    void refreshOnline();
+    const interval = setInterval(() => void refreshOnline(), 30_000);
+    return () => clearInterval(interval);
+  }, [tab, refreshOnline]);
 
   const filteredTenants = tenants.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
   const filteredLicenses = licenses.filter((l) => l.key.toLowerCase().includes(search.toLowerCase()) || l.tenant.toLowerCase().includes(search.toLowerCase()));
@@ -210,6 +266,182 @@ export function SuperAdminPage() {
               <Link href="/email-settings" className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm font-semibold text-rw-ink hover:border-rw-accent/30">Email / SMTP</Link>
             </div>
           </Card>
+        </div>
+      )}
+
+      {tab === "monitor" && (
+        <div className="space-y-4">
+          {/* Header con pulsante aggiorna */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Radio className="h-5 w-5 text-emerald-400 animate-pulse" />
+              <p className="text-sm text-rw-muted">
+                Aggiornamento automatico ogni 30s — ultimi {onlineSummary?.thresholdMinutes ?? 15} minuti di attività
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refreshOnline()}
+              disabled={onlineLoading}
+              className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surface px-4 py-2 text-sm font-semibold text-rw-ink hover:bg-rw-surfaceAlt disabled:opacity-50"
+            >
+              <RefreshCcw className={`h-4 w-4 ${onlineLoading ? "animate-spin" : ""}`} />
+              Aggiorna
+            </button>
+          </div>
+
+          {onlineError && (
+            <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+              {onlineError}
+            </div>
+          )}
+
+          {/* KPI Cards */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <article className="rounded-2xl border border-rw-line bg-gradient-to-br from-emerald-500/15 to-emerald-400/5 p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-emerald-400" />
+                <p className="text-sm font-medium text-rw-muted">Persone online</p>
+              </div>
+              <p className="mt-2 font-display text-4xl font-bold tabular-nums text-emerald-400">
+                {onlineSummary?.totalOnline ?? "—"}
+              </p>
+            </article>
+            <article className="rounded-2xl border border-rw-line bg-gradient-to-br from-blue-500/15 to-blue-400/5 p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-blue-400" />
+                <p className="text-sm font-medium text-rw-muted">Locali online</p>
+              </div>
+              <p className="mt-2 font-display text-4xl font-bold tabular-nums text-blue-400">
+                {onlineSummary?.tenantsOnline ?? "—"}
+              </p>
+            </article>
+            <article className="rounded-2xl border border-rw-line bg-gradient-to-br from-amber-500/15 to-amber-400/5 p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Monitor className="h-4 w-4 text-amber-400" />
+                <p className="text-sm font-medium text-rw-muted">Sessioni attive</p>
+              </div>
+              <p className="mt-2 font-display text-4xl font-bold tabular-nums text-amber-400">
+                {onlineSummary?.activeSessions ?? "—"}
+              </p>
+            </article>
+          </div>
+
+          {/* Tabella utenti connessi */}
+          <Card title="Utenti connessi in tempo reale" description="Ogni riga è un utente attivo negli ultimi minuti.">
+            {onlineLoading && onlineUsers.length === 0 ? (
+              <div className="flex items-center justify-center py-12 text-rw-muted text-sm">
+                <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> Caricamento…
+              </div>
+            ) : onlineUsers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-rw-muted">
+                <Users className="h-10 w-10 opacity-30" />
+                <p className="text-sm">Nessun utente connesso al momento.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-rw-line bg-rw-surfaceAlt/60">
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Utente</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Ruolo</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Locale</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">IP</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Dispositivo</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Ultima attività</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-rw-line">
+                    {onlineUsers.map((u) => (
+                      <tr key={u.sessionId} className="hover:bg-rw-surfaceAlt/40 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="relative flex h-2.5 w-2.5">
+                              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                            </span>
+                            <div>
+                              <p className="font-medium text-rw-ink">{u.name}</p>
+                              <p className="text-xs text-rw-muted">@{u.username}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${
+                            u.role === "super_admin" ? "border-purple-500/30 bg-purple-500/15 text-purple-400" :
+                            u.role === "owner" ? "border-amber-500/30 bg-amber-500/15 text-amber-400" :
+                            u.role === "admin" ? "border-blue-500/30 bg-blue-500/15 text-blue-400" :
+                            u.role === "reseller" ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-400" :
+                            "border-rw-line bg-rw-surfaceAlt text-rw-soft"
+                          }`}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <Building2 className="h-3.5 w-3.5 text-rw-muted" />
+                            <span className="text-rw-ink">{u.tenantName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <Globe className="h-3.5 w-3.5 text-rw-muted" />
+                            <code className="rounded bg-rw-surfaceAlt px-1.5 py-0.5 text-xs text-rw-soft">{u.ipAddress}</code>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5">
+                            {u.userAgent.includes("iOS") || u.userAgent.includes("Android") ? (
+                              <Smartphone className="h-3.5 w-3.5 text-rw-muted" />
+                            ) : (
+                              <Monitor className="h-3.5 w-3.5 text-rw-muted" />
+                            )}
+                            <span className="text-rw-soft text-xs">{u.userAgent}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs tabular-nums text-rw-soft">
+                          {formatRelativeTime(u.lastSeenAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
+          {/* Riepilogo per locale */}
+          {onlineUsers.length > 0 && (
+            <Card title="Dettaglio per locale" description="Quanti utenti sono connessi per ogni locale/ristorante.">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(
+                  onlineUsers.reduce<Record<string, { name: string; count: number; roles: string[] }>>((acc, u) => {
+                    const key = u.tenantId ?? "unknown";
+                    if (!acc[key]) acc[key] = { name: u.tenantName, count: 0, roles: [] };
+                    acc[key].count++;
+                    if (!acc[key].roles.includes(u.role)) acc[key].roles.push(u.role);
+                    return acc;
+                  }, {}),
+                )
+                  .sort((a, b) => b[1].count - a[1].count)
+                  .map(([tid, info]) => (
+                    <div key={tid} className="flex items-center justify-between rounded-xl border border-rw-line bg-rw-surface p-4">
+                      <div>
+                        <p className="font-medium text-rw-ink">{info.name}</p>
+                        <p className="text-xs text-rw-muted">{info.roles.join(", ")}</p>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="relative flex h-2 w-2">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                        </span>
+                        <span className="text-lg font-bold tabular-nums text-emerald-400">{info.count}</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          )}
         </div>
       )}
 
