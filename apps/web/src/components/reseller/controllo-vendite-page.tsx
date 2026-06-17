@@ -31,6 +31,8 @@ type Partner = {
   country: string;
   licensePrice: number;
   commissionEuros: number;
+  allInclusivePrice: number | null;
+  allInclusiveCommission: number | null;
 };
 
 type Summary = {
@@ -167,16 +169,43 @@ export function ControlloVenditePage() {
 
         {/* Pricing info */}
         {data?.partner && (
-          <div className="flex flex-wrap gap-3">
-            <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surface px-4 py-2.5 text-sm">
-              <BadgeEuro className="h-4 w-4 text-rw-muted" />
-              <span className="text-rw-muted">Prezzo vendita:</span>
-              <span className="font-semibold text-rw-ink">{euro(data.partner.licensePrice)}</span>
-            </div>
-            <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surface px-4 py-2.5 text-sm">
-              <BadgeEuro className="h-4 w-4 text-emerald-400" />
-              <span className="text-rw-muted">Tua commissione/licenza:</span>
-              <span className="font-semibold text-emerald-400">{euro(data.partner.commissionEuros)}</span>
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* Restaurant Only tier */}
+              <div className="rounded-xl border border-rw-line bg-rw-surface p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-rw-muted">Solo Ristorante</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm">
+                    <BadgeEuro className="h-4 w-4 text-rw-muted" />
+                    <span className="text-rw-muted">Prezzo:</span>
+                    <span className="font-semibold text-rw-ink">{euro(data.partner.licensePrice)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <BadgeEuro className="h-4 w-4 text-emerald-400" />
+                    <span className="text-rw-muted">Commissione:</span>
+                    <span className="font-semibold text-emerald-400">{euro(data.partner.commissionEuros)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* All Inclusive tier */}
+              {data.partner.allInclusivePrice != null && (
+                <div className="rounded-xl border border-rw-accent/30 bg-rw-accent/5 p-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-rw-accent">All Inclusive</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                      <BadgeEuro className="h-4 w-4 text-rw-muted" />
+                      <span className="text-rw-muted">Prezzo:</span>
+                      <span className="font-semibold text-rw-ink">{euro(data.partner.allInclusivePrice)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <BadgeEuro className="h-4 w-4 text-emerald-400" />
+                      <span className="text-rw-muted">Commissione:</span>
+                      <span className="font-semibold text-emerald-400">{euro(data.partner.allInclusiveCommission)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

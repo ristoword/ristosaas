@@ -190,8 +190,11 @@ export const ordersApi = {
     data: Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status" | "onlinePaymentStatus" | "stripeCheckoutSessionId">,
   ) => post<Order>("/orders", data),
   update: (id: string, data: Partial<Order>) => put<Order>(`/orders/${id}`, data),
+  appendItems: (id: string, items: OrderItem[], notes?: string) =>
+    post<Order>(`/orders/${id}/append`, { items, notes }),
   delete: (id: string) => del<{ deleted: boolean }>(`/orders/${id}`),
-  patchStatus: (id: string, status: string) => patch<{ order: Order; discharge: unknown }>(`/orders/${id}/status`, { status }),
+  patchStatus: (id: string, status: string, course?: number) =>
+    patch<{ order: Order; discharge: unknown }>(`/orders/${id}/status`, { status, ...(course != null ? { course } : {}) }),
   marcia: (id: string, course: number) => post<Order>(`/orders/${id}/marcia`, { course }),
 };
 

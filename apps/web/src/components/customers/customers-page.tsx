@@ -20,6 +20,7 @@ import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { customersApi, type Customer } from "@/lib/api-client";
+import { useI18n } from "@/core/i18n/provider";
 
 type CustomerType = Customer["type"];
 
@@ -40,6 +41,7 @@ function parseList(s: string): string[] {
 }
 
 export function CustomersPage() {
+  const { t } = useI18n();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +97,7 @@ export function CustomersPage() {
       setNewAllergies(""); setNewPreferences("");
       setShowAdd(false);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Errore nel salvataggio");
+      alert(e instanceof Error ? e.message : t("customers.saveError"));
     }
   }
 
@@ -105,7 +107,7 @@ export function CustomersPage() {
       setCustomers((p) => p.filter((c) => c.id !== id));
       if (selected?.id === id) setSelected(null);
     } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : "Errore nella cancellazione");
+      alert(e instanceof Error ? e.message : t("customers.deleteError"));
     }
   }
 
@@ -128,9 +130,9 @@ export function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Clienti" subtitle="CRM del ristorante — profili, preferenze e analytics">
+      <PageHeader title={t("customers.title")} subtitle={t("customers.subtitle")}>
         <button type="button" onClick={() => setShowAdd(!showAdd)} className="inline-flex items-center gap-2 rounded-2xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white">
-          <UserPlus className="h-4 w-4" /> Nuovo cliente
+          <UserPlus className="h-4 w-4" /> {t("customers.newCustomer")}
         </button>
         <AiToggleButton onClick={() => setAiOpen(true)} label="AI Insights" />
       </PageHeader>
@@ -143,24 +145,24 @@ export function CustomersPage() {
       />
 
       {showAdd && (
-        <Card title="Aggiungi cliente" headerRight={<button type="button" onClick={() => setShowAdd(false)} className="text-rw-muted hover:text-rw-ink"><X className="h-5 w-5" /></button>}>
+        <Card title={t("customers.addTitle")} headerRight={<button type="button" onClick={() => setShowAdd(false)} className="text-rw-muted hover:text-rw-ink"><X className="h-5 w-5" /></button>}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <input placeholder="Nome completo" className={inputCls} value={newName} onChange={(e) => setNewName(e.target.value)} />
-            <input placeholder="Email" className={inputCls} value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
-            <input placeholder="Telefono" className={inputCls} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+            <input placeholder={t("staff.fullName")} className={inputCls} value={newName} onChange={(e) => setNewName(e.target.value)} />
+            <input placeholder={t("ui.email")} className={inputCls} value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+            <input placeholder={t("customers.phone")} className={inputCls} value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
             <select className={inputCls} value={newType} onChange={(e) => setNewType(e.target.value as CustomerType)}>
-              <option value="new">Nuovo</option>
+              <option value="new">{t("customers.type.new")}</option>
               <option value="walk-in">Walk-in</option>
               <option value="habitue">Habitué</option>
               <option value="vip">VIP</option>
             </select>
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <input placeholder="Allergie (separate da virgola)" className={inputCls} value={newAllergies} onChange={(e) => setNewAllergies(e.target.value)} />
-            <input placeholder="Preferenze (separate da virgola)" className={inputCls} value={newPreferences} onChange={(e) => setNewPreferences(e.target.value)} />
+            <input placeholder={t("customers.allergiesPlaceholder")} className={inputCls} value={newAllergies} onChange={(e) => setNewAllergies(e.target.value)} />
+            <input placeholder={t("customers.preferencesPlaceholder")} className={inputCls} value={newPreferences} onChange={(e) => setNewPreferences(e.target.value)} />
           </div>
           <button type="button" className="mt-3 inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white" onClick={handleAddCustomer}>
-            <Plus className="h-4 w-4" /> Salva
+            <Plus className="h-4 w-4" /> {t("ui.save")}
           </button>
         </Card>
       )}
@@ -168,41 +170,41 @@ export function CustomersPage() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca cliente…" className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2.5 pl-10 pr-4 text-sm text-rw-ink placeholder:text-rw-muted" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("customers.searchPlaceholder")} className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2.5 pl-10 pr-4 text-sm text-rw-ink placeholder:text-rw-muted" />
         </div>
         <div className="flex gap-1 rounded-xl border border-rw-line bg-rw-surfaceAlt p-1">
-          {(["all", "vip", "habitue", "walk-in", "new"] as const).map((t) => (
-            <button key={t} type="button" onClick={() => setTypeFilter(t)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${typeFilter === t ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-soft"}`}>
-              {t === "all" ? "Tutti" : typeConfig[t].label}
+          {(["all", "vip", "habitue", "walk-in", "new"] as const).map((typ) => (
+            <button key={typ} type="button" onClick={() => setTypeFilter(typ)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${typeFilter === typ ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-soft"}`}>
+              {typ === "all" ? t("customers.filterAll") : typeConfig[typ].label}
             </button>
           ))}
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card title="Clienti totali"><p className="font-display text-3xl font-semibold text-rw-ink">{customers.length}</p></Card>
+        <Card title={t("customers.totalCustomers")}><p className="font-display text-3xl font-semibold text-rw-ink">{customers.length}</p></Card>
         <Card title="VIP"><p className="font-display text-3xl font-semibold text-rw-accent">{customers.filter((c) => c.type === "vip").length}</p></Card>
-        <Card title="Spesa media"><p className="font-display text-3xl font-semibold text-emerald-400">{euro(avgSpend)}</p></Card>
-        <Card title="Nuovi (mese)"><p className="font-display text-3xl font-semibold text-blue-400">{customers.filter((c) => c.type === "new").length}</p></Card>
+        <Card title={t("customers.avgSpend")}><p className="font-display text-3xl font-semibold text-emerald-400">{euro(avgSpend)}</p></Card>
+        <Card title={t("customers.newThisMonth")}><p className="font-display text-3xl font-semibold text-blue-400">{customers.filter((c) => c.type === "new").length}</p></Card>
       </div>
 
       <DataTable
         columns={[
-          { key: "name", header: "Nome", render: (r) => (
+          { key: "name", header: t("staff.fullName"), render: (r) => (
             <button type="button" onClick={() => setSelected(r)} className="font-semibold text-rw-ink hover:text-rw-accent">{r.name}</button>
           )},
-          { key: "type", header: "Tipo", render: (r) => { const cfg = typeConfig[r.type]; return <Chip label={cfg.label} tone={cfg.tone} />; }},
-          { key: "visits", header: "Visite" },
-          { key: "totalSpent", header: "Spesa totale", render: (r) => <span className="font-semibold text-emerald-400">{euro(r.totalSpent)}</span> },
-          { key: "lastVisit", header: "Ultima visita" },
-          { key: "allergies", header: "Allergie", render: (r) => {
+          { key: "type", header: t("customers.type"), render: (r) => { const cfg = typeConfig[r.type]; return <Chip label={cfg.label} tone={cfg.tone} />; }},
+          { key: "visits", header: t("customers.visits") },
+          { key: "totalSpent", header: t("customers.totalSpent"), render: (r) => <span className="font-semibold text-emerald-400">{euro(r.totalSpent)}</span> },
+          { key: "lastVisit", header: t("customers.lastVisit") },
+          { key: "allergies", header: t("customers.allergies"), render: (r) => {
             const list = parseList(r.allergies);
             return list.length > 0 ? (
               <span className="inline-flex items-center gap-1 text-amber-400"><AlertCircle className="h-3.5 w-3.5" />{list.join(", ")}</span>
             ) : <span className="text-rw-muted">—</span>;
           }},
           { key: "actions", header: "", render: (r) => (
-            <button type="button" onClick={() => handleDelete(r.id)} className="rounded-lg p-1.5 text-rw-muted hover:bg-red-500/10 hover:text-red-400" title="Elimina">
+            <button type="button" onClick={() => handleDelete(r.id)} className="rounded-lg p-1.5 text-rw-muted hover:bg-red-500/10 hover:text-red-400" title={t("ui.delete")}>
               <Trash2 className="h-4 w-4" />
             </button>
           )},
@@ -229,33 +231,33 @@ export function CustomersPage() {
             <div className="space-y-4 px-6 py-5">
               <div className="grid grid-cols-3 gap-3">
                 <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
-                  <p className="text-xs text-rw-muted">Visite</p>
+                  <p className="text-xs text-rw-muted">{t("customers.visits")}</p>
                   <p className="font-display text-2xl font-semibold text-rw-ink">{selected.visits}</p>
                 </div>
                 <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
-                  <p className="text-xs text-rw-muted">Spesa totale</p>
+                  <p className="text-xs text-rw-muted">{t("customers.totalSpent")}</p>
                   <p className="font-display text-2xl font-semibold text-emerald-400">{euro(selected.totalSpent)}</p>
                 </div>
                 <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
-                  <p className="text-xs text-rw-muted">Media visita</p>
+                  <p className="text-xs text-rw-muted">{t("customers.avgVisit")}</p>
                   <p className="font-display text-2xl font-semibold text-rw-accent">{euro(selected.avgSpend)}</p>
                 </div>
               </div>
               {parseList(selected.allergies).length > 0 && (
                 <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
-                  <p className="flex items-center gap-2 text-sm font-semibold text-amber-400"><AlertCircle className="h-4 w-4" /> Allergie</p>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-amber-400"><AlertCircle className="h-4 w-4" /> {t("customers.allergies")}</p>
                   <p className="mt-1 text-sm text-rw-soft">{parseList(selected.allergies).join(", ")}</p>
                 </div>
               )}
               {parseList(selected.preferences).length > 0 && (
                 <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-                  <p className="flex items-center gap-2 text-sm font-semibold text-rw-ink"><Heart className="h-4 w-4 text-rw-accent" /> Preferenze</p>
+                  <p className="flex items-center gap-2 text-sm font-semibold text-rw-ink"><Heart className="h-4 w-4 text-rw-accent" /> {t("customers.preferences")}</p>
                   <ul className="mt-1 space-y-1">{parseList(selected.preferences).map((p) => <li key={p} className="text-sm text-rw-soft">• {p}</li>)}</ul>
                 </div>
               )}
               {selected.notes && (
                 <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-                  <p className="text-sm font-semibold text-rw-ink">Note</p>
+                  <p className="text-sm font-semibold text-rw-ink">{t("ui.notes")}</p>
                   <p className="mt-1 text-sm text-rw-soft">{selected.notes}</p>
                 </div>
               )}

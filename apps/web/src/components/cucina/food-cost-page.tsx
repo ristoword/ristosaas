@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { kitchenApi, type FoodCostResult, type Recipe } from "@/lib/api-client";
+import { useI18n } from "@/core/i18n/provider";
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
@@ -23,6 +24,7 @@ const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50";
 
 export function FoodCostPage() {
+  const { t } = useI18n();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [foodCost, setFoodCost] = useState<FoodCostResult | null>(null);
@@ -40,7 +42,7 @@ export function FoodCostPage() {
       }
       setError(null);
     } catch (err) {
-      setError((err as Error).message ?? "Errore caricamento ricette");
+      setError((err as Error).message ?? t("cucina.recipe.error_load"));
     } finally {
       setLoadingList(false);
     }
@@ -63,7 +65,7 @@ export function FoodCostPage() {
         if (!cancelled) setFoodCost(result);
       })
       .catch((err) => {
-        if (!cancelled) setError((err as Error).message ?? "Errore food cost");
+        if (!cancelled) setError((err as Error).message ?? t("cucina.foodcost.error"));
       })
       .finally(() => {
         if (!cancelled) setLoadingDetail(false);
@@ -92,7 +94,7 @@ export function FoodCostPage() {
     <div className="space-y-6">
       <PageHeader
         title="Food Cost"
-        subtitle="Calcolo costo porzione e margine per ricetta (dati DB reali)"
+        subtitle={t("cucina.foodcost.subtitle")}
       />
 
       {error && (
@@ -103,7 +105,7 @@ export function FoodCostPage() {
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-[260px]">
-          <label className={labelCls}>Ricetta</label>
+          <label className={labelCls}>{t("cucina.recipe.label")}</label>
           <div className="relative">
             <select
               className={cn(inputCls, "appearance-none pr-9")}
@@ -111,7 +113,7 @@ export function FoodCostPage() {
               onChange={(e) => setSelectedId(e.target.value)}
               disabled={loadingList || recipes.length === 0}
             >
-              {recipes.length === 0 && <option value="">Nessuna ricetta disponibile</option>}
+              {recipes.length === 0 && <option value="">{t("cucina.recipe.no_recipes")}</option>}
               {recipes.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
@@ -128,23 +130,23 @@ export function FoodCostPage() {
           disabled={loadingList}
         >
           {loadingList ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          {loadingList ? "Carico..." : "Ricarica ricette"}
+          {loadingList ? t("cucina.foodcost.loading_btn") : t("cucina.foodcost.reload")}
         </button>
       </div>
 
       <div className="flex flex-wrap gap-3">
         <Chip
-          label="Ricetta"
+          label={t("cucina.recipe.label")}
           value={selectedRecipe?.name ?? "—"}
           tone="accent"
         />
         <Chip
-          label="Ingredienti"
+          label={t("cucina.recipe.ingredients")}
           value={selectedRecipe?.ingredients.length ?? 0}
           tone="default"
         />
         <Chip
-          label="FC%"
+          label={t("cucina.recipe.fc_pct")}
           value={loadingDetail ? "…" : `${fcPct.toFixed(1)}%`}
           tone={fcHealthy ? "success" : "danger"}
         />
@@ -152,23 +154,23 @@ export function FoodCostPage() {
 
       <Card
         title={selectedRecipe?.name ?? "Food cost"}
-        description="Scheda food cost calcolata dal backend su dati persistenti"
+        description={t("cucina.foodcost.card_desc")}
       >
         {!selectedRecipe ? (
           <p className="py-8 text-center text-sm text-rw-muted">
             {loadingList
-              ? "Caricamento ricette dal database..."
-              : "Nessuna ricetta trovata. Crea una nuova ricetta dall'area Cucina."}
+              ? t("cucina.foodcost.loading")
+              : t("cucina.foodcost.empty")}
           </p>
         ) : (
           <>
             <div className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
               {[
-                { label: "Porzioni", value: selectedRecipe.portions, suffix: "" },
-                { label: "Prezzo vendita", value: sellingPrice.toFixed(2), prefix: "€" },
-                { label: "Target FC%", value: targetFc, suffix: "%" },
-                { label: "IVA %", value: selectedRecipe.ivaPct, suffix: "%" },
-                { label: "Overhead %", value: selectedRecipe.overheadPct, suffix: "%" },
+                { label: t("cucina.recipe.portions"), value: selectedRecipe.portions, suffix: "" },
+                { label: t("cucina.recipe.fc_selling_price"), value: sellingPrice.toFixed(2), prefix: "€" },
+                { label: t("cucina.recipe.target_fc"), value: targetFc, suffix: "%" },
+                { label: t("cucina.recipe.iva"), value: selectedRecipe.ivaPct, suffix: "%" },
+                { label: t("cucina.recipe.overhead"), value: selectedRecipe.overheadPct, suffix: "%" },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -188,9 +190,9 @@ export function FoodCostPage() {
 
             <div className="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { label: "Packaging", value: `€${selectedRecipe.packagingCost.toFixed(2)}` },
-                { label: "Manodopera", value: `€${selectedRecipe.laborCost.toFixed(2)}` },
-                { label: "Energia", value: `€${selectedRecipe.energyCost.toFixed(2)}` },
+                { label: t("cucina.foodcost.packaging"), value: `€${selectedRecipe.packagingCost.toFixed(2)}` },
+                { label: t("cucina.foodcost.labor"), value: `€${selectedRecipe.laborCost.toFixed(2)}` },
+                { label: t("cucina.foodcost.energy"), value: `€${selectedRecipe.energyCost.toFixed(2)}` },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -205,10 +207,10 @@ export function FoodCostPage() {
             <div className="mb-5">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs font-bold uppercase tracking-wide text-rw-muted">
-                  Ingredienti ({selectedRecipe.ingredients.length})
+                  {t("cucina.recipe.ingredients")} ({selectedRecipe.ingredients.length})
                 </p>
                 <span className="text-xs text-rw-muted">
-                  Costi aggiornati da magazzino quando collegato
+                  {t("cucina.foodcost.costs_note")}
                 </span>
               </div>
 
@@ -217,22 +219,22 @@ export function FoodCostPage() {
                   <thead>
                     <tr className="border-b border-rw-line bg-rw-surfaceAlt">
                       <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                        Ingrediente
+                        {t("cucina.recipe.ingredient")}
                       </th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                        Qtà
+                        {t("cucina.recipe.qty")}
                       </th>
                       <th className="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                        Unità
+                        {t("cucina.recipe.unit")}
                       </th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                        €/unità
+                        {t("cucina.recipe.unit_cost")}
                       </th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                        Totale
+                        {t("ui.total")}
                       </th>
                       <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                        Scarto%
+                        {t("cucina.recipe.waste_pct")}
                       </th>
                     </tr>
                   </thead>
@@ -267,7 +269,7 @@ export function FoodCostPage() {
                         colSpan={4}
                         className="px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide text-rw-muted"
                       >
-                        Totale ingredienti
+                        {t("cucina.recipe.fc_ingredient_total")}
                       </td>
                       <td className="px-3 py-2.5 text-right font-bold tabular-nums text-rw-accent">
                         €{ingredientCost.toFixed(3)}
@@ -282,22 +284,22 @@ export function FoodCostPage() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <SummaryCard
                 icon={<DollarSign className="h-5 w-5" />}
-                label="Costo ingredienti"
+                label={t("cucina.recipe.fc_ingredient_cost")}
                 value={`€${ingredientCost.toFixed(2)}`}
               />
               <SummaryCard
                 icon={<Calculator className="h-5 w-5" />}
-                label="Costo produzione"
+                label={t("cucina.recipe.fc_production_cost")}
                 value={`€${productionCost.toFixed(2)}`}
               />
               <SummaryCard
                 icon={<Calculator className="h-5 w-5" />}
-                label="Costo porzione"
+                label={t("cucina.recipe.fc_portion_cost")}
                 value={`€${portionCost.toFixed(2)}`}
               />
               <SummaryCard
                 icon={<DollarSign className="h-5 w-5" />}
-                label="Prezzo vendita"
+                label={t("cucina.recipe.fc_selling_price")}
                 value={`€${sellingPrice.toFixed(2)}`}
                 accent
               />
@@ -319,7 +321,7 @@ export function FoodCostPage() {
                   )}
                 />
                 <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                  Food Cost %
+                  {t("cucina.recipe.fc_pct_label")}
                 </p>
                 <p
                   className={cn(
@@ -329,27 +331,27 @@ export function FoodCostPage() {
                 >
                   {fcPct.toFixed(1)}%
                 </p>
-                <p className="mt-0.5 text-xs text-rw-muted">Target: {targetFc}%</p>
+                <p className="mt-0.5 text-xs text-rw-muted">{t("cucina.foodcost.target").replace("{n}", String(targetFc))}</p>
               </div>
 
               <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4 text-center">
                 <TrendingUp className="mx-auto h-6 w-6 text-rw-accent" />
                 <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                  Margine
+                  {t("cucina.recipe.fc_margin")}
                 </p>
                 <p className="mt-1 text-2xl font-bold text-rw-ink">€{margin.toFixed(2)}</p>
-                <p className="mt-0.5 text-xs text-rw-muted">Per porzione</p>
+                <p className="mt-0.5 text-xs text-rw-muted">{t("cucina.foodcost.per_portion")}</p>
               </div>
 
               <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-center">
                 <DollarSign className="mx-auto h-6 w-6 text-blue-400" />
                 <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                  Prezzo suggerito
+                  {t("cucina.recipe.fc_suggested_price")}
                 </p>
                 <p className="mt-1 text-2xl font-bold text-blue-400">
                   €{suggestedPrice.toFixed(2)}
                 </p>
-                <p className="mt-0.5 text-xs text-rw-muted">Per raggiungere il target</p>
+                <p className="mt-0.5 text-xs text-rw-muted">{t("cucina.foodcost.reach_target")}</p>
               </div>
             </div>
           </>

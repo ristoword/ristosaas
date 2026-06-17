@@ -136,20 +136,27 @@ export async function POST(req: NextRequest) {
     "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status" | "onlinePaymentStatus" | "stripeCheckoutSessionId"
   >;
   if (!data.items?.length) return err("items are required");
+  if (!data.area || !data.waiter) return err("area and waiter are required");
 
-  const courseStates = buildCourseStates(data.items);
-  const nums = [...new Set(data.items.map((i: OrderItem) => i.course))].sort((a, b) => a - b);
+  try {
+    const courseStates = buildCourseStates(data.items);
+    const nums = [...new Set(data.items.map((i: OrderItem) => i.course))].sort((a, b) => a - b);
 
-  const orderPayload: Omit<Order, "id" | "createdAt" | "updatedAt"> = {
-    ...data,
-    activeCourse: nums[0] ?? 1,
-    courseStates,
-    status: "in_attesa",
-    onlinePaymentStatus: "unpaid",
-    stripeCheckoutSessionId: null,
-  };
-  const order = await ordersRepository.create(getTenantId(), orderPayload);
-  return ok(order, 201);
+    const orderPayload: Omit<Order, "id" | "createdAt" | "updatedAt"> = {
+      ...data,
+      notes: data.notes || "",
+      activeCourse: nums[0] ?? 1,
+      courseStates,
+      status: "in_attesa",
+      onlinePaymentStatus: "unpaid",
+      stripeCheckoutSessionId: null,
+    };
+    const order = await ordersRepository.create(getTenantId(), orderPayload);
+    return ok(order, 201);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Impossibile creare l'ordine.";
+    return err(message, 400);
+  }
 }
 
 function buildCourseStates(items: OrderItem[]): Record<string, "queued" | "in_attesa" | "in_preparazione" | "pronto" | "servito"> {

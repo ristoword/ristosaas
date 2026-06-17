@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api-client";
+import { useI18n } from "@/core/i18n/provider";
 
 const inputCls = "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
 
 export function ChangePasswordPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [current, setCurrent] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -18,17 +20,17 @@ export function ChangePasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!current) { setFlash({ type: "error", msg: "Inserisci la password attuale." }); return; }
-    if (newPw.length < 6) { setFlash({ type: "error", msg: "La nuova password deve avere almeno 6 caratteri." }); return; }
-    if (newPw !== confirm) { setFlash({ type: "error", msg: "Le password non coincidono." }); return; }
+    if (!current) { setFlash({ type: "error", msg: t("auth.changePw.missingCurrent") }); return; }
+    if (newPw.length < 6) { setFlash({ type: "error", msg: t("auth.changePw.tooShort") }); return; }
+    if (newPw !== confirm) { setFlash({ type: "error", msg: t("auth.changePw.mismatch") }); return; }
     setLoading(true);
     try {
       await api.auth.changePassword(current, newPw);
-      setFlash({ type: "success", msg: "Password cambiata con successo." });
+      setFlash({ type: "success", msg: t("auth.changePw.success") });
       setCurrent(""); setNewPw(""); setConfirm("");
       setTimeout(() => router.push("/dashboard"), 500);
     } catch (error) {
-      setFlash({ type: "error", msg: error instanceof Error ? error.message : "Errore di rete." });
+      setFlash({ type: "error", msg: error instanceof Error ? error.message : t("auth.networkError") });
     } finally {
       setLoading(false);
     }
@@ -41,22 +43,22 @@ export function ChangePasswordPage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-rw-accent/15 ring-1 ring-rw-accent/30">
             <Shield className="h-7 w-7 text-rw-accent" />
           </div>
-          <h1 className="font-display text-2xl font-bold text-rw-ink">Cambia Password</h1>
-          <p className="mt-1 text-sm text-rw-muted">Aggiorna le credenziali di accesso</p>
+          <h1 className="font-display text-2xl font-bold text-rw-ink">{t("auth.changePw.title")}</h1>
+          <p className="mt-1 text-sm text-rw-muted">{t("auth.changePw.subtitle")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="rounded-2xl border border-rw-line bg-rw-surface p-6 space-y-4 shadow-xl">
           {flash && (
             <div className={cn("rounded-lg border px-3 py-2 text-xs font-semibold", flash.type === "success" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-400")}>{flash.msg}</div>
           )}
-          <div><label className="block text-xs font-semibold text-rw-muted mb-1">Password attuale</label><input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder="Password attuale" className={inputCls} /></div>
-          <div><label className="block text-xs font-semibold text-rw-muted mb-1">Nuova password</label><input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Minimo 6 caratteri" className={inputCls} /></div>
-          <div><label className="block text-xs font-semibold text-rw-muted mb-1">Conferma</label><input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Ripeti password" className={inputCls} /></div>
-          <button type="submit" disabled={loading} className="w-full rounded-xl bg-rw-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">{loading ? "Salvataggio…" : "Cambia password"}</button>
+          <div><label className="block text-xs font-semibold text-rw-muted mb-1">{t("auth.changePw.currentPw")}</label><input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} placeholder={t("auth.changePw.currentPw")} className={inputCls} /></div>
+          <div><label className="block text-xs font-semibold text-rw-muted mb-1">{t("auth.changePw.newPw")}</label><input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder={t("auth.changePw.minChars")} className={inputCls} /></div>
+          <div><label className="block text-xs font-semibold text-rw-muted mb-1">{t("auth.changePw.confirm")}</label><input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={t("auth.changePw.repeatPw")} className={inputCls} /></div>
+          <button type="submit" disabled={loading} className="w-full rounded-xl bg-rw-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">{loading ? t("auth.changePw.saving") : t("auth.changePw.submit")}</button>
         </form>
 
         <p className="text-center text-xs text-rw-muted">
-          <button type="button" onClick={() => router.push("/login")} className="inline-flex items-center gap-1 text-rw-accent hover:underline"><ArrowLeft className="h-3 w-3" /> Torna al login</button>
+          <button type="button" onClick={() => router.push("/login")} className="inline-flex items-center gap-1 text-rw-accent hover:underline"><ArrowLeft className="h-3 w-3" /> {t("auth.backToLogin")}</button>
         </p>
       </div>
     </div>

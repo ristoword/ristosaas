@@ -2,7 +2,7 @@ import type { Locale } from "@/core/i18n/types";
 
 /**
  * Contenuti SEO centralizzati per tutte le pagine pubbliche.
- * 3 lingue supportate: it (default), en, nl.
+ * 4 lingue supportate: it (default), en, nl, pt.
  *
  * Regola di routing:
  *   /            -> IT homepage
@@ -176,6 +176,7 @@ export const LOCALE_META: Record<Locale, LocaleLabel> = {
   it: { localeCode: "it_IT", htmlLang: "it-IT", nativeName: "Italiano", shortName: "IT" },
   en: { localeCode: "en_US", htmlLang: "en-US", nativeName: "English", shortName: "EN" },
   nl: { localeCode: "nl_NL", htmlLang: "nl-NL", nativeName: "Nederlands", shortName: "NL" },
+  pt: { localeCode: "pt_BR", htmlLang: "pt-BR", nativeName: "Português", shortName: "PT" },
 };
 
 /* ─── HOMEPAGE ──────────────────────────────────── */
@@ -558,6 +559,132 @@ export const HOMEPAGE_COPY: Record<Locale, HomepageCopy> = {
     footerDemo: "Demo",
     footerRights: "Alle rechten voorbehouden.",
   },
+
+  pt: {
+    title: "Software de Gestão para Restaurante e Hotel Integrado | Pedidos, Cozinha, Estoque, Quartos",
+    description:
+      "Software completo para restaurante e hotel: gerencie mesas, cozinha (KDS), estoque, fornecedores e quartos em um único sistema na nuvem.",
+    keywords: [
+      "software gestão restaurante",
+      "software gestão hotel",
+      "software restaurante hotel integrado",
+      "KDS cozinha",
+      "gestão estoque restaurante",
+      "software horeca",
+      "débito quarto hotel restaurante",
+      "reservas hotel",
+    ],
+    heroBadge: "Uma solução desenvolvida por gestionesemplificata.com",
+    heroH1Part1: "Gestão de restaurante e hotel",
+    heroH1Part2: "em um único sistema",
+    heroSub:
+      "Gerencie restaurante, hotel e estoque sem alternar entre softwares diferentes. Pedidos, cozinha, quartos e fornecedores conectados em tempo real.",
+    ctaDemo: "Solicite uma demo",
+    ctaAccess: "Teste o acesso",
+    demoMailSubject: "RistoSimply – Solicitação de demo",
+    demoMailBody: "Gostaria de uma demonstração do RistoSimply para o meu estabelecimento.",
+
+    integrationEyebrow: "Como funciona",
+    integrationH2: "Tudo conectado, sem etapas manuais",
+    integrationLead:
+      "Cada ação no salão, cozinha, estoque ou recepção atualiza todo o restante em tempo real. Sem registro duplo, sem papel, sem erros de transcrição.",
+    integrationFlows: [
+      { from: "Pedidos da mesa", arrow: "chegam na cozinha" },
+      { from: "Pratos servidos", arrow: "atualizam o status do pedido" },
+      { from: "Pedido fechado", arrow: "dá baixa no estoque" },
+      { from: "Hóspede do hotel", arrow: "debita na conta do quarto" },
+    ],
+
+    featuresEyebrow: "Funcionalidades",
+    featuresH2: "O que o RistoSimply faz",
+    featuresLead: "Quatro módulos projetados para trabalhar juntos, não para serem comprados separadamente.",
+    features: [
+      {
+        title: "Restaurante",
+        subtitle: "Salão, pedidos, caixa",
+        body: "Mesas e planta do salão em tempo real, pedidos rápidos conectados à cozinha, status dos pratos (em preparo, pronto, servido), fechamento de conta.",
+      },
+      {
+        title: "Cozinha (KDS)",
+        subtitle: "Tela da cozinha",
+        body: "Comandas ordenadas por prioridade, atualização ao vivo, redução de erros entre salão e cozinha. Status dos cursos: em preparo, pronto, servido.",
+      },
+      {
+        title: "Estoque",
+        subtitle: "Estoque e fornecedores",
+        body: "Baixa automática de ingredientes ao fechar pedido, alerta de estoque baixo, sugestão de pedidos a fornecedores, PDF e e-mail do pedido ao fornecedor.",
+      },
+      {
+        title: "Hotel",
+        subtitle: "Quartos e hóspedes",
+        body: "Reservas, check-in e check-out, débito do restaurante no quarto com fólio unificado para o hóspede.",
+      },
+    ],
+
+    differenceEyebrow: "O diferencial",
+    differenceH2: "Por que é diferente dos outros softwares",
+    differenceLead:
+      "A maioria dos estabelecimentos de hospitalidade hoje usa três ou quatro sistemas separados que não se comunicam entre si. Aqui tudo está no mesmo sistema.",
+    legacy: [
+      "um sistema para o restaurante",
+      "um para o hotel",
+      "um para o estoque",
+      "planilhas para conectar tudo",
+    ],
+    ours: [
+      "Um único sistema integrado para restaurante, cozinha, estoque e hotel.",
+      "Fluxos automáticos entre salão, cozinha, estoque e quartos.",
+      "Zero registros duplos, zero integrações para manter.",
+      "Um único painel com dados em tempo real.",
+    ],
+
+    benefitsGrid: [
+      { title: "Menos erros operacionais", body: "Sem transcrições manuais entre sistemas. Salão, cozinha, estoque e recepção usam a mesma fonte de dados." },
+      { title: "Menos softwares para gerenciar", body: "Um único acesso, uma única licença, um único fornecedor. Zero integrações para manter." },
+      { title: "Maior controle", body: "Status de pedidos, estoque, reservas e faturamento visíveis em tempo real no mesmo painel." },
+      { title: "Dados centralizados", body: "Multi-tenant seguro com RBAC, backup automático, trilha de auditoria em ações sensíveis." },
+    ],
+
+    brandEyebrow: "Confiança",
+    brandH2Part1: "Uma solução desenvolvida por",
+    brandH2Part2: "gestionesemplificata.com",
+    brandBody:
+      "Por trás do RistoSimply existe uma equipe que projeta software de gestão há anos. Mesma filosofia, mesmo cuidado — aplicados ao mundo da hospitalidade.",
+
+    contactEyebrow: "Contato",
+    contactH2: "Nós respondemos você.",
+    contactBody: "Demo, integrações, onboarding em um novo estabelecimento: escreva para nós, nós te guiamos.",
+    contactEmailLabel: "E-mail",
+    contactSiteLabel: "Site principal",
+
+    finalEyebrow: "Comece agora",
+    finalH2: "Reduza erros, tempo e custos operacionais.",
+    finalBody:
+      "Veja como funciona ao vivo no seu estabelecimento. Mostramos o fluxo pedido → cozinha → estoque → quarto em 20 minutos.",
+    finalListHeader: "O que você obtém",
+    finalList: [
+      "Painel operacional pronto para uso",
+      "Restaurante, cozinha, estoque e hotel sincronizados",
+      "Débito do restaurante no quarto (fólio único)",
+      "Sugestões automáticas de pedidos a fornecedores",
+      "Onboarding guiado + suporte direto",
+    ],
+    finalCtaPrimary: "Solicite uma demo",
+    finalCtaSecondary: "Acessar",
+    finalNote: "RistoSimply faz parte do ecossistema gestionesemplificata.com.",
+
+    navComeFunziona: "Como funciona",
+    navFunzioni: "Funcionalidades",
+    navIntegrato: "Integrado",
+    navDemo: "Demo",
+    navLogin: "Login",
+    footerFunctions: "Funcionalidades",
+    footerIntegrated: "Sistema integrado",
+    footerRestaurant: "Software para restaurante",
+    footerBlog: "Blog",
+    footerDemo: "Demo",
+    footerRights: "Todos os direitos reservados.",
+  },
 };
 
 /* ─── PILLAR PAGE ──────────────────────────────── */
@@ -803,6 +930,87 @@ export const PILLAR_COPY: Record<Locale, PillarCopy> = {
     finalDemoCta: "Vraag een demo aan",
     finalAccessCta: "Probeer toegang",
   },
+
+  pt: {
+    slug: "software-gestao-restaurante-hotel-integrado",
+    title: "Software de Gestão Integrado para Restaurante e Hotel | Solução Completa Horeca",
+    description:
+      "Software de gestão para restaurante e hotel: pedidos, cozinha, quartos e estoque em um único sistema integrado.",
+    keywords: [
+      "software gestão restaurante hotel integrado",
+      "solução completa horeca",
+      "gestão restaurante hotel",
+      "débito restaurante quarto",
+      "fólio único hóspede",
+      "estoque restaurante automático",
+    ],
+    eyebrow: "Pillar · Sistema integrado",
+    h1: "Software de gestão integrado para restaurante e hotel",
+    lead:
+      "Um único sistema para gerenciar restaurante e hotel elimina erros, registros duplos e perda de tempo. Tudo conectado: do salão à cozinha, até os quartos.",
+    ctaDemo: "Solicite uma demo",
+    ctaAccess: "Teste o acesso",
+    demoMailSubject: "RistoSimply – Solicitação de demo",
+    demoMailBody: "Gostaria de uma demonstração do sistema integrado RistoSimply.",
+
+    howItWorksH2: "Como funciona a integração",
+    howItWorksLead:
+      "Cada ação em um módulo atualiza automaticamente os outros. Nenhuma etapa manual.",
+    flows: [
+      {
+        h3Start: "Restaurante",
+        h3End: "Hotel",
+        body: "O cliente come no restaurante e a conta é debitada diretamente no quarto. Um único fólio no check-out, com itens de hotel e restaurante unificados.",
+      },
+      {
+        h3Start: "Cozinha",
+        h3End: "Estoque",
+        body: "Cada prato preparado atualiza automaticamente o estoque. Sem contagens manuais, sem inventários congelados na segunda de manhã.",
+      },
+      {
+        h3Start: "Estoque",
+        h3End: "Fornecedores",
+        body: "Quando o estoque cai abaixo do limite, o sistema sugere um pedido ao fornecedor com quantidades recomendadas e envia PDF por e-mail.",
+      },
+    ],
+
+    featuresH2: "Funcionalidades principais",
+    featureBlocks: [
+      {
+        title: "Gestão do restaurante",
+        items: ["Mesas e planta do salão", "Pedidos conectados à cozinha", "Cozinha (KDS) com status dos cursos", "Caixa e fechamento de conta"],
+      },
+      {
+        title: "Gestão do hotel",
+        items: ["Reservas", "Quartos e disponibilidade", "Fólio unificado do hóspede", "Check-in / check-out"],
+      },
+      {
+        title: "Estoque",
+        items: ["Estoque e alertas de nível baixo", "Pedidos a fornecedores", "Recebimento de mercadoria com entrada automática", "Relatórios de compras"],
+      },
+    ],
+
+    forWhoH2: "Para quem é",
+    forWhoItems: [
+      { title: "Restaurantes com hospedagem", body: "Restaurantes que também oferecem hospedagem e precisam de fólio único e débito no quarto." },
+      { title: "Hotéis com restaurante interno", body: "Hotéis com salão de restaurante, café da manhã, meia pensão ou pensão completa." },
+      { title: "Estabelecimentos horeca completos", body: "Pousadas, resorts, casas de campo com vários pontos de venda internos." },
+    ],
+
+    benefitsH2: "Benefícios concretos",
+    benefits: [
+      { title: "Menos erros operacionais", body: "Zero transcrições manuais entre módulos." },
+      { title: "Menos softwares para gerenciar", body: "Um único sistema, uma única licença." },
+      { title: "Maior controle", body: "Dados em tempo real, acessíveis de qualquer lugar." },
+      { title: "Dados centralizados", body: "Multi-tenant, backup, trilha de auditoria." },
+    ],
+
+    finalH2: "Solicite uma demo e veja como funciona ao vivo",
+    finalBody:
+      "Mostramos o fluxo completo em 20 minutos: pedido no salão, KDS na cozinha, baixa no estoque, débito no quarto, check-out com fólio único.",
+    finalDemoCta: "Solicite uma demo",
+    finalAccessCta: "Teste o acesso",
+  },
 };
 
 /* ─── RESTAURANT PAGE ─────────────────────────── */
@@ -960,6 +1168,57 @@ export const RESTAURANT_COPY: Record<Locale, RestaurantCopy> = {
       "Ontdek het geïntegreerde systeem met restaurant-op-kamer facturering en één gastfolio, ontworpen voor volledige hospitality-locaties.",
     crossLinkCta: "Ontdek het geïntegreerde systeem",
   },
+
+  pt: {
+    slug: "software-gestao-restaurante",
+    title: "Software de Gestão para Restaurante na Nuvem | Pedidos, Cozinha, Estoque",
+    description:
+      "Software de gestão para restaurante: mesas, pedidos conectados à cozinha, status dos pratos e integração com estoque. Na nuvem, multi-dispositivo, em um único sistema.",
+    keywords: [
+      "software gestão restaurante",
+      "software restaurante nuvem",
+      "software cozinha KDS",
+      "gestão mesas restaurante",
+      "pedidos salão cozinha",
+    ],
+    eyebrow: "Restaurante",
+    h1: "Software de gestão para restaurante",
+    lead:
+      "Da tomada do pedido ao fechamento da conta: tudo conectado, tudo rastreado. Salão, cozinha e estoque falam a mesma língua em tempo real.",
+    ctaDemo: "Solicite uma demo",
+    ctaAccess: "Teste o acesso",
+    demoMailSubject: "RistoSimply – Demo restaurante",
+    demoMailBody: "Gostaria de uma demonstração do software de gestão para restaurante.",
+
+    whatIncludesH2: "O que o sistema de restaurante inclui",
+    features: [
+      {
+        title: "Gestão de mesas",
+        body: "Planta do salão touch com drag & drop, status coloridos (livre, aberto, conta, limpeza), talheres e pedido atual visíveis de relance.",
+        iconKey: "tables",
+      },
+      {
+        title: "Pedidos → cozinha",
+        body: "O pedido feito na mesa chega diretamente ao KDS da cozinha, dividido por curso e destino (cozinha, pizzaria, bar). Sem papel, sem fax.",
+        iconKey: "orders",
+      },
+      {
+        title: "Status dos pratos",
+        body: "Em preparo, pronto, servido. Cada transição é rastreada e visível tanto na cozinha quanto no salão, com tempo de espera por curso.",
+        iconKey: "status",
+      },
+      {
+        title: "Integração com estoque",
+        body: "Cada prato servido dá baixa automática nos ingredientes do estoque conforme a receita. Estoque atualizado sem um único clique manual.",
+        iconKey: "warehouse",
+      },
+    ],
+
+    crossLinkH2: "Procura um sistema único para restaurante e hotel?",
+    crossLinkBody:
+      "Conheça o sistema integrado com débito do restaurante no quarto e fólio único do hóspede, projetado para estabelecimentos de hospitalidade completos.",
+    crossLinkCta: "Conheça o sistema integrado",
+  },
 };
 
 /* ─── BLOG INDEX ──────────────────────────────── */
@@ -996,6 +1255,17 @@ export const BLOG_INDEX_COPY: Record<Locale, BlogIndexCopy> = {
     lead:
       "Operationele inzichten over hoe een beheersysteem kiezen, voorraad geïntegreerd runnen, restaurant en hotel verbinden zonder dubbele registratie.",
     readLinkLabel: "Lees het artikel",
+    minLabel: "min",
+  },
+  pt: {
+    title: "Blog | Gestão Integrada de Restaurante e Hotel",
+    description:
+      "Guias, aprofundamentos e boas práticas para gerenciar restaurante, cozinha, estoque e hotel com um sistema integrado.",
+    eyebrow: "Blog",
+    h1: "Guias práticos para restaurante e hotel",
+    lead:
+      "Insights operacionais sobre como escolher um sistema de gestão, gerenciar o estoque de forma integrada, conectar restaurante e hotel sem registros duplos.",
+    readLinkLabel: "Leia o artigo",
     minLabel: "min",
   },
 };
@@ -1428,6 +1698,148 @@ export const BLOG_POSTS_COPY: Record<Locale, BlogPostCopy[]> = {
       related: ["restaurantsoftware-met-voorraad", "hoe-kies-je-restaurantbeheersoftware"],
     },
   ],
+
+  pt: [
+    {
+      slug: "como-escolher-software-gestao-restaurante",
+      title: "Como escolher um software de gestão para restaurante em 2026",
+      description:
+        "Erros comuns, importância da integração cozinha-estoque e por que vale a pena escolher um sistema único. Guia prático 2026.",
+      publishedAt: "2026-04-21",
+      readingMinutes: 6,
+      lead: [
+        "Escolher um software de gestão para restaurante em 2026 significa decidir como o seu estabelecimento vai funcionar nos próximos anos. A maioria dos erros que vemos não vem do software escolhido, mas do fato de que os estabelecimentos compram softwares diferentes para restaurante, estoque e hotel, e depois tentam fazê-los se comunicar.",
+        "Neste guia reunimos os erros mais comuns, o que realmente observar ao avaliar um sistema de gestão e por que um sistema único é quase sempre a escolha mais sólida.",
+      ],
+      sections: [
+        {
+          heading: "Erros comuns: softwares separados que não se comunicam",
+          paragraphs: [
+            "O padrão mais frequente nos estabelecimentos que nos procuram é: um sistema para o restaurante, um para o estoque, um para as reservas do hotel e — frequentemente — uma planilha Excel servindo de cola. O resultado é que toda mudança (novo prato, novo fornecedor, novo hóspede) precisa ser registrada três vezes e as inconsistências surgem no momento errado: no fechamento, durante um inventário, diante de um cliente.",
+            "Escolher ferramentas separadas parece mais flexível no início, mas se torna ingerenciável quando os dados crescem. Cada integração a mais é um ponto de ruptura a mais.",
+          ],
+          bullets: [
+            "Registro duplo de itens e receitas",
+            "Inventários inconsistentes entre estoque e pedidos",
+            "Impossibilidade de saber o food cost real em tempo real",
+            "Hóspedes do hotel que consomem no restaurante sem que o quarto saiba",
+          ],
+        },
+        {
+          heading: "A integração com a cozinha é fundamental",
+          paragraphs: [
+            "Um sistema de gestão de restaurante moderno deve conectar salão e cozinha (KDS) sem papel, sem fax, sem reinserção de dados. O pedido feito na mesa deve chegar diretamente ao monitor da brigada, dividido por curso e destino (cozinha, pizzaria, bar), com status (em preparo, pronto, servido) rastreado automaticamente.",
+            "Sem essa integração, o tempo economizado no salão é perdido na cozinha — e vice-versa. O melhor indicador de qualidade de um sistema é a fluidez dessa passagem.",
+          ],
+        },
+        {
+          heading: "O estoque deve ser automático",
+          paragraphs: [
+            "Se para saber o que tem no estoque você precisa abrir outro software, seu sistema de gestão de restaurante não é integrado o suficiente. Cada prato servido deveria dar baixa automática nos ingredientes do estoque conforme a receita, e o food cost deveria se atualizar em tempo real.",
+            "Um bom sistema de gestão de restaurante hoje inclui sugestão automática de pedidos a fornecedores quando o estoque cai abaixo do limite, envio de PDF do pedido por e-mail e recebimento de mercadoria com entrada automática no estoque.",
+          ],
+        },
+        {
+          heading: "Conclusão: sistema único ou sistema integrado",
+          paragraphs: [
+            "Se você gerencia apenas um restaurante sem hospedagem, tem duas opções: um sistema vertical muito especializado ou um sistema mais amplo que inclui também estoque e CRM. Se, por outro lado, gerencia um estabelecimento de hospitalidade completo (restaurante + hotel, restaurante + delivery, pousada, etc.), a escolha é quase obrigatória: um sistema único.",
+            "A diferença está nos detalhes: quanto tempo você precisa para treinar a equipe, quantos cliques separam o pedido do status do estoque, quão realista é o fechamento do dia no final do turno.",
+          ],
+        },
+      ],
+      conclusion:
+        "Quer ver como um sistema único gerencia na prática o fluxo pedido → cozinha → estoque? Solicite uma demo do RistoSimply: mostramos o percurso completo em 20 minutos no seu estabelecimento real.",
+      related: ["software-restaurante-estoque-integrado", "software-hotel-restaurante-vantagens"],
+    },
+    {
+      slug: "software-restaurante-estoque-integrado",
+      title: "Software de restaurante com estoque: por que é fundamental",
+      description:
+        "Desperdícios, erros de inventário e pedidos manuais a fornecedores: por que um estoque integrado no sistema de gestão do restaurante faz diferença na margem.",
+      publishedAt: "2026-04-21",
+      readingMinutes: 5,
+      lead: [
+        "O estoque é o ponto onde os restaurantes perdem mais margem e onde, paradoxalmente, utilizam as ferramentas menos sofisticadas. Frequentemente se trabalha com uma planilha Excel atualizada manualmente, um inventário semanal visual e pedidos a fornecedores enviados quando alguém se lembra.",
+        "Um sistema de gestão de restaurante com estoque integrado muda radicalmente o cenário. Veja onde a diferença aparece.",
+      ],
+      sections: [
+        {
+          heading: "Desperdícios: entender para onde realmente vai a comida",
+          paragraphs: [
+            "Sem um estoque integrado, os desperdícios permanecem invisíveis. Você sabe que compra 10 kg de tomate por semana, mas não sabe quantos vão para molhos, quantos são jogados fora por estarem vencidos, quantos desaparecem sem uma explicação precisa.",
+            "Um estoque conectado à cozinha dá baixa automaticamente nos ingredientes quando um prato é servido. A diferença entre consumo teórico (receita × pratos servidos) e consumo real (entradas menos saldo) é o seu desperdício. Ter isso visível todo dia é uma mudança de paradigma.",
+          ],
+        },
+        {
+          heading: "Erros de inventário: adeus inventários de segunda de manhã",
+          paragraphs: [
+            "Quando o estoque é separado do sistema de gestão, o inventário se torna uma operação manual semanal ou mensal. Contam-se pesos, anotam-se quantidades, atualiza-se uma planilha. Os erros se acumulam e no final do mês os números não batem.",
+            "Com um sistema integrado, o inventário teórico está sempre alinhado ao consumo real. A contagem física serve apenas como verificação periódica (mensal ou trimestral), não como operação diária. A equipe se livra de um trabalho tedioso e sujeito a erros.",
+          ],
+          bullets: [
+            "Saldo de estoque atualizado em tempo real",
+            "Alerta automático quando o estoque cai abaixo do limite",
+            "Custo médio ponderado atualizado automaticamente",
+            "Histórico de movimentações filtrável por período, fornecedor, item",
+          ],
+        },
+        {
+          heading: "Pedidos manuais vs pedidos automáticos",
+          paragraphs: [
+            "Os pedidos manuais a fornecedores são a principal fonte de erro operacional: pedidos duplicados, pedidos esquecidos, quantidades erradas, fornecedor acionado às pressas a um preço mais alto. Um estoque integrado transforma esse fluxo.",
+            "Quando um item cai abaixo do limite, o sistema propõe um pedido com quantidade recomendada baseada no consumo médio recente. Você confirma, envia o PDF por e-mail ao fornecedor com um clique, registra o recebimento da mercadoria quando chega e o estoque se atualiza automaticamente. Zero transcrições.",
+          ],
+        },
+      ],
+      conclusion:
+        "O ROI de um sistema de gestão de restaurante com estoque integrado é mensurável nos primeiros 2-3 meses de uso, especialmente no controle de desperdícios. Solicite uma demo para ver o fluxo completo no RistoSimply.",
+      related: ["como-escolher-software-gestao-restaurante", "software-hotel-restaurante-vantagens"],
+    },
+    {
+      slug: "software-hotel-restaurante-vantagens",
+      title: "Software integrado de hotel e restaurante: vantagens reais",
+      description:
+        "Débito no quarto, fluxos unificados, menos erros operacionais: as vantagens reais de um software que gerencia hotel e restaurante no mesmo sistema.",
+      publishedAt: "2026-04-21",
+      readingMinutes: 5,
+      lead: [
+        "Se você gerencia um estabelecimento com restaurante interno (hotel, pousada, resort, casa de campo), provavelmente já enfrentou o problema: software PMS para o hotel de um lado, sistema de gestão do restaurante do outro, e a equipe fazendo ponte para fechar a conta do cliente.",
+        "Um software integrado de hotel e restaurante resolve isso pela raiz. Veja as vantagens reais.",
+      ],
+      sections: [
+        {
+          heading: "Débito no quarto (room charge) sem transcrições",
+          paragraphs: [
+            "Em um estabelecimento integrado, o garçom no restaurante pode debitar o consumo diretamente no quarto do hóspede interno com um clique. Ninguém imprime um cupom, ninguém anota o número do quarto, ninguém transfere para o PMS. O fólio do hóspede é atualizado em tempo real e no check-out o hóspede paga uma conta única.",
+            "Para estabelecimentos com meia pensão ou pensão completa, o sistema também controla os créditos de refeição (meal plan credits): se o hóspede pagou meia pensão e consome o jantar incluso, o sistema deduz o crédito automaticamente; se consumir algo a mais, a diferença é debitada no quarto.",
+          ],
+        },
+        {
+          heading: "Fluxos unificados: um único processo, um único relatório",
+          paragraphs: [
+            "Com softwares separados, os relatórios de fim de dia são dois: um do restaurante, um do hotel. Compará-los leva tempo e sempre gera inconsistências (faturamento do restaurante diferente do debitado no quarto, etc.).",
+            "Em um sistema integrado, o fechamento do dia é único: faturamento do restaurante, faturamento do hotel, débitos no quarto, fólios abertos, food cost real, custos de equipe. Tudo em uma única tela, com dados consistentes porque vêm da mesma fonte.",
+          ],
+          bullets: [
+            "Fechamento Z único restaurante + hotel",
+            "Relatório de faturamento por método de pagamento (dinheiro, cartão, débito no quarto)",
+            "KPIs do supervisor com margem operacional real",
+            "Previsão de 7/30 dias baseada em dados históricos integrados",
+          ],
+        },
+        {
+          heading: "Menos erros, menos equipe dedicada ao back-office",
+          paragraphs: [
+            "A vantagem menos visível, mas mais importante, é operacional: menos horas gastas toda semana acertando números entre sistemas diferentes. A equipe administrativa volta a trabalhar no controle de gestão em vez da reconciliação manual.",
+            "Para estabelecimentos de pequeno e médio porte, isso geralmente significa liberar meio dia de trabalho administrativo por semana. Para estabelecimentos maiores, se traduz em menos recursos dedicados à reconciliação e mais ao controle de qualidade.",
+          ],
+        },
+      ],
+      conclusion:
+        "Se você gerencia hotel com restaurante ou restaurante com hospedagem, um software integrado é quase sempre a escolha certa. Solicite uma demo do RistoSimply e verifique o fluxo de débito no quarto em tempo real no seu estabelecimento.",
+      related: ["software-restaurante-estoque-integrado", "como-escolher-software-gestao-restaurante"],
+    },
+  ],
 };
 
 export function getBlogPost(locale: Locale, slug: string): BlogPostCopy | null {
@@ -1444,16 +1856,19 @@ export const BLOG_SLUG_ALTERNATES: Record<string, Partial<Record<Locale, string>
     it: "come-scegliere-gestionale-ristorante",
     en: "how-to-choose-restaurant-management-software",
     nl: "hoe-kies-je-restaurantbeheersoftware",
+    pt: "como-escolher-software-gestao-restaurante",
   },
   inventory: {
     it: "gestionale-ristorante-magazzino-integrato",
     en: "restaurant-software-with-inventory",
     nl: "restaurantsoftware-met-voorraad",
+    pt: "software-restaurante-estoque-integrado",
   },
   hotel: {
     it: "software-hotel-ristorante-vantaggi",
     en: "hotel-restaurant-software-benefits",
     nl: "hotel-restaurant-software-voordelen",
+    pt: "software-hotel-restaurante-vantagens",
   },
 };
 

@@ -53,6 +53,17 @@ export function SoftwareApplicationJsonLd({
       "Dagelijkse rapporten en dagafsluiting",
       "Multi-tenant met granulair RBAC",
     ],
+    pt: [
+      "Gestão de mesas e pedidos do restaurante",
+      "Tela de cozinha KDS com status dos pratos",
+      "Estoque com baixa automática",
+      "Sugestões de pedidos para fornecedores",
+      "E-mail e PDF de pedido ao fornecedor",
+      "Reservas de hotel e check-in/check-out",
+      "Débito de restaurante no quarto (folio único)",
+      "Relatórios diários e fechamento de caixa",
+      "Multi-tenant com RBAC granular",
+    ],
   };
 
   const jsonLd = {

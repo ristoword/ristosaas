@@ -12,19 +12,13 @@ import {
 import { cn } from "@/lib/utils";
 import { tablesApi, ordersApi } from "@/lib/api-client";
 import type { SalaTable, TableStatus } from "@/lib/api-client";
+import { useI18n } from "@/core/i18n/provider";
 
 const statusColors: Record<TableStatus, string> = {
   libero: "border-emerald-500 bg-emerald-500/20 text-emerald-300",
   aperto: "border-red-500 bg-red-500/20 text-red-300",
   conto: "border-amber-500 bg-amber-500/20 text-amber-300",
   sporco: "border-blue-500 bg-blue-500/20 text-blue-300",
-};
-
-const statusLabels: Record<TableStatus, string> = {
-  libero: "Libero",
-  aperto: "Occupato",
-  conto: "Conto",
-  sporco: "Prenotato",
 };
 
 type TableOrder = { items: string[]; total: number };
@@ -39,11 +33,19 @@ function useClock() {
 }
 
 export function SalaFullscreenPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const now = useClock();
   const [selected, setSelected] = useState<SalaTable | null>(null);
   const [tables, setTables] = useState<SalaTable[]>([]);
   const [ordersByTable, setOrdersByTable] = useState<Record<string, TableOrder>>({});
+
+  const statusLabels: Record<TableStatus, string> = {
+    libero: t("sala.fullscreen.status.libero"),
+    aperto: t("sala.fullscreen.status.aperto"),
+    conto: t("sala.fullscreen.status.conto"),
+    sporco: t("sala.fullscreen.status.sporco"),
+  };
 
   useEffect(() => {
     tablesApi.list().then(setTables).catch(console.error);
@@ -62,8 +64,8 @@ export function SalaFullscreenPage() {
   }, []);
 
   const counts = tables.reduce(
-    (acc, t) => {
-      acc[t.stato] = (acc[t.stato] || 0) + 1;
+    (acc, tbl) => {
+      acc[tbl.stato] = (acc[tbl.stato] || 0) + 1;
       return acc;
     },
     {} as Record<string, number>,
@@ -105,31 +107,31 @@ export function SalaFullscreenPage() {
           className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink hover:border-rw-accent/30 hover:text-rw-accent"
         >
           <Minimize2 className="h-4 w-4" />
-          Esci fullscreen
+          {t("sala.fullscreen.exit")}
         </button>
       </header>
 
       {/* table grid */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-          {tables.map((t) => (
+          {tables.map((tbl) => (
             <button
-              key={t.id}
+              key={tbl.id}
               type="button"
-              onClick={() => setSelected(t)}
+              onClick={() => setSelected(tbl)}
               className={cn(
                 "flex flex-col items-center justify-center gap-2 rounded-3xl border-2 p-6 transition active:scale-[0.97]",
-                statusColors[t.stato],
-                t.forma === "tondo" && "aspect-square rounded-full",
+                statusColors[tbl.stato],
+                tbl.forma === "tondo" && "aspect-square rounded-full",
               )}
             >
-              <span className="font-display text-4xl font-bold">{t.nome}</span>
+              <span className="font-display text-4xl font-bold">{tbl.nome}</span>
               <span className="flex items-center gap-1 text-sm opacity-80">
                 <Users className="h-4 w-4" />
-                {t.posti}
+                {tbl.posti}
               </span>
               <span className="text-xs font-semibold uppercase tracking-wide">
-                {statusLabels[t.stato]}
+                {statusLabels[tbl.stato]}
               </span>
             </button>
           ))}
@@ -148,14 +150,16 @@ export function SalaFullscreenPage() {
           <div className="w-full max-w-sm rounded-3xl border border-rw-line bg-rw-surface p-6 shadow-rw">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">Tavolo</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
+                  {t("sala.fullscreen.tableLabel")}
+                </p>
                 <h2 className="font-display text-3xl font-bold text-rw-ink">{selected.nome}</h2>
               </div>
               <button
                 type="button"
                 onClick={() => setSelected(null)}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
-                aria-label="Chiudi"
+                aria-label={t("ui.close")}
               >
                 <X className="h-5 w-5" />
               </button>
@@ -168,7 +172,7 @@ export function SalaFullscreenPage() {
             {selectedOrder ? (
               <div className="mt-4">
                 <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-rw-ink">
-                  <ShoppingBag className="h-4 w-4 text-rw-accent" /> Riepilogo ordine
+                  <ShoppingBag className="h-4 w-4 text-rw-accent" /> {t("sala.fullscreen.orderSummary")}
                 </p>
                 <ul className="space-y-1">
                   {selectedOrder.items.map((item, i) => (
@@ -180,7 +184,7 @@ export function SalaFullscreenPage() {
                 </p>
               </div>
             ) : (
-              <p className="mt-4 text-sm text-rw-muted">Nessun ordine attivo.</p>
+              <p className="mt-4 text-sm text-rw-muted">{t("sala.fullscreen.noActiveOrder")}</p>
             )}
           </div>
         </div>

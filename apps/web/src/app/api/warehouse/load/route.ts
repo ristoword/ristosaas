@@ -9,8 +9,15 @@ const WAREHOUSE_ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as c
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, [...WAREHOUSE_ROLES]);
   if (guard.error) return guard.error;
-  const { productId, qty, reason } = await body<{ productId: string; qty: number; reason?: string }>(req);
+  let parsed: { productId: string; qty: number; reason?: string };
+  try {
+    parsed = await body<{ productId: string; qty: number; reason?: string }>(req);
+  } catch {
+    return err("Invalid JSON", 400);
+  }
+  const { productId, qty, reason } = parsed;
   if (!productId || !qty) return err("productId and qty required");
+  if (typeof qty !== "number" || qty <= 0) return err("qty must be a positive number");
   const tenantId = getTenantId();
   const item = await warehouseRepository.getItem(tenantId, productId);
   if (!item) return err("Stock item not found", 404);

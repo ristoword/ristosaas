@@ -11,8 +11,10 @@ import { TableActionsModal, type AzioneId } from "./table-actions-modal";
 import { OrderSendModal } from "./order-send-modal";
 import { useOrders } from "@/components/orders/orders-context";
 import type { Order } from "@/components/orders/types";
+import { useI18n } from "@/core/i18n/provider";
 
 export function SalaPage() {
+  const { t } = useI18n();
   const [tables, setTables] = useState<SalaTable[]>([]);
   const [selected, setSelected] = useState<SalaTable | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -32,16 +34,16 @@ export function SalaPage() {
 
   const legend = useMemo(
     () => [
-      { stato: "libero" as const, text: "Libero" },
-      { stato: "aperto" as const, text: "Aperto" },
-      { stato: "conto" as const, text: "Conto" },
-      { stato: "sporco" as const, text: "Da pulire" },
+      { stato: "libero" as const, text: t("sala.status.libero") },
+      { stato: "aperto" as const, text: t("sala.status.aperto") },
+      { stato: "conto" as const, text: t("sala.status.conto") },
+      { stato: "sporco" as const, text: t("sala.status.sporco") },
     ],
-    [],
+    [t],
   );
 
-  function openTable(t: SalaTable) {
-    setSelected(t);
+  function openTable(tbl: SalaTable) {
+    setSelected(tbl);
     setModalOpen(true);
   }
 
@@ -49,8 +51,8 @@ export function SalaPage() {
     setModalOpen(false);
   }
 
-  function openOrderModal(t: SalaTable) {
-    setOrderModalTable(t);
+  function openOrderModal(tbl: SalaTable) {
+    setOrderModalTable(tbl);
     setOrderModalOpen(true);
     setModalOpen(false);
   }
@@ -70,7 +72,7 @@ export function SalaPage() {
   const [editLayout, setEditLayout] = useState(false);
 
   const handleLocalMove = useCallback((id: string, x: number, y: number) => {
-    setTables((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)));
+    setTables((prev) => prev.map((tbl) => (tbl.id === id ? { ...tbl, x, y } : tbl)));
   }, []);
 
   const handleCommitMove = useCallback(
@@ -80,14 +82,14 @@ export function SalaPage() {
       } catch (err) {
         setTablesError(
           err instanceof Error
-            ? `Spostamento tavolo non salvato: ${err.message}`
-            : "Spostamento tavolo non salvato",
+            ? t("sala.error.moveFailedDetail").replace("{msg}", err.message)
+            : t("sala.error.moveFailed"),
         );
         // ricarica la verità dal server
         await refreshTables();
       }
     },
-    [refreshTables],
+    [refreshTables, t],
   );
 
   // Distribuzione percentuale in griglia 5 x N, coerente col seed.
@@ -115,7 +117,7 @@ export function SalaPage() {
       const room = await roomsApi.ensureDefault();
       const usedIndexes = new Set(
         tables
-          .map((t) => t.nome.trim().toUpperCase())
+          .map((tbl) => tbl.nome.trim().toUpperCase())
           .filter((name) => /^T\d+$/.test(name))
           .map((name) => Number(name.slice(1))),
       );
@@ -134,7 +136,7 @@ export function SalaPage() {
       });
       await refreshTables();
     } catch (err) {
-      setTablesError(err instanceof Error ? err.message : "Errore aggiunta tavolo");
+      setTablesError(err instanceof Error ? err.message : t("sala.error.addFailed"));
     } finally {
       setTablesBusy(false);
     }
@@ -144,19 +146,19 @@ export function SalaPage() {
     if (tables.length === 0) return;
     // Cerca il tavolo "alto": priorità tavoli liberi, altrimenti ultimo creato.
     const candidate =
-      [...tables].reverse().find((t) => t.stato === "libero") ?? tables[tables.length - 1];
+      [...tables].reverse().find((tbl) => tbl.stato === "libero") ?? tables[tables.length - 1];
     if (!candidate) return;
 
     const ordersOnTable = getOrdersForTable(candidate.nome);
     if (ordersOnTable.length > 0) {
-      setTablesError(`${candidate.nome} ha ordini attivi: chiudili prima di rimuoverlo.`);
+      setTablesError(t("sala.error.tableHasOrders").replace("{name}", candidate.nome));
       return;
     }
 
     const confirmed =
       typeof window === "undefined"
         ? true
-        : window.confirm(`Rimuovere ${candidate.nome}? L'azione non si può annullare.`);
+        : window.confirm(t("sala.confirm.removeTable").replace("{name}", candidate.nome));
     if (!confirmed) return;
 
     setTablesError(null);
@@ -165,27 +167,27 @@ export function SalaPage() {
       await tablesApi.delete(candidate.id);
       await refreshTables();
     } catch (err) {
-      setTablesError(err instanceof Error ? err.message : "Errore rimozione tavolo");
+      setTablesError(err instanceof Error ? err.message : t("sala.error.removeFailed"));
     } finally {
       setTablesBusy(false);
     }
   }
 
-  async function handleTableAction(id: AzioneId, t: SalaTable) {
-    const ordersForTable = getOrdersForTable(t.nome);
+  async function handleTableAction(id: AzioneId, tbl: SalaTable) {
+    const ordersForTable = getOrdersForTable(tbl.nome);
     switch (id) {
       case "apri-tavolo": {
-        await tablesApi.patchStatus(t.id, "aperto").catch(console.error);
+        await tablesApi.patchStatus(tbl.id, "aperto").catch(console.error);
         await refreshTables();
         break;
       }
       case "tavolo-libero": {
-        await tablesApi.patchStatus(t.id, "libero").catch(console.error);
+        await tablesApi.patchStatus(tbl.id, "libero").catch(console.error);
         await refreshTables();
         break;
       }
       case "chiedi-conto": {
-        await tablesApi.patchStatus(t.id, "conto").catch(console.error);
+        await tablesApi.patchStatus(tbl.id, "conto").catch(console.error);
         await refreshTables();
         break;
       }
@@ -199,7 +201,7 @@ export function SalaPage() {
         for (const order of ordersForTable) {
           await patchStatus(order.id, "chiuso").catch(console.error);
         }
-        await tablesApi.patchStatus(t.id, "sporco").catch(console.error);
+        await tablesApi.patchStatus(tbl.id, "sporco").catch(console.error);
         await refreshTables();
         break;
       }
@@ -207,7 +209,7 @@ export function SalaPage() {
         for (const order of ordersForTable) {
           await patchStatus(order.id, "annullato").catch(console.error);
         }
-        await tablesApi.patchStatus(t.id, "libero").catch(console.error);
+        await tablesApi.patchStatus(tbl.id, "libero").catch(console.error);
         await refreshTables();
         break;
       }
@@ -239,26 +241,34 @@ export function SalaPage() {
     }
   }
 
+  function getCourseStatusLabel(st: string): string {
+    if (st === "servito") return t("sala.course.status.servito");
+    if (st === "pronto") return t("sala.course.status.pronto");
+    if (st === "in_preparazione") return t("sala.course.status.inPrep");
+    if (st === "in_attesa") return t("sala.course.status.inCoda");
+    return t("sala.course.status.attesaTurno");
+  }
+
   return (
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight text-rw-ink md:text-3xl">
-            Sala
+            {t("sala.title")}
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-rw-muted md:text-base">
-            Planimetria touch: tocca un tavolo, scegli cosa fare. Invia comande con corsi.
+            {t("sala.subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-rw-line bg-rw-surface px-4 py-3 text-xs text-rw-muted shadow-sm">
           <Info className="h-4 w-4 shrink-0 text-rw-accent" aria-hidden />
-          <span>Ordini attivi: {activeOrders.length}</span>
+          <span>{t("sala.activeOrders").replace("{n}", String(activeOrders.length))}</span>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-3 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-4 py-3">
         <span className="w-full text-xs font-semibold uppercase tracking-wide text-rw-muted sm:w-auto sm:self-center">
-          Legenda
+          {t("sala.legend")}
         </span>
         <ul className="flex flex-wrap gap-2">
           {legend.map(({ stato, text }) => (
@@ -274,10 +284,10 @@ export function SalaPage() {
 
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-rw-line bg-rw-surface px-4 py-3 shadow-sm">
         <span className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
-          Gestione tavoli
+          {t("sala.tableManagement")}
         </span>
         <span className="text-sm text-rw-ink">
-          {tables.length} tavoli attivi
+          {t("sala.tablesActive").replace("{n}", String(tables.length))}
         </span>
         <div className="ml-auto flex items-center gap-2">
           <button
@@ -289,30 +299,30 @@ export function SalaPage() {
                 ? "border-rw-accent bg-rw-accent text-white shadow-rw-sm"
                 : "border-rw-line bg-rw-surfaceAlt text-rw-ink hover:border-rw-accent/40 hover:bg-rw-accent/10"
             }`}
-            aria-label="Attiva modalità layout per spostare i tavoli"
+            aria-label={t("sala.layout.ariaLabel")}
           >
             <Move className="h-4 w-4" aria-hidden />
-            {editLayout ? "Esci dal layout" : "Sposta tavoli"}
+            {editLayout ? t("sala.layout.exit") : t("sala.layout.move")}
           </button>
           <button
             type="button"
             onClick={handleRemoveTable}
             disabled={tablesBusy || tables.length === 0 || editLayout}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 text-sm font-semibold text-rw-ink transition hover:border-red-500/40 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Rimuovi tavolo libero"
+            aria-label={t("sala.table.removeAria")}
           >
             <Minus className="h-4 w-4" aria-hidden />
-            Rimuovi
+            {t("sala.table.remove")}
           </button>
           <button
             type="button"
             onClick={handleAddTable}
             disabled={tablesBusy || tables.length >= MAX_TABLES || editLayout}
             className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-rw-accent px-3 text-sm font-semibold text-white shadow-rw-sm transition hover:bg-rw-accent/90 disabled:cursor-not-allowed disabled:opacity-40"
-            aria-label="Aggiungi tavolo"
+            aria-label={t("sala.table.add")}
           >
             <Plus className="h-4 w-4" aria-hidden />
-            Aggiungi tavolo
+            {t("sala.table.add")}
           </button>
         </div>
         {tablesError ? (
@@ -331,7 +341,7 @@ export function SalaPage() {
               <div key={order.id} className="rounded-2xl border border-rw-line bg-rw-surface p-4">
                 <div className="flex items-center justify-between">
                   <span className="font-display text-lg font-bold text-rw-ink">
-                    Tav. {order.table}
+                    {t("sala.order.tableShort").replace("{name}", order.table ?? "")}
                   </span>
                   <span className="text-xs text-rw-muted">{order.waiter} · {order.covers}p</span>
                 </div>
@@ -344,9 +354,9 @@ export function SalaPage() {
                         key={cn}
                         className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold ${courseChipClass(st, isActive)}`}
                       >
-                        {cn}° corso
+                        {t("sala.course.label").replace("{n}", String(cn))}
                         <span className="opacity-70">
-                          {st === "servito" ? "servito" : st === "pronto" ? "pronto" : st === "in_preparazione" ? "in prep" : st === "in_attesa" ? "in coda" : "attesa turno"}
+                          {getCourseStatusLabel(st)}
                         </span>
                       </span>
                     );
@@ -360,22 +370,24 @@ export function SalaPage() {
                     className="flex-1 rounded-xl border border-rw-accent/30 bg-rw-accent/10 px-3 py-2 text-xs font-bold text-rw-accent transition hover:bg-rw-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Send className="mr-1 inline h-3.5 w-3.5" />
-                    Marcia
+                    {t("sala.action.marcia")}
                   </button>
                 </div>
                 {roomChargeEnabled && order.status === "in_attesa" ? (
                   <div className="mt-3 space-y-2 rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">Addebita su camera</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
+                      {t("sala.roomCharge.title")}
+                    </p>
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <select
                         className="min-w-0 flex-1 rounded-xl border border-rw-line bg-rw-surface px-3 py-2 text-sm text-rw-ink"
                         value={chargeReservationId[order.id] || ""}
                         onChange={(e) => setChargeReservationId((prev) => ({ ...prev, [order.id]: e.target.value }))}
                       >
-                        <option value="">Seleziona ospite in casa</option>
+                        <option value="">{t("sala.roomCharge.selectGuest")}</option>
                         {reservations.filter((reservation) => reservation.status === "in_casa").map((reservation) => (
                           <option key={reservation.id} value={reservation.id}>
-                            {reservation.guestName} · camera {reservation.roomId?.replace("hr_", "") || "n/d"}
+                            {reservation.guestName} · {t("sala.roomCharge.room").replace("{n}", reservation.roomId?.replace("hr_", "") || "n/d")}
                           </option>
                         ))}
                       </select>
@@ -385,11 +397,11 @@ export function SalaPage() {
                         disabled={!chargeReservationId[order.id]}
                         onClick={() => {
                           const total = order.items.reduce((sum, item) => sum + (item.price ?? 0) * item.qty, 0);
-                          roomCharge(chargeReservationId[order.id]!, order.id, `Addebito comanda tavolo ${order.table}`, total, "dinner").catch(console.error);
+                          roomCharge(chargeReservationId[order.id]!, order.id, t("sala.roomCharge.chargeDescription").replace("{table}", order.table ?? ""), total, "dinner").catch(console.error);
                         }}
                       >
                         <CreditCard className="mr-1 inline h-3.5 w-3.5" />
-                        Room charge
+                        {t("sala.roomCharge.charge")}
                       </button>
                     </div>
                   </div>

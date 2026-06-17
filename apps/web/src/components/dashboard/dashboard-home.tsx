@@ -39,15 +39,15 @@ export function DashboardHome() {
     ...(isRestaurantEnabled
       ? [
           {
-            label: "Ordini in corso",
+            label: t("dashboard.stats.activeOrders"),
             value: String(activeOrders.length),
-            sub: "Operatività ristorante attiva nel pacchetto corrente.",
+            sub: t("dashboard.stats.activeOrdersSub"),
             tone: "from-rw-accent/15 to-rw-accentSoft/10",
           },
           {
-            label: "Verticale Restaurant",
+            label: t("dashboard.stats.restaurantVertical"),
             value: "ON",
-            sub: "Tavoli, ordini, cucina, cassa e delivery attivi.",
+            sub: t("dashboard.stats.restaurantVerticalSub"),
             tone: "from-emerald-500/15 to-emerald-400/5",
           },
         ]
@@ -55,15 +55,15 @@ export function DashboardHome() {
     ...(isHotelEnabled
       ? [
           {
-            label: "Camere occupate",
+            label: t("dashboard.stats.occupiedRooms"),
             value: String(rooms.filter((room) => room.status === "occupata").length),
-            sub: "Stato camere in tempo reale dal verticale hotel.",
+            sub: t("dashboard.stats.occupiedRoomsSub"),
             tone: "from-blue-500/15 to-blue-400/5",
           },
           {
-            label: "Arrivi / partenze",
+            label: t("dashboard.stats.arrivalsDepart"),
             value: `${reservations.filter((reservation) => reservation.checkInDate === today).length}/${reservations.filter((reservation) => reservation.checkOutDate === today).length}`,
-            sub: "Reception, soggiorni e housekeeping nello stesso sistema.",
+            sub: t("dashboard.stats.arrivalsDepartSub"),
             tone: "from-amber-400/20 to-amber-300/5",
           },
         ]
@@ -71,9 +71,9 @@ export function DashboardHome() {
     ...(isRestaurantEnabled && isHotelEnabled
       ? [
           {
-            label: "Folio integrati",
+            label: t("dashboard.stats.integratedFolios"),
             value: String(folios.length),
-            sub: "Conti hotel e addebiti ristorante convergono nello stesso ospite.",
+            sub: t("dashboard.stats.integratedFoliosSub"),
             tone: "from-violet-500/15 to-violet-400/5",
           },
         ]
@@ -83,19 +83,19 @@ export function DashboardHome() {
   const quickActions = [
     ...(isRestaurantEnabled
       ? [
-          { title: "Apri la sala", body: "Planimetria tavoli, apertura e gestione comande.", icon: Zap, href: "/rooms" },
-          { title: "Vai in cucina", body: "KDS comande attive, HACCP e turni cucina.", icon: HeartHandshake, href: "/cucina" },
+          { title: t("dashboard.qa.openRoom"), body: t("dashboard.qa.openRoomBody"), icon: Zap, href: "/rooms" },
+          { title: t("dashboard.qa.kitchen"), body: t("dashboard.qa.kitchenBody"), icon: HeartHandshake, href: "/cucina" },
         ]
       : []),
     ...(isHotelEnabled
       ? [
-          { title: "Front desk", body: "Check-in, check-out e ospiti in casa.", icon: Hotel, href: "/hotel/front-desk" },
-          { title: "Camere e housekeeping", body: "Disponibilità, pulizie e room service.", icon: BedDouble, href: "/hotel" },
+          { title: t("dashboard.qa.frontDesk"), body: t("dashboard.qa.frontDeskBody"), icon: Hotel, href: "/hotel/front-desk" },
+          { title: t("dashboard.qa.rooms"), body: t("dashboard.qa.roomsBody"), icon: BedDouble, href: "/hotel" },
         ]
       : []),
     {
-      title: "Staff e turni",
-      body: "Presenze, turni settimanali e profilo dipendente.",
+      title: t("dashboard.qa.staff"),
+      body: t("dashboard.qa.staffBody"),
       icon: ShieldCheck,
       href: "/staff",
     },
@@ -145,7 +145,7 @@ export function DashboardHome() {
 
       <section aria-labelledby="stats-heading" className={cn("grid gap-4", stats.length > 3 ? "md:grid-cols-2 xl:grid-cols-3" : "md:grid-cols-3")}>
         <h2 id="stats-heading" className="sr-only">
-          Indicatori principali
+          {t("dashboard.stats.heading")}
         </h2>
         {stats.map((s) => (
           <article
@@ -167,17 +167,17 @@ export function DashboardHome() {
       <section aria-labelledby="trend-heading" className="space-y-4">
         <div>
           <h2 id="trend-heading" className="font-display text-xl font-semibold text-rw-ink">
-            Trend ricavi persistenti
+            {t("dashboard.trends.title")}
           </h2>
           <p className="text-sm text-rw-muted">
-            KPI da report giornalieri DB (oggi, ultimi 7 giorni, ultimi 30 giorni).
+            {t("dashboard.trends.subtitle")}
           </p>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
           {[
-            { key: "day" as const, label: "Oggi" },
-            { key: "week" as const, label: "7 giorni" },
-            { key: "month" as const, label: "30 giorni" },
+            { key: "day" as const, label: t("dashboard.trends.today") },
+            { key: "week" as const, label: t("dashboard.trends.week") },
+            { key: "month" as const, label: t("dashboard.trends.month") },
           ].map((period) => {
             const data = trends?.[period.key];
             return (
@@ -187,11 +187,11 @@ export function DashboardHome() {
                   {formatCurrency(data?.revenue ?? 0)}
                 </p>
                 <p className="mt-2 text-sm text-rw-soft">
-                  Margine: {formatCurrency(data?.margin ?? 0)}
+                  {t("dashboard.trends.margin")}: {formatCurrency(data?.margin ?? 0)}
                 </p>
                 <p className="mt-1 text-xs text-rw-muted">
-                  Delta vs periodo precedente:{" "}
-                  {data?.deltaRevenuePct == null ? "n/d" : `${data.deltaRevenuePct.toFixed(1)}%`}
+                  {t("dashboard.trends.delta")}:{" "}
+                  {data?.deltaRevenuePct == null ? t("dashboard.trends.na") : `${data.deltaRevenuePct.toFixed(1)}%`}
                 </p>
               </article>
             );
@@ -199,27 +199,27 @@ export function DashboardHome() {
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <article className="rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
-            <p className="text-sm font-medium text-rw-muted">Forecast prossimi 7 giorni</p>
+            <p className="text-sm font-medium text-rw-muted">{t("dashboard.trends.forecast7")}</p>
             <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">
               {formatCurrency(trends?.forecast.next7.projectedRevenue ?? 0)}
             </p>
             <p className="mt-2 text-sm text-rw-soft">
-              Margine previsto: {formatCurrency(trends?.forecast.next7.projectedMargin ?? 0)}
+              {t("dashboard.trends.projectedMargin")}: {formatCurrency(trends?.forecast.next7.projectedMargin ?? 0)}
             </p>
             <p className="mt-1 text-xs text-rw-muted">
-              Affidabilita: {trends?.forecast.next7.confidence ?? "low"}
+              {t("dashboard.trends.confidence")}: {trends?.forecast.next7.confidence ?? "low"}
             </p>
           </article>
           <article className="rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
-            <p className="text-sm font-medium text-rw-muted">Forecast prossimi 30 giorni</p>
+            <p className="text-sm font-medium text-rw-muted">{t("dashboard.trends.forecast30")}</p>
             <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">
               {formatCurrency(trends?.forecast.next30.projectedRevenue ?? 0)}
             </p>
             <p className="mt-2 text-sm text-rw-soft">
-              Margine previsto: {formatCurrency(trends?.forecast.next30.projectedMargin ?? 0)}
+              {t("dashboard.trends.projectedMargin")}: {formatCurrency(trends?.forecast.next30.projectedMargin ?? 0)}
             </p>
             <p className="mt-1 text-xs text-rw-muted">
-              Affidabilita: {trends?.forecast.next30.confidence ?? "low"}
+              {t("dashboard.trends.confidence")}: {trends?.forecast.next30.confidence ?? "low"}
             </p>
           </article>
         </div>
@@ -288,10 +288,10 @@ export function DashboardHome() {
                 </span>
                 <div>
                   <p className="font-display text-lg font-semibold text-rw-ink">
-                    Folio ospite
+                    {t("dashboard.integration.guestFolio")}
                   </p>
                   <p className="text-sm text-rw-muted">
-                    Conto camera e servizi accessori nello stesso saldo finale.
+                    {t("dashboard.integration.guestFolioDesc")}
                   </p>
                 </div>
               </div>
@@ -299,7 +299,7 @@ export function DashboardHome() {
                 {folios.length}
               </p>
               <p className="mt-2 text-sm text-rw-soft">
-                Folio attivi o creati dal layer integration.
+                {t("dashboard.integration.folioActive")}
               </p>
               {folios.length > 0 ? (
                 <ul className="mt-4 space-y-2 text-sm text-rw-soft">
@@ -320,10 +320,10 @@ export function DashboardHome() {
                 </span>
                 <div>
                   <p className="font-display text-lg font-semibold text-rw-ink">
-                    Ospiti interni
+                    {t("dashboard.integration.inHouseGuests")}
                   </p>
                   <p className="text-sm text-rw-muted">
-                    La reception può riconoscere gli ospiti che consumano al ristorante.
+                    {t("dashboard.integration.inHouseGuestsDesc")}
                   </p>
                 </div>
               </div>
@@ -331,7 +331,7 @@ export function DashboardHome() {
                 {inHouseReservations.length}
               </p>
               <p className="mt-2 text-sm text-rw-soft">
-                Prenotazioni attualmente in casa e pronte per addebito su camera.
+                {t("dashboard.integration.inHouseReady")}
               </p>
               {inHouseReservations.length > 0 ? (
                 <ul className="mt-4 space-y-2 text-sm text-rw-soft">
@@ -339,7 +339,7 @@ export function DashboardHome() {
                     <li key={reservation.id} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt px-3 py-2">
                       <p className="font-semibold text-rw-ink">{reservation.guestName}</p>
                       <p className="text-xs text-rw-muted">
-                        Camera {reservation.roomId?.replace("hr_", "") || "da assegnare"} · checkout {reservation.checkOutDate}
+                        {t("dashboard.integration.room")} {reservation.roomId?.replace("hr_", "") || t("dashboard.integration.toAssign")} · {t("dashboard.integration.checkout")} {reservation.checkOutDate}
                       </p>
                     </li>
                   ))}
@@ -354,22 +354,22 @@ export function DashboardHome() {
                 </span>
                 <div>
                   <p className="font-display text-lg font-semibold text-rw-ink">
-                    Flussi integrati
+                    {t("dashboard.integration.integratedFlows")}
                   </p>
                   <p className="text-sm text-rw-muted">
-                    Room charge, piani pasti e report unificati.
+                    {t("dashboard.integration.integratedFlowsDesc")}
                   </p>
                 </div>
               </div>
               <ul className="mt-4 space-y-2 text-sm text-rw-soft">
-                <li>Addebito ordine ristorante su camera</li>
-                <li>Colazione inclusa e pacchetti soggiorno</li>
-                <li>Conto unico ospite tra front desk e cassa</li>
+                <li>{t("dashboard.integration.flow1")}</li>
+                <li>{t("dashboard.integration.flow2")}</li>
+                <li>{t("dashboard.integration.flow3")}</li>
               </ul>
               <div className="mt-4 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-3 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">Ultimi addebiti</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">{t("dashboard.integration.latestCharges")}</p>
                 {charges.length === 0 ? (
-                  <p className="mt-2 text-sm text-rw-soft">Nessun addebito camera registrato ancora.</p>
+                  <p className="mt-2 text-sm text-rw-soft">{t("dashboard.integration.noCharges")}</p>
                 ) : (
                   <ul className="mt-2 space-y-2 text-sm text-rw-soft">
                     {charges.slice(0, 3).map((charge) => (
@@ -426,8 +426,7 @@ export function DashboardHome() {
                   </div>
                 </div>
                 <p className="mt-4 text-xs text-rw-muted">
-                  Core comune, verticali separati e integrazione attivata solo
-                  dove serve davvero.
+                  {t("dashboard.modules.hint")}
                 </p>
               </>
             );

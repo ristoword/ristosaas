@@ -10,6 +10,7 @@ import { HotelRoomTypeSelect } from "@/components/hotel/hotel-room-type-select";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { hotelApi, type HotelReservation, type HotelReservationStatus, type HotelRoom, type RatePlan } from "@/lib/api-client";
 import { addDaysIso, nightsBetweenIso, todayIso } from "@/lib/date-utils";
+import { useI18n } from "@/core/i18n/provider";
 
 const statusTone = {
   confermata: "info",
@@ -41,6 +42,7 @@ function emptyForm(today: string): Omit<HotelReservation, "id"> {
 
 export function HotelReservationsPage() {
   const { reservations, createReservation, updateReservation, deleteReservation } = useHotel();
+  const { t } = useI18n();
   const [availability, setAvailability] = useState<{ availableCount: number; rooms: HotelRoom[]; ratePlans: RatePlan[] } | null>(null);
   const formCardRef = useRef<HTMLDivElement | null>(null);
   const guestNameRef = useRef<HTMLInputElement | null>(null);
@@ -54,12 +56,14 @@ export function HotelReservationsPage() {
 
   const arrivals = reservations.filter((item) => item.checkInDate === today).length;
   const departures = reservations.filter((item) => item.checkOutDate === today).length;
-  const boardLabels = {
+
+  const boardLabels: Record<string, string> = {
     room_only: "room only",
     bed_breakfast: "B&B",
-    half_board: "mezza pensione",
-    full_board: "pensione completa",
-  } as const;
+    half_board: t("hotel.booking.board.half"),
+    full_board: t("hotel.booking.board.full"),
+  };
+
   const totalProjectedRevenue = useMemo(
     () => reservations.reduce((sum, reservation) => sum + reservation.rate, 0),
     [reservations],
@@ -92,9 +96,9 @@ export function HotelReservationsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Prenotazioni Hotel" subtitle="Arrivi, partenze, assegnazione camera e gestione soggiorni.">
-        <Chip label="Arrivi oggi" value={arrivals} tone="info" />
-        <Chip label="Partenze oggi" value={departures} tone="warn" />
+      <PageHeader title={t("hotel.booking.title")} subtitle={t("hotel.booking.subtitle")}>
+        <Chip label={t("hotel.booking.chip.arrivals")} value={arrivals} tone="info" />
+        <Chip label={t("hotel.booking.chip.departures")} value={departures} tone="warn" />
         <button
           type="button"
           className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white"
@@ -105,16 +109,16 @@ export function HotelReservationsPage() {
             setTimeout(() => guestNameRef.current?.focus(), 300);
           }}
         >
-          <Plus className="h-4 w-4" /> Nuova prenotazione
+          <Plus className="h-4 w-4" /> {t("hotel.booking.new")}
         </button>
       </PageHeader>
 
       <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]" ref={formCardRef}>
-        <Card title="Nuova prenotazione" description="Stessa tipologia camera del modulo Camere (Classic, Superior, …). Tariffa totale allineata al listino camere quando disponibile.">
+        <Card title={t("hotel.booking.form.title")} description={t("hotel.booking.form.desc")}>
           <div className="grid gap-3 sm:grid-cols-2">
-            <input ref={guestNameRef} className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" placeholder="Nome ospite" value={form.guestName} onChange={(e) => setForm((prev) => ({ ...prev, guestName: e.target.value }))} />
-            <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Telefono" value={form.phone} onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} />
-            <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder="Email" value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} />
+            <input ref={guestNameRef} className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" placeholder={t("hotel.booking.form.guest_name")} value={form.guestName} onChange={(e) => setForm((prev) => ({ ...prev, guestName: e.target.value }))} />
+            <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder={t("ui.phone")} value={form.phone} onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))} />
+            <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" placeholder={t("ui.email")} value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} />
             <input
               type="date"
               className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
@@ -153,12 +157,12 @@ export function HotelReservationsPage() {
             <select className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" value={form.boardType} onChange={(e) => setForm((prev) => ({ ...prev, boardType: e.target.value as typeof form.boardType }))}>
               <option value="room_only">Room only</option>
               <option value="bed_breakfast">B&B</option>
-              <option value="half_board">Mezza pensione</option>
-              <option value="full_board">Pensione completa</option>
+              <option value="half_board">{t("hotel.booking.board.half")}</option>
+              <option value="full_board">{t("hotel.booking.board.full")}</option>
             </select>
             <div>
               <label className="text-xs font-semibold text-rw-muted" htmlFor="res-total-rate">
-                Totale soggiorno (€)
+                {t("hotel.booking.form.total_label")}
               </label>
               <input
                 id="res-total-rate"
@@ -170,7 +174,7 @@ export function HotelReservationsPage() {
                 onChange={(e) => setForm((prev) => ({ ...prev, rate: parseFloat(e.target.value) || 0 }))}
               />
               <p className="mt-1 text-[11px] text-rw-muted">
-                {nightsComputed} notti · suggerito da listino camere:{" "}
+                {nightsComputed} {t("hotel.booking.nights")} · {t("hotel.booking.nights_hint")}{" "}
                 {suggestedTotal != null ? `€ ${suggestedTotal.toFixed(2)}` : "—"}
               </p>
               {suggestedTotal != null && suggestedTotal > 0 ? (
@@ -179,11 +183,11 @@ export function HotelReservationsPage() {
                   className="mt-2 rounded-lg border border-rw-accent/40 bg-rw-accent/10 px-3 py-1.5 text-xs font-semibold text-rw-accent"
                   onClick={() => setForm((prev) => ({ ...prev, rate: suggestedTotal }))}
                 >
-                  Applica tariffa suggerita
+                  {t("hotel.booking.form.apply_rate")}
                 </button>
               ) : null}
             </div>
-            <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" placeholder="Documento" value={form.documentCode} onChange={(e) => setForm((prev) => ({ ...prev, documentCode: e.target.value }))} />
+            <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" placeholder={t("hotel.booking.form.document")} value={form.documentCode} onChange={(e) => setForm((prev) => ({ ...prev, documentCode: e.target.value }))} />
             <button
               type="button"
               className="inline-flex items-center justify-center rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white sm:col-span-2"
@@ -197,49 +201,49 @@ export function HotelReservationsPage() {
                 }).catch(console.error);
               }}
             >
-              {editingReservationId ? "Salva modifiche" : "Salva prenotazione"}
+              {editingReservationId ? t("hotel.booking.form.save") : t("hotel.booking.form.create")}
             </button>
           </div>
         </Card>
 
-        <Card title="Prenota camere — disponibilità e prezzi" description="Il cliente vede le camere libere per tipo e il listino €/notte impostato in Camere (o il piano tariffario).">
+        <Card title={t("hotel.booking.avail.title")} description={t("hotel.booking.avail.desc")}>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
-              <p className="text-sm font-medium text-rw-muted">Disponibili ({form.roomType})</p>
+              <p className="text-sm font-medium text-rw-muted">{t("hotel.booking.avail.label")} ({form.roomType})</p>
               <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">{availability?.availableCount ?? 0}</p>
               <p className="mt-2 text-sm text-rw-soft">
-                {form.checkInDate} → {form.checkOutDate} · {nightsComputed} notti
+                {form.checkInDate} → {form.checkOutDate} · {nightsComputed} {t("hotel.booking.nights")}
               </p>
             </div>
             <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
-              <p className="text-sm font-medium text-rw-muted">Revenue prenotazioni</p>
+              <p className="text-sm font-medium text-rw-muted">{t("hotel.booking.avail.revenue")}</p>
               <p className="mt-2 font-display text-3xl font-semibold text-rw-ink">€ {totalProjectedRevenue.toFixed(2)}</p>
-              <p className="mt-2 text-sm text-rw-soft">Valore complessivo soggiorni registrati.</p>
+              <p className="mt-2 text-sm text-rw-soft">{t("hotel.booking.avail.revenue_note")}</p>
             </div>
             <div className="sm:col-span-2 rounded-2xl border border-rw-line bg-rw-surface p-4">
-              <p className="text-sm font-semibold text-rw-ink">Camere libere e listino (messaggio al cliente)</p>
+              <p className="text-sm font-semibold text-rw-ink">{t("hotel.booking.avail.rooms_list")}</p>
               {availability && availability.rooms.length > 0 ? (
                 <ul className="mt-2 space-y-2 text-sm text-rw-soft">
                   {availability.rooms.map((r) => (
                     <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-2 border-b border-rw-line/60 pb-2 last:border-0 last:pb-0">
-                      <span className="font-medium text-rw-ink">Camera {r.code}</span>
+                      <span className="font-medium text-rw-ink">{t("hotel.booking.avail.room")} {r.code}</span>
                       <span>
                         {r.defaultNightlyRate > 0 ? (
                           <>
-                            €{r.defaultNightlyRate.toFixed(2)}/notte · totale indicativo{" "}
+                            €{r.defaultNightlyRate.toFixed(2)}{t("hotel.booking.avail.per_night")}{" "}
                             <span className="font-semibold text-rw-ink">
                               €{(r.defaultNightlyRate * nightsComputed).toFixed(2)}
                             </span>
                           </>
                         ) : (
-                          <span className="text-amber-200/90">Listino non impostato — imposta il prezzo in Camere</span>
+                          <span className="text-amber-200/90">{t("hotel.booking.avail.no_rate")}</span>
                         )}
                       </span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-2 text-sm text-rw-muted">Nessuna camera libera per questa tipologia nelle date scelte.</p>
+                <p className="mt-2 text-sm text-rw-muted">{t("hotel.booking.avail.no_rooms")}</p>
               )}
             </div>
             {availability?.ratePlans.map((plan) => (
@@ -247,7 +251,7 @@ export function HotelReservationsPage() {
                 <p className="text-sm font-medium text-rw-muted">{plan.name}</p>
                 <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€ {plan.nightlyRate}</p>
                 <p className="mt-2 text-sm text-rw-soft">
-                  {boardLabels[plan.boardType]} · {plan.refundable ? "refundable" : "non refundable"}
+                  {boardLabels[plan.boardType] ?? plan.boardType} · {plan.refundable ? "refundable" : t("hotel.booking.non_refundable")}
                 </p>
               </div>
             ))}
@@ -255,24 +259,24 @@ export function HotelReservationsPage() {
         </Card>
       </div>
 
-      <Card title="Registro prenotazioni" description="Base operativa reception per prenotazioni, arrivi e assegnazione camera.">
+      <Card title={t("hotel.booking.registry.title")} description={t("hotel.booking.registry.desc")}>
         <DataTable
           columns={[
-            { key: "guestName", header: "Cliente", render: (row) => <div><p className="font-semibold text-rw-ink">{row.guestName}</p><p className="text-xs text-rw-muted">{row.phone} · {row.email}</p></div> },
-            { key: "dates", header: "Soggiorno", render: (row) => <div><p className="text-rw-ink">{row.checkInDate} → {row.checkOutDate}</p><p className="text-xs text-rw-muted">{row.nights} notti · {row.guests} ospiti</p></div> },
-            { key: "roomType", header: "Camera", render: (row) => <div><p className="text-rw-ink">{row.roomType}</p><p className="text-xs text-rw-muted">{row.roomId ? `Assegnata ${row.roomId.replace("hr_", "")}` : "Da assegnare"}</p></div> },
-            { key: "rate", header: "Tariffa", render: (row) => <span className="font-semibold text-rw-ink">€ {row.rate}</span> },
+            { key: "guestName", header: t("hotel.booking.col.client"), render: (row) => <div><p className="font-semibold text-rw-ink">{row.guestName}</p><p className="text-xs text-rw-muted">{row.phone} · {row.email}</p></div> },
+            { key: "dates", header: t("hotel.booking.col.stay"), render: (row) => <div><p className="text-rw-ink">{row.checkInDate} → {row.checkOutDate}</p><p className="text-xs text-rw-muted">{row.nights} {t("hotel.booking.nights")} · {row.guests} {t("hotel.booking.guests")}</p></div> },
+            { key: "roomType", header: t("hotel.booking.col.room"), render: (row) => <div><p className="text-rw-ink">{row.roomType}</p><p className="text-xs text-rw-muted">{row.roomId ? `${t("hotel.booking.room_assigned")} ${row.roomId.replace("hr_", "")}` : t("hotel.booking.room_pending")}</p></div> },
+            { key: "rate", header: t("hotel.booking.col.rate"), render: (row) => <span className="font-semibold text-rw-ink">€ {row.rate}</span> },
             {
               key: "boardType",
-              header: "Piano pasti",
+              header: t("hotel.booking.col.board"),
               render: (row) => (
                 <span className="text-rw-soft">
-                  {boardLabels[row.boardType]}
+                  {boardLabels[row.boardType] ?? row.boardType}
                 </span>
               ),
             },
-            { key: "documentCode", header: "Documento", render: (row) => <span className="font-mono text-xs text-rw-soft">{row.documentCode}</span> },
-            { key: "status", header: "Stato", render: (row) => <Chip label={row.status.replace("_", " ")} tone={statusTone[row.status]} /> },
+            { key: "documentCode", header: t("hotel.booking.col.doc"), render: (row) => <span className="font-mono text-xs text-rw-soft">{row.documentCode}</span> },
+            { key: "status", header: t("hotel.booking.col.status"), render: (row) => <Chip label={row.status.replace("_", " ")} tone={statusTone[row.status]} /> },
             {
               key: "actions",
               header: "",
@@ -301,14 +305,14 @@ export function HotelReservationsPage() {
                       });
                     }}
                   >
-                    Modifica
+                    {t("ui.edit")}
                   </button>
                   <button
                     type="button"
                     className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400"
                     onClick={() => deleteReservation(row.id).catch(console.error)}
                   >
-                    Elimina
+                    {t("ui.delete")}
                   </button>
                 </div>
               ),
@@ -316,23 +320,23 @@ export function HotelReservationsPage() {
           ]}
           data={reservations}
           keyExtractor={(row) => row.id}
-          emptyMessage="Nessuna prenotazione registrata"
+          emptyMessage={t("hotel.booking.empty")}
         />
       </Card>
 
-      <Card title="Flusso operativo" description="Schema minimale per reception e booking office.">
+      <Card title={t("hotel.booking.workflow.title")} description={t("hotel.booking.workflow.desc")}>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
-            <p className="font-semibold text-rw-ink">1. Prenotazione</p>
-            <p className="mt-2">Cliente, date, ospiti, tariffa, tipologia camera e documenti.</p>
+            <p className="font-semibold text-rw-ink">{t("hotel.booking.step1.title")}</p>
+            <p className="mt-2">{t("hotel.booking.step1.desc")}</p>
           </div>
           <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
-            <p className="font-semibold text-rw-ink">2. Arrivo / check-in</p>
-            <p className="mt-2">Assegni la camera, registri l’ospite e prepari la keycard.</p>
+            <p className="font-semibold text-rw-ink">{t("hotel.booking.step2.title")}</p>
+            <p className="mt-2">{t("hotel.booking.step2.desc")}</p>
           </div>
           <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
-            <p className="font-semibold text-rw-ink">3. Partenza / check-out</p>
-            <p className="mt-2">Chiudi il conto, disattivi la card e mandi la camera a pulizia.</p>
+            <p className="font-semibold text-rw-ink">{t("hotel.booking.step3.title")}</p>
+            <p className="mt-2">{t("hotel.booking.step3.desc")}</p>
           </div>
         </div>
       </Card>

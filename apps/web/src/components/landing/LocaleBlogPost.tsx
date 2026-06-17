@@ -7,7 +7,7 @@ import { absUrl, blogPostPath, pillarPath } from "@/core/i18n/locale-urls";
 import type { Locale } from "@/core/i18n/types";
 
 function formatDate(iso: string, locale: Locale) {
-  const localeTag = locale === "it" ? "it-IT" : locale === "en" ? "en-US" : "nl-NL";
+  const localeTag = locale === "it" ? "it-IT" : locale === "en" ? "en-US" : locale === "pt" ? "pt-BR" : "nl-NL";
   return new Date(iso).toLocaleDateString(localeTag, {
     day: "numeric",
     month: "long",
@@ -47,6 +47,14 @@ const LABELS: Record<Locale, {
     discoverIntegrated: "Ontdek het geïntegreerde systeem",
     related: "Gerelateerde artikelen",
   },
+  pt: {
+    back: "← Todos os artigos",
+    min: "min de leitura",
+    summary: "Resumindo",
+    requestDemo: "Solicitar demo",
+    discoverIntegrated: "Descubra o sistema integrado",
+    related: "Artigos relacionados",
+  },
 };
 
 const DEMO_MAIL: Record<Locale, { subject: string; body: string }> = {
@@ -61,6 +69,10 @@ const DEMO_MAIL: Record<Locale, { subject: string; body: string }> = {
   nl: {
     subject: "RistoSimply – Demo-aanvraag",
     body: "Ik wil graag een demo van RistoSimply na het lezen van het blogartikel.",
+  },
+  pt: {
+    subject: "RistoSimply – Solicitação de demo",
+    body: "Gostaria de uma demo do RistoSimply após ler o artigo do blog.",
   },
 };
 

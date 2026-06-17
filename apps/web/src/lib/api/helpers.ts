@@ -14,9 +14,20 @@ const MAX_BODY_SIZE = 1_048_576; // 1 MB
 export async function body<T>(req: Request): Promise<T> {
   const contentLength = req.headers.get("content-length");
   if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
-    throw new Error("Request body too large");
+    throw new BodyParseError("Request body too large");
   }
-  return req.json() as Promise<T>;
+  try {
+    return (await req.json()) as T;
+  } catch {
+    throw new BodyParseError("Invalid JSON");
+  }
+}
+
+export class BodyParseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BodyParseError";
+  }
 }
 
 /**
@@ -42,6 +53,9 @@ export function withErrorHandler(handler: RouteHandler): RouteHandler {
     try {
       return await handler(req, ctx);
     } catch (error) {
+      if (error instanceof BodyParseError) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
       const pathname = req.nextUrl.pathname;
       const method = req.method;
       const message = error instanceof Error ? error.message : String(error);

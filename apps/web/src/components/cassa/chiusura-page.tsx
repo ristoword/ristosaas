@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { useI18n } from "@/core/i18n/provider";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
@@ -52,6 +53,7 @@ function Stat({
 }
 
 export function ChiusuraPage() {
+  const { t } = useI18n();
   const { orders, refresh } = useOrders();
   const [selectedDay, setSelectedDay] = useState<string>(() => todayIso());
   const [unified, setUnified] = useState<UnifiedReportSnapshot | null>(null);
@@ -77,7 +79,7 @@ export function ChiusuraPage() {
         setAlreadyClosed(match);
         setNotes(match?.notes ?? "");
       } catch (err) {
-        setError((err as Error).message || "Errore caricamento report");
+        setError((err as Error).message || t("cassa.chiusura.loadError"));
       } finally {
         setLoading(false);
       }
@@ -169,7 +171,7 @@ export function ChiusuraPage() {
       await loadDay(selectedDay);
       await refresh();
     } catch (err) {
-      setError((err as Error).message || "Errore chiusura giornata");
+      setError((err as Error).message || t("cassa.chiusura.closeError"));
     } finally {
       setClosing(false);
     }
@@ -180,7 +182,7 @@ export function ChiusuraPage() {
   }
 
   function handleExportCsv() {
-    const header = ["Data", "Incasso", "Food cost", "Staff", "Margine", "Note"];
+    const header = [t("ui.date"), t("cassa.report.revenue"), t("cassa.chiusura.foodCost"), t("cassa.chiusura.staff"), t("cassa.report.estimatedMargin"), t("ui.notes")];
     const lordo = revenue.toFixed(2);
     const rows = [[
       selectedDay,
@@ -207,8 +209,8 @@ export function ChiusuraPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Chiusura di cassa (Z)"
-        subtitle={`Riepilogo giornaliero — ${formatHumanDate(selectedDay)}`}
+        title={t("cassa.chiusura.title")}
+        subtitle={`${t("cassa.chiusura.dailySummary")} ${formatHumanDate(selectedDay)}`}
       >
         <input
           type="date"
@@ -221,14 +223,14 @@ export function ChiusuraPage() {
           onClick={handlePrint}
           className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink"
         >
-          <Printer className="h-4 w-4" /> Stampa
+          <Printer className="h-4 w-4" /> {t("ui.print")}
         </button>
         <button
           type="button"
           onClick={handleExportCsv}
           className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink hover:border-rw-accent/30 hover:text-rw-accent"
         >
-          <Download className="h-4 w-4" /> Esporta CSV
+          <Download className="h-4 w-4" /> {t("cassa.chiusura.exportCsv")}
         </button>
       </PageHeader>
 
@@ -241,43 +243,43 @@ export function ChiusuraPage() {
       {loading && (
         <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-muted">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Carico snapshot giornaliero…
+          {t("cassa.chiusura.loading")}
         </div>
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat label="Incasso ristorante" value={`€ ${revenue.toFixed(2)}`} icon={TrendingUp} />
-        <Stat label="Incasso hotel" value={`€ ${hotelRevenue.toFixed(2)}`} icon={TrendingUp} tone="text-blue-400" />
-        <Stat label="Room charge integrato" value={`€ ${roomChargeRevenue.toFixed(2)}`} icon={CreditCard} />
-        <Stat label="Margine stimato" value={`€ ${margin.toFixed(2)}`} icon={TrendingUp} tone="text-emerald-400" />
+        <Stat label={t("cassa.chiusura.restaurantRevenue")} value={`€ ${revenue.toFixed(2)}`} icon={TrendingUp} />
+        <Stat label={t("cassa.chiusura.hotelRevenue")} value={`€ ${hotelRevenue.toFixed(2)}`} icon={TrendingUp} tone="text-blue-400" />
+        <Stat label={t("cassa.chiusura.roomCharge")} value={`€ ${roomChargeRevenue.toFixed(2)}`} icon={CreditCard} />
+        <Stat label={t("cassa.report.estimatedMargin")} value={`€ ${margin.toFixed(2)}`} icon={TrendingUp} tone="text-emerald-400" />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <Stat label="Food cost reale" value={`€ ${foodCost.toFixed(2)}`} icon={Banknote} tone="text-amber-400" />
-        <Stat label="Costo staff" value={`€ ${staffCost.toFixed(2)}`} icon={Users} />
+        <Stat label={t("cassa.chiusura.realFoodCost")} value={`€ ${foodCost.toFixed(2)}`} icon={Banknote} tone="text-amber-400" />
+        <Stat label={t("cassa.chiusura.staffCost")} value={`€ ${staffCost.toFixed(2)}`} icon={Users} />
         <Stat
-          label="Scontrini / Coperti"
+          label={t("cassa.chiusura.ticketsCovers")}
           value={`${totalsFromOrders.tickets} / ${totalsFromOrders.covers}`}
           icon={Users}
         />
       </div>
 
       <Card
-        title="Dettaglio per cameriere"
-        description="Aggregato dai ticket creati nella giornata selezionata."
+        title={t("cassa.chiusura.byWaiter")}
+        description={t("cassa.chiusura.byWaiterDesc")}
       >
         <DataTable
           columns={[
             {
               key: "name",
-              header: "Cameriere",
+              header: t("cassa.col.waiter"),
               render: (r) => <span className="font-semibold text-rw-ink">{r.name}</span>,
             },
-            { key: "covers", header: "Coperti" },
-            { key: "tickets", header: "Scontrini" },
+            { key: "covers", header: t("cassa.col.covers") },
+            { key: "tickets", header: t("cassa.chiusura.receipts") },
             {
               key: "revenue",
-              header: "Incasso",
+              header: t("cassa.report.revenue"),
               render: (r) => (
                 <span className="font-semibold text-rw-ink">€ {r.revenue.toFixed(2)}</span>
               ),
@@ -285,14 +287,14 @@ export function ChiusuraPage() {
           ]}
           data={totalsFromOrders.waiterStats}
           keyExtractor={(r) => r.id}
-          emptyMessage="Nessun ordine rilevato in questa giornata"
+          emptyMessage={t("cassa.chiusura.noOrders")}
         />
       </Card>
 
-      <Card title="Dettaglio per area">
+      <Card title={t("cassa.chiusura.byArea")}>
         {totalsFromOrders.areaStats.length === 0 ? (
           <p className="py-6 text-center text-sm text-rw-muted">
-            Nessun ordine con items valorizzati in questa giornata.
+            {t("cassa.chiusura.noAreaOrders")}
           </p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -315,22 +317,22 @@ export function ChiusuraPage() {
       </Card>
 
       <Card
-        title="Chiusura giornata"
-        description="La chiusura salva il report persistente usato da dashboard, trend e forecast."
+        title={t("cassa.chiusura.closeDay")}
+        description={t("cassa.chiusura.closeDayDesc")}
       >
         <div className="space-y-4">
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Note di chiusura (facoltative)…"
+            placeholder={t("cassa.chiusura.notesPlaceholder")}
             rows={3}
             className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent"
           />
           <div className="flex items-center justify-between">
             <p className="text-xs text-rw-muted">
               {alreadyClosed
-                ? `Giornata già chiusa il ${formatHumanDate(alreadyClosed.date)}`
-                : "La chiusura aggiorna / crea il report giornaliero tenant."}
+                ? `${t("cassa.chiusura.alreadyClosed")} ${formatHumanDate(alreadyClosed.date)}`
+                : t("cassa.chiusura.willCreate")}
             </p>
             <button
               type="button"
@@ -343,21 +345,21 @@ export function ChiusuraPage() {
               ) : (
                 <Lock className="h-5 w-5" />
               )}
-              {alreadyClosed ? "Aggiorna chiusura" : "Chiudi giornata"}
+              {alreadyClosed ? t("cassa.chiusura.updateClose") : t("cassa.chiusura.doClose")}
             </button>
           </div>
         </div>
       </Card>
 
       <Card
-        title="Storico chiusure"
-        description="Ultimi 30 giorni — tutte persistenti."
+        title={t("cassa.chiusura.history")}
+        description={t("cassa.chiusura.historyDesc")}
       >
         <DataTable
           columns={[
             {
               key: "date",
-              header: "Giornata",
+              header: t("cassa.chiusura.day"),
               render: (r) => (
                 <span className="font-semibold text-rw-ink">{formatHumanDate(r.date)}</span>
               ),
@@ -369,23 +371,23 @@ export function ChiusuraPage() {
             },
             {
               key: "foodSpend",
-              header: "Food cost",
+              header: t("cassa.chiusura.foodCost"),
               render: (r) => <span className="tabular-nums">€ {r.foodSpend.toFixed(2)}</span>,
             },
             {
               key: "staffSpend",
-              header: "Staff",
+              header: t("cassa.chiusura.staff"),
               render: (r) => <span className="tabular-nums">€ {r.staffSpend.toFixed(2)}</span>,
             },
             {
               key: "notes",
-              header: "Note",
+              header: t("ui.notes"),
               render: (r) => <span className="text-rw-muted">{r.notes || "—"}</span>,
             },
           ]}
           data={history}
           keyExtractor={(r) => r.id}
-          emptyMessage="Nessun report giornaliero salvato ancora."
+          emptyMessage={t("cassa.chiusura.emptyHistory")}
         />
       </Card>
     </div>

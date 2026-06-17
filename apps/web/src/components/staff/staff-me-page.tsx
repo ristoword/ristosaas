@@ -9,6 +9,7 @@ import {
   LogOut,
   User,
 } from "lucide-react";
+import { useI18n } from "@/core/i18n/provider";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
@@ -33,6 +34,7 @@ function computeDuration(shift: StaffShift): number {
 }
 
 export function StaffMePage() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const [member, setMember] = useState<StaffMember | null>(null);
   const [shifts, setShifts] = useState<StaffShift[]>([]);
@@ -68,7 +70,7 @@ export function StaffMePage() {
         setShifts([]);
       }
     } catch (err) {
-      setError((err as Error).message || "Errore caricamento profilo");
+      setError((err as Error).message || t("staff.me.loadError"));
     } finally {
       setLoading(false);
     }
@@ -88,7 +90,7 @@ export function StaffMePage() {
       await staffApi.clock(member.id, action);
       await load();
     } catch (err) {
-      setError((err as Error).message || "Errore timbratura");
+      setError((err as Error).message || t("staff.me.timestampError"));
     } finally {
       setClocking(null);
     }
@@ -97,7 +99,7 @@ export function StaffMePage() {
   if (!user) {
     return (
       <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-6 text-sm text-rw-muted">
-        Devi essere autenticato per vedere questa pagina.
+        {t("staff.me.notAuthenticated")}
       </div>
     );
   }
@@ -105,8 +107,8 @@ export function StaffMePage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Il mio profilo"
-        subtitle={`Dati reali dal tuo account — ${formatHumanDate(today)}`}
+        title={t("staff.me.title")}
+        subtitle={`${t("staff.me.subtitle")} — ${formatHumanDate(today)}`}
       />
 
       {error && (
@@ -117,7 +119,7 @@ export function StaffMePage() {
 
       {loading && (
         <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-muted">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carico profilo e turni…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("staff.me.loading")}
         </div>
       )}
 
@@ -142,11 +144,11 @@ export function StaffMePage() {
                 <>
                   <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-soft">
                     <Clock className="h-3.5 w-3.5 text-rw-accent" />
-                    Assunto il {formatHumanDate(member.hireDate)}
+                    {t("staff.me.hiredOn").replace("{date}", formatHumanDate(member.hireDate))}
                   </div>
                   <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-soft">
                     <Clock className="h-3.5 w-3.5 text-rw-accent" />
-                    {member.hoursWeek}h contrattuali / settimana
+                    {t("staff.me.contractHours").replace("{n}", String(member.hoursWeek))}
                   </div>
                 </>
               )}
@@ -154,26 +156,25 @@ export function StaffMePage() {
           </div>
         </Card>
 
-        <Card title="Timbratura" className="lg:col-span-2">
+        <Card title={t("staff.me.timestampCard")} className="lg:col-span-2">
           {!member ? (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-              Il tuo account utente non è ancora collegato ad un record staff. Chiedi
-              all&apos;owner di aggiungerti da <code>/owner</code> con la stessa email.
+              {t("staff.me.notLinked")}
             </div>
           ) : (
             <div className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                    Turno corrente
+                    {t("staff.me.currentShift")}
                   </p>
                   <p className="mt-1 font-display text-xl font-semibold text-rw-ink">
-                    {openShift ? `Entrato alle ${formatTime(openShift.clockInAt)}` : "Nessun turno aperto"}
+                    {openShift ? `${t("staff.me.inShiftSince")} ${formatTime(openShift.clockInAt)}` : t("staff.me.noShiftOpen")}
                   </p>
                 </div>
                 <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                    Ore totali del mese
+                    {t("staff.me.monthHours")}
                   </p>
                   <p className="mt-1 font-display text-xl font-semibold text-rw-accent">
                     {monthHours.toFixed(1)}h
@@ -192,7 +193,7 @@ export function StaffMePage() {
                   ) : (
                     <LogIn className="h-4 w-4" />
                   )}
-                  Timbra entrata
+                  {t("staff.me.stampEntry")}
                 </button>
                 <button
                   type="button"
@@ -205,7 +206,7 @@ export function StaffMePage() {
                   ) : (
                     <LogOut className="h-4 w-4" />
                   )}
-                  Timbra uscita
+                  {t("staff.me.stampExit")}
                 </button>
               </div>
             </div>
@@ -214,14 +215,14 @@ export function StaffMePage() {
       </div>
 
       <Card
-        title="Mie presenze del mese"
-        headerRight={<Chip label="Questo mese" value={`${monthHours.toFixed(1)}h`} tone="accent" />}
+        title={t("staff.me.monthAttendance")}
+        headerRight={<Chip label={t("staff.me.thisMonth")} value={`${monthHours.toFixed(1)}h`} tone="accent" />}
       >
         <DataTable
           columns={[
             {
               key: "clockInAt",
-              header: "Data",
+              header: t("ui.date"),
               render: (r) => (
                 <span className="font-semibold text-rw-ink">
                   {formatHumanDate(r.clockInAt.slice(0, 10))}
@@ -230,7 +231,7 @@ export function StaffMePage() {
             },
             {
               key: "clockIn",
-              header: "Entrata",
+              header: t("staff.hr.entry"),
               render: (r) => (
                 <span className="inline-flex items-center gap-1 text-emerald-400">
                   <LogIn className="h-3.5 w-3.5" /> {formatTime(r.clockInAt)}
@@ -239,7 +240,7 @@ export function StaffMePage() {
             },
             {
               key: "clockOut",
-              header: "Uscita",
+              header: t("staff.hr.exit"),
               render: (r) => (
                 <span className="inline-flex items-center gap-1 text-red-400">
                   <LogOut className="h-3.5 w-3.5" /> {formatTime(r.clockOutAt)}
@@ -248,13 +249,13 @@ export function StaffMePage() {
             },
             {
               key: "hours",
-              header: "Ore",
+              header: t("staff.hr.hours"),
               render: (r) => <span className="tabular-nums">{computeDuration(r).toFixed(2)}h</span>,
             },
           ]}
           data={[...shifts].sort((a, b) => b.clockInAt.localeCompare(a.clockInAt))}
           keyExtractor={(r) => r.id}
-          emptyMessage="Nessuna timbratura questo mese."
+          emptyMessage={t("staff.me.noTimestamp")}
         />
       </Card>
 
@@ -262,11 +263,9 @@ export function StaffMePage() {
         <div className="flex items-start gap-2">
           <Info className="mt-0.5 h-4 w-4 text-rw-accent" />
           <div>
-            <p className="font-semibold text-rw-ink">Ferie, permessi, paghe e documenti</p>
+            <p className="font-semibold text-rw-ink">{t("staff.me.payrollNotice")}</p>
             <p className="text-xs text-rw-muted">
-              Saranno disponibili quando il modulo payroll/HR avanzato verrà integrato con il
-              gestionale. In attesa mostriamo solo dati reali (profilo, contratto, turni e
-              timbrature).
+              {t("staff.me.payrollNoticeDesc")}
             </p>
           </div>
         </div>

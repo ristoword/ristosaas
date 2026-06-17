@@ -21,7 +21,8 @@ type OrdersContextValue = {
   createOrder: (
     o: Omit<Order, "id" | "createdAt" | "updatedAt" | "courseStates" | "activeCourse" | "status" | "onlinePaymentStatus" | "stripeCheckoutSessionId">,
   ) => Promise<void>;
-  patchStatus: (id: string, status: OrderStatus) => Promise<void>;
+  appendToOrder: (orderId: string, items: Order["items"], notes?: string) => Promise<void>;
+  patchStatus: (id: string, status: OrderStatus, course?: number) => Promise<void>;
   patchActiveCourse: (id: string, course: number) => Promise<void>;
   getOrdersForArea: (area: string) => Order[];
   getOrdersForTable: (table: string) => Order[];
@@ -86,8 +87,13 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     setOrders((prev) => [order, ...prev]);
   }, []);
 
-  const patchStatus = useCallback(async (id: string, status: OrderStatus) => {
-    const result = await ordersApi.patchStatus(id, status);
+  const appendToOrder = useCallback(async (orderId: string, items: Order["items"], notes?: string) => {
+    const updated = await ordersApi.appendItems(orderId, items, notes);
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+  }, []);
+
+  const patchStatus = useCallback(async (id: string, status: OrderStatus, course?: number) => {
+    const result = await ordersApi.patchStatus(id, status, course);
     const { order } = result;
     setOrders((prev) => prev.map((o) => (o.id === id ? order : o)));
 
@@ -129,7 +135,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   );
 
   return (
-    <Ctx.Provider value={{ orders, activeOrders, loading, loadError, stockAlerts, clearStockAlerts, createOrder, patchStatus, patchActiveCourse, getOrdersForArea, getOrdersForTable, refresh }}>
+    <Ctx.Provider value={{ orders, activeOrders, loading, loadError, stockAlerts, clearStockAlerts, createOrder, appendToOrder, patchStatus, patchActiveCourse, getOrdersForArea, getOrdersForTable, refresh }}>
       {children}
     </Ctx.Provider>
   );

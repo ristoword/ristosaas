@@ -25,6 +25,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/core/i18n/provider";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { Card } from "@/components/shared/card";
@@ -86,14 +87,7 @@ function mapDtoToStorno(row: SupervisorStornoDto): Storno {
   };
 }
 
-const TABS = [
-  { id: "report", label: "Report" },
-  { id: "storico", label: "Storico" },
-  { id: "storni", label: "Storni" },
-  { id: "menu", label: "Menù" },
-  { id: "magazzino", label: "Magazzino" },
-  { id: "unified", label: "Hotel + Ristorante" },
-];
+// TABS defined inside component to use t()
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30";
@@ -134,6 +128,15 @@ function MetricCard({ label, value, sub, icon: Icon, trend }: {
 /* ------------------------------------------------------------------ */
 
 export function SupervisorPage() {
+  const { t } = useI18n();
+  const TABS = [
+    { id: "report", label: t("supervisor.tab.report") },
+    { id: "storico", label: t("supervisor.tab.history") },
+    { id: "storni", label: t("supervisor.tab.storni") },
+    { id: "menu", label: t("supervisor.tab.menu") },
+    { id: "magazzino", label: t("supervisor.tab.warehouse") },
+    { id: "unified", label: t("supervisor.tab.unified") },
+  ];
   const [tab, setTab] = useState("report");
   const [aiOpen, setAiOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -297,7 +300,7 @@ export function SupervisorPage() {
     if (!sImporto || !sMotivo.trim()) return;
     const importo = parseFloat(sImporto);
     if (!Number.isFinite(importo) || importo <= 0) {
-      setStornoSaveError("Importo non valido.");
+      setStornoSaveError(t("supervisor.storno.invalidAmount"));
       return;
     }
     setStornoSaving(true);
@@ -317,7 +320,7 @@ export function SupervisorPage() {
       setSOrdineId("");
       setSNote("");
     } catch (e) {
-      setStornoSaveError(e instanceof Error ? e.message : "Salvataggio non riuscito.");
+      setStornoSaveError(e instanceof Error ? e.message : t("supervisor.storno.saveFailed"));
     } finally {
       setStornoSaving(false);
     }
@@ -325,11 +328,11 @@ export function SupervisorPage() {
 
   /* ---- table columns ---- */
   const storicoColonne = [
-    { key: "createdAt" as const, header: "Data/Ora", render: (r: Order) => <span className="whitespace-nowrap text-rw-ink">{r.createdAt}</span> },
-    { key: "table" as const, header: "Tavolo", render: (r: Order) => r.table ?? "—" },
-    { key: "area" as const, header: "Area" },
+    { key: "createdAt" as const, header: t("ui.datetime"), render: (r: Order) => <span className="whitespace-nowrap text-rw-ink">{r.createdAt}</span> },
+    { key: "table" as const, header: t("supervisor.table"), render: (r: Order) => r.table ?? "—" },
+    { key: "area" as const, header: t("supervisor.area") },
     {
-      key: "status" as const, header: "Stato",
+      key: "status" as const, header: t("ui.status"),
       render: (r: Order) => {
         const t: Record<string, string> = {
           pending: "bg-violet-500/15 text-violet-300",
@@ -345,7 +348,7 @@ export function SupervisorPage() {
     },
     {
       key: "onlinePaymentStatus" as const,
-      header: "Pag. online",
+      header: t("supervisor.onlinePayment"),
       render: (r: Order) => (
         <span
           className={cn(
@@ -357,45 +360,45 @@ export function SupervisorPage() {
         </span>
       ),
     },
-    { key: "covers" as const, header: "Coperti", render: (r: Order) => r.covers ?? "—" },
-    { key: "waiter" as const, header: "Cameriere" },
-    { key: "id" as const, header: "Totale", render: (r: Order) => <span className="font-semibold text-rw-ink">€{r.items.reduce((s, i) => s + (i.price ?? 0) * i.qty, 0).toFixed(2)}</span> },
+    { key: "covers" as const, header: t("supervisor.covers"), render: (r: Order) => r.covers ?? "—" },
+    { key: "waiter" as const, header: t("supervisor.waiter") },
+    { key: "id" as const, header: t("supervisor.total"), render: (r: Order) => <span className="font-semibold text-rw-ink">€{r.items.reduce((s, i) => s + (i.price ?? 0) * i.qty, 0).toFixed(2)}</span> },
   ];
 
   const storniColonne = [
-    { key: "dataOra" as const, header: "Data/Ora", render: (r: Storno) => <span className="whitespace-nowrap">{r.dataOra}</span> },
-    { key: "importo" as const, header: "Importo", render: (r: Storno) => <span className="font-semibold text-red-400">€{r.importo.toFixed(2)}</span> },
-    { key: "motivo" as const, header: "Motivo" },
-    { key: "tavolo" as const, header: "Tavolo" },
-    { key: "ordineId" as const, header: "Ordine" },
-    { key: "note" as const, header: "Note" },
+    { key: "dataOra" as const, header: t("ui.datetime"), render: (r: Storno) => <span className="whitespace-nowrap">{r.dataOra}</span> },
+    { key: "importo" as const, header: t("supervisor.amount"), render: (r: Storno) => <span className="font-semibold text-red-400">€{r.importo.toFixed(2)}</span> },
+    { key: "motivo" as const, header: t("supervisor.storno.reason") },
+    { key: "tavolo" as const, header: t("supervisor.table") },
+    { key: "ordineId" as const, header: t("supervisor.orderId") },
+    { key: "note" as const, header: t("ui.notes") },
   ];
 
   const menuColonne = [
-    { key: "name" as const, header: "Piatto", render: (r: ApiMenuItem) => <span className="font-medium text-rw-ink">{r.name}</span> },
-    { key: "category" as const, header: "Categoria" },
-    { key: "price" as const, header: "Prezzo", render: (r: ApiMenuItem) => <span>€{r.price.toFixed(2)}</span> },
+    { key: "name" as const, header: t("supervisor.dish"), render: (r: ApiMenuItem) => <span className="font-medium text-rw-ink">{r.name}</span> },
+    { key: "category" as const, header: t("supervisor.category") },
+    { key: "price" as const, header: t("supervisor.price"), render: (r: ApiMenuItem) => <span>€{r.price.toFixed(2)}</span> },
     {
-      key: "active" as const, header: "Stato",
+      key: "active" as const, header: t("ui.status"),
       render: (r: ApiMenuItem) => (
         <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", r.active ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400")}>
-          {r.active ? "Disponibile" : "Esaurito"}
+          {r.active ? t("supervisor.available") : t("supervisor.outOfStock")}
         </span>
       ),
     },
   ];
 
   const inventoryColonne = [
-    { key: "name" as const, header: "Prodotto", render: (r: StockItem) => <span className="font-medium text-rw-ink">{r.name}</span> },
-    { key: "category" as const, header: "Categoria" },
-    { key: "qty" as const, header: "Disponibile", render: (r: StockItem) => `${r.qty} ${r.unit}` },
+    { key: "name" as const, header: t("supervisor.product"), render: (r: StockItem) => <span className="font-medium text-rw-ink">{r.name}</span> },
+    { key: "category" as const, header: t("supervisor.category") },
+    { key: "qty" as const, header: t("supervisor.available"), render: (r: StockItem) => `${r.qty} ${r.unit}` },
     {
-      key: "minStock" as const, header: "Stato",
+      key: "minStock" as const, header: t("ui.status"),
       render: (r: StockItem) => {
         const isLow = r.qty <= r.minStock;
         return (
           <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", isLow ? "bg-red-500/15 text-red-400" : "bg-emerald-500/15 text-emerald-400")}>
-            {isLow ? "Sotto soglia" : "OK"}
+            {isLow ? t("supervisor.belowThreshold") : "OK"}
           </span>
         );
       },
@@ -432,16 +435,16 @@ export function SupervisorPage() {
   return (
     <div className="space-y-8">
       {/* Header + KPIs */}
-      <PageHeader title="Supervisor" subtitle="Controllo economico e operativo del ristorante">
-        <Chip label="Incasso lordo" value={`€${incassoLordo.toFixed(2)}`} tone="success" />
-        <Chip label="Storni" value={`€${totaleStorni.toFixed(2)}`} tone={totaleStorni > 0 ? "danger" : "default"} />
-        <Chip label="Incasso netto" value={`€${incassoNetto.toFixed(2)}`} tone="accent" />
-        <Chip label="Valore magazzino" value={`€${totalStockValue.toFixed(2)}`} />
-        <Chip label="Sotto scorta" value={lowStockItems.length} tone={lowStockItems.length > 0 ? "danger" : "default"} />
-        <Chip label="Allarmi stock" value={warehouseAlerts.length} tone={warehouseAlerts.length > 0 ? "danger" : "default"} />
-        <Chip label="Turni attivi" value={activeShifts} tone={activeShifts > 0 ? "accent" : "default"} />
-        <Chip label="Forecast 7gg" value={`€ ${(trends?.forecast.next7.projectedRevenue ?? 0).toFixed(2)}`} />
-        <Chip label="Forecast 30gg" value={`€ ${(trends?.forecast.next30.projectedRevenue ?? 0).toFixed(2)}`} />
+      <PageHeader title={t("supervisor.title")} subtitle={t("supervisor.subtitle")}>
+        <Chip label={t("supervisor.grossRevenue")} value={`€${incassoLordo.toFixed(2)}`} tone="success" />
+        <Chip label={t("supervisor.tab.storni")} value={`€${totaleStorni.toFixed(2)}`} tone={totaleStorni > 0 ? "danger" : "default"} />
+        <Chip label={t("supervisor.netRevenue")} value={`€${incassoNetto.toFixed(2)}`} tone="accent" />
+        <Chip label={t("supervisor.warehouseValue")} value={`€${totalStockValue.toFixed(2)}`} />
+        <Chip label={t("supervisor.lowStock")} value={lowStockItems.length} tone={lowStockItems.length > 0 ? "danger" : "default"} />
+        <Chip label={t("supervisor.stockAlerts")} value={warehouseAlerts.length} tone={warehouseAlerts.length > 0 ? "danger" : "default"} />
+        <Chip label={t("supervisor.activeShifts")} value={activeShifts} tone={activeShifts > 0 ? "accent" : "default"} />
+        <Chip label={t("owner.forecast7d")} value={`€ ${(trends?.forecast.next7.projectedRevenue ?? 0).toFixed(2)}`} />
+        <Chip label={t("owner.forecast30d")} value={`€ ${(trends?.forecast.next30.projectedRevenue ?? 0).toFixed(2)}`} />
         <AiToggleButton onClick={() => setAiOpen(true)} label="AI Supervisor" />
       </PageHeader>
 
@@ -453,21 +456,21 @@ export function SupervisorPage() {
       {tab === "report" && (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <MetricCard icon={BadgeEuro} label="Incasso lordo" value={`€${incassoLordo.toFixed(2)}`} trend="up" sub="Totale ordini completati" />
-            <MetricCard icon={XCircle} label="Storni" value={`€${totaleStorni.toFixed(2)}`} trend={totaleStorni > 0 ? "down" : "neutral"} sub={`${storni.length} operazioni`} />
-            <MetricCard icon={DollarSign} label="Incasso netto" value={`€${incassoNetto.toFixed(2)}`} trend="up" sub="Lordo − storni" />
-            <MetricCard icon={TrendingUp} label="Scontrino medio" value={`€${scontrinoMedio.toFixed(2)}`} trend="up" sub="Per ordine completato" />
-            <MetricCard icon={Users} label="Staff attivo" value={String(activeStaff.length)} sub={`su ${staffMembers.length} totali`} />
-            <MetricCard icon={Clock} label="Turni aperti" value={String(activeShifts)} sub="Login personale attivi" />
-            <MetricCard icon={ShoppingCart} label="Ordini attivi" value={String(ordiniAttivi)} tone="accent" sub="In corso adesso" />
-            <MetricCard icon={ClipboardList} label="Ordini archiviati" value={String(archivedOrders.length)} sub="Totale in archivio" />
-            <MetricCard icon={UtensilsCrossed} label="Piatti attivi" value={String(menuItems.filter((m) => m.active).length)} sub={`su ${menuItems.length} totali`} />
+            <MetricCard icon={BadgeEuro} label={t("supervisor.grossRevenue")} value={`€${incassoLordo.toFixed(2)}`} trend="up" sub={t("supervisor.completedOrders")} />
+            <MetricCard icon={XCircle} label={t("supervisor.tab.storni")} value={`€${totaleStorni.toFixed(2)}`} trend={totaleStorni > 0 ? "down" : "neutral"} sub={`${storni.length} ${t("supervisor.operations")}`} />
+            <MetricCard icon={DollarSign} label={t("supervisor.netRevenue")} value={`€${incassoNetto.toFixed(2)}`} trend="up" sub={t("supervisor.grossMinusStorni")} />
+            <MetricCard icon={TrendingUp} label={t("supervisor.avgTicket")} value={`€${scontrinoMedio.toFixed(2)}`} trend="up" sub={t("supervisor.perCompletedOrder")} />
+            <MetricCard icon={Users} label={t("supervisor.activeStaff")} value={String(activeStaff.length)} sub={`${t("supervisor.outOf")} ${staffMembers.length}`} />
+            <MetricCard icon={Clock} label={t("supervisor.openShifts")} value={String(activeShifts)} sub={t("supervisor.activeLogins")} />
+            <MetricCard icon={ShoppingCart} label={t("supervisor.activeOrders")} value={String(ordiniAttivi)} tone="accent" sub={t("supervisor.inProgressNow")} />
+            <MetricCard icon={ClipboardList} label={t("supervisor.archivedOrders")} value={String(archivedOrders.length)} sub={t("supervisor.totalArchive")} />
+            <MetricCard icon={UtensilsCrossed} label={t("supervisor.activeDishes")} value={String(menuItems.filter((m) => m.active).length)} sub={`${t("supervisor.outOf")} ${menuItems.length}`} />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <Card
-              title="AI Operativa - Queue approvazioni"
-              description="Bozze generate su dati reali: approva, rifiuta o applica."
+              title={t("supervisor.aiQueue")}
+              description={t("supervisor.aiQueueDesc")}
               headerRight={
                 <div className="flex items-center gap-2">
                   <button
@@ -475,10 +478,10 @@ export function SupervisorPage() {
                     className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-rw-soft hover:bg-rw-surfaceAlt"
                     onClick={refreshAi}
                   >
-                    <RefreshCw className="h-3.5 w-3.5" /> Refresh
+                    <RefreshCw className="h-3.5 w-3.5" /> {t("ui.refresh")}
                   </button>
                   <button type="button" className={btnPrimary} onClick={generateProposals}>
-                    <FileText className="h-4 w-4" /> Genera proposte
+                    <FileText className="h-4 w-4" /> {t("supervisor.generateProposals")}
                   </button>
                 </div>
               }
@@ -508,12 +511,12 @@ export function SupervisorPage() {
                         <div className="flex items-center gap-1.5">
                           {proposal.status === "pending_review" && (
                             <>
-                              <button type="button" className="rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-400" onClick={() => reviewProposal(proposal.id, "approve")}>Approva</button>
-                              <button type="button" className="rounded-lg bg-red-500/15 px-2 py-1 text-xs font-semibold text-red-400" onClick={() => reviewProposal(proposal.id, "reject")}>Rifiuta</button>
+                              <button type="button" className="rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-400" onClick={() => reviewProposal(proposal.id, "approve")}>{t("supervisor.approve")}</button>
+                              <button type="button" className="rounded-lg bg-red-500/15 px-2 py-1 text-xs font-semibold text-red-400" onClick={() => reviewProposal(proposal.id, "reject")}>{t("supervisor.reject")}</button>
                             </>
                           )}
                           {proposal.status === "approved" && (
-                            <button type="button" className="rounded-lg bg-rw-accent/15 px-2 py-1 text-xs font-semibold text-rw-accent" onClick={() => applyProposal(proposal.id)}>Applica</button>
+                            <button type="button" className="rounded-lg bg-rw-accent/15 px-2 py-1 text-xs font-semibold text-rw-accent" onClick={() => applyProposal(proposal.id)}>{t("supervisor.apply")}</button>
                           )}
                         </div>
                       </div>
@@ -522,19 +525,19 @@ export function SupervisorPage() {
                   ))}
                   {aiProposals.length === 0 && (
                     <p className="rounded-xl bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-muted">
-                      Nessuna proposta aperta. Genera un nuovo batch AI.
+                      {t("supervisor.noProposals")}
                     </p>
                   )}
                 </div>
               </div>
             </Card>
-            <Card title="Riepilogo staff" description="Personale e ruoli">
+            <Card title={t("supervisor.staffSummary")} description={t("supervisor.staffSummaryDesc")}>
               <ul className="space-y-2">
                 {[
-                  { l: "Staff attivo", v: `${activeStaff.length} / ${staffMembers.length}` },
-                  { l: "In ferie", v: String(staffMembers.filter((s) => s.status === "ferie").length) },
-                  { l: "In malattia", v: String(staffMembers.filter((s) => s.status === "malattia").length) },
-                  { l: "Valore magazzino", v: `€${totalStockValue.toFixed(2)}` },
+                  { l: t("supervisor.activeStaff"), v: `${activeStaff.length} / ${staffMembers.length}` },
+                  { l: t("staff.leaveType.ferie"), v: String(staffMembers.filter((s) => s.status === "ferie").length) },
+                  { l: t("staff.leaveType.malattia"), v: String(staffMembers.filter((s) => s.status === "malattia").length) },
+                  { l: t("supervisor.warehouseValue"), v: `€${totalStockValue.toFixed(2)}` },
                 ].map((r) => (
                   <li key={r.l} className="flex items-center justify-between rounded-xl bg-rw-surfaceAlt px-3 py-2">
                     <span className="text-sm text-rw-soft">{r.l}</span>
@@ -543,13 +546,13 @@ export function SupervisorPage() {
                 ))}
               </ul>
             </Card>
-            <Card title="Riepilogo magazzino" description="Stato scorte e valori">
+            <Card title={t("supervisor.warehouseSummary")} description={t("supervisor.warehouseSummaryDesc")}>
               <ul className="space-y-2">
                 {[
-                  { l: "Prodotti totali", v: String(stockItems.length) },
-                  { l: "Sotto soglia", v: String(lowStockItems.length) },
-                  { l: "Valore totale", v: `€${totalStockValue.toFixed(2)}` },
-                  { l: "Categorie", v: String(new Set(stockItems.map((s) => s.category)).size) },
+                  { l: t("supervisor.totalProducts"), v: String(stockItems.length) },
+                  { l: t("supervisor.lowStock"), v: String(lowStockItems.length) },
+                  { l: t("supervisor.totalValue"), v: `€${totalStockValue.toFixed(2)}` },
+                  { l: t("supervisor.categories"), v: String(new Set(stockItems.map((s) => s.category)).size) },
                 ].map((r) => (
                   <li key={r.l} className="flex items-center justify-between rounded-xl bg-rw-surfaceAlt px-3 py-2">
                     <span className="text-sm text-rw-soft">{r.l}</span>
@@ -561,13 +564,13 @@ export function SupervisorPage() {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <Card title="Costi reali periodo" description="Calcolati da scarichi comande e turni staff.">
+            <Card title={t("supervisor.realCosts")} description={t("supervisor.realCostsDesc")}>
               <ul className="space-y-2">
                 {[
-                  { l: "Food cost reale", v: `€${realFoodCost.toFixed(2)}` },
-                  { l: "Costo personale reale", v: `€${realStaffCost.toFixed(2)}` },
-                  { l: "Costo totale", v: `€${(realFoodCost + realStaffCost).toFixed(2)}` },
-                  { l: "Margine operativo", v: `€${(unifiedReport?.realCosts?.margin ?? 0).toFixed(2)}` },
+                  { l: t("supervisor.realFoodCost"), v: `€${realFoodCost.toFixed(2)}` },
+                  { l: t("supervisor.realStaffCost"), v: `€${realStaffCost.toFixed(2)}` },
+                  { l: t("supervisor.totalCost"), v: `€${(realFoodCost + realStaffCost).toFixed(2)}` },
+                  { l: t("supervisor.operatingMargin"), v: `€${(unifiedReport?.realCosts?.margin ?? 0).toFixed(2)}` },
                 ].map((r) => (
                   <li key={r.l} className="flex items-center justify-between rounded-xl bg-rw-surfaceAlt px-3 py-2">
                     <span className="text-sm text-rw-soft">{r.l}</span>
@@ -576,9 +579,9 @@ export function SupervisorPage() {
                 ))}
               </ul>
             </Card>
-            <Card title="Allarmi scorte" description="Prodotti sotto soglia o esauriti.">
+            <Card title={t("supervisor.stockAlerts")} description={t("supervisor.stockAlertsDesc")}>
               <ul className="space-y-2">
-                {(warehouseAlerts.length > 0 ? warehouseAlerts.slice(0, 6) : [{ id: "none", name: "Nessun allarme", qty: 0, minStock: 0, level: "warning", message: "Scorte nei limiti." }]).map((alert) => (
+                {(warehouseAlerts.length > 0 ? warehouseAlerts.slice(0, 6) : [{ id: "none", name: t("supervisor.noAlerts"), qty: 0, minStock: 0, level: "warning", message: t("supervisor.stockOk") }]).map((alert) => (
                   <li key={alert.id} className="rounded-xl bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-soft">
                     <span className={cn("font-semibold", alert.level === "critical" ? "text-red-400" : "text-amber-400")}>{alert.name}</span>
                     <span className="ml-2">{alert.message}</span>
@@ -589,13 +592,13 @@ export function SupervisorPage() {
           </div>
 
           <Card
-            title="Dettaglio ordini attivi"
+            title={t("supervisor.activeOrdersDetail")}
             headerRight={
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-rw-muted" />
                 <input
                   className={cn(inputCls, "w-48 py-1.5 pl-8 text-xs")}
-                  placeholder="Filtra tavolo / cameriere"
+                  placeholder={t("supervisor.filterTableWaiter")}
                   value={storicoFilter}
                   onChange={(e) => setStoricoFilter(e.target.value)}
                 />
@@ -606,7 +609,7 @@ export function SupervisorPage() {
               columns={storicoColonne}
               data={orders.filter((o) => o.status !== "chiuso" && o.status !== "annullato")}
               keyExtractor={(r) => r.id}
-              emptyMessage="Nessun ordine attivo"
+              emptyMessage={t("supervisor.noActiveOrders")}
             />
           </Card>
         </div>
@@ -620,10 +623,10 @@ export function SupervisorPage() {
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-rw-muted" />
-              <input className={cn(inputCls, "pl-8")} placeholder="Filtra per cameriere o tavolo…" value={storicoFilter} onChange={(e) => setStoricoFilter(e.target.value)} />
+              <input className={cn(inputCls, "pl-8")} placeholder={t("supervisor.filterTableWaiter")} value={storicoFilter} onChange={(e) => setStoricoFilter(e.target.value)} />
             </div>
           </div>
-          <DataTable columns={storicoColonne} data={filteredStorico} keyExtractor={(r) => r.id} emptyMessage="Nessun ordine trovato" />
+          <DataTable columns={storicoColonne} data={filteredStorico} keyExtractor={(r) => r.id} emptyMessage={t("supervisor.noOrdersFound")} />
         </div>
       )}
 
@@ -632,35 +635,35 @@ export function SupervisorPage() {
       {/* ============================================================ */}
       {tab === "storni" && (
         <div className="space-y-6">
-          <Card title="Nuovo storno" description="Registra un'operazione di storno (salvata nel database del tenant).">
+          <Card title={t("supervisor.storno.newTitle")} description={t("supervisor.storno.newDesc")}>
             <div className="grid gap-3 sm:grid-cols-2">
               {stornoSaveError && (
                 <div className="sm:col-span-2 rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
                   {stornoSaveError}
                 </div>
               )}
-              <div><label className={labelCls}>Importo (€)</label><input type="number" step="0.01" className={inputCls} value={sImporto} onChange={(e) => setSImporto(e.target.value)} placeholder="0.00" /></div>
-              <div><label className={labelCls}>Motivo</label><input className={inputCls} value={sMotivo} onChange={(e) => setSMotivo(e.target.value)} placeholder="Errore, insoddisfazione…" /></div>
-              <div><label className={labelCls}>Tavolo</label><input className={inputCls} value={sTavolo} onChange={(e) => setSTavolo(e.target.value)} placeholder="T1" /></div>
-              <div><label className={labelCls}>ID Ordine</label><input className={inputCls} value={sOrdineId} onChange={(e) => setSOrdineId(e.target.value)} placeholder="o1" /></div>
-              <div className="sm:col-span-2"><label className={labelCls}>Note</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={sNote} onChange={(e) => setSNote(e.target.value)} placeholder="Dettagli…" /></div>
+              <div><label className={labelCls}>{t("supervisor.amount")} (€)</label><input type="number" step="0.01" className={inputCls} value={sImporto} onChange={(e) => setSImporto(e.target.value)} placeholder="0.00" /></div>
+              <div><label className={labelCls}>{t("supervisor.storno.reason")}</label><input className={inputCls} value={sMotivo} onChange={(e) => setSMotivo(e.target.value)} placeholder={t("supervisor.storno.reasonPlaceholder")} /></div>
+              <div><label className={labelCls}>{t("supervisor.table")}</label><input className={inputCls} value={sTavolo} onChange={(e) => setSTavolo(e.target.value)} placeholder="T1" /></div>
+              <div><label className={labelCls}>{t("supervisor.orderId")}</label><input className={inputCls} value={sOrdineId} onChange={(e) => setSOrdineId(e.target.value)} placeholder="o1" /></div>
+              <div className="sm:col-span-2"><label className={labelCls}>{t("ui.notes")}</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={sNote} onChange={(e) => setSNote(e.target.value)} placeholder={t("ui.details")} /></div>
               <div className="sm:col-span-2">
                 <button type="button" className={btnPrimary} disabled={stornoSaving} onClick={() => void handleAddStorno()}>
                   {stornoSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                  Registra storno
+                  {t("supervisor.storno.register")}
                 </button>
               </div>
             </div>
           </Card>
 
-          <Card title="Elenco storni" description={`${storni.length} storni registrati`}>
-            <DataTable columns={storniColonne} data={storni} keyExtractor={(r) => r.id} emptyMessage="Nessuno storno registrato" />
+          <Card title={t("supervisor.storno.listTitle")} description={`${storni.length} ${t("supervisor.storno.registered")}`}>
+            <DataTable columns={storniColonne} data={storni} keyExtractor={(r) => r.id} emptyMessage={t("supervisor.storno.empty")} />
           </Card>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <MetricCard icon={XCircle} label="Totale storni" value={`€${totaleStorni.toFixed(2)}`} trend="down" />
-            <MetricCard icon={BarChart3} label="N° storni" value={String(storni.length)} />
-            <MetricCard icon={DollarSign} label="Media storno" value={`€${storni.length ? (totaleStorni / storni.length).toFixed(2) : "0.00"}`} />
+            <MetricCard icon={XCircle} label={t("supervisor.storno.totalAmount")} value={`€${totaleStorni.toFixed(2)}`} trend="down" />
+            <MetricCard icon={BarChart3} label={t("supervisor.storno.count")} value={String(storni.length)} />
+            <MetricCard icon={DollarSign} label={t("supervisor.storno.avg")} value={`€${storni.length ? (totaleStorni / storni.length).toFixed(2) : "0.00"}`} />
           </div>
         </div>
       )}
@@ -688,11 +691,11 @@ export function SupervisorPage() {
             </div>
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-rw-muted" />
-              <input className={cn(inputCls, "pl-8")} placeholder="Cerca piatto…" value={menuFilter} onChange={(e) => setMenuFilter(e.target.value)} />
+              <input className={cn(inputCls, "pl-8")} placeholder={t("supervisor.searchDish")} value={menuFilter} onChange={(e) => setMenuFilter(e.target.value)} />
             </div>
           </div>
 
-          <DataTable columns={menuColonne} data={filteredMenu} keyExtractor={(r) => r.id} emptyMessage="Nessun piatto trovato" />
+          <DataTable columns={menuColonne} data={filteredMenu} keyExtractor={(r) => r.id} emptyMessage={t("supervisor.noDishFound")} />
         </div>
       )}
 
@@ -702,14 +705,14 @@ export function SupervisorPage() {
       {tab === "magazzino" && (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-3">
-            <MetricCard icon={Package} label="Prodotti totali" value={String(stockItems.length)} sub="In magazzino" />
-            <MetricCard icon={Box} label="Sotto soglia" value={String(lowStockItems.length)} trend={lowStockItems.length > 0 ? "down" : "neutral"} sub="Da riordinare" />
-            <MetricCard icon={ChefHat} label="Valore totale" value={`€${totalStockValue.toFixed(2)}`} sub="Valore stock" />
+            <MetricCard icon={Package} label={t("supervisor.totalProducts")} value={String(stockItems.length)} sub={t("supervisor.inWarehouse")} />
+            <MetricCard icon={Box} label={t("supervisor.lowStock")} value={String(lowStockItems.length)} trend={lowStockItems.length > 0 ? "down" : "neutral"} sub={t("supervisor.toReorder")} />
+            <MetricCard icon={ChefHat} label={t("supervisor.totalValue")} value={`€${totalStockValue.toFixed(2)}`} sub={t("supervisor.stockValue")} />
           </div>
 
           <Card
-            title="Inventario"
-            description={`${stockItems.length} prodotti`}
+            title={t("supervisor.inventory")}
+            description={`${stockItems.length} ${t("supervisor.products")}`}
             headerRight={
               <button
                 type="button"
@@ -722,21 +725,21 @@ export function SupervisorPage() {
                   });
                 }}
               >
-                <RefreshCw className="h-3.5 w-3.5" /> Aggiorna
+                <RefreshCw className="h-3.5 w-3.5" /> {t("ui.refresh")}
               </button>
             }
           >
-            <DataTable columns={inventoryColonne} data={stockItems} keyExtractor={(r) => r.id} emptyMessage="Magazzino vuoto" />
+            <DataTable columns={inventoryColonne} data={stockItems} keyExtractor={(r) => r.id} emptyMessage={t("supervisor.emptyWarehouse")} />
           </Card>
         </div>
       )}
 
       {tab === "unified" && (
         <div className="space-y-6">
-          <Card title="Filtro periodo" description="Applica range date ai KPI unificati hotel + ristorante.">
+          <Card title={t("supervisor.periodFilter")} description={t("supervisor.periodFilterDesc")}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <div className="w-full sm:w-44">
-                <label className={labelCls}>Da</label>
+                <label className={labelCls}>{t("ui.from")}</label>
                 <input
                   type="date"
                   className={inputCls}
@@ -745,7 +748,7 @@ export function SupervisorPage() {
                 />
               </div>
               <div className="w-full sm:w-44">
-                <label className={labelCls}>A</label>
+                <label className={labelCls}>{t("ui.to")}</label>
                 <input
                   type="date"
                   className={inputCls}
@@ -754,7 +757,7 @@ export function SupervisorPage() {
                 />
               </div>
               <button type="button" className={btnPrimary} onClick={refreshUnified}>
-                <RefreshCw className="h-4 w-4" /> Aggiorna KPI
+                <RefreshCw className="h-4 w-4" /> {t("supervisor.updateKpi")}
               </button>
             </div>
           </Card>
@@ -762,33 +765,33 @@ export function SupervisorPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard
               icon={BedDouble as typeof DollarSign}
-              label="Camere occupate"
+              label={t("supervisor.occupiedRooms")}
               value={String(occupiedRooms)}
-              sub={`su ${unifiedReport?.occupancy.totalRooms ?? hotelRooms.length} camere`}
+              sub={`${t("supervisor.outOf")} ${unifiedReport?.occupancy.totalRooms ?? hotelRooms.length}`}
             />
-            <MetricCard icon={BadgeEuro} label="Revenue hotel" value={`€${hotelRevenue.toFixed(2)}`} sub="Totale soggiorni" />
-            <MetricCard icon={CreditCard as typeof DollarSign} label="Room charge" value={`€${integratedRevenue.toFixed(2)}`} sub="Ristorante su camera" />
-            <MetricCard icon={ClipboardList} label="Folios" value={String(folios.length)} sub="Conti ospite aperti/chiusi" />
+            <MetricCard icon={BadgeEuro} label={t("supervisor.hotelRevenue")} value={`€${hotelRevenue.toFixed(2)}`} sub={t("supervisor.totalStays")} />
+            <MetricCard icon={CreditCard as typeof DollarSign} label={t("supervisor.roomCharge")} value={`€${integratedRevenue.toFixed(2)}`} sub={t("supervisor.restaurantOnRoom")} />
+            <MetricCard icon={ClipboardList} label="Folios" value={String(folios.length)} sub={t("supervisor.guestAccounts")} />
           </div>
 
-          <Card title="Report unificati hotel + ristorante" description="Visione manageriale cross-verticale.">
+          <Card title={t("supervisor.unifiedReport")} description={t("supervisor.unifiedReportDesc")}>
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
-                <p className="font-semibold text-rw-ink">Revenue ristorante</p>
+                <p className="font-semibold text-rw-ink">{t("supervisor.restaurantRevenue")}</p>
                 <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€{incassoNetto.toFixed(2)}</p>
               </div>
               <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
-                <p className="font-semibold text-rw-ink">Revenue hotel</p>
+                <p className="font-semibold text-rw-ink">{t("supervisor.hotelRevenue")}</p>
                 <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€{hotelRevenue.toFixed(2)}</p>
               </div>
               <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-soft">
-                <p className="font-semibold text-rw-ink">Valore integrato</p>
+                <p className="font-semibold text-rw-ink">{t("supervisor.integratedValue")}</p>
                 <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€{(incassoNetto + hotelRevenue).toFixed(2)}</p>
               </div>
             </div>
           </Card>
 
-          <Card title="Mix piani soggiorno" description="Room only, B&B, mezza pensione, pensione completa.">
+          <Card title={t("supervisor.boardMix")} description={t("supervisor.boardMixDesc")}>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {(["room_only", "bed_breakfast", "half_board", "full_board"] as const).map((boardType) => (
                 <div key={boardType} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">

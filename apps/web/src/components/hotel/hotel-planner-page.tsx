@@ -7,6 +7,7 @@ import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { addDaysIso, todayIso } from "@/lib/date-utils";
+import { useI18n } from "@/core/i18n/provider";
 
 const DEFAULT_WINDOW_DAYS = 14;
 
@@ -16,6 +17,7 @@ function buildRange(startIso: string, days: number): string[] {
 
 export function HotelPlannerPage() {
   const { rooms, reservations } = useHotel();
+  const { t } = useI18n();
   const [anchor, setAnchor] = useState<string>(() => todayIso());
   const [windowDays, setWindowDays] = useState<number>(DEFAULT_WINDOW_DAYS);
 
@@ -53,17 +55,17 @@ export function HotelPlannerPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Planner Camere"
-        subtitle="Vista mensile dinamica, navigabile dal giorno corrente."
+        title={t("hotel.planner.title")}
+        subtitle={t("hotel.planner.subtitle")}
       >
-        <Chip label="Camere" value={rooms.length} tone="accent" />
-        <Chip label="Finestra" value={`${windowDays}g`} tone="info" />
-        <Chip label="Occupazione finestra" value={`${occupancyPct}%`} tone={occupancyPct > 60 ? "success" : "default"} />
+        <Chip label={t("hotel.planner.chip.rooms")} value={rooms.length} tone="accent" />
+        <Chip label={t("hotel.planner.chip.window")} value={`${windowDays}g`} tone="info" />
+        <Chip label={t("hotel.planner.chip.occupancy")} value={`${occupancyPct}%`} tone={occupancyPct > 60 ? "success" : "default"} />
       </PageHeader>
 
       <Card
-        title="Planner disponibilità"
-        description="Ogni riga una camera, ogni colonna un giorno. Naviga con i controlli."
+        title={t("hotel.planner.card.title")}
+        description={t("hotel.planner.card.desc")}
       >
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <button
@@ -78,7 +80,7 @@ export function HotelPlannerPage() {
             onClick={() => setAnchor(todayIso())}
             className="inline-flex items-center gap-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink"
           >
-            <RotateCcw className="h-4 w-4" /> Oggi
+            <RotateCcw className="h-4 w-4" /> {t("hotel.planner.today")}
           </button>
           <button
             type="button"
@@ -94,15 +96,15 @@ export function HotelPlannerPage() {
             className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink"
           />
           <label className="ml-auto flex items-center gap-2 text-sm text-rw-muted">
-            Finestra
+            {t("hotel.planner.window_label")}
             <select
               className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink"
               value={windowDays}
               onChange={(e) => setWindowDays(parseInt(e.target.value, 10) || DEFAULT_WINDOW_DAYS)}
             >
-              <option value={7}>7 giorni</option>
-              <option value={14}>14 giorni</option>
-              <option value={30}>30 giorni</option>
+              <option value={7}>{t("hotel.planner.days.7")}</option>
+              <option value={14}>{t("hotel.planner.days.14")}</option>
+              <option value={30}>{t("hotel.planner.days.30")}</option>
             </select>
           </label>
         </div>
@@ -113,7 +115,7 @@ export function HotelPlannerPage() {
               <div
                 className={`${firstColClass} rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs font-semibold uppercase tracking-wide text-rw-muted`}
               >
-                Camera
+                {t("hotel.planner.room_col")}
               </div>
               {days.map((day) => {
                 const isToday = day === todayIso();
@@ -146,7 +148,7 @@ export function HotelPlannerPage() {
                         ? "border-rw-accent/30 bg-rw-accent/10 text-rw-accent"
                         : "border-rw-line bg-rw-surfaceAlt text-rw-muted"
                     }`}
-                    title={reservation ? `${reservation.guestName} · ${reservation.status}` : "libera"}
+                    title={reservation ? `${reservation.guestName} · ${reservation.status}` : t("hotel.planner.free")}
                   >
                     {reservation ? reservation.guestName.split(" ")[0] : "•"}
                   </div>
@@ -156,7 +158,7 @@ export function HotelPlannerPage() {
 
             {occupancy.length === 0 && (
               <p className="py-6 text-center text-sm text-rw-muted">
-                Nessuna camera configurata. Aggiungi camere dal pannello &quot;Camere&quot;.
+                {t("hotel.planner.empty")}
               </p>
             )}
           </div>

@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NoteDestinazione, SalaTable } from "./types";
+import { useI18n } from "@/core/i18n/provider";
 
 type TableActionsModalProps = {
   table: SalaTable | null;
@@ -48,31 +49,6 @@ export type AzioneId =
   | "tavolo-libero"
   | "ordine-bevande";
 
-const azioni: {
-  id: AzioneId;
-  label: string;
-  icon: typeof UtensilsCrossed;
-  tone?: "danger" | "success" | "accent";
-}[] = [
-  { id: "apri-tavolo", label: "Apri tavolo", icon: DoorOpen, tone: "success" },
-  { id: "cancella-tavolo", label: "Cancella tavolo", icon: Trash2, tone: "danger" },
-  { id: "prendi-ordine", label: "Nuova comanda", icon: ClipboardList, tone: "accent" },
-  { id: "menu-casa", label: "Apri menu della casa", icon: BookOpen },
-  { id: "menu-giorno", label: "Menu del giorno", icon: CalendarDays },
-  { id: "fuori-menu", label: "Piatti fuori menu", icon: ScrollText },
-  { id: "marcia-portata", label: "Marcia prossima portata", icon: Send, tone: "accent" },
-  { id: "chiudi-tavolo", label: "Chiudi tavolo", icon: CircleDot },
-  { id: "chiedi-conto", label: "Chiedi conto", icon: Banknote, tone: "accent" },
-  { id: "tavolo-libero", label: "Tavolo libero", icon: UtensilsCrossed, tone: "success" },
-  { id: "ordine-bevande", label: "Ordine bevande", icon: Wine },
-];
-
-const destLabels: Record<NoteDestinazione, string> = {
-  cucina: "Cucina",
-  pizzeria: "Pizzeria",
-  bar: "Bar",
-};
-
 const destIcons: Record<NoteDestinazione, typeof ChefHat> = {
   cucina: ChefHat,
   pizzeria: Pizza,
@@ -87,12 +63,38 @@ export function TableActionsModal({
   onAction,
   onNavigate,
 }: TableActionsModalProps) {
+  const { t } = useI18n();
   const titleId = useId();
   const [coperti, setCoperti] = useState(2);
   const [corsi, setCorsi] = useState(1);
   const [noteDest, setNoteDest] = useState<NoteDestinazione>("cucina");
   const [note, setNote] = useState("");
   const [flash, setFlash] = useState<string | null>(null);
+
+  const azioni: {
+    id: AzioneId;
+    label: string;
+    icon: typeof UtensilsCrossed;
+    tone?: "danger" | "success" | "accent";
+  }[] = [
+    { id: "apri-tavolo", label: t("sala.action.apriTavolo"), icon: DoorOpen, tone: "success" },
+    { id: "cancella-tavolo", label: t("sala.action.cancellaTavolo"), icon: Trash2, tone: "danger" },
+    { id: "prendi-ordine", label: t("sala.action.prendiOrdine"), icon: ClipboardList, tone: "accent" },
+    { id: "menu-casa", label: t("sala.action.menuCasa"), icon: BookOpen },
+    { id: "menu-giorno", label: t("sala.action.menuGiorno"), icon: CalendarDays },
+    { id: "fuori-menu", label: t("sala.action.fuoriMenu"), icon: ScrollText },
+    { id: "marcia-portata", label: t("sala.action.marciaPortata"), icon: Send, tone: "accent" },
+    { id: "chiudi-tavolo", label: t("sala.action.chiudiTavolo"), icon: CircleDot },
+    { id: "chiedi-conto", label: t("sala.action.chiediConto"), icon: Banknote, tone: "accent" },
+    { id: "tavolo-libero", label: t("sala.action.tavoloLibero"), icon: UtensilsCrossed, tone: "success" },
+    { id: "ordine-bevande", label: t("sala.action.ordineBevande"), icon: Wine },
+  ];
+
+  const destLabels: Record<NoteDestinazione, string> = {
+    cucina: t("sala.modal.dest.cucina"),
+    pizzeria: t("sala.modal.dest.pizzeria"),
+    bar: t("sala.modal.dest.bar"),
+  };
 
   useEffect(() => {
     if (!table) return;
@@ -113,20 +115,13 @@ export function TableActionsModal({
 
   useEffect(() => {
     if (!open || !flash) return;
-    const t = window.setTimeout(() => setFlash(null), 2200);
-    return () => window.clearTimeout(t);
+    const timer = window.setTimeout(() => setFlash(null), 2200);
+    return () => window.clearTimeout(timer);
   }, [flash, open]);
 
   if (!open || !table) return null;
 
-  const statoLabel =
-    table.stato === "libero"
-      ? "Libero"
-      : table.stato === "aperto"
-        ? "Aperto"
-        : table.stato === "conto"
-          ? "Conto"
-          : "Da pulire";
+  const statoLabel = t(`sala.status.${table.stato}`);
 
   const navActions: Record<AzioneId, string | null> = {
     "menu-casa": "/menu-admin",
@@ -165,13 +160,17 @@ export function TableActionsModal({
     if (onAction && wiredActions.includes(id)) {
       try {
         await onAction(id, table!);
-        setFlash(`«${label}» eseguita.`);
+        setFlash(t("sala.modal.flash.done").replace("{label}", label));
       } catch (error) {
-        setFlash(`Errore su «${label}»: ${error instanceof Error ? error.message : "operazione fallita"}`);
+        setFlash(
+          t("sala.modal.flash.error")
+            .replace("{label}", label)
+            .replace("{msg}", error instanceof Error ? error.message : t("sala.modal.flash.errorDefault")),
+        );
       }
       return;
     }
-    setFlash(`«${label}» eseguita.`);
+    setFlash(t("sala.modal.flash.done").replace("{label}", label));
   }
 
   return (
@@ -191,13 +190,13 @@ export function TableActionsModal({
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-rw-line px-5 pb-4 pt-5 sm:px-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
-              Tavolo
+              {t("sala.tableLabel")}
             </p>
             <h2 id={titleId} className="font-display text-2xl font-semibold text-rw-ink">
               {table.nome}
             </h2>
             <p className="mt-1 text-sm text-rw-muted">
-              {table.posti} posti · stato:{" "}
+              {t("sala.modal.tablePosti").replace("{n}", String(table.posti))}{" "}
               <span className="font-medium text-rw-ink">{statoLabel}</span>
             </p>
           </div>
@@ -205,7 +204,7 @@ export function TableActionsModal({
             type="button"
             onClick={onClose}
             className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
-            aria-label="Chiudi"
+            aria-label={t("ui.close")}
           >
             <X className="h-6 w-6" />
           </button>
@@ -221,14 +220,14 @@ export function TableActionsModal({
         ) : null}
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6">
-          <section aria-label="Coperti e corsi" className="mb-5 grid gap-4 sm:grid-cols-2">
+          <section aria-label={t("sala.modal.coversAndCourses")} className="mb-5 grid gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
-              <p className="text-sm font-semibold text-rw-ink">Numero coperti</p>
+              <p className="text-sm font-semibold text-rw-ink">{t("sala.modal.coversTitle")}</p>
               <div className="mt-3 flex items-center justify-between gap-2">
                 <button
                   type="button"
                   className="inline-flex h-14 min-w-[3.5rem] items-center justify-center rounded-2xl border border-rw-line bg-rw-surface text-rw-ink active:bg-rw-surfaceAlt"
-                  aria-label="Meno coperti"
+                  aria-label={t("sala.modal.coversLess")}
                   onClick={() => setCoperti((n) => Math.max(1, n - 1))}
                 >
                   <Minus className="h-6 w-6" />
@@ -239,7 +238,7 @@ export function TableActionsModal({
                 <button
                   type="button"
                   className="inline-flex h-14 min-w-[3.5rem] items-center justify-center rounded-2xl border border-rw-line bg-rw-surface text-rw-ink active:bg-rw-surfaceAlt"
-                  aria-label="Più coperti"
+                  aria-label={t("sala.modal.coversMore")}
                   onClick={() => setCoperti((n) => Math.min(99, n + 1))}
                 >
                   <Plus className="h-6 w-6" />
@@ -247,12 +246,12 @@ export function TableActionsModal({
               </div>
             </div>
             <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
-              <p className="text-sm font-semibold text-rw-ink">Numero di corsi</p>
+              <p className="text-sm font-semibold text-rw-ink">{t("sala.modal.coursesTitle")}</p>
               <div className="mt-3 flex items-center justify-between gap-2">
                 <button
                   type="button"
                   className="inline-flex h-14 min-w-[3.5rem] items-center justify-center rounded-2xl border border-rw-line bg-rw-surface text-rw-ink active:bg-rw-surfaceAlt"
-                  aria-label="Meno corsi"
+                  aria-label={t("sala.modal.coursesLess")}
                   onClick={() => setCorsi((n) => Math.max(1, n - 1))}
                 >
                   <Minus className="h-6 w-6" />
@@ -263,7 +262,7 @@ export function TableActionsModal({
                 <button
                   type="button"
                   className="inline-flex h-14 min-w-[3.5rem] items-center justify-center rounded-2xl border border-rw-line bg-rw-surface text-rw-ink active:bg-rw-surfaceAlt"
-                  aria-label="Più corsi"
+                  aria-label={t("sala.modal.coursesMore")}
                   onClick={() => setCorsi((n) => Math.min(12, n + 1))}
                 >
                   <Plus className="h-6 w-6" />
@@ -273,7 +272,7 @@ export function TableActionsModal({
           </section>
 
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-rw-muted">
-            Azioni rapide
+            {t("sala.modal.quickActions")}
           </p>
           <ul className="grid grid-cols-1 gap-2 pb-4 sm:grid-cols-2">
             {azioni.map((a) => {
@@ -305,15 +304,15 @@ export function TableActionsModal({
             })}
           </ul>
 
-          <section className="border-t border-rw-line pt-4" aria-label="Note per reparti">
-            <p className="text-sm font-semibold text-rw-ink">Note per cucina, pizzeria o bar</p>
+          <section className="border-t border-rw-line pt-4" aria-label={t("sala.modal.notes.sectionLabel")}>
+            <p className="text-sm font-semibold text-rw-ink">{t("sala.modal.notes.title")}</p>
             <p className="mt-1 text-xs text-rw-muted">
-              Scegli dove arriva la nota, poi scrivi in modo semplice.
+              {t("sala.modal.notes.subtitle")}
             </p>
             <div
               className="mt-3 grid grid-cols-3 gap-2"
               role="group"
-              aria-label="Destinazione nota"
+              aria-label={t("sala.modal.notes.destination")}
             >
               {(Object.keys(destLabels) as NoteDestinazione[]).map((d) => {
                 const DIcon = destIcons[d];
@@ -337,12 +336,12 @@ export function TableActionsModal({
               })}
             </div>
             <label className="mt-3 block">
-              <span className="sr-only">Testo nota</span>
+              <span className="sr-only">{t("sala.modal.notes.srLabel")}</span>
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 rows={3}
-                placeholder="Esempio: senza aglio, pizza tonda, ghiaccio poco…"
+                placeholder={t("sala.modal.notes.placeholder")}
                 className="w-full resize-y rounded-2xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-base text-rw-ink placeholder:text-rw-muted"
               />
             </label>
@@ -352,12 +351,12 @@ export function TableActionsModal({
               onClick={() =>
                 simulaAzione(
                   "menu-casa",
-                  `Invia nota (${destLabels[noteDest]})${note.trim() ? "" : " (vuota)"}`,
+                  `${t("sala.modal.notes.send")} (${destLabels[noteDest]})${note.trim() ? "" : ` (${t("sala.modal.notes.emptyLabel")})`}`,
                 )
               }
             >
               <Soup className="h-5 w-5 text-rw-accent" aria-hidden />
-              Invia nota
+              {t("sala.modal.notes.send")}
             </button>
           </section>
         </div>

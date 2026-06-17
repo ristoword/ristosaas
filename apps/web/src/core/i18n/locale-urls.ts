@@ -59,11 +59,12 @@ export function absUrl(path: string): string {
  */
 export function buildLanguages(paths: Partial<Record<Locale, string>>): Record<string, string> {
   const out: Record<string, string> = {};
-  const locales: Locale[] = ["it", "en", "nl"];
+  const locales: Locale[] = ["it", "en", "nl", "pt"];
+  const localeToHreflang: Record<Locale, string> = { it: "it-IT", en: "en-US", nl: "nl-NL", pt: "pt-BR" };
   for (const loc of locales) {
     const path = paths[loc];
     if (path) {
-      out[loc === "it" ? "it-IT" : loc === "en" ? "en-US" : "nl-NL"] = absUrl(path);
+      out[localeToHreflang[loc]] = absUrl(path);
     }
   }
   // x-default punta alla versione inglese (pratica SEO comune per audience internazionale)
@@ -77,6 +78,7 @@ export function homepageLanguages(): Record<string, string> {
     it: homePath("it"),
     en: homePath("en"),
     nl: homePath("nl"),
+    pt: homePath("pt"),
   });
 }
 
@@ -85,6 +87,7 @@ export function pillarLanguages(): Record<string, string> {
     it: pillarPath("it"),
     en: pillarPath("en"),
     nl: pillarPath("nl"),
+    pt: pillarPath("pt"),
   });
 }
 
@@ -93,6 +96,7 @@ export function restaurantLanguages(): Record<string, string> {
     it: restaurantPath("it"),
     en: restaurantPath("en"),
     nl: restaurantPath("nl"),
+    pt: restaurantPath("pt"),
   });
 }
 
@@ -101,13 +105,14 @@ export function blogIndexLanguages(): Record<string, string> {
     it: blogIndexPath("it"),
     en: blogIndexPath("en"),
     nl: blogIndexPath("nl"),
+    pt: blogIndexPath("pt"),
   });
 }
 
 export function blogPostLanguages(locale: Locale, slug: string): Record<string, string> {
   const alternates = getBlogAlternates(locale, slug);
   const paths: Partial<Record<Locale, string>> = {};
-  for (const loc of ["it", "en", "nl"] as Locale[]) {
+  for (const loc of ["it", "en", "nl", "pt"] as Locale[]) {
     if (alternates[loc]) paths[loc] = blogPostPath(loc, alternates[loc]!);
   }
   return buildLanguages(paths);

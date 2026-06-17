@@ -38,25 +38,35 @@ export async function GET(req: NextRequest) {
       where: partnerCode ? { partnerCode } : { partnerCode: { not: null } },
       include: {
         tenant: { select: { name: true, id: true } },
-        partner: { select: { code: true, name: true, country: true, licensePrice: true, commissionEuros: true } },
+        partner: { select: { code: true, name: true, country: true, licensePrice: true, commissionEuros: true, allInclusivePrice: true, allInclusiveCommission: true } },
       },
       orderBy: { activatedAt: "desc" },
     });
 
-    const rows = licenses.map((l) => ({
-      tenantId: l.tenantId,
-      tenantName: l.tenant.name,
-      plan: l.plan,
-      billingCycle: l.billingCycle,
-      status: l.status,
-      activatedAt: l.activatedAt.toISOString(),
-      expiresAt: l.expiresAt.toISOString(),
-      licensePrice: l.partner?.licensePrice ?? null,
-      commissionEuros: l.partner?.commissionEuros ?? null,
-      partnerCode: l.partnerCode,
-      partnerName: l.partner?.name ?? null,
-      partnerCountry: l.partner?.country ?? null,
-    }));
+    const rows = licenses.map((l) => {
+      const isAllInclusive = l.plan === "all_included";
+      const price = isAllInclusive
+        ? (l.partner?.allInclusivePrice ?? l.partner?.licensePrice ?? null)
+        : (l.partner?.licensePrice ?? null);
+      const commission = isAllInclusive
+        ? (l.partner?.allInclusiveCommission ?? l.partner?.commissionEuros ?? null)
+        : (l.partner?.commissionEuros ?? null);
+
+      return {
+        tenantId: l.tenantId,
+        tenantName: l.tenant.name,
+        plan: l.plan,
+        billingCycle: l.billingCycle,
+        status: l.status,
+        activatedAt: l.activatedAt.toISOString(),
+        expiresAt: l.expiresAt.toISOString(),
+        licensePrice: price,
+        commissionEuros: commission,
+        partnerCode: l.partnerCode,
+        partnerName: l.partner?.name ?? null,
+        partnerCountry: l.partner?.country ?? null,
+      };
+    });
 
     const totalCommission = rows
       .filter((r) => r.status === "active")

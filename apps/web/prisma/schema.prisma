@@ -434,15 +434,17 @@ model TenantLicense {
 }
 
 model Partner {
-  id              String          @id @default(cuid())
-  code            String          @unique
-  name            String
-  country         String
-  licensePrice    Float
-  commissionEuros Float
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  licenses        TenantLicense[]
+  id                      String          @id @default(cuid())
+  code                    String          @unique
+  name                    String
+  country                 String
+  licensePrice            Float
+  commissionEuros         Float
+  allInclusivePrice       Float?
+  allInclusiveCommission  Float?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+  licenses                TenantLicense[]
 }
 
 model TenantEmailConfig {

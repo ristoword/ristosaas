@@ -3,30 +3,27 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { SalaTable, TableStatus } from "./types";
+import { useI18n } from "@/core/i18n/provider";
 
 const statoStyles: Record<
   TableStatus,
-  { ring: string; bg: string; label: string }
+  { ring: string; bg: string }
 > = {
   libero: {
     ring: "ring-emerald-400/60",
     bg: "bg-emerald-900/60 text-emerald-100",
-    label: "Libero",
   },
   aperto: {
     ring: "ring-rw-accent/70",
     bg: "bg-rw-accent/20 text-rw-ink",
-    label: "Aperto",
   },
   conto: {
     ring: "ring-amber-400/80",
     bg: "bg-amber-900/50 text-amber-100",
-    label: "Conto",
   },
   sporco: {
     ring: "ring-slate-400/60",
     bg: "bg-slate-700/50 text-slate-200",
-    label: "Pulizia",
   },
 };
 
@@ -58,6 +55,7 @@ export function SalaFloor({
   onLocalMove,
   onCommitMove,
 }: SalaFloorProps) {
+  const { t } = useI18n();
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
@@ -131,31 +129,31 @@ export function SalaFloor({
 
       {editMode ? (
         <div className="pointer-events-none absolute left-1/2 top-3 -translate-x-1/2 rounded-full bg-rw-accent/20 px-3 py-1 text-xs font-semibold text-rw-accent">
-          Modalità layout — trascina i tavoli per riposizionarli
+          {t("sala.floor.editModeHint")}
         </div>
       ) : null}
 
-      {tables.map((t) => {
-        const st = statoStyles[t.stato];
-        const selected = selectedId === t.id;
-        const isDragging = draggingId === t.id;
+      {tables.map((tbl) => {
+        const st = statoStyles[tbl.stato];
+        const selected = selectedId === tbl.id;
+        const isDragging = draggingId === tbl.id;
         return (
           <button
-            key={t.id}
+            key={tbl.id}
             type="button"
             onClick={() => {
               if (editMode) return; // in edit mode tap = noop (solo drag)
-              onSelect(t);
+              onSelect(tbl);
             }}
-            onPointerDown={(e) => handlePointerDown(e, t)}
-            onPointerMove={(e) => handlePointerMove(e, t)}
-            onPointerUp={(e) => endDrag(e, t)}
-            onPointerCancel={(e) => endDrag(e, t)}
-            style={{ left: `${t.x}%`, top: `${t.y}%` }}
+            onPointerDown={(e) => handlePointerDown(e, tbl)}
+            onPointerMove={(e) => handlePointerMove(e, tbl)}
+            onPointerUp={(e) => endDrag(e, tbl)}
+            onPointerCancel={(e) => endDrag(e, tbl)}
+            style={{ left: `${tbl.x}%`, top: `${tbl.y}%` }}
             className={cn(
               "absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center border-2 border-white/15 shadow-rw-sm transition",
               "min-h-[4.5rem] min-w-[4.5rem] touch-manipulation select-none sm:min-h-[5.25rem] sm:min-w-[5.25rem]",
-              t.forma === "tondo" ? "rounded-full" : "rounded-2xl",
+              tbl.forma === "tondo" ? "rounded-full" : "rounded-2xl",
               st.bg,
               st.ring,
               selected && "z-10 ring-4 ring-rw-focus ring-offset-2 ring-offset-rw-surfaceAlt",
@@ -165,16 +163,19 @@ export function SalaFloor({
             )}
             aria-label={
               editMode
-                ? `Trascina il tavolo ${t.nome} per spostarlo.`
-                : `Tavolo ${t.nome}, ${st.label}, ${t.posti} posti. Tocca per aprire le azioni.`
+                ? t("sala.floor.dragAriaLabel").replace("{name}", tbl.nome)
+                : t("sala.floor.tableAriaLabel")
+                    .replace("{name}", tbl.nome)
+                    .replace("{label}", t(`sala.status.${tbl.stato}`))
+                    .replace("{posti}", String(tbl.posti))
             }
             aria-pressed={selected}
           >
             <span className="font-display text-xl font-bold leading-none sm:text-2xl">
-              {t.nome}
+              {tbl.nome}
             </span>
             <span className="mt-1 text-[11px] font-semibold uppercase tracking-wide opacity-80">
-              {t.posti} p
+              {tbl.posti} p
             </span>
           </button>
         );

@@ -35,12 +35,22 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const order = await ordersRepository.get(tenantId, id);
   if (!order) return err("Order not found", 404);
 
-  const { status } = await body<{ status: OrderStatus }>(req);
+  let parsed: { status: OrderStatus; course?: number };
+  try {
+    parsed = await body<{ status: OrderStatus; course?: number }>(req);
+  } catch {
+    return err("Invalid JSON", 400);
+  }
+  const { status, course: targetCourse } = parsed;
   if (!status) return err("status is required");
+  const validStatuses: OrderStatus[] = ["in_attesa", "in_preparazione", "pronto", "servito", "chiuso", "annullato", "pending"];
+  if (!validStatuses.includes(status)) return err(`Invalid status: ${status}`, 400);
 
   const cs = { ...order.courseStates };
   const nums = [...new Set(order.items.map((i) => i.course))].sort((a, b) => a - b);
-  const current = nums.find((n) => cs[String(n)] !== "servito");
+  const current = targetCourse != null && nums.includes(targetCourse)
+    ? targetCourse
+    : nums.find((n) => cs[String(n)] !== "servito");
   let newActiveCourse = order.activeCourse;
   let newStatus: OrderStatus = status;
 

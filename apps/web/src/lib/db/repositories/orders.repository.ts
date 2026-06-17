@@ -108,12 +108,18 @@ export const ordersRepository = {
   async all(tenantId: string, filters?: OrderFilters) {
     const limit = Math.max(1, Math.min(200, Math.floor(filters?.limit ?? 100)));
     const offset = Math.max(0, Math.floor(filters?.offset ?? 0));
+
+    const statusFilter = filters?.status
+      ? { status: filters.status as OrderStatus }
+      : filters?.active === "true"
+        ? { status: { notIn: ["chiuso", "annullato", "servito"] as OrderStatus[] } }
+        : {};
+
     const rows = await prisma.restaurantOrder.findMany({
       where: {
         tenantId,
-        ...(filters?.status ? { status: filters.status as OrderStatus } : {}),
+        ...statusFilter,
         ...(filters?.table ? { table: filters.table } : {}),
-        ...(filters?.active === "true" ? { status: { notIn: ["chiuso", "annullato", "servito"] } } : {}),
         ...(filters?.area
           ? {
               OR: [{ area: filters.area as Order["area"] }, { items: { some: { area: filters.area as OrderItem["area"] } } }],

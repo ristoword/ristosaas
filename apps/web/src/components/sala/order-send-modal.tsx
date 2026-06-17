@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Minus, Plus, Search, Send, Trash2 } from "lucide-react";
 import { Modal } from "@/components/shared/modal";
 import { useOrders } from "@/components/orders/orders-context";
@@ -8,6 +8,7 @@ import { useAuth } from "@/components/auth/auth-context";
 import { menuApi, type MenuItem, type OrderArea } from "@/lib/api-client";
 import type { SalaTable } from "./types";
 import type { CourseDraft } from "@/components/orders/types";
+import { useI18n } from "@/core/i18n/provider";
 
 type Props = {
   table: SalaTable | null;
@@ -30,7 +31,8 @@ function normalizeArea(raw: string): OrderArea {
 }
 
 export function OrderSendModal({ table, open, onClose }: Props) {
-  const { createOrder } = useOrders();
+  const { t } = useI18n();
+  const { createOrder, appendToOrder, getOrdersForTable } = useOrders();
   const { user } = useAuth();
   const [courses, setCourses] = useState<CourseDraft[]>([{ n: 1, items: [] }]);
   const [activeCourse, setActiveCourse] = useState(1);
@@ -46,6 +48,12 @@ export function OrderSendModal({ table, open, onClose }: Props) {
   const [sendError, setSendError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
+  const existingOrder = useMemo(() => {
+    if (!table) return null;
+    const orders = getOrdersForTable(table.nome);
+    return orders.length > 0 ? orders[0] : null;
+  }, [table, getOrdersForTable]);
+
   useEffect(() => {
     if (!open) return;
     setLoadingMenu(true);
@@ -55,9 +63,9 @@ export function OrderSendModal({ table, open, onClose }: Props) {
         setMenu(items.filter((item) => item.active !== false));
         setMenuError(null);
       })
-      .catch((err) => setMenuError((err as Error).message || "Errore caricamento menu"))
+      .catch((err) => setMenuError((err as Error).message || t("sala.modal.order.menuLoadError")))
       .finally(() => setLoadingMenu(false));
-  }, [open]);
+  }, [open, t]);
 
   useEffect(() => {
     if (user && !waiter) setWaiter(user.name || user.username || "");
@@ -152,6 +160,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
         price: it.price,
         note: it.note,
         course: c.n,
+        menuItemId: null,
       })),
     );
     if (allItems.length === 0) return;
@@ -159,20 +168,24 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     setSending(true);
     setSendError(null);
     try {
-      await createOrder({
-        table: table!.nome,
-        covers,
-        area: "sala",
-        waiter: waiter || "—",
-        notes,
-        items: allItems,
-      });
+      if (existingOrder) {
+        await appendToOrder(existingOrder.id, allItems, notes || undefined);
+      } else {
+        await createOrder({
+          table: table!.nome,
+          covers,
+          area: "sala",
+          waiter: waiter || "—",
+          notes,
+          items: allItems,
+        });
+      }
       setCourses([{ n: 1, items: [] }]);
       setActiveCourse(1);
       setNotes("");
       onClose();
     } catch (e) {
-      setSendError(e instanceof Error ? e.message : "Invio comanda non riuscito.");
+      setSendError(e instanceof Error ? e.message : t("sala.modal.order.sendFailed"));
     } finally {
       setSending(false);
     }
@@ -187,41 +200,67 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     <Modal
       open={open}
       onClose={onClose}
-      title={`Nuova comanda — Tav. ${table.nome}`}
-      subtitle={`${covers} coperti · ${waiter || "—"}`}
+      title={
+        existingOrder
+          ? t("sala.modal.order.titleAppend").replace("{name}", table.nome)
+          : t("sala.modal.order.title").replace("{name}", table.nome)
+      }
+      subtitle={
+        existingOrder
+          ? t("sala.modal.order.subtitleAppend").replace(
+              "{n}",
+              String(existingOrder.items.length),
+            )
+          : t("sala.modal.order.subtitle")
+              .replace("{covers}", String(covers))
+              .replace("{waiter}", waiter || "—")
+      }
       wide
     >
       <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs font-semibold text-rw-muted">Coperti</label>
-            <div className="mt-1 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCovers((n) => Math.max(1, n - 1))}
-                className="h-10 w-10 rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
-              >
-                <Minus className="mx-auto h-4 w-4" />
-              </button>
-              <span className="w-8 text-center font-bold text-rw-ink">{covers}</span>
-              <button
-                type="button"
-                onClick={() => setCovers((n) => n + 1)}
-                className="h-10 w-10 rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
-              >
-                <Plus className="mx-auto h-4 w-4" />
-              </button>
+        {existingOrder && (
+          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-rw-ink">
+            <p className="font-semibold text-emerald-400">{t("sala.modal.order.existingBanner")}</p>
+            <p className="mt-1 text-xs text-rw-muted">
+              {t("sala.modal.order.existingInfo")
+                .replace("{n}", String(existingOrder.items.length))
+                .replace("{courses}", String([...new Set(existingOrder.items.map((i) => i.course))].length))}
+            </p>
+          </div>
+        )}
+
+        {!existingOrder && (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-rw-muted">{t("sala.modal.order.covers")}</label>
+              <div className="mt-1 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCovers((n) => Math.max(1, n - 1))}
+                  className="h-10 w-10 rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
+                >
+                  <Minus className="mx-auto h-4 w-4" />
+                </button>
+                <span className="w-8 text-center font-bold text-rw-ink">{covers}</span>
+                <button
+                  type="button"
+                  onClick={() => setCovers((n) => n + 1)}
+                  className="h-10 w-10 rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
+                >
+                  <Plus className="mx-auto h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-rw-muted">{t("sala.modal.order.waiter")}</label>
+              <input
+                value={waiter}
+                onChange={(e) => setWaiter(e.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 text-sm text-rw-ink"
+              />
             </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-rw-muted">Cameriere</label>
-            <input
-              value={waiter}
-              onChange={(e) => setWaiter(e.target.value)}
-              className="mt-1 h-10 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 text-sm text-rw-ink"
-            />
-          </div>
-        </div>
+        )}
 
         <div className="flex items-center gap-2">
           {courses.map((c) => (
@@ -235,7 +274,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                   : "bg-red-500/10 text-red-400 border border-red-500/30"
               }`}
             >
-              {c.n}° corso
+              {t("sala.course.label").replace("{n}", String(c.n))}
               {c.items.length > 0 && <span className="ml-1 opacity-70">({c.items.length})</span>}
             </button>
           ))}
@@ -245,14 +284,16 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             className="rounded-xl border border-dashed border-rw-line px-3 py-2 text-sm text-rw-muted hover:border-rw-accent/40 hover:text-rw-accent"
           >
             <Plus className="inline h-4 w-4 mr-1" />
-            Corso
+            {t("sala.modal.order.addCourse")}
           </button>
         </div>
 
         <div>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
-              Aggiungi al {activeCourse}° corso · {menu.length} voci menu
+              {t("sala.modal.order.addToCourse")
+                .replace("{n}", String(activeCourse))
+                .replace("{items}", String(menu.length))}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
@@ -260,7 +301,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Cerca..."
+                  placeholder={t("sala.modal.order.searchPlaceholder")}
                   className="h-8 rounded-lg border border-rw-line bg-rw-surfaceAlt pl-7 pr-2 text-xs text-rw-ink"
                 />
               </div>
@@ -269,10 +310,10 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                 onChange={(e) => setAreaFilter(e.target.value)}
                 className="h-8 rounded-lg border border-rw-line bg-rw-surfaceAlt px-2 text-xs text-rw-ink"
               >
-                <option value="all">Tutte le aree</option>
-                <option value="cucina">🍳 Cucina</option>
-                <option value="pizzeria">🍕 Pizzeria</option>
-                <option value="bar">🍹 Bar</option>
+                <option value="all">{t("sala.modal.order.allAreas")}</option>
+                <option value="cucina">🍳 {t("sala.modal.dest.cucina")}</option>
+                <option value="pizzeria">🍕 {t("sala.modal.dest.pizzeria")}</option>
+                <option value="bar">🍹 {t("sala.modal.dest.bar")}</option>
               </select>
               <select
                 value={categoryFilter}
@@ -281,7 +322,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>
-                    {c === "all" ? "Tutte le categorie" : c}
+                    {c === "all" ? t("sala.modal.order.allCategories") : c}
                   </option>
                 ))}
               </select>
@@ -291,7 +332,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           {loadingMenu && (
             <div className="flex items-center gap-2 rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-4 text-sm text-rw-muted">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Carico il menu dal database...
+              {t("sala.modal.order.loadingMenu")}
             </div>
           )}
           {menuError && !loadingMenu && (
@@ -323,7 +364,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
               })}
               {filteredMenu.length === 0 && (
                 <p className="col-span-full py-6 text-center text-sm text-rw-muted">
-                  Nessuna voce menu corrisponde ai filtri.
+                  {t("sala.modal.order.noMenuItems")}
                 </p>
               )}
             </div>
@@ -339,7 +380,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                   c.n === 1 ? "text-emerald-400" : "text-red-400"
                 }`}
               >
-                {c.n}° corso — {c.n === 1 ? "ATTIVO" : "IN ATTESA"}
+                {t("sala.course.label").replace("{n}", String(c.n))} — {c.n === 1 ? t("sala.course.active") : t("sala.course.waiting")}
               </p>
               <div className="space-y-1">
                 {c.items.map((it) => (
@@ -387,7 +428,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Note comanda (allergie, preferenze…)"
+          placeholder={t("sala.modal.order.notesPlaceholder")}
           rows={2}
           className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-ink placeholder:text-rw-muted"
         />
@@ -405,8 +446,13 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           className="flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 py-4 text-base font-bold text-emerald-300 transition hover:bg-emerald-500/30 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-          {sending ? "Invio in corso…" : "Invia comanda"} ({totalItems} piatti, {courses.length}{" "}
-          {courses.length === 1 ? "corso" : "corsi"})
+          {sending
+            ? t("sala.modal.order.sending")
+            : existingOrder
+              ? t("sala.modal.order.sendAppend")
+              : t("sala.modal.order.send")}{" "}
+          ({totalItems} {t("sala.modal.order.dishes")}, {courses.length}{" "}
+          {courses.length === 1 ? t("sala.modal.order.courseSingular") : t("sala.modal.order.coursePlural")})
         </button>
       </div>
     </Modal>

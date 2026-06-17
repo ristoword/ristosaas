@@ -7,6 +7,7 @@ const localeMap = {
   it: "it-IT",
   en: "en-US",
   nl: "nl-NL",
+  pt: "pt-BR",
 } as const;
 
 export function useI10n() {

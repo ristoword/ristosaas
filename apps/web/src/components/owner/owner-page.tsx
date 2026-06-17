@@ -35,6 +35,7 @@ import {
   type UnifiedReportSnapshot,
 } from "@/lib/api-client";
 import { formatHumanDate } from "@/lib/date-utils";
+import { useI18n } from "@/core/i18n/provider";
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
@@ -85,6 +86,7 @@ const EMPTY_SMTP: SmtpDraft = {
 };
 
 export function OwnerPage() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
 
@@ -139,7 +141,7 @@ export function OwnerPage() {
         }
       }
     } catch (err) {
-      setError((err as Error).message || "Errore caricamento owner");
+      setError((err as Error).message || t("owner.loadError"));
     } finally {
       setLoading(false);
     }
@@ -169,19 +171,19 @@ export function OwnerPage() {
       const refreshed = await staffApi.list();
       setStaff(refreshed);
     } catch (err) {
-      setError((err as Error).message || "Errore creazione staff");
+      setError((err as Error).message || t("owner.createStaffError"));
     } finally {
       setCreatingStaff(false);
     }
   }
 
   async function handleDeleteStaff(id: string) {
-    if (!confirm("Confermi rimozione?")) return;
+    if (!confirm(t("owner.confirmRemove"))) return;
     try {
       await staffApi.delete(id);
       setStaff((prev) => prev.filter((s) => s.id !== id));
     } catch (err) {
-      setError((err as Error).message || "Errore rimozione staff");
+      setError((err as Error).message || t("owner.deleteStaffError"));
     }
   }
 
@@ -191,7 +193,7 @@ export function OwnerPage() {
       const updated = await staffApi.update(row.id, { status: nextStatus });
       setStaff((prev) => prev.map((s) => (s.id === row.id ? updated : s)));
     } catch (err) {
-      setError((err as Error).message || "Errore aggiornamento staff");
+      setError((err as Error).message || t("owner.updateStaffError"));
     }
   }
 
@@ -201,11 +203,11 @@ export function OwnerPage() {
     setSmtpMessage(null);
     try {
       await api.admin.emailConfig.save(smtpTenantId, smtp);
-      setSmtpMessage("Configurazione salvata.");
+      setSmtpMessage(t("owner.smtp.saved"));
       const configs = await api.admin.emailConfig.list();
       setSmtpConfigs(configs);
     } catch (err) {
-      setSmtpMessage((err as Error).message || "Errore salvataggio SMTP");
+      setSmtpMessage((err as Error).message || t("owner.smtp.saveError"));
     } finally {
       setSmtpBusy(null);
     }
@@ -218,14 +220,14 @@ export function OwnerPage() {
     try {
       const response = await api.admin.emailConfig.test(smtpTenantId);
       if (response.error) {
-        setSmtpMessage(`Invio fallito: ${response.error}`);
+        setSmtpMessage(`${t("owner.smtp.sendFailed")}: ${response.error}`);
       } else {
         setSmtpMessage(
-          `Email di test inviata${response.recipient ? ` a ${response.recipient}` : ""}. Controlla la casella.`,
+          `${t("owner.smtp.testSent")}${response.recipient ? ` ${t("owner.smtp.to")} ${response.recipient}` : ""}. ${t("owner.smtp.checkInbox")}`,
         );
       }
     } catch (err) {
-      setSmtpMessage((err as Error).message || "Errore test SMTP");
+      setSmtpMessage((err as Error).message || t("owner.smtp.testError"));
     } finally {
       setSmtpBusy(null);
     }
@@ -262,8 +264,8 @@ export function OwnerPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Pannello Owner"
-        subtitle="Stato reale licenza, staff e integrazioni del tenant."
+        title={t("owner.title")}
+        subtitle={t("owner.subtitle")}
       />
 
       {error && (
@@ -274,88 +276,88 @@ export function OwnerPage() {
 
       {loading && (
         <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-sm text-rw-muted">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carico stato tenant…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("owner.loading")}
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card title="Licenza" headerRight={<Shield className="h-4 w-4 text-emerald-400" />}>
+        <Card title={t("owner.licenseCard")} headerRight={<Shield className="h-4 w-4 text-emerald-400" />}>
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               {readiness?.tenantReady ? (
                 <>
                   <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                   <span className="text-sm font-semibold text-emerald-400">
-                    {licenseStatus || subscription?.status || "Attiva"}
+                    {licenseStatus || subscription?.status || t("owner.licenseActive")}
                   </span>
                 </>
               ) : (
                 <>
                   <ShieldAlert className="h-5 w-5 text-amber-400" />
-                  <span className="text-sm font-semibold text-amber-400">Non pronto</span>
+                  <span className="text-sm font-semibold text-amber-400">{t("owner.licenseNotReady")}</span>
                 </>
               )}
             </div>
             <div className="space-y-1 text-xs text-rw-soft">
               <p>
-                Piano: <span className="font-semibold text-rw-ink">{tenantPlan}</span>
+                {t("owner.plan")}: <span className="font-semibold text-rw-ink">{tenantPlan}</span>
               </p>
               <p>
-                Rinnovo:{" "}
+                {t("owner.renewal")}:{" "}
                 <span className="font-semibold text-rw-ink">
                   {currentPeriodEnd ? formatHumanDate(currentPeriodEnd.slice(0, 10)) : "—"}
                 </span>
               </p>
               <p>
-                Posti: <span className="font-semibold text-rw-ink">{seatUsage}</span>
+                {t("owner.seats")}: <span className="font-semibold text-rw-ink">{seatUsage}</span>
               </p>
             </div>
             <Chip
-              label="Ricavi 30gg"
+              label={t("owner.revenue30d")}
               value={`€ ${(trends?.month.revenue ?? 0).toFixed(2)}`}
               tone="accent"
             />
             <Chip
-              label="Costi reali"
+              label={t("owner.realCosts")}
               value={`€ ${(unified?.realCosts?.totalCost ?? 0).toFixed(2)}`}
             />
             <Chip
-              label="Forecast 7gg"
+              label={t("owner.forecast7d")}
               value={`€ ${(trends?.forecast.next7.projectedRevenue ?? 0).toFixed(2)}`}
             />
             <Chip
-              label="Forecast 30gg"
+              label={t("owner.forecast30d")}
               value={`€ ${(trends?.forecast.next30.projectedRevenue ?? 0).toFixed(2)}`}
             />
           </div>
         </Card>
 
-        <Card title="Staff" headerRight={<Users className="h-4 w-4 text-rw-muted" />}>
+        <Card title={t("owner.staffCard")} headerRight={<Users className="h-4 w-4 text-rw-muted" />}>
           <div className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <span className="text-xs text-rw-muted">Utenti totali</span>
+              <span className="text-xs text-rw-muted">{t("owner.totalUsers")}</span>
               <span className="text-2xl font-bold text-rw-ink">{staff.length}</span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-xs text-rw-muted">Attivi</span>
+              <span className="text-xs text-rw-muted">{t("owner.activeStaff")}</span>
               <span className="text-lg font-semibold text-emerald-400">
                 {staff.filter((s) => s.status === "attivo").length}
               </span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-xs text-rw-muted">Disabilitati</span>
+              <span className="text-xs text-rw-muted">{t("owner.disabledStaff")}</span>
               <span className="text-lg font-semibold text-red-400">
                 {staff.filter((s) => s.status === "licenziato").length}
               </span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-xs text-rw-muted">Margine 7gg</span>
+              <span className="text-xs text-rw-muted">{t("owner.margin7d")}</span>
               <span className="text-lg font-semibold text-rw-ink">
                 € {(trends?.week.margin ?? 0).toFixed(2)}
               </span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-xs text-rw-muted">Ore staff periodo</span>
+              <span className="text-xs text-rw-muted">{t("owner.staffHoursPeriod")}</span>
               <span className="text-lg font-semibold text-rw-ink">
                 {(unified?.staffOps?.totalHours ?? 0).toFixed(1)}h
               </span>
@@ -364,12 +366,12 @@ export function OwnerPage() {
         </Card>
 
         <Card
-          title="Checklist integrazioni"
+          title={t("owner.checklistCard")}
           headerRight={<UserCog className="h-4 w-4 text-rw-accent" />}
         >
           <ul className="space-y-2 text-xs">
             {checklistItems.length === 0 && (
-              <li className="text-rw-muted">Nessun check ricevuto (billing disponibile?).</li>
+              <li className="text-rw-muted">{t("owner.noChecks")}</li>
             )}
             {checklistItems.map((item) => (
               <li key={item.key} className="flex items-start gap-2">
@@ -388,28 +390,28 @@ export function OwnerPage() {
         </Card>
 
         <Card
-          title="Hotel / Ristorante"
-          description="Occupazione e flussi integrati"
+          title={t("owner.hotelCard")}
+          description={t("owner.hotelCardDesc")}
           headerRight={<Users className="h-4 w-4 text-rw-muted" />}
         >
           <div className="space-y-2 text-xs">
             <div className="flex items-baseline justify-between">
-              <span className="text-rw-muted">Camere occupate</span>
+              <span className="text-rw-muted">{t("owner.occupiedRooms")}</span>
               <span className="font-semibold text-rw-ink">
                 {unified?.occupancy.occupiedRooms ?? 0} /{" "}
                 {unified?.occupancy.totalRooms ?? 0}
               </span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-rw-muted">Arrivi oggi</span>
+              <span className="text-rw-muted">{t("owner.arrivalsToday")}</span>
               <span className="font-semibold text-rw-ink">{unified?.arrivalsToday ?? 0}</span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-rw-muted">Partenze oggi</span>
+              <span className="text-rw-muted">{t("owner.departuresToday")}</span>
               <span className="font-semibold text-rw-ink">{unified?.departuresToday ?? 0}</span>
             </div>
             <div className="flex items-baseline justify-between">
-              <span className="text-rw-muted">Folio aperti</span>
+              <span className="text-rw-muted">{t("owner.openFolios")}</span>
               <span className="font-semibold text-rw-ink">{unified?.openFolios ?? 0}</span>
             </div>
           </div>
@@ -417,8 +419,8 @@ export function OwnerPage() {
       </div>
 
       <Card
-        title="Gestione staff"
-        description="Aggiungi / disabilita / rimuovi dipendenti (persistenti su DB)."
+        title={t("owner.manageStaff")}
+        description={t("owner.manageStaffDesc")}
         headerRight={<Users className="h-4 w-4 text-rw-accent" />}
       >
         <form
@@ -429,17 +431,17 @@ export function OwnerPage() {
           }}
         >
           <div>
-            <label className={labelCls}>Nome</label>
+            <label className={labelCls}>{t("staff.fullName")}</label>
             <input
               type="text"
               value={draft.name}
               onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
-              placeholder="Nome e cognome"
+              placeholder={t("staff.fullName")}
               className={inputCls}
             />
           </div>
           <div>
-            <label className={labelCls}>Email</label>
+            <label className={labelCls}>{t("ui.email")}</label>
             <input
               type="email"
               value={draft.email}
@@ -449,7 +451,7 @@ export function OwnerPage() {
             />
           </div>
           <div>
-            <label className={labelCls}>Ruolo</label>
+            <label className={labelCls}>{t("staff.role")}</label>
             <select
               className={inputCls}
               value={draft.role}
@@ -476,19 +478,19 @@ export function OwnerPage() {
               ) : (
                 <Plus className="h-4 w-4" />
               )}
-              Aggiungi
+              {t("owner.addEmployee")}
             </button>
           </div>
         </form>
 
         <DataTable<StaffMember>
           columns={[
-            { key: "name", header: "Nome" },
-            { key: "role", header: "Ruolo" },
-            { key: "email", header: "Email" },
+            { key: "name", header: t("staff.fullName") },
+            { key: "role", header: t("staff.role") },
+            { key: "email", header: t("ui.email") },
             {
               key: "status",
-              header: "Stato",
+              header: t("ui.status"),
               render: (r) => (
                 <div className="flex items-center gap-2">
                   <button
@@ -525,7 +527,7 @@ export function OwnerPage() {
                     type="button"
                     onClick={() => handleDeleteStaff(r.id)}
                     className="text-rw-muted hover:text-red-400"
-                    title="Rimuovi"
+                    title={t("ui.remove")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -535,24 +537,23 @@ export function OwnerPage() {
           ]}
           data={staff}
           keyExtractor={(r) => r.id}
-          emptyMessage="Nessun dipendente. Aggiungine uno qui sopra."
+          emptyMessage={t("owner.noEmployees")}
         />
       </Card>
 
       {isSuperAdmin && (
         <Card
-          title="Configurazione SMTP (super admin)"
-          description="Persistente su DB — usata per reset password, notifiche, email di sistema."
+          title={t("owner.smtp.title")}
+          description={t("owner.smtp.desc")}
           headerRight={<Mail className="h-4 w-4 text-rw-muted" />}
         >
           {smtpConfigs.length === 0 ? (
             <p className="text-sm text-rw-muted">
-              Nessuna configurazione SMTP salvata ancora. Selezionare un tenant dopo il primo
-              salvataggio.
+              {t("owner.smtp.noConfig")}
             </p>
           ) : (
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              <label className="text-xs font-semibold text-rw-muted">Tenant</label>
+              <label className="text-xs font-semibold text-rw-muted">{t("owner.smtp.tenant")}</label>
               <select
                 className={cn(inputCls, "max-w-xs")}
                 value={smtpTenantId}
@@ -575,7 +576,7 @@ export function OwnerPage() {
             }}
           >
             <div>
-              <label className={labelCls}>Host SMTP</label>
+              <label className={labelCls}>{t("owner.smtp.host")}</label>
               <input
                 type="text"
                 className={inputCls}
@@ -585,7 +586,7 @@ export function OwnerPage() {
               />
             </div>
             <div>
-              <label className={labelCls}>Porta</label>
+              <label className={labelCls}>{t("owner.smtp.port")}</label>
               <input
                 type="number"
                 className={inputCls}
@@ -596,7 +597,7 @@ export function OwnerPage() {
               />
             </div>
             <div>
-              <label className={labelCls}>Secure</label>
+              <label className={labelCls}>{t("owner.smtp.secure")}</label>
               <select
                 className={inputCls}
                 value={smtp.secure ? "tls" : "plain"}
@@ -607,7 +608,7 @@ export function OwnerPage() {
               </select>
             </div>
             <div>
-              <label className={labelCls}>Username</label>
+              <label className={labelCls}>{t("auth.username")}</label>
               <input
                 type="text"
                 className={inputCls}
@@ -616,7 +617,7 @@ export function OwnerPage() {
               />
             </div>
             <div>
-              <label className={labelCls}>Password</label>
+              <label className={labelCls}>{t("auth.password")}</label>
               <input
                 type="password"
                 className={inputCls}
@@ -626,7 +627,7 @@ export function OwnerPage() {
               />
             </div>
             <div>
-              <label className={labelCls}>Mittente</label>
+              <label className={labelCls}>{t("owner.smtp.sender")}</label>
               <input
                 type="email"
                 className={inputCls}
@@ -641,7 +642,7 @@ export function OwnerPage() {
                 ) : (
                   <Save className="h-4 w-4" />
                 )}
-                Salva configurazione
+                {t("owner.smtp.saveConfig")}
               </button>
               <button
                 type="button"
@@ -654,14 +655,14 @@ export function OwnerPage() {
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
-                Invia test
+                {t("owner.smtp.sendTest")}
               </button>
               <button
                 type="button"
                 onClick={() => setSmtp(EMPTY_SMTP)}
                 className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-5 py-2.5 text-sm font-semibold text-rw-muted hover:text-rw-soft"
               >
-                <RotateCcw className="h-4 w-4" /> Reset form
+                <RotateCcw className="h-4 w-4" /> {t("owner.smtp.resetForm")}
               </button>
             </div>
           </form>

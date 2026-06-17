@@ -14,6 +14,7 @@ import { operationalNotesApi, type OperationalNote } from "@/lib/api-client";
 import { StockAlertBanner } from "@/components/shared/stock-alert-banner";
 import { LoadErrorBanner } from "@/components/shared/load-error-banner";
 import { AreaTurniTab } from "@/components/shared/area-turni-tab";
+import { useI18n } from "@/core/i18n/provider";
 
 const AREA = "bar" as const;
 
@@ -77,6 +78,7 @@ function BarOrderCard({
   onPronto: () => void;
   onServito: () => void;
 }) {
+  const { t } = useI18n();
   const elapsed = minutesSince(order.createdAt);
   const barItems = order.items.filter(
     (i) => i.area === "bar" && i.course === kds.courseNum,
@@ -113,7 +115,7 @@ function BarOrderCard({
           </li>
         ))}
         {barItems.length === 0 && (
-          <li className="text-xs text-rw-muted italic">Nessun item bar in questa portata</li>
+          <li className="text-xs text-rw-muted italic">{t("bar.kds.no_items")}</li>
         )}
       </ul>
 
@@ -124,7 +126,7 @@ function BarOrderCard({
             onClick={onInPrep}
             className="flex-1 rounded-lg bg-rw-accent/15 px-3 py-1.5 text-xs font-bold text-rw-accent hover:bg-rw-accent/25 transition"
           >
-            In prep
+            {t("bar.kds.btn_in_prep")}
           </button>
         ) : kds.status === "in_preparazione" ? (
           <button
@@ -132,7 +134,7 @@ function BarOrderCard({
             onClick={onPronto}
             className="flex-1 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25 transition"
           >
-            Pronto
+            {t("bar.kds.btn_pronto")}
           </button>
         ) : kds.status === "pronto" ? (
           <button
@@ -140,7 +142,7 @@ function BarOrderCard({
             onClick={onServito}
             className="flex-1 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-400 hover:bg-blue-500/25 transition"
           >
-            Servito
+            {t("bar.kds.btn_servito")}
           </button>
         ) : null}
       </div>
@@ -153,6 +155,7 @@ function BarOrderCard({
 /* ------------------------------------------------------------------ */
 
 function NoteVocaliTab() {
+  const { t } = useI18n();
   const [notes, setNotes] = useState<OperationalNote[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
@@ -163,7 +166,7 @@ function NoteVocaliTab() {
     operationalNotesApi
       .list(AREA)
       .then(setNotes)
-      .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento note"))
+      .catch((e) => setError(e instanceof Error ? e.message : t("bar.note.error_load")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -176,7 +179,7 @@ function NoteVocaliTab() {
       setNotes((prev) => [created, ...prev]);
       setText("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore salvataggio");
+      setError(e instanceof Error ? e.message : t("bar.note.error_save"));
     } finally {
       setSaving(false);
     }
@@ -187,29 +190,29 @@ function NoteVocaliTab() {
       await operationalNotesApi.delete(id);
       setNotes((prev) => prev.filter((n) => n.id !== id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore eliminazione");
+      setError(e instanceof Error ? e.message : t("bar.note.error_delete"));
     }
   }
 
   return (
     <div className="space-y-6">
-      <Card title="Nuova nota operativa" headerRight={<Mic className="h-5 w-5 text-rw-accent" />}>
+      <Card title={t("bar.note.new_title")} headerRight={<Mic className="h-5 w-5 text-rw-accent" />}>
         <div className="space-y-4">
-          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Es. Gin esaurito, cocktail X non disponibile…" rows={4} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={t("bar.note.placeholder")} rows={4} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
           {error && <p className="text-xs text-red-400">{error}</p>}
           <div className="flex gap-3">
             <button type="button" onClick={() => void save()} disabled={saving || !text.trim()} className="flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {saving ? "Salvataggio…" : "Salva nota"}
+              {saving ? t("bar.saving") : t("bar.note.save_btn")}
             </button>
-            <button type="button" onClick={() => setText("")} className="rounded-xl border border-rw-line px-5 py-2.5 text-sm font-semibold text-rw-muted transition hover:text-rw-ink">Cancella</button>
+            <button type="button" onClick={() => setText("")} className="rounded-xl border border-rw-line px-5 py-2.5 text-sm font-semibold text-rw-muted transition hover:text-rw-ink">{t("bar.note.clear_btn")}</button>
           </div>
         </div>
       </Card>
 
-      <Card title={`Note turno (${notes.length})`} description="Persistite su DB — visibili a tutti gli operatori bar">
-        {loading && <p className="py-4 text-center text-sm text-rw-muted">Caricamento…</p>}
-        {!loading && notes.length === 0 && <p className="py-4 text-center text-sm text-rw-muted">Nessuna nota per questo turno.</p>}
+      <Card title={t("bar.note.history_title").replace("{n}", String(notes.length))} description={t("bar.note.history_desc")}>
+        {loading && <p className="py-4 text-center text-sm text-rw-muted">{t("ui.loading")}</p>}
+        {!loading && notes.length === 0 && <p className="py-4 text-center text-sm text-rw-muted">{t("bar.note.empty")}</p>}
         <div className="space-y-3">
           {notes.map((n) => (
             <div key={n.id} className="flex items-start justify-between gap-3 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3">
@@ -253,6 +256,7 @@ function classifyByAreaState(orders: Order[], area: string) {
 }
 
 export function BarPage() {
+  const { t } = useI18n();
   const { getOrdersForArea, patchStatus, stockAlerts, clearStockAlerts, loadError } = useOrders();
   const [activeTab, setActiveTab] = useState("comande");
 
@@ -261,62 +265,67 @@ export function BarPage() {
 
   const lateCount = barOrders.filter((o) => minutesSince(o.createdAt) > 15).length;
 
+  const translatedTabs = TABS.map((tab) => ({
+    ...tab,
+    label: t(`bar.tab.${tab.id}`),
+  }));
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Bar" subtitle="Gestione bevande e cocktail">
-        <Chip label="Ordini" value={barOrders.length} tone="info" />
-        <Chip label="In prep" value={classified.inPrep.length} tone="accent" />
-        <Chip label="Pronti" value={classified.pronti.length} tone="success" />
-        <Chip label="In ritardo" value={lateCount} tone={lateCount > 0 ? "danger" : "default"} />
+      <PageHeader title={t("nav.bar.label")} subtitle={t("bar.subtitle")}>
+        <Chip label={t("bar.kds.chip_orders")} value={barOrders.length} tone="info" />
+        <Chip label={t("bar.kds.chip_in_prep")} value={classified.inPrep.length} tone="accent" />
+        <Chip label={t("bar.kds.chip_pronti")} value={classified.pronti.length} tone="success" />
+        <Chip label={t("bar.kds.chip_late")} value={lateCount} tone={lateCount > 0 ? "danger" : "default"} />
       </PageHeader>
 
-      <TabBar tabs={[...TABS]} active={activeTab} onChange={setActiveTab} />
+      <TabBar tabs={translatedTabs} active={activeTab} onChange={setActiveTab} />
 
       <LoadErrorBanner message={loadError} />
       <StockAlertBanner alerts={stockAlerts} onClose={clearStockAlerts} />
 
       {activeTab === "comande" && (
         <div className="grid gap-4 lg:grid-cols-3">
-          <KdsColumn title="In attesa" tone="pending" count={classified.inAttesa.length}>
+          <KdsColumn title={t("bar.kds.col_waiting")} tone="pending" count={classified.inAttesa.length}>
             {classified.inAttesa.map(({ order, kds }) => (
               <BarOrderCard
                 key={`${order.id}-${kds.courseNum}`}
                 order={order}
                 kds={kds}
-                onInPrep={() => void patchStatus(order.id, "in_preparazione")}
-                onPronto={() => void patchStatus(order.id, "pronto")}
-                onServito={() => void patchStatus(order.id, "servito")}
+                onInPrep={() => void patchStatus(order.id, "in_preparazione", kds.courseNum)}
+                onPronto={() => void patchStatus(order.id, "pronto", kds.courseNum)}
+                onServito={() => void patchStatus(order.id, "servito", kds.courseNum)}
               />
             ))}
-            {classified.inAttesa.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in attesa</p>}
+            {classified.inAttesa.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">{t("bar.kds.empty_waiting")}</p>}
           </KdsColumn>
 
-          <KdsColumn title="In preparazione" tone="prep" count={classified.inPrep.length}>
+          <KdsColumn title={t("bar.kds.col_in_prep")} tone="prep" count={classified.inPrep.length}>
             {classified.inPrep.map(({ order, kds }) => (
               <BarOrderCard
                 key={`${order.id}-${kds.courseNum}`}
                 order={order}
                 kds={kds}
-                onInPrep={() => void patchStatus(order.id, "in_preparazione")}
-                onPronto={() => void patchStatus(order.id, "pronto")}
-                onServito={() => void patchStatus(order.id, "servito")}
+                onInPrep={() => void patchStatus(order.id, "in_preparazione", kds.courseNum)}
+                onPronto={() => void patchStatus(order.id, "pronto", kds.courseNum)}
+                onServito={() => void patchStatus(order.id, "servito", kds.courseNum)}
               />
             ))}
-            {classified.inPrep.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in prep</p>}
+            {classified.inPrep.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">{t("bar.kds.empty_in_prep")}</p>}
           </KdsColumn>
 
-          <KdsColumn title="Pronti" tone="ready" count={classified.pronti.length}>
+          <KdsColumn title={t("bar.kds.col_ready")} tone="ready" count={classified.pronti.length}>
             {classified.pronti.map(({ order, kds }) => (
               <BarOrderCard
                 key={`${order.id}-${kds.courseNum}`}
                 order={order}
                 kds={kds}
-                onInPrep={() => void patchStatus(order.id, "in_preparazione")}
-                onPronto={() => void patchStatus(order.id, "pronto")}
-                onServito={() => void patchStatus(order.id, "servito")}
+                onInPrep={() => void patchStatus(order.id, "in_preparazione", kds.courseNum)}
+                onPronto={() => void patchStatus(order.id, "pronto", kds.courseNum)}
+                onServito={() => void patchStatus(order.id, "servito", kds.courseNum)}
               />
             ))}
-            {classified.pronti.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda pronta</p>}
+            {classified.pronti.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">{t("bar.kds.empty_ready")}</p>}
           </KdsColumn>
         </div>
       )}
@@ -324,7 +333,7 @@ export function BarPage() {
       {activeTab === "ricette" && (
         <RecipesTab
           area="bar"
-          title="Ricette cocktail"
+          title={t("bar.tab.ricette")}
           description="Ricette cocktail persistenti sul DB tenant."
         />
       )}

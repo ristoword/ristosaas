@@ -18,6 +18,7 @@ import { VoiceButton } from "@/components/ai/ai-voice";
 import { aiOpsApi, haccpApi, roomServiceApi, shiftPlansApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry, type RoomServiceOrder, type ShiftPlan } from "@/lib/api-client";
 import { StockAlertBanner } from "@/components/shared/stock-alert-banner";
 import { LoadErrorBanner } from "@/components/shared/load-error-banner";
+import { useI18n } from "@/core/i18n/provider";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -75,27 +76,22 @@ const COURSE_STATUS_COLORS: Record<CourseStatus, string> = {
   servito: "bg-rw-muted/30 opacity-60",
 };
 
-const COURSE_STATUS_LABELS: Record<CourseStatus, string> = {
-  queued: "in coda",
-  in_attesa: "in attesa",
-  in_preparazione: "in preparazione",
-  pronto: "pronto da servire",
-  servito: "servito",
-};
-
 function CourseIndicators({ order }: { order: Order }) {
+  const { t } = useI18n();
   const nums = getSortedCourses(order.items);
   return (
     <span className="flex items-center gap-1">
       {nums.map((n) => {
         const st = order.courseStates[String(n)] as CourseStatus | undefined;
         const safe: CourseStatus = st ?? "queued";
+        const statusLabel = t(`cucina.kds.status.${safe}`);
+        const portataLabel = t("cucina.kds.portata").replace("{n}", String(n));
         return (
           <span
             key={n}
             className={`h-2 w-2 rounded-full ${COURSE_STATUS_COLORS[safe]}`}
-            title={`Portata ${n}: ${COURSE_STATUS_LABELS[safe]}`}
-            aria-label={`Portata ${n}: ${COURSE_STATUS_LABELS[safe]}`}
+            title={`${portataLabel}: ${statusLabel}`}
+            aria-label={`${portataLabel}: ${statusLabel}`}
           />
         );
       })}
@@ -116,6 +112,7 @@ function OrderCard({
   onPronto: () => void;
   onServito: () => void;
 }) {
+  const { t } = useI18n();
   const elapsed = minutesSince(order.createdAt);
   /** Corsi che hanno almeno una riga in cucina: tutti visibili subito; i pulsanti restano solo sul corso attivo (`kds`). */
   const cucinaCourseNums = [...new Set(order.items.filter((i) => i.area === "cucina").map((i) => i.course))].sort(
@@ -146,7 +143,7 @@ function OrderCard({
       ) : null}
 
       {cucinaCourseNums.length === 0 ? (
-        <p className="text-xs text-rw-muted italic">Nessun piatto in cucina su questa comanda</p>
+        <p className="text-xs text-rw-muted italic">{t("cucina.kds.no_dishes")}</p>
       ) : (
         <div className="space-y-3">
           {cucinaCourseNums.map((courseNum) => {
@@ -156,10 +153,10 @@ function OrderCard({
             const courseItems = order.items.filter((i) => i.course === courseNum && i.area === "cucina");
             const statusLabel =
               !isActive && st === "queued"
-                ? "In coda"
+                ? t("cucina.kds.status.queued")
                 : !isActive && st === "in_attesa"
-                  ? "In attesa"
-                  : COURSE_STATUS_LABELS[st];
+                  ? t("cucina.kds.status.in_attesa")
+                  : t(`cucina.kds.status.${st}`);
             return (
               <div
                 key={courseNum}
@@ -170,10 +167,10 @@ function OrderCard({
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                    Portata {courseNum}
+                    {t("cucina.kds.portata").replace("{n}", String(courseNum))}
                     {isActive ? (
                       <span className="ml-2 rounded bg-rw-accent/20 px-1.5 py-0.5 normal-case text-[10px] font-bold text-rw-accent">
-                        Attivo
+                        {t("cucina.kds.active")}
                       </span>
                     ) : null}
                   </div>
@@ -200,17 +197,17 @@ function OrderCard({
                   <div className="flex items-center gap-2 pt-1">
                     {kds.status === "in_attesa" && (
                       <button type="button" onClick={onInPrep} className="flex-1 rounded-lg bg-rw-accent/15 px-3 py-1.5 text-xs font-bold text-rw-accent transition hover:bg-rw-accent/25">
-                        In prep
+                        {t("cucina.kds.btn_in_prep")}
                       </button>
                     )}
                     {kds.status === "in_preparazione" && (
                       <button type="button" onClick={onPronto} className="flex-1 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-400 transition hover:bg-emerald-500/25">
-                        Pronto
+                        {t("cucina.kds.btn_pronto")}
                       </button>
                     )}
                     {kds.status === "pronto" && (
                       <button type="button" onClick={onServito} className="flex-1 rounded-lg bg-blue-500/15 px-3 py-1.5 text-xs font-bold text-blue-400 transition hover:bg-blue-500/25">
-                        Servito
+                        {t("cucina.kds.btn_servito")}
                       </button>
                     )}
                   </div>
@@ -229,6 +226,7 @@ function OrderCard({
 /* ------------------------------------------------------------------ */
 
 function RicetteTab() {
+  const { t } = useI18n();
   const { recipes, addRecipe, updateRecipe, removeRecipe, addToMenu, addToDailyMenu } = useMenu();
 
   const emptyIng = (): RecipeIngredient => ({ id: `ing-${Date.now()}-${Math.random()}`, name: "", qty: 0, unit: "g", unitCost: 0, wastePct: 0 });
@@ -318,20 +316,28 @@ function RicetteTab() {
     try {
       await addRecipe(draftRecipe);
       resetForm();
-      showFlash("Ricetta salvata. Food cost calcolato.");
+      showFlash(t("cucina.recipe.saved"));
     } catch (e) {
-      showFlash(`Errore: ${e instanceof Error ? e.message : "Salvataggio fallito"}`);
+      showFlash(`Errore: ${e instanceof Error ? e.message : t("cucina.recipe.save_failed")}`);
     }
   }
 
-  function handleAddToMenu(recipe: Recipe) {
-    void addToMenu(recipe);
-    showFlash(`"${recipe.name}" aggiunto al menu.`);
+  async function handleAddToMenu(recipe: Recipe) {
+    try {
+      await addToMenu(recipe);
+      showFlash(`"${recipe.name}" ${t("cucina.recipe.added_to_menu")}`);
+    } catch (e) {
+      showFlash(e instanceof Error ? e.message : t("cucina.recipe.save_failed"));
+    }
   }
 
-  function handleAddToDaily(recipe: Recipe) {
-    void addToDailyMenu(recipe, `Dal ricettario cucina`);
-    showFlash(`"${recipe.name}" aggiunto al menu del giorno.`);
+  async function handleAddToDaily(recipe: Recipe) {
+    try {
+      await addToDailyMenu(recipe, t("cucina.recipe.from_cookbook"));
+      showFlash(`"${recipe.name}" ${t("cucina.recipe.added_to_daily")}`);
+    } catch (e) {
+      showFlash(e instanceof Error ? e.message : t("cucina.recipe.save_failed"));
+    }
   }
 
   function openEditRecipe(r: Recipe) {
@@ -363,10 +369,10 @@ function RicetteTab() {
         ingredients: cleanIngs,
         steps: cleanSteps,
       });
-      showFlash(`Ricetta "${editRecipe.name}" aggiornata.`);
+      showFlash(`"${editRecipe.name}" ${t("cucina.recipe.updated")}`);
       setEditRecipe(null);
     } catch (e) {
-      setEditRecipeError(e instanceof Error ? e.message : "Errore salvataggio");
+      setEditRecipeError(e instanceof Error ? e.message : t("cucina.recipe.error_save"));
     } finally {
       setEditRecipeSaving(false);
     }
@@ -378,6 +384,15 @@ function RicetteTab() {
   }
 
   const categories = ["Antipasti", "Primi", "Secondi", "Pizze", "Dolci", "Contorni", "Bevande"];
+  const categoryKeys: Record<string, string> = {
+    Antipasti: "cucina.category.antipasti",
+    Primi: "cucina.category.primi",
+    Secondi: "cucina.category.secondi",
+    Pizze: "cucina.category.pizze",
+    Dolci: "cucina.category.dolci",
+    Contorni: "cucina.category.contorni",
+    Bevande: "cucina.category.bevande",
+  };
 
   return (
     <div className="space-y-6">
@@ -387,26 +402,26 @@ function RicetteTab() {
         </div>
       )}
 
-      <Card title="Nuova ricetta" description="Compila tutti i dettagli: il food cost si calcola in automatico">
+      <Card title={t("cucina.recipe.new_title")} description={t("cucina.recipe.new_desc")}>
         <div className="space-y-5">
           {/* Basic info */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="sm:col-span-2">
-              <label className={labelCls}>Nome ricetta</label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Carbonara tradizionale" className={inputCls} />
+              <label className={labelCls}>{t("cucina.recipe.name")}</label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("cucina.recipe.name_placeholder")} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Categoria</label>
+              <label className={labelCls}>{t("cucina.recipe.category")}</label>
               <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
-                {categories.map((c) => <option key={c}>{c}</option>)}
+                {categories.map((c) => <option key={c} value={c}>{t(categoryKeys[c] ?? c)}</option>)}
               </select>
             </div>
             <div>
-              <label className={labelCls}>Area</label>
+              <label className={labelCls}>{t("cucina.recipe.area")}</label>
               <select value={area} onChange={(e) => setArea(e.target.value as typeof area)} className={inputCls}>
-                <option value="cucina">Cucina</option>
-                <option value="pizzeria">Pizzeria</option>
-                <option value="bar">Bar</option>
+                <option value="cucina">{t("cucina.recipe.area.cucina")}</option>
+                <option value="pizzeria">{t("cucina.recipe.area.pizzeria")}</option>
+                <option value="bar">{t("cucina.recipe.area.bar")}</option>
               </select>
             </div>
           </div>
@@ -414,55 +429,55 @@ function RicetteTab() {
           {/* Pricing & portions */}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <div>
-              <label className={labelCls}>Porzioni</label>
+              <label className={labelCls}>{t("cucina.recipe.portions")}</label>
               <input type="number" min={1} value={portions} onChange={(e) => setPortions(Number(e.target.value) || 1)} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Prezzo vendita (€)</label>
+              <label className={labelCls}>{t("cucina.recipe.selling_price")}</label>
               <input type="number" step="0.50" min={0} value={sellingPrice || ""} onChange={(e) => setSellingPrice(Number(e.target.value))} placeholder="0.00" className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Target FC %</label>
+              <label className={labelCls}>{t("cucina.recipe.target_fc")}</label>
               <input type="number" min={0} max={100} value={targetFcPct} onChange={(e) => setTargetFcPct(Number(e.target.value))} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>IVA %</label>
+              <label className={labelCls}>{t("cucina.recipe.iva")}</label>
               <input type="number" min={0} value={ivaPct} onChange={(e) => setIvaPct(Number(e.target.value))} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Overhead %</label>
+              <label className={labelCls}>{t("cucina.recipe.overhead")}</label>
               <input type="number" min={0} value={overheadPct} onChange={(e) => setOverheadPct(Number(e.target.value))} className={inputCls} />
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className={labelCls}>Packaging (€)</label>
+              <label className={labelCls}>{t("cucina.recipe.packaging")}</label>
               <input type="number" step="0.01" min={0} value={packagingCost || ""} onChange={(e) => setPackagingCost(Number(e.target.value))} placeholder="0.00" className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Manodopera (€)</label>
+              <label className={labelCls}>{t("cucina.recipe.labor")}</label>
               <input type="number" step="0.01" min={0} value={laborCost || ""} onChange={(e) => setLaborCost(Number(e.target.value))} placeholder="0.00" className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Energia (€)</label>
+              <label className={labelCls}>{t("cucina.recipe.energy")}</label>
               <input type="number" step="0.01" min={0} value={energyCost || ""} onChange={(e) => setEnergyCost(Number(e.target.value))} placeholder="0.00" className={inputCls} />
             </div>
           </div>
 
           {/* Ingredients table */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">Ingredienti</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">{t("cucina.recipe.ingredients")}</p>
             <div className="overflow-x-auto rounded-xl border border-rw-line">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-rw-line bg-rw-surfaceAlt">
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Ingrediente</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">Qtà</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-16">Unità</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-24">€/unità</th>
-                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">Scarto%</th>
-                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">Totale</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">{t("cucina.recipe.ingredient")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">{t("cucina.recipe.qty")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-16">{t("cucina.recipe.unit")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-24">{t("cucina.recipe.unit_cost")}</th>
+                    <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">{t("cucina.recipe.waste_pct")}</th>
+                    <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">{t("ui.total")}</th>
                     <th className="w-10" />
                   </tr>
                 </thead>
@@ -472,7 +487,7 @@ function RicetteTab() {
                     return (
                       <tr key={ing.id} className="border-b border-rw-line/50">
                         <td className="px-2 py-1.5">
-                          <input value={ing.name} onChange={(e) => updateIng(idx, "name", e.target.value)} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none" placeholder="Nome ingrediente" />
+                          <input value={ing.name} onChange={(e) => updateIng(idx, "name", e.target.value)} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none" placeholder={t("cucina.recipe.ingredient_placeholder")} />
                         </td>
                         <td className="px-2 py-1.5">
                           <input type="number" step="0.001" min={0} value={ing.qty} onChange={(e) => updateIng(idx, "qty", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0" />
@@ -509,13 +524,13 @@ function RicetteTab() {
               </table>
             </div>
             <button type="button" onClick={() => setIngredients((p) => [...p, emptyIng()])} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rw-accent hover:text-rw-accentSoft">
-              <Plus className="h-3.5 w-3.5" /> Aggiungi ingrediente
+              <Plus className="h-3.5 w-3.5" /> {t("cucina.recipe.add_ingredient")}
             </button>
           </div>
 
           {/* Procedure steps */}
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">Procedimento (passaggi)</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">{t("cucina.recipe.procedure")}</p>
             <div className="space-y-2">
               {steps.map((step, idx) => (
                 <div key={step.id} className="flex items-start gap-2">
@@ -525,7 +540,7 @@ function RicetteTab() {
                   <textarea
                     value={step.text}
                     onChange={(e) => updateStep(idx, e.target.value)}
-                    placeholder={`Passaggio ${idx + 1}: descrivi cosa fare…`}
+                    placeholder={t("cucina.recipe.step_placeholder").replace("{n}", String(idx + 1))}
                     rows={2}
                     className={cn(inputCls, "flex-1 resize-y")}
                   />
@@ -536,30 +551,30 @@ function RicetteTab() {
               ))}
             </div>
             <button type="button" onClick={() => setSteps((p) => [...p, emptyStep(p.length + 1)])} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rw-accent hover:text-rw-accentSoft">
-              <Plus className="h-3.5 w-3.5" /> Aggiungi passaggio
+              <Plus className="h-3.5 w-3.5" /> {t("cucina.recipe.add_step")}
             </button>
           </div>
 
           {/* Notes */}
           <div>
-            <label className={labelCls}>Note aggiuntive</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Allergie, varianti, consigli…" rows={2} className={cn(inputCls, "resize-y")} />
+            <label className={labelCls}>{t("cucina.recipe.extra_notes")}</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("cucina.recipe.notes_placeholder")} rows={2} className={cn(inputCls, "resize-y")} />
           </div>
 
           {/* Live food cost */}
           {ingredients.some((i) => i.name.trim()) && sellingPrice > 0 && (
             <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4 space-y-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-rw-accent">Food Cost automatico</p>
+              <p className="text-xs font-bold uppercase tracking-wide text-rw-accent">{t("cucina.recipe.fc_auto")}</p>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 text-xs">
                 {[
-                  { l: "Costo ingredienti", v: `€${fc.ingredientCost.toFixed(2)}` },
-                  { l: "Costo porzione", v: `€${fc.portionCost.toFixed(2)}` },
-                  { l: "FC%", v: `${fc.fcPct.toFixed(1)}%`, warn: fc.fcPct > targetFcPct },
-                  { l: "Margine", v: `€${fc.margin.toFixed(2)}`, warn: fc.margin < 0 },
-                  { l: "Costo produzione", v: `€${fc.productionCost.toFixed(2)}` },
-                  { l: "Con overhead", v: `€${fc.withOverhead.toFixed(2)}` },
-                  { l: "Prezzo suggerito", v: `€${fc.suggestedPrice.toFixed(2)}` },
-                  { l: "Prezzo vendita", v: `€${sellingPrice.toFixed(2)}` },
+                  { l: t("cucina.recipe.fc_ingredient_cost"), v: `€${fc.ingredientCost.toFixed(2)}` },
+                  { l: t("cucina.recipe.fc_portion_cost"), v: `€${fc.portionCost.toFixed(2)}` },
+                  { l: t("cucina.recipe.fc_pct"), v: `${fc.fcPct.toFixed(1)}%`, warn: fc.fcPct > targetFcPct },
+                  { l: t("cucina.recipe.fc_margin"), v: `€${fc.margin.toFixed(2)}`, warn: fc.margin < 0 },
+                  { l: t("cucina.recipe.fc_production_cost"), v: `€${fc.productionCost.toFixed(2)}` },
+                  { l: t("cucina.recipe.fc_with_overhead"), v: `€${fc.withOverhead.toFixed(2)}` },
+                  { l: t("cucina.recipe.fc_suggested_price"), v: `€${fc.suggestedPrice.toFixed(2)}` },
+                  { l: t("cucina.recipe.fc_selling_price"), v: `€${sellingPrice.toFixed(2)}` },
                 ].map((s) => (
                   <div key={s.l} className="rounded-lg border border-rw-line/50 bg-rw-surface p-2.5 text-center">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-rw-muted">{s.l}</p>
@@ -572,7 +587,7 @@ function RicetteTab() {
 
           {/* Save */}
           <button type="button" onClick={() => void save()} disabled={!name.trim()} className="w-full rounded-xl bg-rw-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:cursor-not-allowed disabled:opacity-40">
-            Salva ricetta (food cost calcolato automaticamente)
+            {t("cucina.recipe.save_btn")}
           </button>
         </div>
       </Card>
@@ -580,7 +595,7 @@ function RicetteTab() {
       {/* Saved recipes */}
       {recipes.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-display text-lg font-semibold text-rw-ink">Ricette salvate ({recipes.length})</h3>
+          <h3 className="font-display text-lg font-semibold text-rw-ink">{t("cucina.recipe.saved_count").replace("{n}", String(recipes.length))}</h3>
           {recipes.map((r) => {
             const rfc = calcFoodCost(r);
             return (
@@ -588,14 +603,14 @@ function RicetteTab() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-display text-lg font-semibold text-rw-ink">{r.name}</p>
-                    <p className="text-xs text-rw-muted">{r.category} · {r.area} · {r.portions} porz. · €{r.sellingPrice.toFixed(2)}</p>
+                    <p className="text-xs text-rw-muted">{r.category} · {r.area} · {r.portions} {t("cucina.recipe.portions_abbr")} · €{r.sellingPrice.toFixed(2)}</p>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
                     <span className={cn("rounded-full px-2.5 py-1 font-bold", rfc.fcPct > r.targetFcPct ? "bg-red-500/15 text-red-400" : "bg-emerald-500/15 text-emerald-400")}>
                       FC {rfc.fcPct.toFixed(1)}%
                     </span>
                     <span className="rounded-full bg-rw-surfaceAlt px-2.5 py-1 font-bold text-rw-soft">
-                      Margine €{rfc.margin.toFixed(2)}
+                      {t("cucina.recipe.fc_margin")} €{rfc.margin.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -612,23 +627,23 @@ function RicetteTab() {
                 {/* Steps summary */}
                 {r.steps.length > 0 && (
                   <div className="text-xs text-rw-muted">
-                    {r.steps.length} passaggi: {r.steps.map((s) => s.text.slice(0, 30)).join(" → ")}…
+                    {t("cucina.recipe.steps_count").replace("{n}", String(r.steps.length))}: {r.steps.map((s) => s.text.slice(0, 30)).join(" → ")}…
                   </div>
                 )}
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button type="button" onClick={() => handleAddToMenu(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-rw-accent/30 bg-rw-accent/10 px-3 py-2 text-xs font-bold text-rw-accent hover:bg-rw-accent/20">
-                    <Upload className="h-3.5 w-3.5" /> Carica nel Menu
+                    <Upload className="h-3.5 w-3.5" /> {t("cucina.recipe.load_to_menu")}
                   </button>
                   <button type="button" onClick={() => handleAddToDaily(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-400 hover:bg-emerald-500/20">
-                    <CalendarDays className="h-3.5 w-3.5" /> Menu del Giorno
+                    <CalendarDays className="h-3.5 w-3.5" /> {t("cucina.recipe.add_to_daily")}
                   </button>
                   <button type="button" onClick={() => openEditRecipe(r)} className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-xs font-bold text-sky-400 hover:bg-sky-500/20">
-                    <Edit2 className="h-3.5 w-3.5" /> Modifica
+                    <Edit2 className="h-3.5 w-3.5" /> {t("ui.edit")}
                   </button>
                   <button type="button" onClick={() => void removeRecipe(r.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-xs font-bold text-red-400 hover:bg-red-500/10">
-                    <Trash2 className="h-3.5 w-3.5" /> Elimina
+                    <Trash2 className="h-3.5 w-3.5" /> {t("ui.delete")}
                   </button>
                 </div>
               </div>
@@ -642,7 +657,7 @@ function RicetteTab() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-rw-line bg-rw-surface p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between sticky top-0 bg-rw-surface pb-2 border-b border-rw-line/40">
-              <h2 className="font-display text-lg font-bold text-rw-ink">Modifica ricetta</h2>
+              <h2 className="font-display text-lg font-bold text-rw-ink">{t("cucina.recipe.edit_title")}</h2>
               <button type="button" onClick={() => setEditRecipe(null)} className="text-rw-muted hover:text-rw-ink">
                 <X className="h-5 w-5" />
               </button>
@@ -650,56 +665,56 @@ function RicetteTab() {
 
             {/* Campi base */}
             <div>
-              <label className={labelCls}>Nome ricetta</label>
+              <label className={labelCls}>{t("cucina.recipe.name")}</label>
               <input type="text" className={inputCls} value={editRecipe.name} onChange={(e) => setEditRecipe({ ...editRecipe, name: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Categoria</label>
+                <label className={labelCls}>{t("cucina.recipe.category")}</label>
                 <select className={inputCls} value={editRecipe.category} onChange={(e) => setEditRecipe({ ...editRecipe, category: e.target.value })}>
-                  {["Antipasti","Primi","Secondi","Pizze","Dolci","Contorni","Bevande"].map((c) => <option key={c}>{c}</option>)}
+                  {categories.map((c) => <option key={c} value={c}>{t(categoryKeys[c] ?? c)}</option>)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Area</label>
+                <label className={labelCls}>{t("cucina.recipe.area")}</label>
                 <select className={inputCls} value={editRecipe.area} onChange={(e) => setEditRecipe({ ...editRecipe, area: e.target.value as "cucina" | "pizzeria" | "bar" })}>
-                  <option value="cucina">Cucina</option>
-                  <option value="pizzeria">Pizzeria</option>
-                  <option value="bar">Bar</option>
+                  <option value="cucina">{t("cucina.recipe.area.cucina")}</option>
+                  <option value="pizzeria">{t("cucina.recipe.area.pizzeria")}</option>
+                  <option value="bar">{t("cucina.recipe.area.bar")}</option>
                 </select>
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className={labelCls}>Prezzo vendita (€)</label>
+                <label className={labelCls}>{t("cucina.recipe.selling_price")}</label>
                 <input type="number" step="0.50" min={0} className={inputCls} value={editRecipe.sellingPrice} onChange={(e) => setEditRecipe({ ...editRecipe, sellingPrice: Number(e.target.value) })} />
               </div>
               <div>
-                <label className={labelCls}>Porzioni</label>
+                <label className={labelCls}>{t("cucina.recipe.portions")}</label>
                 <input type="number" min={1} className={inputCls} value={editRecipe.portions} onChange={(e) => setEditRecipe({ ...editRecipe, portions: Number(e.target.value) || 1 })} />
               </div>
               <div>
-                <label className={labelCls}>Target FC%</label>
+                <label className={labelCls}>{t("cucina.recipe.target_fc")}</label>
                 <input type="number" min={0} max={100} className={inputCls} value={editRecipe.targetFcPct} onChange={(e) => setEditRecipe({ ...editRecipe, targetFcPct: Number(e.target.value) })} />
               </div>
             </div>
             <div>
-              <label className={labelCls}>Note</label>
+              <label className={labelCls}>{t("ui.notes")}</label>
               <textarea rows={2} className={cn(inputCls, "resize-y")} value={editRecipe.notes} onChange={(e) => setEditRecipe({ ...editRecipe, notes: e.target.value })} />
             </div>
 
             {/* Ingredienti */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">Ingredienti</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">{t("cucina.recipe.ingredients")}</p>
               <div className="overflow-x-auto rounded-xl border border-rw-line">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-rw-line bg-rw-surfaceAlt">
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">Ingrediente</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">Qtà</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-16">Unità</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-24">€/unità</th>
-                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">Scarto%</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">{t("cucina.recipe.ingredient")}</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">{t("cucina.recipe.qty")}</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-16">{t("cucina.recipe.unit")}</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-24">{t("cucina.recipe.unit_cost")}</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted w-20">{t("cucina.recipe.waste_pct")}</th>
                       <th className="w-10" />
                     </tr>
                   </thead>
@@ -707,7 +722,7 @@ function RicetteTab() {
                     {editIngredients.map((ing, idx) => (
                       <tr key={ing.id} className="border-b border-rw-line/50">
                         <td className="px-2 py-1.5">
-                          <input value={ing.name} onChange={(e) => updateEditIng(idx, "name", e.target.value)} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none" placeholder="Nome ingrediente" />
+                          <input value={ing.name} onChange={(e) => updateEditIng(idx, "name", e.target.value)} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none" placeholder={t("cucina.recipe.ingredient_placeholder")} />
                         </td>
                         <td className="px-2 py-1.5">
                           <input type="number" step="0.001" min={0} value={ing.qty} onChange={(e) => updateEditIng(idx, "qty", Number(e.target.value))} className="w-full bg-transparent text-sm text-rw-ink focus:outline-none tabular-nums" placeholder="0" />
@@ -736,13 +751,13 @@ function RicetteTab() {
                 </table>
               </div>
               <button type="button" onClick={() => setEditIngredients((p) => [...p, emptyEditIng()])} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rw-accent hover:text-rw-accentSoft">
-                <Plus className="h-3.5 w-3.5" /> Aggiungi ingrediente
+                <Plus className="h-3.5 w-3.5" /> {t("cucina.recipe.add_ingredient")}
               </button>
             </div>
 
             {/* Passaggi */}
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">Procedimento (passaggi)</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted mb-2">{t("cucina.recipe.procedure")}</p>
               <div className="space-y-2">
                 {editSteps.map((step, idx) => (
                   <div key={step.id} className="flex items-start gap-2">
@@ -752,7 +767,7 @@ function RicetteTab() {
                     <textarea
                       value={step.text}
                       onChange={(e) => updateEditStep(idx, e.target.value)}
-                      placeholder={`Passaggio ${idx + 1}…`}
+                      placeholder={t("cucina.recipe.step_edit_placeholder").replace("{n}", String(idx + 1))}
                       rows={2}
                       className={cn(inputCls, "flex-1 resize-y")}
                     />
@@ -763,7 +778,7 @@ function RicetteTab() {
                 ))}
               </div>
               <button type="button" onClick={() => setEditSteps((p) => [...p, { id: `es-${Date.now()}`, order: p.length + 1, text: "" }])} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rw-accent hover:text-rw-accentSoft">
-                <Plus className="h-3.5 w-3.5" /> Aggiungi passaggio
+                <Plus className="h-3.5 w-3.5" /> {t("cucina.recipe.add_step")}
               </button>
             </div>
 
@@ -771,10 +786,10 @@ function RicetteTab() {
             <div className="flex gap-3 pt-1">
               <button type="button" className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90" onClick={() => void handleSaveEditRecipe()} disabled={editRecipeSaving}>
                 {editRecipeSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                {editRecipeSaving ? "Salvataggio…" : "Salva modifiche"}
+                {editRecipeSaving ? t("cucina.saving") : t("cucina.recipe.save_changes")}
               </button>
               <button type="button" onClick={() => setEditRecipe(null)} className="rounded-xl border border-rw-line px-4 py-2.5 text-sm text-rw-muted hover:text-rw-ink">
-                Annulla
+                {t("ui.cancel")}
               </button>
             </div>
           </div>
@@ -785,6 +800,7 @@ function RicetteTab() {
 }
 
 function PiattiGiornoTab() {
+  const { t } = useI18n();
   const { dailyDishes, addDailyDish, removeDailyDish, updateDailyDish, addMenuItemFromDaily, recipes, addToDailyMenu } = useMenu();
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
@@ -800,13 +816,24 @@ function PiattiGiornoTab() {
   const [editError, setEditError] = useState<string | null>(null);
 
   const categories = ["Antipasti", "Primi", "Secondi", "Contorni", "Dolci"];
+  const categoryKeys: Record<string, string> = {
+    Antipasti: "cucina.category.antipasti",
+    Primi: "cucina.category.primi",
+    Secondi: "cucina.category.secondi",
+    Contorni: "cucina.category.contorni",
+    Dolci: "cucina.category.dolci",
+  };
 
-  function add(e: React.FormEvent) {
+  async function add(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
-    void addDailyDish({ name, description: desc, category: cat, price, allergens, recipeId: null });
-    setName(""); setDesc(""); setPrice(0); setAllergens("");
-    showFlash("Piatto del giorno aggiunto.");
+    try {
+      await addDailyDish({ name, description: desc, category: cat, price, allergens, recipeId: null });
+      setName(""); setDesc(""); setPrice(0); setAllergens("");
+      showFlash(t("cucina.daily.added"));
+    } catch (err) {
+      showFlash(err instanceof Error ? err.message : t("cucina.recipe.save_failed"));
+    }
   }
 
   function showFlash(msg: string) {
@@ -814,9 +841,13 @@ function PiattiGiornoTab() {
     setTimeout(() => setFlash(null), 3000);
   }
 
-  function handleFromRecipe(recipe: Recipe) {
-    void addToDailyMenu(recipe, `Dal ricettario cucina`);
-    showFlash(`"${recipe.name}" aggiunto al menu del giorno.`);
+  async function handleFromRecipe(recipe: Recipe) {
+    try {
+      await addToDailyMenu(recipe, t("cucina.recipe.from_cookbook"));
+      showFlash(`"${recipe.name}" ${t("cucina.recipe.added_to_daily")}`);
+    } catch (e) {
+      showFlash(e instanceof Error ? e.message : t("cucina.recipe.save_failed"));
+    }
   }
 
   function openEdit(d: DailyDishEdit) {
@@ -836,10 +867,10 @@ function PiattiGiornoTab() {
         price: editDish.price,
         allergens: editDish.allergens,
       });
-      showFlash(`"${editDish.name}" aggiornato.`);
+      showFlash(`"${editDish.name}" ${t("cucina.daily.updated")}`);
       setEditDish(null);
     } catch (e) {
-      setEditError(e instanceof Error ? e.message : "Errore salvataggio");
+      setEditError(e instanceof Error ? e.message : t("cucina.recipe.error_save"));
     } finally {
       setEditSaving(false);
     }
@@ -848,9 +879,9 @@ function PiattiGiornoTab() {
   async function handleAddToMenu(d: DailyDishEdit) {
     try {
       await addMenuItemFromDaily(d);
-      showFlash(`"${d.name}" aggiunto al Menu Permanente.`);
+      showFlash(`"${d.name}" ${t("cucina.daily.added_to_menu")}`);
     } catch (e) {
-      showFlash(`Errore: ${e instanceof Error ? e.message : "Impossibile aggiungere al menu"}`);
+      showFlash(`Errore: ${e instanceof Error ? e.message : t("cucina.daily.error_add_menu")}`);
     }
   }
 
@@ -870,41 +901,41 @@ function PiattiGiornoTab() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Add new daily dish */}
-        <Card title="Nuovo piatto del giorno" description="Crea un singolo piatto o completa un menu">
+        <Card title={t("cucina.daily.new_title")} description={t("cucina.daily.new_desc")}>
           <form className="space-y-3" onSubmit={add}>
             <div>
-              <label className={labelCls}>Nome piatto</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Risotto alla milanese" className={inputCls} />
+              <label className={labelCls}>{t("cucina.daily.dish_name")}</label>
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("cucina.daily.dish_placeholder")} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Descrizione</label>
-              <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Breve descrizione" className={inputCls} />
+              <label className={labelCls}>{t("cucina.daily.description")}</label>
+              <input type="text" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder={t("cucina.daily.desc_placeholder")} className={inputCls} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Categoria</label>
+                <label className={labelCls}>{t("cucina.recipe.category")}</label>
                 <select value={cat} onChange={(e) => setCat(e.target.value)} className={inputCls}>
-                  {categories.map((c) => <option key={c}>{c}</option>)}
+                  {categories.map((c) => <option key={c} value={c}>{t(categoryKeys[c] ?? c)}</option>)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Prezzo (€)</label>
+                <label className={labelCls}>{t("cucina.daily.price")}</label>
                 <input type="number" step="0.50" min={0} value={price || ""} onChange={(e) => setPrice(Number(e.target.value))} placeholder="0.00" className={inputCls} />
               </div>
             </div>
             <div>
-              <label className={labelCls}>Allergeni</label>
-              <input type="text" value={allergens} onChange={(e) => setAllergens(e.target.value)} placeholder="Glutine, Lattosio..." className={inputCls} />
+              <label className={labelCls}>{t("cucina.daily.allergens")}</label>
+              <input type="text" value={allergens} onChange={(e) => setAllergens(e.target.value)} placeholder={t("cucina.daily.allergens_placeholder")} className={inputCls} />
             </div>
             <button type="submit" className="w-full rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85">
-              <Plus className="mr-1 inline h-4 w-4" /> Aggiungi piatto del giorno
+              <Plus className="mr-1 inline h-4 w-4" /> {t("cucina.daily.add_btn")}
             </button>
           </form>
         </Card>
 
         {/* Import from recipes */}
         {recipes.length > 0 && (
-          <Card title="Importa da ricette" description="Seleziona una ricetta per aggiungerla al menu del giorno">
+          <Card title={t("cucina.daily.import_title")} description={t("cucina.daily.import_desc")}>
             <div className="space-y-2 max-h-72 overflow-y-auto">
               {recipes.map((r) => {
                 const rfc = calcFoodCost(r);
@@ -915,7 +946,7 @@ function PiattiGiornoTab() {
                       <p className="text-xs text-rw-muted">{r.category} · €{r.sellingPrice.toFixed(2)} · FC {rfc.fcPct.toFixed(1)}%</p>
                     </div>
                     <button type="button" onClick={() => handleFromRecipe(r)} className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-400 hover:bg-emerald-500/25">
-                      <Upload className="h-3.5 w-3.5" /> Aggiungi
+                      <Upload className="h-3.5 w-3.5" /> {t("ui.add")}
                     </button>
                   </div>
                 );
@@ -928,10 +959,10 @@ function PiattiGiornoTab() {
       {/* Current daily menu */}
       {dailyDishes.length > 0 && (
         <Card
-          title={`Menu del giorno (${dailyDishes.length} piatti)`}
+          title={t("cucina.daily.menu_title").replace("{n}", String(dailyDishes.length))}
           headerRight={
             <button type="button" onClick={handlePrint} className="inline-flex items-center gap-1 rounded-lg border border-rw-line px-3 py-1.5 text-xs font-semibold text-rw-soft hover:text-rw-ink">
-              <Printer className="h-3.5 w-3.5" /> Stampa
+              <Printer className="h-3.5 w-3.5" /> {t("ui.print")}
             </button>
           }
         >
@@ -949,7 +980,7 @@ function PiattiGiornoTab() {
                       <span className="text-sm font-bold text-rw-accent">€{d.price.toFixed(2)}</span>
                       <button
                         type="button"
-                        title="Aggiungi al Menu Permanente"
+                        title={t("cucina.daily.add_to_permanent")}
                         onClick={() => void handleAddToMenu(d)}
                         className="flex items-center gap-1 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2 py-1 text-[11px] font-semibold text-sky-400 hover:bg-sky-500/20"
                       >
@@ -957,13 +988,13 @@ function PiattiGiornoTab() {
                       </button>
                       <button
                         type="button"
-                        title="Modifica"
+                        title={t("ui.edit")}
                         onClick={() => openEdit(d)}
                         className="rounded-lg border border-rw-line p-1.5 text-rw-muted hover:text-rw-accent"
                       >
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
-                      <button type="button" title="Elimina" onClick={() => void removeDailyDish(d.id)} className="text-red-400 hover:text-red-300">
+                      <button type="button" title={t("ui.delete")} onClick={() => void removeDailyDish(d.id)} className="text-red-400 hover:text-red-300">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -980,43 +1011,43 @@ function PiattiGiornoTab() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-md rounded-2xl border border-rw-line bg-rw-surface p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-rw-ink">Modifica piatto del giorno</h2>
+              <h2 className="font-display text-lg font-bold text-rw-ink">{t("cucina.daily.edit_title")}</h2>
               <button type="button" onClick={() => setEditDish(null)} className="text-rw-muted hover:text-rw-ink">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div>
-              <label className={labelCls}>Nome</label>
+              <label className={labelCls}>{t("ui.name")}</label>
               <input type="text" className={inputCls} value={editDish.name} onChange={(e) => setEditDish({ ...editDish, name: e.target.value })} />
             </div>
             <div>
-              <label className={labelCls}>Descrizione</label>
+              <label className={labelCls}>{t("cucina.daily.description")}</label>
               <input type="text" className={inputCls} value={editDish.description} onChange={(e) => setEditDish({ ...editDish, description: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Categoria</label>
+                <label className={labelCls}>{t("cucina.recipe.category")}</label>
                 <select className={inputCls} value={editDish.category} onChange={(e) => setEditDish({ ...editDish, category: e.target.value })}>
-                  {categories.map((c) => <option key={c}>{c}</option>)}
+                  {categories.map((c) => <option key={c} value={c}>{t(categoryKeys[c] ?? c)}</option>)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Prezzo (€)</label>
+                <label className={labelCls}>{t("cucina.daily.price")}</label>
                 <input type="number" step="0.50" min={0} className={inputCls} value={editDish.price || ""} onChange={(e) => setEditDish({ ...editDish, price: Number(e.target.value) })} />
               </div>
             </div>
             <div>
-              <label className={labelCls}>Allergeni</label>
+              <label className={labelCls}>{t("cucina.daily.allergens")}</label>
               <input type="text" className={inputCls} value={editDish.allergens} onChange={(e) => setEditDish({ ...editDish, allergens: e.target.value })} />
             </div>
             {editError && <p className="text-xs text-red-400">{editError}</p>}
             <div className="flex gap-3 pt-1">
               <button type="button" className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90" onClick={() => void handleSaveEdit()} disabled={editSaving}>
                 {editSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                {editSaving ? "Salvataggio…" : "Salva"}
+                {editSaving ? t("cucina.saving") : t("ui.save")}
               </button>
               <button type="button" onClick={() => setEditDish(null)} className="rounded-xl border border-rw-line px-4 py-2.5 text-sm text-rw-muted hover:text-rw-ink">
-                Annulla
+                {t("ui.cancel")}
               </button>
             </div>
           </div>
@@ -1026,7 +1057,7 @@ function PiattiGiornoTab() {
       {/* Print-only view */}
       <div className="hidden print:block">
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold">Menu del Giorno</h1>
+          <h1 className="text-2xl font-bold">{t("cucina.daily.print_title")}</h1>
           <p className="text-sm text-gray-500">{new Date().toLocaleDateString("it-IT", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}</p>
         </div>
         {grouped.map((g) => (
@@ -1039,7 +1070,7 @@ function PiattiGiornoTab() {
                   <span className="font-semibold">€{d.price.toFixed(2)}</span>
                 </div>
                 {d.description && <p className="text-xs text-gray-500">{d.description}</p>}
-                {d.allergens && <p className="text-[10px] text-gray-400 italic">Allergeni: {d.allergens}</p>}
+                {d.allergens && <p className="text-[10px] text-gray-400 italic">{t("cucina.daily.allergens_label")}: {d.allergens}</p>}
               </div>
             ))}
           </div>
@@ -1049,21 +1080,22 @@ function PiattiGiornoTab() {
   );
 }
 
-const HACCP_TYPE_LABELS: Record<string, string> = {
-  temp_frigo: "Temperatura frigo",
-  temp_freezer: "Temperatura freezer",
-  temp_cottura: "Temperatura cottura",
-  temp_abbattitore: "Temperatura abbattitore",
-  sanificazione: "Sanificazione",
-  ricezione_merce: "Ricezione merce",
-  altro: "Altro",
-};
-
 function HaccpTab() {
+  const { t } = useI18n();
   const [entries, setEntries] = useState<ApiHaccpEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const HACCP_TYPE_LABELS: Record<string, string> = {
+    temp_frigo: t("cucina.haccp.type.temp_frigo"),
+    temp_freezer: t("cucina.haccp.type.temp_freezer"),
+    temp_cottura: t("cucina.haccp.type.temp_cottura"),
+    temp_abbattitore: t("cucina.haccp.type.temp_abbattitore"),
+    sanificazione: t("cucina.haccp.type.sanificazione"),
+    ricezione_merce: t("cucina.haccp.type.ricezione_merce"),
+    altro: t("cucina.haccp.type.altro"),
+  };
 
   const [type, setType] = useState<ApiHaccpEntry["type"]>("temp_frigo");
   const [recordedAt, setRecordedAt] = useState(() => new Date().toISOString().slice(0, 16));
@@ -1080,7 +1112,7 @@ function HaccpTab() {
         setError(null);
       })
       .catch((err) => {
-        setError(err instanceof Error ? err.message : "Errore caricamento HACCP");
+        setError(err instanceof Error ? err.message : t("cucina.haccp.error_load"));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -1089,7 +1121,7 @@ function HaccpTab() {
     if (!recordedAt) return;
     const parsedTemp = temp.trim() ? Number.parseFloat(temp.replace(",", ".")) : null;
     if (temp.trim() && (parsedTemp === null || Number.isNaN(parsedTemp))) {
-      setError("Temperatura non valida");
+      setError(t("cucina.haccp.error_temp"));
       return;
     }
     setSaving(true);
@@ -1110,7 +1142,7 @@ function HaccpTab() {
       setNotes("");
       setRecordedAt(new Date().toISOString().slice(0, 16));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Errore salvataggio HACCP");
+      setError(err instanceof Error ? err.message : t("cucina.haccp.error_save"));
     } finally {
       setSaving(false);
     }
@@ -1121,7 +1153,7 @@ function HaccpTab() {
       await haccpApi.delete(id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Errore eliminazione HACCP");
+      setError(err instanceof Error ? err.message : t("cucina.haccp.error_delete"));
     }
   }
 
@@ -1131,40 +1163,40 @@ function HaccpTab() {
     <div className="space-y-6">
       {/* Form di registrazione — nascosto in stampa */}
       <div data-no-print>
-        <Card title="Registrazione HACCP" description="Log persistente delle rilevazioni HACCP (temperature, sanificazioni, ricezioni merce).">
+        <Card title={t("cucina.haccp.register_title")} description={t("cucina.haccp.register_desc")}>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-rw-muted">Tipo rilevazione</span>
+                <span className="mb-1 block text-xs font-semibold text-rw-muted">{t("cucina.haccp.type_label")}</span>
                 <select value={type} onChange={(e) => setType(e.target.value as ApiHaccpEntry["type"])} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent">
-                  {(Object.keys(HACCP_TYPE_LABELS) as Array<keyof typeof HACCP_TYPE_LABELS>).map((t) => (
-                    <option key={t} value={t}>{HACCP_TYPE_LABELS[t]}</option>
+                  {(Object.keys(HACCP_TYPE_LABELS) as Array<keyof typeof HACCP_TYPE_LABELS>).map((typeKey) => (
+                    <option key={typeKey} value={typeKey}>{HACCP_TYPE_LABELS[typeKey]}</option>
                   ))}
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-rw-muted">Data e ora</span>
+                <span className="mb-1 block text-xs font-semibold text-rw-muted">{t("cucina.haccp.datetime")}</span>
                 <input type="datetime-local" value={recordedAt} onChange={(e) => setRecordedAt(e.target.value)} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent" />
               </label>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-rw-muted">Postazione / punto di controllo</span>
-                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="es. Frigo cucina 1" className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+                <span className="mb-1 block text-xs font-semibold text-rw-muted">{t("cucina.haccp.location")}</span>
+                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("cucina.haccp.location_placeholder")} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-rw-muted">Temperatura °C (opzionale)</span>
+                <span className="mb-1 block text-xs font-semibold text-rw-muted">{t("cucina.haccp.temp")}</span>
                 <div className="flex items-center gap-2">
                   <ThermometerSun className="h-4 w-4 text-rw-muted" />
-                  <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="es. 4.2" className="flex-1 rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+                  <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder={t("cucina.haccp.temp_placeholder")} className="flex-1 rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
                 </div>
               </label>
             </div>
-            <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder="Operatore" className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note…" rows={3} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder={t("cucina.haccp.operator_placeholder")} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("cucina.haccp.notes_placeholder")} rows={3} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
             {error ? <p className="text-xs text-red-400">{error}</p> : null}
             <button type="button" onClick={save} disabled={saving} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
-              {saving ? "Salvataggio…" : "Registra"}
+              {saving ? t("cucina.saving") : t("cucina.haccp.register_btn")}
             </button>
           </div>
         </Card>
@@ -1172,8 +1204,8 @@ function HaccpTab() {
 
       {/* Storico + pulsante stampa */}
       <Card
-        title="Storico rilevazioni"
-        description={loading ? "Caricamento…" : `${entries.length} rilevazioni (ultime 100)`}
+        title={t("cucina.haccp.history_title")}
+        description={loading ? t("ui.loading") : t("cucina.haccp.history_desc").replace("{n}", String(entries.length))}
         headerRight={
           entries.length > 0 ? (
             <button
@@ -1182,7 +1214,7 @@ function HaccpTab() {
               onClick={() => window.print()}
               className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft hover:text-rw-ink transition"
             >
-              🖨️ Stampa documento HACCP
+              {t("cucina.haccp.print_btn")}
             </button>
           ) : undefined
         }
@@ -1193,7 +1225,6 @@ function HaccpTab() {
           <div className="hidden" style={{ display: "none" }}
             ref={(el) => {
               if (el) {
-                // Applica stile solo in print via JS (il CSS @media print lo rende visibile)
                 el.setAttribute("data-print-header", "true");
               }
             }}
@@ -1211,22 +1242,22 @@ function HaccpTab() {
           >
             <div className="flex items-start justify-between">
               <div>
-                <div className="text-2xl font-bold uppercase tracking-wide">Registro HACCP</div>
-                <div className="text-sm mt-1">Sistema di autocontrollo igienico-sanitario</div>
+                <div className="text-2xl font-bold uppercase tracking-wide">{t("cucina.haccp.doc_title")}</div>
+                <div className="text-sm mt-1">{t("cucina.haccp.doc_subtitle")}</div>
                 <div className="text-sm">D.Lgs. 193/2007 — Reg. CE 852/2004</div>
               </div>
               <div className="text-right text-sm">
-                <div className="font-semibold">Data stampa: {printDate}</div>
-                <div className="mt-1">N° rilevazioni: {entries.length}</div>
+                <div className="font-semibold">{t("cucina.haccp.print_date").replace("{date}", printDate)}</div>
+                <div className="mt-1">{t("cucina.haccp.print_count").replace("{n}", String(entries.length))}</div>
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-8 text-sm">
               <div>
-                <span className="font-semibold">Struttura:</span>
+                <span className="font-semibold">{t("cucina.haccp.structure")}</span>
                 <span className="ml-2 border-b border-black inline-block w-40">&nbsp;</span>
               </div>
               <div>
-                <span className="font-semibold">Responsabile HACCP:</span>
+                <span className="font-semibold">{t("cucina.haccp.responsible")}</span>
                 <span className="ml-2 border-b border-black inline-block w-32">&nbsp;</span>
               </div>
             </div>
@@ -1234,25 +1265,25 @@ function HaccpTab() {
 
           {/* Tabella dati */}
           {!loading && entries.length === 0 ? (
-            <p className="py-4 text-center text-sm text-rw-muted">Nessuna rilevazione HACCP registrata.</p>
+            <p className="py-4 text-center text-sm text-rw-muted">{t("cucina.haccp.empty")}</p>
           ) : (
             <>
               {/* Versione schermo (DataTable) */}
               <div data-print-header-hide>
                 <DataTable
                   columns={[
-                    { key: "recordedAt", header: "Data/ora", render: (r: ApiHaccpEntry) => <span className="text-rw-ink">{new Date(r.recordedAt).toLocaleString("it-IT")}</span> },
-                    { key: "type", header: "Tipo", render: (r: ApiHaccpEntry) => <span className="text-rw-soft">{HACCP_TYPE_LABELS[r.type] ?? r.type}</span> },
-                    { key: "location", header: "Postazione" },
-                    { key: "tempC", header: "Temp °C", render: (r: ApiHaccpEntry) => (r.tempC != null ? `${r.tempC.toFixed(1)}°` : "—") },
-                    { key: "operator", header: "Operatore" },
-                    { key: "notes", header: "Note", render: (r: ApiHaccpEntry) => <span className="text-rw-muted">{r.notes || "—"}</span> },
+                    { key: "recordedAt", header: t("cucina.haccp.col_datetime"), render: (r: ApiHaccpEntry) => <span className="text-rw-ink">{new Date(r.recordedAt).toLocaleString("it-IT")}</span> },
+                    { key: "type", header: t("cucina.haccp.col_type"), render: (r: ApiHaccpEntry) => <span className="text-rw-soft">{HACCP_TYPE_LABELS[r.type] ?? r.type}</span> },
+                    { key: "location", header: t("cucina.haccp.col_location") },
+                    { key: "tempC", header: t("cucina.haccp.col_temp"), render: (r: ApiHaccpEntry) => (r.tempC != null ? `${r.tempC.toFixed(1)}°` : "—") },
+                    { key: "operator", header: t("cucina.haccp.col_operator") },
+                    { key: "notes", header: t("cucina.haccp.col_notes"), render: (r: ApiHaccpEntry) => <span className="text-rw-muted">{r.notes || "—"}</span> },
                     {
                       key: "actions",
                       header: "",
                       render: (r: ApiHaccpEntry) => (
                         <button type="button" onClick={() => removeEntry(r.id)} className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/20">
-                          Elimina
+                          {t("ui.delete")}
                         </button>
                       ),
                     },
@@ -1265,12 +1296,12 @@ function HaccpTab() {
               <table style={{ display: "none" }} data-print-header className="w-full text-sm border-collapse">
                 <thead>
                   <tr>
-                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Data e ora</th>
-                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Tipo rilevazione</th>
-                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Postazione</th>
-                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-center text-xs font-bold">Temp °C</th>
-                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Operatore</th>
-                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">Note / Esito</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_datetime_full")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_type_full")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_location")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-center text-xs font-bold">{t("cucina.haccp.col_temp")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_operator")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_notes_esito")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1292,14 +1323,14 @@ function HaccpTab() {
           {/* Footer firme — solo in stampa */}
           <div data-print-header style={{ display: "none" }} className="mt-10 grid grid-cols-2 gap-16 text-sm">
             <div>
-              <div className="mb-8 font-semibold">Firma Operatore</div>
+              <div className="mb-8 font-semibold">{t("cucina.haccp.sign_operator")}</div>
               <div className="border-b border-black w-full">&nbsp;</div>
-              <div className="mt-1 text-xs text-gray-600">Nome e firma</div>
+              <div className="mt-1 text-xs text-gray-600">{t("cucina.haccp.name_sign")}</div>
             </div>
             <div>
-              <div className="mb-8 font-semibold">Firma Responsabile HACCP</div>
+              <div className="mb-8 font-semibold">{t("cucina.haccp.sign_responsible")}</div>
               <div className="border-b border-black w-full">&nbsp;</div>
-              <div className="mt-1 text-xs text-gray-600">Nome e firma</div>
+              <div className="mt-1 text-xs text-gray-600">{t("cucina.haccp.name_sign")}</div>
             </div>
           </div>
         </div>
@@ -1309,6 +1340,7 @@ function HaccpTab() {
 }
 
 function TurniTab() {
+  const { t } = useI18n();
   const [shifts, setShifts] = useState<ShiftPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1323,7 +1355,7 @@ function TurniTab() {
     shiftPlansApi
       .list({ area: "cucina" })
       .then(setShifts)
-      .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento turni"))
+      .catch((e) => setError(e instanceof Error ? e.message : t("cucina.turni.error_load")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -1336,7 +1368,7 @@ function TurniTab() {
       setShifts((prev) => [...prev, created].sort((a, b) => a.day.localeCompare(b.day)));
       setName(""); setHours(""); setRole("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore salvataggio");
+      setError(e instanceof Error ? e.message : t("cucina.turni.error_save"));
     } finally {
       setSaving(false);
     }
@@ -1347,12 +1379,12 @@ function TurniTab() {
       await shiftPlansApi.delete(id);
       setShifts((prev) => prev.filter((s) => s.id !== id));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore eliminazione");
+      setError(e instanceof Error ? e.message : t("cucina.turni.error_delete"));
     }
   }
 
   const grouped = shifts.reduce<Record<string, ShiftPlan[]>>((acc, s) => {
-    const k = s.day || "Senza data";
+    const k = s.day || t("cucina.turni.no_date");
     if (!acc[k]) acc[k] = [];
     acc[k].push(s);
     return acc;
@@ -1360,27 +1392,27 @@ function TurniTab() {
 
   return (
     <div className="space-y-6">
-      <Card title="Aggiungi turno" description="Pianificazione persistita su DB">
+      <Card title={t("cucina.turni.add_title")} description={t("cucina.turni.desc")}>
         <div className="space-y-4">
           <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent" />
           <div className="grid gap-4 sm:grid-cols-3">
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome operatore" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <input value={hours} onChange={(e) => setHours(e.target.value)} placeholder="Ore (es. 8-16)" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Ruolo (es. Chef, Aiuto)" className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("cucina.turni.name_placeholder")} className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            <input value={hours} onChange={(e) => setHours(e.target.value)} placeholder={t("cucina.turni.hours_placeholder")} className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+            <input value={role} onChange={(e) => setRole(e.target.value)} placeholder={t("cucina.turni.role_placeholder")} className="rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
           </div>
           {error && <p className="text-xs text-red-400">{error}</p>}
           <button type="button" onClick={() => void add()} disabled={saving || !name.trim()} className="flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {saving ? "Salvataggio…" : "Aggiungi turno"}
+            {saving ? t("cucina.saving") : t("cucina.turni.add_btn")}
           </button>
         </div>
       </Card>
 
-      {loading && <p className="text-sm text-rw-muted text-center">Caricamento turni…</p>}
-      {!loading && shifts.length === 0 && <p className="text-sm text-rw-muted text-center py-4">Nessun turno pianificato.</p>}
+      {loading && <p className="text-sm text-rw-muted text-center">{t("cucina.turni.loading")}</p>}
+      {!loading && shifts.length === 0 && <p className="text-sm text-rw-muted text-center py-4">{t("cucina.turni.empty")}</p>}
 
       {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([d, dayShifts]) => (
-        <Card key={d} title={d ? new Date(d + "T12:00:00").toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" }) : "Senza data"} description={`${dayShifts.length} operatori`}>
+        <Card key={d} title={d ? new Date(d + "T12:00:00").toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" }) : t("cucina.turni.no_date")} description={t("cucina.turni.staff_count").replace("{n}", String(dayShifts.length))}>
           <div className="space-y-1">
             {dayShifts.map((s) => (
               <div key={s.id} className="flex items-center justify-between rounded-lg border border-rw-line/50 bg-rw-surfaceAlt px-3 py-2">
@@ -1406,6 +1438,7 @@ function TurniTab() {
 /* ------------------------------------------------------------------ */
 
 export function CucinaPage() {
+  const { t } = useI18n();
   const { getOrdersForArea, patchStatus, stockAlerts, clearStockAlerts, loadError } = useOrders();
   const [activeTab, setActiveTab] = useState("comande");
   const [aiOpen, setAiOpen] = useState(false);
@@ -1421,8 +1454,8 @@ export function CucinaPage() {
 
   useEffect(() => {
     roomServiceApi.list({ category: "food" }).then(setRsOrders).catch(() => {});
-    const t = setInterval(() => roomServiceApi.list({ category: "food" }).then(setRsOrders).catch(() => {}), 30_000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => roomServiceApi.list({ category: "food" }).then(setRsOrders).catch(() => {}), 30_000);
+    return () => clearInterval(timer);
   }, []);
 
   const rsActive = rsOrders.filter((o) => !["delivered", "cancelled"].includes(o.status));
@@ -1447,23 +1480,27 @@ export function CucinaPage() {
 
   const lateCount = kitchenOrders.filter((o) => minutesSince(o.createdAt) > 15).length;
 
+  const translatedTabs = TABS.map((tab) => {
+    const label = t(`cucina.tab.${tab.id}`);
+    if (tab.id === "room-service" && rsActive.length > 0) {
+      return { ...tab, label: `${label} (${rsActive.length})` };
+    }
+    return { ...tab, label };
+  });
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Cucina" subtitle="Kitchen Display System">
-        <Chip label="Ordini" value={kitchenOrders.length} tone="info" />
-        <Chip label="In prep" value={classified.inPrep.length} tone="accent" />
-        <Chip label="Pronti" value={classified.pronti.length} tone="success" />
-        <Chip label="In ritardo" value={lateCount} tone={lateCount > 0 ? "danger" : "default"} />
-        <VoiceButton onResult={(text) => alert(`Comando vocale: ${text}`)} />
-        <AiToggleButton onClick={() => setAiOpen(true)} label="AI Cucina" />
+      <PageHeader title={t("nav.cucina.label")} subtitle={t("cucina.subtitle")}>
+        <Chip label={t("cucina.kds.chip_orders")} value={kitchenOrders.length} tone="info" />
+        <Chip label={t("cucina.kds.chip_in_prep")} value={classified.inPrep.length} tone="accent" />
+        <Chip label={t("cucina.kds.chip_pronti")} value={classified.pronti.length} tone="success" />
+        <Chip label={t("cucina.kds.chip_late")} value={lateCount} tone={lateCount > 0 ? "danger" : "default"} />
+        <VoiceButton onResult={(text) => alert(t("cucina.kds.voice_cmd").replace("{text}", text))} />
+        <AiToggleButton onClick={() => setAiOpen(true)} label={t("cucina.ai_label")} />
       </PageHeader>
 
       <TabBar
-        tabs={[...TABS].map((t) =>
-          t.id === "room-service" && rsActive.length > 0
-            ? { ...t, label: `Room Service (${rsActive.length})` }
-            : t
-        )}
+        tabs={translatedTabs}
         active={activeTab}
         onChange={setActiveTab}
       />
@@ -1474,12 +1511,12 @@ export function CucinaPage() {
       {activeTab === "comande" && (
         <div className="space-y-4">
           {aiSnapshot && (
-            <Card title="AI Operativa Cucina" description="Margini, sprechi, riordino e suggerimenti live da DB">
+            <Card title={t("cucina.ai.title")} description={t("cucina.ai.desc")}>
               <div className="grid gap-2 sm:grid-cols-4">
-                <Chip label="Piatti in perdita" value={aiSnapshot.kpi.lossDishes} tone={aiSnapshot.kpi.lossDishes > 0 ? "danger" : "default"} />
-                <Chip label="Margine basso" value={aiSnapshot.kpi.lowMarginDishes} tone={aiSnapshot.kpi.lowMarginDishes > 0 ? "warn" : "default"} />
-                <Chip label="Lotti in scadenza" value={aiSnapshot.kpi.expiringLots} tone={aiSnapshot.kpi.expiringLots > 0 ? "danger" : "default"} />
-                <Chip label="Prodotti fermi" value={aiSnapshot.kpi.stagnantProducts} tone={aiSnapshot.kpi.stagnantProducts > 0 ? "warn" : "default"} />
+                <Chip label={t("cucina.ai.loss_dishes")} value={aiSnapshot.kpi.lossDishes} tone={aiSnapshot.kpi.lossDishes > 0 ? "danger" : "default"} />
+                <Chip label={t("cucina.ai.low_margin")} value={aiSnapshot.kpi.lowMarginDishes} tone={aiSnapshot.kpi.lowMarginDishes > 0 ? "warn" : "default"} />
+                <Chip label={t("cucina.ai.expiring_lots")} value={aiSnapshot.kpi.expiringLots} tone={aiSnapshot.kpi.expiringLots > 0 ? "danger" : "default"} />
+                <Chip label={t("cucina.ai.stagnant")} value={aiSnapshot.kpi.stagnantProducts} tone={aiSnapshot.kpi.stagnantProducts > 0 ? "warn" : "default"} />
               </div>
               <div className="mt-3 space-y-2 text-sm text-rw-soft">
                 {aiSnapshot.foodCost
@@ -1488,20 +1525,25 @@ export function CucinaPage() {
                   .map((dish) => (
                   <p key={dish.menuItem}>
                     <span className="font-semibold text-rw-ink">{dish.menuItem}</span>
-                    {" -> costo "}
-                    {dish.plateCost.toFixed(2)} EUR, prezzo {dish.price.toFixed(2)} EUR, {dish.status === "loss" ? "in perdita" : "margine basso"}
+                    {" "}{t("cucina.ai.costo_label")}{" "}
+                    {dish.plateCost.toFixed(2)} EUR, {t("cucina.ai.prezzo_label")}{" "}
+                    {dish.price.toFixed(2)} EUR, {dish.status === "loss" ? t("cucina.ai.status_loss") : t("cucina.ai.status_low_margin")}
                   </p>
                   ))}
                 {aiSnapshot.reorder.slice(0, 2).map((item) => (
                   <p key={item.warehouseItemId}>
-                    Ordina {item.suggestedOrderQty} {item.unit} di {item.name} {item.eta}
+                    {t("cucina.ai.reorder")
+                      .replace("{qty}", String(item.suggestedOrderQty))
+                      .replace("{unit}", item.unit)
+                      .replace("{name}", item.name)
+                      .replace("{eta}", item.eta ?? "")}
                   </p>
                 ))}
               </div>
             </Card>
           )}
           <div className="grid gap-4 lg:grid-cols-3">
-            <KdsColumn title="In attesa" tone="pending" count={classified.inAttesa.length}>
+            <KdsColumn title={t("cucina.kds.col_waiting")} tone="pending" count={classified.inAttesa.length}>
               {classified.inAttesa.map(({ order, kds }) => (
                 <OrderCard
                   key={order.id}
@@ -1512,10 +1554,10 @@ export function CucinaPage() {
                   onServito={() => patchStatus(order.id, "servito")}
                 />
               ))}
-              {classified.inAttesa.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in attesa</p>}
+              {classified.inAttesa.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">{t("cucina.kds.empty_waiting")}</p>}
             </KdsColumn>
 
-            <KdsColumn title="In preparazione" tone="prep" count={classified.inPrep.length}>
+            <KdsColumn title={t("cucina.kds.col_in_prep")} tone="prep" count={classified.inPrep.length}>
               {classified.inPrep.map(({ order, kds }) => (
                 <OrderCard
                   key={order.id}
@@ -1526,10 +1568,10 @@ export function CucinaPage() {
                   onServito={() => patchStatus(order.id, "servito")}
                 />
               ))}
-              {classified.inPrep.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda in prep</p>}
+              {classified.inPrep.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">{t("cucina.kds.empty_in_prep")}</p>}
             </KdsColumn>
 
-            <KdsColumn title="Pronti" tone="ready" count={classified.pronti.length}>
+            <KdsColumn title={t("cucina.kds.col_ready")} tone="ready" count={classified.pronti.length}>
               {classified.pronti.map(({ order, kds }) => (
                 <OrderCard
                   key={order.id}
@@ -1540,7 +1582,7 @@ export function CucinaPage() {
                   onServito={() => patchStatus(order.id, "servito")}
                 />
               ))}
-              {classified.pronti.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">Nessuna comanda pronta</p>}
+              {classified.pronti.length === 0 && <p className="py-6 text-center text-xs text-rw-muted">{t("cucina.kds.empty_ready")}</p>}
             </KdsColumn>
           </div>
         </div>
@@ -1551,9 +1593,9 @@ export function CucinaPage() {
       {activeTab === "haccp" && <HaccpTab />}
       {activeTab === "room-service" && (
         <div className="space-y-4">
-          <Card title="Room Service — Ordini Food" description="Richieste di ristorazione in camera assegnate alla cucina">
+          <Card title={t("cucina.room_service.title")} description={t("cucina.room_service.desc")}>
             {rsActive.length === 0 ? (
-              <p className="py-6 text-center text-sm text-rw-muted">Nessun ordine food room service in corso.</p>
+              <p className="py-6 text-center text-sm text-rw-muted">{t("cucina.room_service.empty")}</p>
             ) : (
               <div className="space-y-3">
                 {rsActive.map((o) => (
@@ -1561,7 +1603,7 @@ export function CucinaPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-bold text-amber-400">
-                          📍 Camera {o.roomCode}
+                          {t("cucina.room_service.camera").replace("{code}", o.roomCode)}
                         </span>
                         <span className="text-sm font-semibold text-rw-ink">{o.guestName}</span>
                       </div>
@@ -1575,7 +1617,7 @@ export function CucinaPage() {
                         }}
                         className="flex items-center gap-1.5 rounded-xl bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-400 hover:bg-amber-500/30 transition"
                       >
-                        {o.status === "pending" ? "▶ Inizia" : o.status === "in_preparation" ? "🚀 Pronto" : "✓ Consegnato"}
+                        {o.status === "pending" ? t("cucina.room_service.start") : o.status === "in_preparation" ? t("cucina.room_service.ready") : t("cucina.room_service.delivered")}
                       </button>
                     </div>
                     <div className="space-y-0.5">
@@ -1594,7 +1636,7 @@ export function CucinaPage() {
 
       {activeTab === "turni" && <TurniTab />}
 
-      <AiChat context="cucina" open={aiOpen} onClose={() => setAiOpen(false)} title="AI Cucina" />
+      <AiChat context="cucina" open={aiOpen} onClose={() => setAiOpen(false)} title={t("cucina.ai_label")} />
     </div>
   );
 }

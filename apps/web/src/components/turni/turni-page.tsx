@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/core/i18n/provider";
 import { PageHeader } from "@/components/shared/page-header";
 import { TabBar } from "@/components/shared/tab-bar";
 import { Card } from "@/components/shared/card";
@@ -32,13 +33,23 @@ import { useAuth } from "@/components/auth/auth-context";
 const AREAS = ["Tutte", "sala", "cucina", "bar", "pizzeria"] as const;
 type Area = (typeof AREAS)[number];
 
-const SHIFT_TYPES: { value: ShiftPlanType; label: string; color: string }[] = [
-  { value: "lavoro", label: "Lavoro", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  { value: "ferie", label: "Ferie", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  { value: "malattia", label: "Malattia", color: "bg-red-500/20 text-red-400 border-red-500/30" },
-  { value: "permesso", label: "Permesso", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
-  { value: "riposo", label: "Riposo", color: "bg-slate-500/20 text-slate-400 border-slate-500/30" },
-];
+const SHIFT_TYPE_COLORS: Record<ShiftPlanType, string> = {
+  lavoro: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+  ferie: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  malattia: "bg-red-500/20 text-red-400 border-red-500/30",
+  permesso: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+  riposo: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+};
+
+function makeShiftTypes(t: (key: string) => string): { value: ShiftPlanType; label: string; color: string }[] {
+  return [
+    { value: "lavoro", label: t("turni.type.lavoro"), color: SHIFT_TYPE_COLORS.lavoro },
+    { value: "ferie", label: t("staff.leaveType.ferie"), color: SHIFT_TYPE_COLORS.ferie },
+    { value: "malattia", label: t("staff.leaveType.malattia"), color: SHIFT_TYPE_COLORS.malattia },
+    { value: "permesso", label: t("staff.leaveType.permesso"), color: SHIFT_TYPE_COLORS.permesso },
+    { value: "riposo", label: t("turni.type.riposo"), color: SHIFT_TYPE_COLORS.riposo },
+  ];
+}
 
 const DAYS_IT = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
 const MONTHS_IT = [
@@ -96,11 +107,7 @@ function computeHours(plan: ShiftPlan): number {
 }
 
 function shiftTypeStyle(type: ShiftPlanType) {
-  return SHIFT_TYPES.find((s) => s.value === type)?.color ?? SHIFT_TYPES[0].color;
-}
-
-function shiftTypeLabel(type: ShiftPlanType) {
-  return SHIFT_TYPES.find((s) => s.value === type)?.label ?? type;
+  return SHIFT_TYPE_COLORS[type] ?? SHIFT_TYPE_COLORS.lavoro;
 }
 
 /* ─── Input styles ───────────────────────────────── */
@@ -122,9 +129,11 @@ type ModalProps = {
   initial?: Partial<ShiftPlan & { day: string; area: string }>;
   onSave: (data: ShiftPlanCreate) => Promise<void>;
   editId?: string;
+  t: (key: string) => string;
 };
 
-function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProps) {
+function ShiftModal({ open, onClose, staff, initial, onSave, editId, t }: ModalProps) {
+  const SHIFT_TYPES = makeShiftTypes(t);
   const [day, setDay] = useState(initial?.day ?? toIso(new Date()));
   const [area, setArea] = useState<string>(initial?.area ?? "cucina");
   const [staffId, setStaffId] = useState<string>(initial?.staffId ?? "");
@@ -162,7 +171,7 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
   }
 
   async function handleSave() {
-    if (!staffName.trim()) { setErr("Seleziona o inserisci un operatore"); return; }
+    if (!staffName.trim()) { setErr(t("turni.modal.selectOperator")); return; }
     setSaving(true); setErr(null);
     try {
       await onSave({
@@ -178,7 +187,7 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
       });
       onClose();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Errore salvataggio");
+      setErr(e instanceof Error ? e.message : t("turni.modal.saveError"));
     } finally {
       setSaving(false);
     }
@@ -191,7 +200,7 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
       <div className="w-full max-w-lg rounded-2xl border border-rw-line bg-rw-bg shadow-2xl">
         <div className="flex items-center justify-between border-b border-rw-line px-6 py-4">
           <h2 className="font-display text-lg font-semibold text-rw-ink">
-            {editId ? "Modifica turno" : "Nuovo turno"}
+            {editId ? t("turni.modal.editTitle") : t("turni.modal.newTitle")}
           </h2>
           <button type="button" onClick={onClose} className="text-rw-muted hover:text-rw-ink">
             <X className="h-5 w-5" />
@@ -200,11 +209,11 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
         <div className="space-y-4 p-6">
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className={labelCls}>Data</label>
+              <label className={labelCls}>{t("ui.date")}</label>
               <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>Area</label>
+              <label className={labelCls}>{t("turni.modal.area")}</label>
               <select value={area} onChange={(e) => setArea(e.target.value)} className={inputCls}>
                 {(["cucina", "sala", "bar", "pizzeria"] as const).map((a) => (
                   <option key={a} value={a}>{a.charAt(0).toUpperCase() + a.slice(1)}</option>
@@ -214,10 +223,10 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
           </div>
 
           <div>
-            <label className={labelCls}>Operatore</label>
+            <label className={labelCls}>{t("turni.modal.operator")}</label>
             {staff.length > 0 ? (
               <select value={staffId} onChange={(e) => onStaffChange(e.target.value)} className={inputCls}>
-                <option value="">— scegli dallo staff —</option>
+                <option value="">— {t("turni.modal.chooseStaff")} —</option>
                 {staff.map((s) => (
                   <option key={s.id} value={s.id}>{s.name} ({s.role})</option>
                 ))}
@@ -227,7 +236,7 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
               <input
                 value={staffName}
                 onChange={(e) => setStaffName(e.target.value)}
-                placeholder="Nome operatore (libero)"
+                placeholder={t("turni.modal.operatorFree")}
                 className={cn(inputCls, staff.length > 0 && "mt-2")}
               />
             )}
@@ -237,13 +246,13 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
                 onClick={() => { setStaffId(""); setStaffName(""); }}
                 className="mt-1 text-xs text-rw-accent hover:underline"
               >
-                Inserisci manualmente
+                {t("turni.modal.enterManually")}
               </button>
             )}
           </div>
 
           <div>
-            <label className={labelCls}>Tipo turno</label>
+            <label className={labelCls}>{t("turni.modal.shiftType")}</label>
             <div className="flex flex-wrap gap-2">
               {SHIFT_TYPES.map((t) => (
                 <button
@@ -264,28 +273,28 @@ function ShiftModal({ open, onClose, staff, initial, onSave, editId }: ModalProp
           {shiftType === "lavoro" && (
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className={labelCls}>Inizio turno</label>
+                <label className={labelCls}>{t("turni.modal.shiftStart")}</label>
                 <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className={inputCls} />
               </div>
               <div>
-                <label className={labelCls}>Fine turno</label>
+                <label className={labelCls}>{t("turni.modal.shiftEnd")}</label>
                 <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className={inputCls} />
               </div>
             </div>
           )}
 
           <div>
-            <label className={labelCls}>Note</label>
+            <label className={labelCls}>{t("ui.notes")}</label>
             <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Note opzionali…" className={inputCls} />
           </div>
 
           {err && <p className="text-xs text-red-400">{err}</p>}
         </div>
         <div className="flex justify-end gap-3 border-t border-rw-line px-6 py-4">
-          <button type="button" onClick={onClose} className={btnGhost}>Annulla</button>
+          <button type="button" onClick={onClose} className={btnGhost}>{t("ui.cancel")}</button>
           <button type="button" onClick={() => void handleSave()} disabled={saving} className={btnPrimary}>
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            {saving ? "Salvataggio…" : "Salva turno"}
+            {saving ? t("turni.modal.saving") : t("turni.modal.save")}
           </button>
         </div>
       </div>
@@ -304,9 +313,11 @@ type WeekViewProps = {
   onAdd: (day: string, area?: string) => void;
   onEdit: (plan: ShiftPlan) => void;
   onDelete: (id: string) => void;
+  t: (key: string) => string;
 };
 
-function WeekView({ weekStart, plans, staff, filterArea, canEdit, onAdd, onEdit, onDelete }: WeekViewProps) {
+function WeekView({ weekStart, plans, staff, filterArea, canEdit, onAdd, onEdit, onDelete, t }: WeekViewProps) {
+  const SHIFT_TYPES = makeShiftTypes(t);
   const days = Array.from({ length: 7 }, (_, i) => toIso(addDays(weekStart, i)));
 
   const filtered = plans.filter((p) =>
@@ -347,7 +358,7 @@ function WeekView({ weekStart, plans, staff, filterArea, canEdit, onAdd, onEdit,
                     {p.shiftType === "lavoro" && p.startTime && p.endTime ? (
                       <div className="opacity-80">{p.startTime}–{p.endTime}</div>
                     ) : (
-                      <div className="opacity-70">{shiftTypeLabel(p.shiftType)}</div>
+                      <div className="opacity-70">{SHIFT_TYPES.find((s) => s.value === p.shiftType)?.label ?? p.shiftType}</div>
                     )}
                     {filterArea === "Tutte" && (
                       <div className="mt-0.5 opacity-60 uppercase tracking-wide text-[9px]">{p.area}</div>
@@ -474,7 +485,7 @@ function MonthView({ year, month, plans, filterArea, canEdit, onAdd, onEdit, onD
                   </div>
                 ))}
                 {dayPlans.length > 3 && (
-                  <div className="text-[10px] text-rw-muted pl-1">+{dayPlans.length - 3} altri</div>
+                  <div className="text-[10px] text-rw-muted pl-1">+{dayPlans.length - 3}</div>
                 )}
               </div>
               {canEdit && (
@@ -502,9 +513,10 @@ type SummaryProps = {
   filterArea: Area;
   from: string;
   to: string;
+  t: (key: string) => string;
 };
 
-function SummaryView({ plans, staff, filterArea, from, to }: SummaryProps) {
+function SummaryView({ plans, staff, filterArea, from, to, t }: SummaryProps) {
   const filtered = plans.filter((p) =>
     p.day >= from && p.day <= to && (filterArea === "Tutte" || p.area === filterArea),
   );
@@ -550,7 +562,7 @@ function SummaryView({ plans, staff, filterArea, from, to }: SummaryProps) {
   const stats = Array.from(statsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
 
   if (stats.length === 0) {
-    return <p className="py-10 text-center text-sm text-rw-muted">Nessun turno nel periodo selezionato.</p>;
+    return <p className="py-10 text-center text-sm text-rw-muted">{t("turni.noShifts")}</p>;
   }
 
   return (
@@ -558,14 +570,14 @@ function SummaryView({ plans, staff, filterArea, from, to }: SummaryProps) {
       <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b border-rw-line text-xs font-semibold text-rw-muted">
-            <th className="py-3 text-left pl-2">Operatore</th>
-            <th className="py-3 text-left">Ruolo</th>
-            <th className="py-3 text-right">Ore lavorate</th>
-            <th className="py-3 text-right">Giorni lavoro</th>
-            <th className="py-3 text-right">Ferie</th>
-            <th className="py-3 text-right">Malattia</th>
-            <th className="py-3 text-right">Permesso</th>
-            <th className="py-3 text-right">Riposo</th>
+            <th className="py-3 text-left pl-2">{t("turni.table.operator")}</th>
+            <th className="py-3 text-left">{t("staff.role")}</th>
+            <th className="py-3 text-right">{t("turni.table.hoursWorked")}</th>
+            <th className="py-3 text-right">{t("turni.table.workedDays")}</th>
+            <th className="py-3 text-right">{t("staff.leaveType.ferie")}</th>
+            <th className="py-3 text-right">{t("staff.leaveType.malattia")}</th>
+            <th className="py-3 text-right">{t("staff.leaveType.permesso")}</th>
+            <th className="py-3 text-right">{t("turni.table.rest")}</th>
           </tr>
         </thead>
         <tbody>
@@ -591,16 +603,16 @@ function SummaryView({ plans, staff, filterArea, from, to }: SummaryProps) {
 
 /* ─── Main Page ──────────────────────────────────── */
 
-const tabs = [
-  { id: "settimana", label: "Settimana" },
-  { id: "mese", label: "Mese" },
-  { id: "riepilogo", label: "Riepilogo" },
-];
-
 export function TurniPage() {
+  const { t } = useI18n();
   const { user } = useAuth();
   const canEdit = !user?.role || !["staff"].includes(user.role);
   const canSync = user?.role ? SYNC_ROLES.has(user.role) : false;
+  const tabs = [
+    { id: "settimana", label: t("turni.week") },
+    { id: "mese", label: t("turni.month") },
+    { id: "riepilogo", label: t("turni.summary") },
+  ];
 
   const [tab, setTab] = useState("settimana");
   const [plans, setPlans] = useState<ShiftPlan[]>([]);
@@ -639,7 +651,7 @@ export function TurniPage() {
       setPlans(planRows);
       setStaff(staffRows);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore caricamento dati");
+      setError(e instanceof Error ? e.message : t("turni.loadError"));
     } finally {
       setLoading(false);
     }
@@ -674,18 +686,18 @@ export function TurniPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Eliminare questo turno?")) return;
+    if (!confirm(t("turni.deleteConfirm"))) return;
     await shiftPlansApi.delete(id);
     setPlans((prev) => prev.filter((p) => p.id !== id));
   }
 
   async function handleSync() {
-    if (!confirm(`Sincronizzare lo stato dello staff in base ai turni pianificati oggi?`)) return;
+    if (!confirm(t("turni.syncConfirm"))) return;
     setSyncing(true);
     setSyncMsg(null);
     try {
       const result = await shiftPlansApi.sync(activeFrom, activeTo);
-      setSyncMsg(`Sincronizzati ${result.updated.length} dipendenti su ${result.summary.totalShifts} turni.`);
+      setSyncMsg(t("turni.syncResult").replace("{n}", String(result.updated.length)).replace("{total}", String(result.summary.totalShifts)));
     } catch (e) {
       setSyncMsg(e instanceof Error ? e.message : "Errore sincronizzazione");
     } finally {
@@ -705,14 +717,14 @@ export function TurniPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Turni"
-        subtitle="Pianificazione settimanale e mensile per area."
+        title={t("turni.title")}
+        subtitle={t("turni.subtitle")}
       >
         <button
           type="button"
           onClick={() => {
             const rows = [
-              ["Data", "Area", "Dipendente", "Ruolo", "Tipo", "Inizio", "Fine", "Note"],
+              [t("ui.date"), t("turni.modal.area"), t("staff.employee"), t("staff.role"), t("staff.type"), t("turni.modal.shiftStart"), t("turni.modal.shiftEnd"), t("ui.notes")],
               ...plans.map((p) => [p.day, p.area, p.staffName, p.role, p.shiftType, p.startTime, p.endTime, p.notes]),
             ];
             const csv = rows.map((r) => r.map((c) => `"${c}"`).join(",")).join("\n");
@@ -722,7 +734,7 @@ export function TurniPage() {
           }}
           className={btnGhost}
         >
-          <Download className="h-4 w-4" /> Esporta CSV
+          <Download className="h-4 w-4" /> {t("turni.exportCsv")}
         </button>
         {canSync && (
           <button
@@ -732,7 +744,7 @@ export function TurniPage() {
             className={btnGhost}
           >
             {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Sincronizza staff
+            {t("turni.syncStaff")}
           </button>
         )}
         {canEdit && (
@@ -742,7 +754,7 @@ export function TurniPage() {
             className={btnPrimary}
           >
             <Plus className="h-4 w-4" />
-            Nuovo turno
+            {t("turni.newShift")}
           </button>
         )}
       </PageHeader>
@@ -779,7 +791,7 @@ export function TurniPage() {
                   : "border border-rw-line text-rw-muted hover:text-rw-ink",
               )}
             >
-              {a === "Tutte" ? "Tutte le aree" : a.charAt(0).toUpperCase() + a.slice(1)}
+              {a === "Tutte" ? t("turni.allAreas") : a.charAt(0).toUpperCase() + a.slice(1)}
             </button>
           ))}
         </div>
@@ -788,14 +800,14 @@ export function TurniPage() {
       {loading ? (
         <div className="flex items-center justify-center py-16 text-rw-muted">
           <Loader2 className="h-6 w-6 animate-spin mr-3" />
-          Caricamento turni…
+          {t("turni.loading")}
         </div>
       ) : (
         <>
           {tab === "settimana" && (
             <Card
-              title={`Settimana ${new Date(weekFrom + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "long" })} – ${new Date(weekTo + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}`}
-              description={`${visiblePlans.filter((p) => p.day >= weekFrom && p.day <= weekTo).length} turni pianificati`}
+              title={`${t("turni.week")} ${new Date(weekFrom + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "long" })} – ${new Date(weekTo + "T12:00:00").toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}`}
+              description={`${visiblePlans.filter((p) => p.day >= weekFrom && p.day <= weekTo).length} ${t("turni.plannedShifts")}`}
             >
               <div className="flex items-center gap-2 mb-4">
                 <button type="button" onClick={prevWeek} className={btnGhost}>
@@ -806,7 +818,7 @@ export function TurniPage() {
                   onClick={() => setWeekStart(getWeekStart(new Date()))}
                   className="text-xs text-rw-accent hover:underline"
                 >
-                  Oggi
+                  {t("turni.today")}
                 </button>
                 <button type="button" onClick={nextWeek} className={btnGhost}>
                   <ChevronRight className="h-4 w-4" />
@@ -821,6 +833,7 @@ export function TurniPage() {
                 onAdd={(day, area) => openAdd(day, area)}
                 onEdit={openEdit}
                 onDelete={(id) => void handleDelete(id)}
+                t={t}
               />
             </Card>
           )}
@@ -828,7 +841,7 @@ export function TurniPage() {
           {tab === "mese" && (
             <Card
               title={`${MONTHS_IT[monthYear.month]} ${monthYear.year}`}
-              description={`${visiblePlans.filter((p) => p.day >= monthFrom && p.day <= monthTo).length} turni pianificati`}
+              description={`${visiblePlans.filter((p) => p.day >= monthFrom && p.day <= monthTo).length} ${t("turni.plannedShifts")}`}
             >
               <div className="flex items-center gap-2 mb-4">
                 <button type="button" onClick={prevMonth} className={btnGhost}>
@@ -839,7 +852,7 @@ export function TurniPage() {
                   onClick={() => setMonthYear({ year: now.getFullYear(), month: now.getMonth() })}
                   className="text-xs text-rw-accent hover:underline"
                 >
-                  Mese corrente
+                  {t("turni.currentMonth")}
                 </button>
                 <button type="button" onClick={nextMonth} className={btnGhost}>
                   <ChevronRight className="h-4 w-4" />
@@ -859,13 +872,14 @@ export function TurniPage() {
           )}
 
           {tab === "riepilogo" && (
-            <Card title="Riepilogo ore e presenze" description={`${monthFrom} → ${monthTo}`}>
+            <Card title={t("turni.summaryCard")} description={`${monthFrom} → ${monthTo}`}>
               <SummaryView
                 plans={plans}
                 staff={staff}
                 filterArea={filterArea}
                 from={monthFrom}
                 to={monthTo}
+                t={t}
               />
             </Card>
           )}
@@ -879,6 +893,7 @@ export function TurniPage() {
         initial={modalInitial}
         editId={editId}
         onSave={handleSave}
+        t={t}
       />
     </div>
   );

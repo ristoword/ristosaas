@@ -1,6 +1,6 @@
-export type Locale = "it" | "en" | "nl";
+export type Locale = "it" | "en" | "nl" | "pt";
 
-export const SUPPORTED_LOCALES: readonly Locale[] = ["it", "en", "nl"] as const;
+export const SUPPORTED_LOCALES: readonly Locale[] = ["it", "en", "nl", "pt"] as const;
 
 export type TranslationValue = string;
 

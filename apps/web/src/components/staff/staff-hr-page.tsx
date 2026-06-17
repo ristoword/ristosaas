@@ -11,6 +11,7 @@ import {
   LogIn,
   LogOut,
 } from "lucide-react";
+import { useI18n } from "@/core/i18n/provider";
 import { PageHeader } from "@/components/shared/page-header";
 import { TabBar } from "@/components/shared/tab-bar";
 import { Card } from "@/components/shared/card";
@@ -23,12 +24,14 @@ import {
 import { addDaysIso, formatHumanDate, todayIso } from "@/lib/date-utils";
 import { shiftPlansApi, type ShiftPlan, type LeaveApproval } from "@/lib/api-client";
 
-const tabs = [
-  { id: "presenze", label: "Presenze oggi" },
-  { id: "mese", label: "Riepilogo ore" },
-  { id: "ferie", label: "Calendario ferie" },
-  { id: "costi", label: "Costo personale" },
-];
+function makeTabs(t: (key: string) => string) {
+  return [
+    { id: "presenze", label: t("staff.hr.todayTab") },
+    { id: "mese", label: t("staff.hr.monthTab") },
+    { id: "ferie", label: t("staff.hr.leaveTab") },
+    { id: "costi", label: t("staff.hr.costsTab") },
+  ];
+}
 
 const euro = (n: number) => `€ ${n.toLocaleString("it-IT", { maximumFractionDigits: 2 })}`;
 
@@ -65,7 +68,7 @@ const SHIFT_TYPE_COLORS: Record<string, string> = {
   riposo: "bg-slate-500/20 text-slate-400",
 };
 
-function FerieCalendar({ staff, shiftPlans: initialPlans, today }: { staff: StaffMember[]; shiftPlans: ShiftPlan[]; today: string }) {
+function FerieCalendar({ staff, shiftPlans: initialPlans, today, t }: { staff: StaffMember[]; shiftPlans: ShiftPlan[]; today: string; t: (key: string) => string }) {
   const [year, setYear] = useState(Number(today.slice(0, 4)));
   const [month, setMonth] = useState(Number(today.slice(5, 7)) - 1);
   const [filterStaff, setFilterStaff] = useState<string>("all");
@@ -101,7 +104,7 @@ function FerieCalendar({ staff, shiftPlans: initialPlans, today }: { staff: Staf
 
   return (
     <div className="space-y-4">
-      <Card title={`Calendario ferie — ${MONTHS_IT[month]} ${year}`} description="Assenze pianificate dai turni">
+        <Card title={`${t("staff.hr.leaveCalendar")} — ${MONTHS_IT[month]} ${year}`} description={t("staff.hr.leaveCalendarDesc")}>
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="flex items-center gap-2">
             <button type="button" onClick={() => { if (month === 0) { setMonth(11); setYear((y) => y - 1); } else setMonth((m) => m - 1); }}
@@ -112,7 +115,7 @@ function FerieCalendar({ staff, shiftPlans: initialPlans, today }: { staff: Staf
           </div>
           <select value={filterStaff} onChange={(e) => setFilterStaff(e.target.value)}
             className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-ink focus:outline-none">
-            <option value="all">Tutto il personale</option>
+            <option value="all">{t("staff.hr.allStaff")}</option>
             {staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           <div className="flex gap-2 ml-auto">
@@ -152,7 +155,7 @@ function FerieCalendar({ staff, shiftPlans: initialPlans, today }: { staff: Staf
 
       {/* Pending leave requests */}
       {assenze.filter((p) => p.leaveApproval === "pending").length > 0 && (
-        <Card title="Richieste in attesa di approvazione" description="Approva o rifiuta le assenze pianificate">
+        <Card title={t("staff.hr.pendingApproval")} description={t("staff.hr.pendingApprovalDesc")}>
           <div className="space-y-2">
             {assenze.filter((p) => p.leaveApproval === "pending").map((p) => (
               <div key={p.id} className="flex items-center justify-between rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3">
@@ -163,11 +166,11 @@ function FerieCalendar({ staff, shiftPlans: initialPlans, today }: { staff: Staf
                 <div className="flex gap-2">
                   <button type="button" onClick={() => void handleApproval(p.id, "approved")}
                     className="rounded-lg bg-emerald-500/15 px-2.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/25 transition">
-                    ✓ Approva
+                    {t("staff.hr.approveLeave")}
                   </button>
                   <button type="button" onClick={() => void handleApproval(p.id, "rejected")}
                     className="rounded-lg bg-red-500/15 px-2.5 py-1.5 text-xs font-semibold text-red-400 hover:bg-red-500/25 transition">
-                    ✗ Rifiuta
+                    {t("staff.hr.rejectLeave")}
                   </button>
                 </div>
               </div>
@@ -177,14 +180,14 @@ function FerieCalendar({ staff, shiftPlans: initialPlans, today }: { staff: Staf
       )}
 
       {summary.length > 0 && (
-        <Card title="Riepilogo assenze del mese" description="Per dipendente">
+        <Card title={t("staff.hr.leaveMonthSummary")} description={t("staff.hr.leaveMonthSummaryDesc")}>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead><tr className="border-b border-rw-line text-xs font-semibold text-rw-muted">
-                <th className="py-2 text-left">Dipendente</th>
-                <th className="py-2 text-center text-blue-400">Ferie</th>
-                <th className="py-2 text-center text-red-400">Malattia</th>
-                <th className="py-2 text-center text-amber-400">Permesso</th>
+                <th className="py-2 text-left">{t("staff.employee")}</th>
+                <th className="py-2 text-center text-blue-400">{t("staff.leaveType.ferie")}</th>
+                <th className="py-2 text-center text-red-400">{t("staff.leaveType.malattia")}</th>
+                <th className="py-2 text-center text-amber-400">{t("staff.leaveType.permesso")}</th>
               </tr></thead>
               <tbody>
                 {summary.map((s) => (
@@ -201,13 +204,15 @@ function FerieCalendar({ staff, shiftPlans: initialPlans, today }: { staff: Staf
         </Card>
       )}
       {summary.length === 0 && (
-        <p className="py-8 text-center text-sm text-rw-muted">Nessuna assenza pianificata per {MONTHS_IT[month]} {year}. Pianifica le ferie dalla pagina Turni.</p>
+        <p className="py-8 text-center text-sm text-rw-muted">{t("staff.hr.noLeavePlanned").replace("{month}", MONTHS_IT[month]).replace("{year}", String(year))}</p>
       )}
     </div>
   );
 }
 
 export function StaffHrPage() {
+  const { t } = useI18n();
+  const tabs = makeTabs(t);
   const [tab, setTab] = useState<string>("presenze");
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [shifts, setShifts] = useState<StaffShift[]>([]);
@@ -231,7 +236,7 @@ export function StaffHrPage() {
       setShifts(shiftRows);
       setShiftPlans(planRows);
     } catch (err) {
-      setError((err as Error).message || "Errore caricamento dati staff");
+      setError((err as Error).message || t("staff.hr.loadError"));
     } finally {
       setLoading(false);
     }
@@ -287,7 +292,7 @@ export function StaffHrPage() {
       await staffApi.clock(staffId, "clock_in");
       await load();
     } catch (err) {
-      setError((err as Error).message || "Errore clock-in");
+      setError((err as Error).message || t("staff.hr.clockInError"));
     }
   }
 
@@ -296,13 +301,13 @@ export function StaffHrPage() {
       await staffApi.clock(staffId, "clock_out");
       await load();
     } catch (err) {
-      setError((err as Error).message || "Errore clock-out");
+      setError((err as Error).message || t("staff.hr.clockOutError"));
     }
   }
 
   function exportCsv() {
     const rows = [
-      ["Dipendente", "Ruolo", "Ore mese", "H/sett. contratto", "Differenza"],
+      [t("staff.employee"), t("staff.role"), t("staff.hr.monthHours"), t("staff.hr.contractHoursWeek"), t("staff.hr.diff")],
       ...monthAggregates.map((r) => {
         const contractH = (staff.find((s) => s.id === r.staffId)?.hoursWeek ?? 40) * 4;
         return [r.name, r.role, r.hours.toFixed(1), String(contractH), (r.hours - contractH).toFixed(1)];
@@ -319,16 +324,16 @@ export function StaffHrPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Gestione personale"
-        subtitle={`Presenze e ore dal DB reale — aggiornato ${formatHumanDate(today)}`}
+        title={t("staff.hr.title")}
+        subtitle={`${t("staff.hr.subtitle")} — ${formatHumanDate(today)}`}
       >
         <button type="button" onClick={exportCsv}
           className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-medium text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition">
-          <Download className="h-4 w-4" /> Esporta CSV
+          <Download className="h-4 w-4" /> {t("staff.hr.exportCsv")}
         </button>
         <a href="/staff-hr/print" target="_blank"
           className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-medium text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition">
-          <ExternalLink className="h-4 w-4" /> Stampa PDF
+          <ExternalLink className="h-4 w-4" /> {t("staff.hr.printPdf")}
         </a>
       </PageHeader>
 
@@ -342,27 +347,27 @@ export function StaffHrPage() {
 
       {loading && (
         <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt p-4 text-sm text-rw-muted">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carico turni e personale…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("staff.hr.loading")}
         </div>
       )}
 
       {tab === "presenze" && (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Card title="Dipendenti attivi">
+            <Card title={t("staff.hr.activeEmployees")}>
               <p className="font-display text-3xl font-semibold text-emerald-400">{activeStaff}</p>
             </Card>
-            <Card title="Timbrature di oggi">
+            <Card title={t("staff.hr.todayTimestamps")}>
               <p className="font-display text-3xl font-semibold text-rw-accent">{todayRows.length}</p>
             </Card>
-            <Card title="Ore cumulate oggi">
+            <Card title={t("staff.hr.todayHours")}>
               <p className="font-display text-3xl font-semibold text-rw-ink">
                 {todayRows.reduce((s, r) => s + r.hours, 0).toFixed(1)}h
               </p>
             </Card>
           </div>
 
-          <Card title="Timbrature odierne">
+          <Card title={t("staff.hr.todayTimestampsCard")}>
             <DataTable
               columns={[
                 {
@@ -370,10 +375,10 @@ export function StaffHrPage() {
                   header: "Dipendente",
                   render: (r) => <span className="font-semibold text-rw-ink">{r.name}</span>,
                 },
-                { key: "role", header: "Ruolo" },
+                { key: "role", header: t("staff.role") },
                 {
                   key: "clockIn",
-                  header: "Entrata",
+                  header: t("staff.hr.entry"),
                   render: (r) => (
                     <span className="inline-flex items-center gap-1 text-emerald-400">
                       <LogIn className="h-3.5 w-3.5" /> {formatTime(r.clockIn)}
@@ -382,7 +387,7 @@ export function StaffHrPage() {
                 },
                 {
                   key: "clockOut",
-                  header: "Uscita",
+                  header: t("staff.hr.exit"),
                   render: (r) => (
                     <span className="inline-flex items-center gap-1 text-red-400">
                       <LogOut className="h-3.5 w-3.5" /> {formatTime(r.clockOut)}
@@ -391,7 +396,7 @@ export function StaffHrPage() {
                 },
                 {
                   key: "hours",
-                  header: "Ore",
+                  header: t("staff.hr.hours"),
                   render: (r) => <span className="tabular-nums">{r.hours.toFixed(2)}h</span>,
                 },
                 {
@@ -404,20 +409,20 @@ export function StaffHrPage() {
                         onClick={() => handleClockOut(r.staffId)}
                         className="rounded-lg bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400"
                       >
-                        Timbra uscita
+                        {t("staff.hr.stampExit")}
                       </button>
                     ),
                 },
               ]}
               data={todayRows}
               keyExtractor={(r) => r.id}
-              emptyMessage="Nessuna timbratura oggi."
+              emptyMessage={t("staff.hr.noTimestamp")}
             />
           </Card>
 
           <Card
-            title="Apri turno manualmente"
-            description="Se la timbratura automatica non è disponibile puoi aprire un turno per uno staff member."
+            title={t("staff.hr.openShift")}
+            description={t("staff.hr.openShiftDesc")}
           >
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {staff
@@ -441,7 +446,7 @@ export function StaffHrPage() {
                           onClick={() => handleClockOut(member.id)}
                           className="rounded-lg border border-red-500/40 px-3 py-1.5 text-xs font-semibold text-red-400"
                         >
-                          Uscita
+                          {t("staff.hr.exit")}
                         </button>
                       ) : (
                         <button
@@ -449,7 +454,7 @@ export function StaffHrPage() {
                           onClick={() => handleClockIn(member.id)}
                           className="rounded-lg border border-emerald-500/40 px-3 py-1.5 text-xs font-semibold text-emerald-400"
                         >
-                          Entrata
+                          {t("staff.hr.entry")}
                         </button>
                       )}
                     </div>
@@ -457,7 +462,7 @@ export function StaffHrPage() {
                 })}
               {staff.filter((s) => s.status === "attivo").length === 0 && (
                 <p className="col-span-full text-sm text-rw-muted">
-                  Nessun dipendente attivo. Aggiungine uno dal pannello Owner.
+                  {t("staff.hr.noActiveStaff")}
                 </p>
               )}
             </div>
@@ -468,17 +473,17 @@ export function StaffHrPage() {
       {tab === "mese" && (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
-            <Card title="Ore del mese">
+            <Card title={t("staff.hr.monthHours")}>
               <p className="font-display text-3xl font-semibold text-rw-accent">
                 {totalHours.toFixed(1)}h
               </p>
             </Card>
-            <Card title="Media per dipendente">
+            <Card title={t("staff.hr.avgPerEmployee")}>
               <p className="font-display text-3xl font-semibold text-rw-ink">
                 {activeStaff > 0 ? (totalHours / activeStaff).toFixed(1) : "0"}h
               </p>
             </Card>
-            <Card title="Turni registrati">
+            <Card title={t("staff.hr.registeredShifts")}>
               <p className="font-display text-3xl font-semibold text-rw-ink">{shifts.length}</p>
             </Card>
           </div>
@@ -491,34 +496,34 @@ export function StaffHrPage() {
                   header: "Dipendente",
                   render: (r) => <span className="font-semibold text-rw-ink">{r.name}</span>,
                 },
-                { key: "role", header: "Ruolo" },
+                { key: "role", header: t("staff.role") },
                 {
                   key: "hours",
-                  header: "Ore",
+                  header: t("staff.hr.hours"),
                   render: (r) => <span className="font-semibold text-rw-accent">{r.hours.toFixed(1)}h</span>,
                 },
                 {
                   key: "salary",
-                  header: "Retribuzione base",
+                  header: t("staff.hr.basePayroll"),
                   render: (r) => <span className="tabular-nums">{euro(r.salary)}</span>,
                 },
               ]}
               data={monthAggregates}
               keyExtractor={(r) => r.staffId}
-              emptyMessage="Nessun turno registrato questo mese."
+              emptyMessage={t("staff.hr.noShift")}
             />
           </Card>
         </div>
       )}
 
       {tab === "ferie" && (
-        <FerieCalendar staff={staff} shiftPlans={shiftPlans} today={today} />
+        <FerieCalendar staff={staff} shiftPlans={shiftPlans} today={today} t={t} />
       )}
 
       {tab === "costi" && (
         <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
-            <Card title="Costo personale (anagrafica)">
+            <Card title={t("staff.hr.costsCard")}>
               <div className="flex items-center gap-3">
                 <DollarSign className="h-8 w-8 text-rw-accent" />
                 <p className="font-display text-3xl font-semibold text-rw-ink">{euro(totalSalary)}</p>
@@ -527,7 +532,7 @@ export function StaffHrPage() {
                 Somma del campo <code>salary</code> su tutti i dipendenti.
               </p>
             </Card>
-            <Card title="Ore totali mese">
+            <Card title={t("staff.hr.totalHoursMonth")}>
               <div className="flex items-center gap-3">
                 <Clock className="h-8 w-8 text-rw-accent" />
                 <p className="font-display text-3xl font-semibold text-rw-ink">{totalHours.toFixed(1)}h</p>
@@ -539,11 +544,9 @@ export function StaffHrPage() {
             <div className="flex items-start gap-2">
               <Info className="mt-0.5 h-4 w-4 text-rw-accent" />
               <div>
-                <p className="font-semibold text-rw-ink">Pagamenti, ferie e disciplina</p>
+                <p className="font-semibold text-rw-ink">{t("staff.hr.paymentsNotice")}</p>
                 <p className="text-xs text-rw-muted">
-                  Sono gestiti da un modulo payroll dedicato (non ancora integrato con il gestionale).
-                  Questi dati quindi non vengono più mostrati con valori finti: vedrai dati solo
-                  quando il modulo HR avanzato sarà collegato al DB.
+                  {t("staff.hr.paymentsNoticeDesc")}
                 </p>
               </div>
             </div>

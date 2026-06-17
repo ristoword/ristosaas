@@ -6,12 +6,14 @@ const LEGACY_LABELS: Record<Locale, string> = {
   it: "Gli altri usano",
   en: "Others use",
   nl: "Anderen gebruiken",
+  pt: "Outros usam",
 };
 
 const OURS_LABELS: Record<Locale, string> = {
   it: "RistoSimply fa",
   en: "RistoSimply delivers",
   nl: "RistoSimply levert",
+  pt: "RistoSimply entrega",
 };
 
 export function BenefitsSection({ locale = "it" }: { locale?: Locale } = {}) {

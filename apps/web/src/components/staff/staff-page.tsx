@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/core/i18n/provider";
 import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { Card } from "@/components/shared/card";
@@ -109,6 +110,7 @@ const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98]";
 
 function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin: string }) {
+  const { t } = useI18n();
   const [tokens, setTokens] = useState<Array<{ id: string; name: string; role: string; token: string }>>([]);
   const [loading, setLoading] = useState(false);
   const [generated, setGenerated] = useState(false);
@@ -122,11 +124,18 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ staffIds: staff.map((s) => s.id) }),
       });
+      if (!res.ok) {
+        console.error("Token generation failed:", res.status);
+        return;
+      }
       const data = await res.json();
       setTokens(data.tokens ?? []);
       setGenerated(true);
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+    } catch (e) {
+      console.error("Token generation error:", e);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const base = appOrigin || "";
@@ -134,7 +143,7 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
   const nfcQrImg = clockUrl ? `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${encodeURIComponent(clockUrl)}` : "";
 
   return (
-    <Card title="Badge QR & NFC" description="Genera i QR da stampare sui cartellini e il codice NFC per l'ingresso">
+    <Card title={t("staff.badge.title")} description={t("staff.badge.desc")}>
       <div className="space-y-5">
         {/* NFC Tag section */}
         <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
@@ -147,21 +156,21 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
               }
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-rw-ink text-sm">🏷️ Etichetta NFC all&apos;ingresso</p>
+              <p className="font-semibold text-rw-ink text-sm">{t("staff.badge.nfcLabel")}</p>
               <p className="text-xs text-rw-muted mt-1">
-                Programma un&apos;etichetta NFC con l&apos;URL: <span className="font-mono text-rw-accent break-all">{clockUrl}</span>
+                {t("staff.badge.nfcDesc")} <span className="font-mono text-rw-accent break-all">{clockUrl}</span>
               </p>
               <p className="text-xs text-rw-muted mt-1">
-                Oppure stampa questo QR e posizionalo all&apos;ingresso. Il dipendente tocca l&apos;etichetta o inquadra il QR con il suo telefono (già loggato nell&apos;app).
+                {t("staff.badge.nfcDesc2")}
               </p>
               <div className="flex gap-2 mt-3">
                 <a href={clockUrl} target="_blank" rel="noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surface px-3 py-1.5 text-xs font-semibold text-rw-ink hover:border-rw-accent/40 transition">
-                  <ExternalLink className="h-3.5 w-3.5" /> Anteprima pagina
+                  <ExternalLink className="h-3.5 w-3.5" /> {t("staff.badge.preview")}
                 </a>
                 <button type="button" onClick={async () => { await navigator.clipboard.writeText(clockUrl); }}
                   className="inline-flex items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surface px-3 py-1.5 text-xs font-semibold text-rw-muted hover:text-rw-ink transition">
-                  Copia URL NFC
+                  {t("staff.badge.copyNfc")}
                 </button>
               </div>
             </div>
@@ -172,34 +181,34 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
         <div>
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-sm font-semibold text-rw-ink">QR Badge individuali</p>
-              <p className="text-xs text-rw-muted">Un QR unico per ogni dipendente — funziona anche senza login</p>
+              <p className="text-sm font-semibold text-rw-ink">{t("staff.badge.individualQr")}</p>
+              <p className="text-xs text-rw-muted">{t("staff.badge.individualQrDesc")}</p>
             </div>
             <button type="button" onClick={() => void generate()} disabled={loading || staff.length === 0}
               className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-50 transition">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
-              {generated ? "Rigenera" : "Genera badge"}
+              {generated ? t("staff.badge.regenerate") : t("staff.badge.generate")}
             </button>
           </div>
 
           {generated && tokens.length > 0 && (
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-              {tokens.map((t) => {
-                const badgeUrl = `${base}/clock/badge/${t.token}`;
+              {tokens.map((tok) => {
+                const badgeUrl = `${base}/clock/badge/${tok.token}`;
                 const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=6&data=${encodeURIComponent(badgeUrl)}`;
                 return (
-                  <div key={t.id} className="flex flex-col items-center gap-2 rounded-2xl border border-rw-line bg-rw-surface p-3 text-center print:break-inside-avoid">
+                  <div key={tok.id} className="flex flex-col items-center gap-2 rounded-2xl border border-rw-line bg-rw-surface p-3 text-center print:break-inside-avoid">
                     <div className="flex h-28 w-28 items-center justify-center rounded-xl border border-rw-line bg-white p-1.5">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={qrImg} alt={`Badge ${t.name}`} className="h-full w-full" />
+                      <img src={qrImg} alt={`Badge ${tok.name}`} className="h-full w-full" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm text-rw-ink leading-tight">{t.name}</p>
-                      <p className="text-xs text-rw-muted capitalize">{t.role}</p>
+                      <p className="font-bold text-sm text-rw-ink leading-tight">{tok.name}</p>
+                      <p className="text-xs text-rw-muted capitalize">{tok.role}</p>
                     </div>
                     <a href={badgeUrl} target="_blank" rel="noreferrer"
                       className="text-[10px] text-rw-accent hover:underline">
-                      Testa badge
+                      {t("staff.badge.test")}
                     </a>
                   </div>
                 );
@@ -211,7 +220,7 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
             <div className="mt-3 flex justify-end">
               <button type="button" onClick={() => window.print()}
                 className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-medium text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink transition">
-                🖨️ Stampa tutti i badge
+                {t("staff.badge.printAll")}
               </button>
             </div>
           )}
@@ -222,6 +231,7 @@ function StaffBadgesCard({ staff, appOrigin }: { staff: StaffMember[]; appOrigin
 }
 
 export function StaffPage() {
+  const { t } = useI18n();
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -281,14 +291,18 @@ export function StaffPage() {
     if (!editingStaffId || !fUserId) return;
     setLinkLoading(true);
     try {
-      await fetch("/api/staff/me/link", {
+      const res = await fetch("/api/staff/me/link", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ staffId: editingStaffId, userId: fUserId }),
       });
+      if (!res.ok) console.error("Link user failed:", res.status);
       const updated = await staffApi.list();
       setStaff(updated);
-    } catch { /* ignore */ }
-    finally { setLinkLoading(false); }
+    } catch (e) {
+      console.error("Link user error:", e);
+    } finally {
+      setLinkLoading(false);
+    }
   }
 
   function handleEditStaff(member: StaffMember) {
@@ -384,15 +398,15 @@ export function StaffPage() {
   }
 
   const staffCols = [
-    { key: "name", header: "Nome", render: (r: StaffMember) => (
+    { key: "name", header: t("ui.name"), render: (r: StaffMember) => (
       <div>
         <span className="font-medium text-rw-ink">{r.name}</span>
         {r.userId && <span className="ml-2 rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">🔗</span>}
       </div>
     )},
-    { key: "role", header: "Ruolo", render: (r: StaffMember) => <span className="capitalize">{r.role}</span> },
+    { key: "role", header: t("staff.role"), render: (r: StaffMember) => <span className="capitalize">{r.role}</span> },
     {
-      key: "status", header: "Stato",
+      key: "status", header: t("ui.status"),
       render: (r: StaffMember) => {
         const toneMap: Record<string, string> = {
           attivo: "bg-emerald-500/15 text-emerald-400",
@@ -408,17 +422,17 @@ export function StaffPage() {
       },
     },
     {
-      key: "hoursWeek", header: "Ore/sett.",
+      key: "hoursWeek", header: t("staff.hoursWeek"),
       render: (r: StaffMember) => <span className="text-xs text-rw-soft">{r.hoursWeek}h</span>,
     },
     {
-      key: "azioni", header: "Azioni",
+      key: "azioni", header: t("ui.edit"),
       render: (r: StaffMember) => (
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => handleEditStaff(r)} className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title="Modifica">
+          <button type="button" onClick={() => handleEditStaff(r)} className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title={t("ui.edit")}>
             <Edit className="h-4 w-4" />
           </button>
-          <button type="button" onClick={() => toggleAttivo(r)} className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title={r.status === "attivo" ? "Disattiva" : "Attiva"}>
+          <button type="button" onClick={() => toggleAttivo(r)} className="rounded-lg p-1.5 text-rw-muted hover:bg-rw-surfaceAlt hover:text-rw-ink" title={r.status === "attivo" ? t("staff.disableAction") : t("staff.enableAction")}>
             {r.status === "attivo" ? <ToggleRight className="h-4 w-4 text-emerald-400" /> : <ToggleLeft className="h-4 w-4" />}
           </button>
         </div>
@@ -429,18 +443,18 @@ export function StaffPage() {
   const filteredAssenze = assenzaFiltro === "tutti" ? assenze : assenze.filter((a) => a.stato === assenzaFiltro);
 
   const assenzeCols = [
-    { key: "dip", header: "Dipendente", render: (r: RichiestaAssenza) => <span className="font-medium text-rw-ink">{getDipNome(r.dipendenteId)}</span> },
-    { key: "tipo", header: "Tipo", render: (r: RichiestaAssenza) => <span className="capitalize">{r.tipo}</span> },
-    { key: "dal", header: "Dal" },
-    { key: "al", header: "Al" },
+    { key: "dip", header: t("staff.employee"), render: (r: RichiestaAssenza) => <span className="font-medium text-rw-ink">{getDipNome(r.dipendenteId)}</span> },
+    { key: "tipo", header: t("staff.type"), render: (r: RichiestaAssenza) => <span className="capitalize">{r.tipo}</span> },
+    { key: "dal", header: t("staff.from") },
+    { key: "al", header: t("staff.to") },
     {
-      key: "stato", header: "Stato",
+      key: "stato", header: t("ui.status"),
       render: (r: RichiestaAssenza) => {
         const toneMap = { "in attesa": "bg-amber-500/15 text-amber-400", approvata: "bg-emerald-500/15 text-emerald-400", rifiutata: "bg-red-500/15 text-red-400" } as const;
         return <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold capitalize", toneMap[r.stato])}>{r.stato}</span>;
       },
     },
-    { key: "note", header: "Note" },
+    { key: "note", header: t("ui.notes") },
   ];
 
   const staffPerRole = ROLES.map((role) => ({
@@ -449,8 +463,8 @@ export function StaffPage() {
   }));
 
   const roleCols = [
-    { key: "role", header: "Ruolo", render: (r: { role: string; count: number }) => <span className="font-medium capitalize text-rw-ink">{r.role}</span> },
-    { key: "count", header: "Attivi", render: (r: { role: string; count: number }) => <span className="text-rw-soft">{r.count}</span> },
+    { key: "role", header: t("staff.role"), render: (r: { role: string; count: number }) => <span className="font-medium capitalize text-rw-ink">{r.role}</span> },
+    { key: "count", header: t("staff.activeStatus"), render: (r: { role: string; count: number }) => <span className="text-rw-soft">{r.count}</span> },
   ];
 
   if (loading) {
@@ -472,35 +486,35 @@ export function StaffPage() {
 
   return (
     <div className="space-y-8">
-      <PageHeader title="Staff" subtitle="Gestione dipendenti, presenze e assenze">
-        <Chip label="Totale" value={totale} tone="info" />
-        <Chip label="Attivi" value={attivi} tone="success" />
-        <Chip label="In ferie" value={inFerie} tone="accent" />
-        <Chip label="Malattia" value={inMalattia} tone="warn" />
-        <Chip label="Anomalie" value={anomalie} tone={anomalie > 0 ? "danger" : "default"} />
-        <Chip label="Ore/sett." value={oreTotali} />
+      <PageHeader title={t("staff.title")} subtitle={t("staff.subtitle")}>
+        <Chip label={t("staff.total")} value={totale} tone="info" />
+        <Chip label={t("staff.active")} value={attivi} tone="success" />
+        <Chip label={t("staff.onLeave")} value={inFerie} tone="accent" />
+        <Chip label={t("staff.sick")} value={inMalattia} tone="warn" />
+        <Chip label={t("staff.anomalies")} value={anomalie} tone={anomalie > 0 ? "danger" : "default"} />
+        <Chip label={t("staff.hoursWeek")} value={oreTotali} />
       </PageHeader>
 
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
         <div className="space-y-6">
           <Card
-            title={editingStaffId ? "Modifica dipendente" : "Aggiungi dipendente"}
-            description={editingStaffId ? "Aggiorna i dati del dipendente selezionato." : "Compila i dati del nuovo membro dello staff."}
+            title={editingStaffId ? t("staff.editEmployee") : t("staff.addEmployee")}
+            description={editingStaffId ? t("staff.editEmployeeDesc") : t("staff.addEmployeeDesc")}
             headerRight={
               editingStaffId ? (
                 <button type="button" onClick={resetForm} className="text-xs font-semibold text-rw-muted hover:text-rw-accent">
-                  Annulla modifica
+                  {t("staff.cancelEdit")}
                 </button>
               ) : undefined
             }
           >
             <div className="space-y-3">
               <div>
-                <label className={labelCls}>Nome completo</label>
+                <label className={labelCls}>{t("staff.fullName")}</label>
                 <input className={inputCls} value={fName} onChange={(e) => setFName(e.target.value)} placeholder="Mario Rossi" />
               </div>
               <div>
-                <label className={labelCls}>Qualifica / Ruolo operativo</label>
+                <label className={labelCls}>{t("staff.qualification")}</label>
                 <div className="relative">
                   <select
                     className={cn(inputCls, "appearance-none cursor-pointer pr-9")}
@@ -528,68 +542,68 @@ export function StaffPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Telefono</label><input className={inputCls} value={fPhone} onChange={(e) => setFPhone(e.target.value)} placeholder="333-…" /></div>
-                <div><label className={labelCls}>Email</label><input className={inputCls} value={fEmail} onChange={(e) => setFEmail(e.target.value)} placeholder="email@…" /></div>
+                <div><label className={labelCls}>{t("ui.phone")}</label><input className={inputCls} value={fPhone} onChange={(e) => setFPhone(e.target.value)} placeholder="333-…" /></div>
+                <div><label className={labelCls}>{t("ui.email")}</label><input className={inputCls} value={fEmail} onChange={(e) => setFEmail(e.target.value)} placeholder="email@…" /></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Data assunzione</label><input type="date" className={inputCls} value={fHireDate} onChange={(e) => setFHireDate(e.target.value)} /></div>
-                <div><label className={labelCls}>Stipendio (€)</label><input type="number" className={inputCls} value={fSalary} onChange={(e) => setFSalary(e.target.value)} placeholder="1500" /></div>
+                <div><label className={labelCls}>{t("staff.hireDate")}</label><input type="date" className={inputCls} value={fHireDate} onChange={(e) => setFHireDate(e.target.value)} /></div>
+                <div><label className={labelCls}>{t("staff.salary")}</label><input type="number" className={inputCls} value={fSalary} onChange={(e) => setFSalary(e.target.value)} placeholder="1500" /></div>
               </div>
               <div>
-                <label className={labelCls}>Ore/settimana</label>
+                <label className={labelCls}>{t("staff.hoursPerWeek")}</label>
                 <input type="number" className={inputCls} value={fHoursWeek} onChange={(e) => setFHoursWeek(e.target.value)} placeholder="40" />
               </div>
-              <div><label className={labelCls}>Note</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={fNotes} onChange={(e) => setFNotes(e.target.value)} placeholder="Annotazioni…" /></div>
+              <div><label className={labelCls}>{t("ui.notes")}</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={fNotes} onChange={(e) => setFNotes(e.target.value)} placeholder="Annotazioni…" /></div>
 
               {editingStaffId && tenantUsers.length > 0 && (
                 <div className="rounded-xl border border-rw-line/60 bg-rw-surfaceAlt/50 p-3 space-y-2">
-                  <label className={labelCls}>Collega account utente</label>
-                  <p className="text-[11px] text-rw-muted">Associa un account di accesso a questo dipendente per il profilo personale.</p>
+                  <label className={labelCls}>{t("staff.linkAccount")}</label>
+                  <p className="text-[11px] text-rw-muted">{t("staff.linkAccountDesc")}</p>
                   <div className="flex gap-2">
                     <select className={cn(inputCls, "flex-1")} value={fUserId} onChange={(e) => setFUserId(e.target.value)}>
-                      <option value="">— Nessun account collegato —</option>
+                      <option value="">— {t("staff.noAccount")} —</option>
                       {tenantUsers.map((u) => (
                         <option key={u.id} value={u.id}>{u.name} (@{u.username}) [{u.role}]</option>
                       ))}
                     </select>
                     <button type="button" onClick={() => void handleLinkUser()} disabled={linkLoading || !fUserId}
                       className="shrink-0 rounded-xl bg-rw-accent/15 px-3 py-2 text-xs font-semibold text-rw-accent hover:bg-rw-accent/25 disabled:opacity-50 transition">
-                      {linkLoading ? "…" : "Collega"}
+                      {linkLoading ? "…" : t("staff.linkBtn")}
                     </button>
                   </div>
                 </div>
               )}
 
               <button type="button" className={btnPrimary} onClick={handleAddDipendente}>
-                <UserPlus className="h-4 w-4" /> {editingStaffId ? "Salva modifiche" : "Salva"}
+                <UserPlus className="h-4 w-4" /> {editingStaffId ? t("staff.saveChanges") : t("ui.save")}
               </button>
             </div>
           </Card>
 
-          <Card title="Nuova richiesta assenza" description="Richiesta ferie, malattia o permesso.">
+          <Card title={t("staff.absenceRequest")} description={t("staff.absenceRequestDesc")}>
             <div className="space-y-3">
               <div>
-                <label className={labelCls}>Dipendente</label>
+                <label className={labelCls}>{t("staff.employee")}</label>
                 <select className={inputCls} value={aDipId} onChange={(e) => setADipId(e.target.value)}>
-                  <option value="">— Seleziona —</option>
+                  <option value="">— {t("ui.filter")} —</option>
                   {staff.filter((s) => s.status === "attivo").map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Tipo</label>
+                <label className={labelCls}>{t("staff.type")}</label>
                 <select className={inputCls} value={aTipo} onChange={(e) => setATipo(e.target.value as typeof aTipo)}>
-                  <option value="ferie">Ferie</option>
-                  <option value="malattia">Malattia</option>
-                  <option value="permesso">Permesso</option>
+                  <option value="ferie">{t("staff.leaveType.ferie")}</option>
+                  <option value="malattia">{t("staff.leaveType.malattia")}</option>
+                  <option value="permesso">{t("staff.leaveType.permesso")}</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Dal</label><input type="date" className={inputCls} value={aDal} onChange={(e) => setADal(e.target.value)} /></div>
-                <div><label className={labelCls}>Al</label><input type="date" className={inputCls} value={aAl} onChange={(e) => setAAl(e.target.value)} /></div>
+                <div><label className={labelCls}>{t("staff.from")}</label><input type="date" className={inputCls} value={aDal} onChange={(e) => setADal(e.target.value)} /></div>
+                <div><label className={labelCls}>{t("staff.to")}</label><input type="date" className={inputCls} value={aAl} onChange={(e) => setAAl(e.target.value)} /></div>
               </div>
-              <div><label className={labelCls}>Note</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={aNote} onChange={(e) => setANote(e.target.value)} placeholder="Motivazione…" /></div>
+              <div><label className={labelCls}>{t("ui.notes")}</label><textarea className={cn(inputCls, "resize-y")} rows={2} value={aNote} onChange={(e) => setANote(e.target.value)} placeholder="Motivazione…" /></div>
               <button type="button" className={btnPrimary} onClick={handleAddAssenza}>
-                <Send className="h-4 w-4" /> Invia
+                <Send className="h-4 w-4" /> {t("staff.send")}
               </button>
             </div>
           </Card>
@@ -597,42 +611,42 @@ export function StaffPage() {
 
         <div className="space-y-6">
           <Card
-            title="Elenco staff"
-            description={`${totale} dipendenti registrati`}
+            title={t("staff.employeeList")}
+            description={`${totale} ${t("staff.registeredCount")}`}
             headerRight={
               <span className="inline-flex items-center gap-1.5 text-xs text-rw-muted">
-                <Users className="h-4 w-4" /> {attivi} attivi
+                <Users className="h-4 w-4" /> {attivi} {t("staff.active")}
               </span>
             }
           >
-            <DataTable columns={staffCols} data={staff} keyExtractor={(r) => r.id} emptyMessage="Nessun dipendente" />
+            <DataTable columns={staffCols} data={staff} keyExtractor={(r) => r.id} emptyMessage={t("staff.noEmployee")} />
           </Card>
 
           <StaffBadgesCard staff={staff} appOrigin={typeof window !== "undefined" ? window.location.origin : ""} />
 
-          <Card title="Timbrature reali" description="Login/logout personale persistente su DB.">
+          <Card title={t("staff.realTimestamps")} description={t("staff.realTimestampsDesc")}>
             <DataTable
               columns={[
                 {
                   key: "staff",
-                  header: "Staff",
+                  header: t("staff.title"),
                   render: (row: StaffMember) => <span className="font-medium text-rw-ink">{row.name}</span>,
                 },
                 {
                   key: "shift",
-                  header: "Stato turno",
+                  header: t("staff.shiftStatus"),
                   render: (row: StaffMember) => {
                     const open = shifts.find((s) => s.staffId === row.id && s.clockOutAt == null);
                     return (
                       <span className={cn("text-xs font-semibold", open ? "text-emerald-400" : "text-rw-muted")}>
-                        {open ? `In turno dalle ${new Date(open.clockInAt).toLocaleTimeString()}` : "Fuori turno"}
+                        {open ? `${t("staff.inShift")} ${new Date(open.clockInAt).toLocaleTimeString()}` : t("staff.outOfShift")}
                       </span>
                     );
                   },
                 },
                 {
                   key: "hours",
-                  header: "Ore oggi",
+                  header: t("staff.hoursToday"),
                   render: (row: StaffMember) => {
                     const today = new Date().toISOString().slice(0, 10);
                     const worked = shifts
@@ -643,7 +657,7 @@ export function StaffPage() {
                 },
                 {
                   key: "actionsClock",
-                  header: "Azioni",
+                  header: t("ui.edit"),
                   render: (row: StaffMember) => {
                     const open = shifts.find((s) => s.staffId === row.id && s.clockOutAt == null);
                     return (
@@ -671,12 +685,12 @@ export function StaffPage() {
               ]}
               data={staff}
               keyExtractor={(row) => row.id}
-              emptyMessage="Nessun dipendente disponibile"
+              emptyMessage={t("staff.noEmployee")}
             />
           </Card>
 
           <Card
-            title="Richieste assenze"
+            title={t("staff.absenceRequests")}
             headerRight={
               <div className="flex gap-1">
                 {(["tutti", "in attesa", "approvata", "rifiutata"] as const).map((f) => (
@@ -695,18 +709,18 @@ export function StaffPage() {
               </div>
             }
           >
-            <DataTable columns={assenzeCols} data={filteredAssenze} keyExtractor={(r) => r.id} emptyMessage="Nessuna richiesta" />
+            <DataTable columns={assenzeCols} data={filteredAssenze} keyExtractor={(r) => r.id} emptyMessage={t("staff.noRequests")} />
           </Card>
 
           <Card
-            title="Staff per ruolo"
+            title={t("staff.byRole")}
             headerRight={
               <span className="inline-flex items-center gap-1.5 text-xs text-rw-muted">
-                <Clock className="h-3.5 w-3.5" /> {oreTotali} ore/sett. totali
+                <Clock className="h-3.5 w-3.5" /> {oreTotali} {t("staff.hoursWeek")}
               </span>
             }
           >
-            <DataTable columns={roleCols} data={staffPerRole} keyExtractor={(r) => r.role} emptyMessage="Nessun ruolo" />
+            <DataTable columns={roleCols} data={staffPerRole} keyExtractor={(r) => r.role} emptyMessage={t("staff.noRole")} />
           </Card>
 
           <AccessiStaffCard tenantUsers={tenantUsers} onUsersChange={setTenantUsers} />
@@ -725,6 +739,7 @@ function AccessiStaffCard({
   tenantUsers: TenantUser[];
   onUsersChange: (users: TenantUser[]) => void;
 }) {
+  const { t } = useI18n();
   const [uName, setUName] = useState("");
   const [uUsername, setUUsername] = useState("");
   const [uEmail, setUEmail] = useState("");
@@ -750,8 +765,8 @@ function AccessiStaffCard({
         body: JSON.stringify({ name: uName.trim(), username: uUsername.trim(), email: uEmail.trim() || undefined, password: uPassword, role: uRole }),
       });
       const data = await res.json();
-      if (!res.ok) { setSaveError(data.error || "Errore nella creazione"); return; }
-      setSaveOk(`Account "${uUsername}" creato. Al primo login dovrà cambiare la password.`);
+      if (!res.ok) { setSaveError(data.error || t("staff.access.createError")); return; }
+      setSaveOk(t("staff.access.accountCreated").replace("{username}", uUsername));
       setUName(""); setUUsername(""); setUEmail(""); setUPassword(""); setURole("sala");
       // Ricarica lista utenti
       const updated = await fetch("/api/users").then((r) => r.ok ? r.json() : tenantUsers);
@@ -764,7 +779,7 @@ function AccessiStaffCard({
   }
 
   async function handleDelete(userId: string, username: string) {
-    if (!confirm(`Eliminare l'account "${username}"? L'utente non potrà più accedere.`)) return;
+    if (!confirm(t("staff.access.confirmDelete").replace("{username}", username))) return;
     try {
       const res = await fetch(`/api/users?id=${userId}`, { method: "DELETE" });
       if (!res.ok) { const d = await res.json(); alert(d.error || "Errore eliminazione"); return; }
@@ -774,30 +789,30 @@ function AccessiStaffCard({
 
   return (
     <Card
-      title="Accessi Staff"
-      description="Crea username e password per ogni membro dello staff. Al primo accesso dovranno cambiare la password."
+      title={t("staff.access.title")}
+      description={t("staff.access.desc")}
     >
       <div className="space-y-5">
         {/* Form creazione */}
         <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt/40 p-4 space-y-3">
-          <p className="text-xs font-semibold text-rw-muted uppercase tracking-wide">Nuovo accesso</p>
+          <p className="text-xs font-semibold text-rw-muted uppercase tracking-wide">{t("staff.access.newAccess")}</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Nome completo</label>
+              <label className={labelCls}>{t("staff.fullName")}</label>
               <input className={inputCls} value={uName} onChange={(e) => setUName(e.target.value)} placeholder="Mario Rossi" />
             </div>
             <div>
-              <label className={labelCls}>Username (per il login)</label>
+              <label className={labelCls}>{t("staff.access.usernameLogin")}</label>
               <input className={inputCls} value={uUsername} onChange={(e) => setUUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, ""))} placeholder="mario.rossi" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Password temporanea</label>
-              <input type="text" className={inputCls} value={uPassword} onChange={(e) => setUPassword(e.target.value)} placeholder="min 6 caratteri" />
+              <label className={labelCls}>{t("staff.access.tempPassword")}</label>
+              <input type="text" className={inputCls} value={uPassword} onChange={(e) => setUPassword(e.target.value)} placeholder={t("staff.access.minChars")} />
             </div>
             <div>
-              <label className={labelCls}>Ruolo</label>
+              <label className={labelCls}>{t("staff.role")}</label>
               <div className="relative">
                 <select className={cn(inputCls, "appearance-none cursor-pointer pr-9")} value={uRole} onChange={(e) => setURole(e.target.value)}>
                   {USER_ACCESS_ROLES.map((r) => (
@@ -809,7 +824,7 @@ function AccessiStaffCard({
             </div>
           </div>
           <div>
-            <label className={labelCls}>Email (opzionale)</label>
+            <label className={labelCls}>{t("staff.access.emailOptional")}</label>
             <input type="email" className={inputCls} value={uEmail} onChange={(e) => setUEmail(e.target.value)} placeholder="mario@email.it" />
           </div>
           {saveError && <p className="text-xs font-semibold text-red-400">{saveError}</p>}
@@ -821,24 +836,24 @@ function AccessiStaffCard({
             className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-50 transition"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
-            Crea accesso
+            {t("staff.access.createAccess")}
           </button>
         </div>
 
         {/* Lista utenti esistenti */}
         {tenantUsers.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-rw-muted uppercase tracking-wide">Account attivi ({tenantUsers.length})</p>
+            <p className="text-xs font-semibold text-rw-muted uppercase tracking-wide">{t("staff.access.activeAccounts").replace("{n}", String(tenantUsers.length))}</p>
             {tenantUsers.map((u) => (
               <div key={u.id} className="flex items-center justify-between rounded-xl border border-rw-line bg-rw-surface px-4 py-3 gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-sm text-rw-ink truncate">{u.name}</span>
                     {u.mustChangePassword && (
-                      <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">cambio pwd</span>
+                      <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-400">{t("staff.access.changePassword")}</span>
                     )}
                     {u.isLocked && (
-                      <span className="rounded-full bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-red-400">bloccato</span>
+                      <span className="rounded-full bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-red-400">{t("staff.access.locked")}</span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -853,7 +868,7 @@ function AccessiStaffCard({
                     type="button"
                     onClick={() => void handleDelete(u.id, u.username)}
                     className="shrink-0 rounded-lg p-1.5 text-rw-muted hover:bg-red-500/10 hover:text-red-400 transition"
-                    title="Elimina account"
+                    title={t("staff.access.deleteAccount")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

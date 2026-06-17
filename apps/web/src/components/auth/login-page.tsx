@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Lock, Sparkles, User } from "lucide-react";
 import { api } from "@/lib/api-client";
+import { useI18n } from "@/core/i18n/provider";
 
 const inputCls = "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 pl-11 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none focus:ring-1 focus:ring-rw-accent";
 
@@ -14,6 +15,7 @@ function safeRelativeRedirect(candidate: string | null, fallback: string) {
 }
 
 export function LoginPage() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +25,7 @@ export function LoginPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) { setError("Inserisci username e password."); return; }
+    if (!username.trim() || !password.trim()) { setError(t("auth.missingCredentials")); return; }
     setLoading(true);
     setError("");
     try {
@@ -33,7 +35,7 @@ export function LoginPage() {
       const target = result.user.mustChangePassword ? "/change-password" : next;
       window.location.assign(target);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "Errore di rete. Riprova.");
+      setError(error instanceof Error ? error.message : t("auth.networkError"));
       setLoading(false);
     }
   }
@@ -46,23 +48,23 @@ export function LoginPage() {
             <Sparkles className="h-8 w-8 text-rw-accent" />
           </div>
           <h1 className="font-display text-3xl font-bold text-rw-ink">RistoSimply</h1>
-          <p className="mt-2 text-sm text-rw-muted">Il gestionale cloud per la ristorazione</p>
+          <p className="mt-2 text-sm text-rw-muted">{t("auth.subtitle")}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="rounded-2xl border border-rw-line bg-rw-surface p-6 space-y-4 shadow-xl">
             <div>
-              <label className="block text-xs font-semibold text-rw-muted mb-1.5">Username</label>
+              <label className="block text-xs font-semibold text-rw-muted mb-1.5">{t("auth.username")}</label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="es. owner, sala, cucina" className={inputCls} autoFocus />
+                <input type="text" value={username} onChange={(e) => setUsername(e.target.value)} placeholder={t("auth.usernamePlaceholder")} className={inputCls} autoFocus />
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-rw-muted mb-1.5">Password</label>
+              <label className="block text-xs font-semibold text-rw-muted mb-1.5">{t("auth.password")}</label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-                <input type={showPw ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" className={inputCls} />
+                <input type={showPw ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t("auth.password")} className={inputCls} />
                 <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-rw-muted hover:text-rw-ink">
                   {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -72,14 +74,14 @@ export function LoginPage() {
             {error && <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400">{error}</p>}
 
             <button type="submit" disabled={loading} className="w-full rounded-xl bg-rw-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
-              {loading ? "Accesso in corso…" : "Accedi"}
+              {loading ? t("auth.loggingIn") : t("auth.login")}
             </button>
           </div>
         </form>
 
         {process.env.NODE_ENV !== "production" && (
           <div className="rounded-2xl border border-rw-line bg-rw-surface/50 p-4">
-            <p className="text-xs font-semibold text-rw-muted mb-2">Account demo:</p>
+            <p className="text-xs font-semibold text-rw-muted mb-2">{t("auth.demoAccounts")}</p>
             <div className="grid grid-cols-2 gap-1.5 text-xs text-rw-soft">
               {[
                 { u: "owner", p: "owner123", r: "Owner" },
