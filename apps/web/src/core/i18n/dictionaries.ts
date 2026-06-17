@@ -1265,6 +1265,20 @@ const it: TranslationDictionary = {
   "hotel.housekeeping.col.inspection": "Ispezione",
   "hotel.housekeeping.inspection.ok": "OK",
   "hotel.housekeeping.inspection.pending": "Da verificare",
+
+  /* ── Owner portfolio multi-locale ──────────────── */
+  "owner.portfolio.title": "I tuoi locali",
+  "owner.portfolio.subtitle": "Panoramica di tutti i ristoranti e hotel collegati al tuo account.",
+  "owner.portfolio.currentTenant": "Locale corrente",
+  "owner.portfolio.switchTo": "Vai a",
+  "owner.portfolio.activeStaff": "Staff attivo",
+  "owner.portfolio.ordersToday": "Ordini oggi",
+  "owner.portfolio.revenueToday": "Incasso oggi",
+  "owner.portfolio.plan": "Piano",
+  "owner.portfolio.status": "Stato",
+  "owner.portfolio.noGroups": "Nessun gruppo multi-locale associato.",
+  "owner.portfolio.loading": "Caricamento locali…",
+  "owner.portfolio.error": "Errore nel caricamento dei locali.",
 };
 
 const en: TranslationDictionary = {
@@ -2532,6 +2546,20 @@ const en: TranslationDictionary = {
   "hotel.housekeeping.col.inspection": "Inspection",
   "hotel.housekeeping.inspection.ok": "OK",
   "hotel.housekeeping.inspection.pending": "To verify",
+
+  /* ── Owner portfolio multi-locale ──────────────── */
+  "owner.portfolio.title": "Your properties",
+  "owner.portfolio.subtitle": "Overview of all restaurants and hotels linked to your account.",
+  "owner.portfolio.currentTenant": "Current property",
+  "owner.portfolio.switchTo": "Go to",
+  "owner.portfolio.activeStaff": "Active staff",
+  "owner.portfolio.ordersToday": "Orders today",
+  "owner.portfolio.revenueToday": "Revenue today",
+  "owner.portfolio.plan": "Plan",
+  "owner.portfolio.status": "Status",
+  "owner.portfolio.noGroups": "No multi-property group associated.",
+  "owner.portfolio.loading": "Loading properties…",
+  "owner.portfolio.error": "Error loading properties.",
 };
 
 const nl: TranslationDictionary = {
@@ -3799,6 +3827,20 @@ const nl: TranslationDictionary = {
   "hotel.housekeeping.col.inspection": "Inspectie",
   "hotel.housekeeping.inspection.ok": "OK",
   "hotel.housekeeping.inspection.pending": "Te verifiëren",
+
+  /* ── Owner portfolio multi-locale ──────────────── */
+  "owner.portfolio.title": "Uw vestigingen",
+  "owner.portfolio.subtitle": "Overzicht van alle restaurants en hotels gekoppeld aan uw account.",
+  "owner.portfolio.currentTenant": "Huidige vestiging",
+  "owner.portfolio.switchTo": "Ga naar",
+  "owner.portfolio.activeStaff": "Actief personeel",
+  "owner.portfolio.ordersToday": "Bestellingen vandaag",
+  "owner.portfolio.revenueToday": "Omzet vandaag",
+  "owner.portfolio.plan": "Plan",
+  "owner.portfolio.status": "Status",
+  "owner.portfolio.noGroups": "Geen multi-vestiging groep gekoppeld.",
+  "owner.portfolio.loading": "Vestigingen laden…",
+  "owner.portfolio.error": "Fout bij laden van vestigingen.",
 };
 
 const pt: TranslationDictionary = {
@@ -5066,6 +5108,20 @@ const pt: TranslationDictionary = {
   "hotel.housekeeping.col.inspection": "Inspeção",
   "hotel.housekeeping.inspection.ok": "OK",
   "hotel.housekeeping.inspection.pending": "A verificar",
+
+  /* ── Owner portfolio multi-locale ──────────────── */
+  "owner.portfolio.title": "Seus estabelecimentos",
+  "owner.portfolio.subtitle": "Visão geral de todos os restaurantes e hotéis vinculados à sua conta.",
+  "owner.portfolio.currentTenant": "Estabelecimento atual",
+  "owner.portfolio.switchTo": "Ir para",
+  "owner.portfolio.activeStaff": "Equipe ativa",
+  "owner.portfolio.ordersToday": "Pedidos hoje",
+  "owner.portfolio.revenueToday": "Faturamento hoje",
+  "owner.portfolio.plan": "Plano",
+  "owner.portfolio.status": "Status",
+  "owner.portfolio.noGroups": "Nenhum grupo multi-estabelecimento associado.",
+  "owner.portfolio.loading": "Carregando estabelecimentos…",
+  "owner.portfolio.error": "Erro ao carregar estabelecimentos.",
 };
 
 

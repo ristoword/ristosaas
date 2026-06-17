@@ -37,6 +37,7 @@ const tabs = [
   { id: "monitor", label: "Monitor Live" },
   { id: "tenants", label: "Tenants" },
   { id: "licenses", label: "Licenze" },
+  { id: "groups", label: "Gruppi Multi-locale" },
   { id: "maintenance", label: "Manutenzione" },
   { id: "access", label: "Accessi utenti" },
   { id: "system", label: "Sistema" },
@@ -111,6 +112,30 @@ export function SuperAdminPage() {
   const [onlineLoading, setOnlineLoading] = useState(false);
   const [onlineError, setOnlineError] = useState<string | null>(null);
 
+  type GroupMember = {
+    id: string;
+    tenantId: string;
+    label: string | null;
+    tenantName: string;
+    tenantSlug: string;
+    tenantPlan: string;
+    tenantStatus: string;
+    addedAt: string;
+  };
+  type TenantGroupRow = {
+    id: string;
+    name: string;
+    createdAt: string;
+    members: GroupMember[];
+  };
+
+  const [groups, setGroups] = useState<TenantGroupRow[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [addTenantToGroupId, setAddTenantToGroupId] = useState<string | null>(null);
+  const [addTenantValue, setAddTenantValue] = useState("");
+
   const assistantUrl = process.env.NEXT_PUBLIC_SUPERADMIN_ASSISTANT_URL?.trim() ?? "";
 
   const refreshOnline = useCallback(async () => {
@@ -128,6 +153,84 @@ export function SuperAdminPage() {
       setOnlineLoading(false);
     }
   }, []);
+
+  const refreshGroups = useCallback(async () => {
+    setGroupsLoading(true);
+    setGroupsError(null);
+    try {
+      const res = await fetch("/api/admin/tenant-groups", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json() as TenantGroupRow[];
+      setGroups(json);
+    } catch (e) {
+      setGroupsError(e instanceof Error ? e.message : "Errore caricamento gruppi");
+    } finally {
+      setGroupsLoading(false);
+    }
+  }, []);
+
+  async function handleCreateGroup() {
+    if (!newGroupName.trim()) return;
+    try {
+      const res = await fetch("/api/admin/tenant-groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newGroupName.trim() }),
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error ?? `HTTP ${res.status}`);
+      }
+      setNewGroupName("");
+      await refreshGroups();
+    } catch (e) {
+      setGroupsError(e instanceof Error ? e.message : "Errore creazione gruppo");
+    }
+  }
+
+  async function handleDeleteGroup(id: string) {
+    if (!confirm("Eliminare questo gruppo? I tenant non verranno eliminati.")) return;
+    try {
+      await fetch(`/api/admin/tenant-groups/${id}`, { method: "DELETE" });
+      await refreshGroups();
+    } catch (e) {
+      setGroupsError(e instanceof Error ? e.message : "Errore eliminazione gruppo");
+    }
+  }
+
+  async function handleAddTenantToGroup(groupId: string) {
+    const tenantId = addTenantValue.trim();
+    if (!tenantId) return;
+    try {
+      const res = await fetch(`/api/admin/tenant-groups/${groupId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addTenantIds: [tenantId] }),
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null);
+        throw new Error(errJson?.error ?? `HTTP ${res.status}`);
+      }
+      setAddTenantValue("");
+      setAddTenantToGroupId(null);
+      await refreshGroups();
+    } catch (e) {
+      setGroupsError(e instanceof Error ? e.message : "Errore aggiunta tenant");
+    }
+  }
+
+  async function handleRemoveTenantFromGroup(groupId: string, tenantId: string) {
+    try {
+      await fetch(`/api/admin/tenant-groups/${groupId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ removeTenantIds: [tenantId] }),
+      });
+      await refreshGroups();
+    } catch (e) {
+      setGroupsError(e instanceof Error ? e.message : "Errore rimozione tenant");
+    }
+  }
 
   const refreshLists = useCallback(() => {
     Promise.all([api.admin.users.list(), api.admin.tenants.list(), api.admin.licenses.list(), api.admin.emailConfig.list()])
@@ -175,6 +278,10 @@ export function SuperAdminPage() {
     const interval = setInterval(() => void refreshOnline(), 30_000);
     return () => clearInterval(interval);
   }, [tab, refreshOnline]);
+
+  useEffect(() => {
+    if (tab === "groups") void refreshGroups();
+  }, [tab, refreshGroups]);
 
   const filteredTenants = tenants.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
   const filteredLicenses = licenses.filter((l) => l.key.toLowerCase().includes(search.toLowerCase()) || l.tenant.toLowerCase().includes(search.toLowerCase()));
@@ -673,6 +780,151 @@ export function SuperAdminPage() {
             keyExtractor={(u) => u.id}
           />
         </Card>
+      )}
+
+      {tab === "groups" && (
+        <div className="space-y-4">
+          <Card title="Gestione Gruppi Multi-locale" description="Crea gruppi di tenant per permettere agli owner di gestire più locali da un'unica dashboard.">
+            {groupsError && (
+              <div className="mb-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
+                {groupsError}
+              </div>
+            )}
+            <form
+              className="mb-4 flex flex-wrap items-end gap-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleCreateGroup();
+              }}
+            >
+              <div className="flex-1 min-w-[200px]">
+                <label className="block text-xs font-semibold text-rw-muted mb-1">Nome gruppo</label>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none"
+                  placeholder="Es. Gruppo Rossi (Milano + Roma)"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={!newGroupName.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-60"
+              >
+                <Plus className="h-4 w-4" /> Crea gruppo
+              </button>
+            </form>
+
+            {groupsLoading && (
+              <p className="text-sm text-rw-muted">Caricamento gruppi…</p>
+            )}
+
+            {!groupsLoading && groups.length === 0 && (
+              <p className="text-sm text-rw-muted">Nessun gruppo creato. Crea un gruppo per collegare più tenant allo stesso owner.</p>
+            )}
+
+            <div className="space-y-4">
+              {groups.map((g) => (
+                <div key={g.id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-rw-accent" />
+                      <h3 className="text-sm font-bold text-rw-ink">{g.name}</h3>
+                      <span className="text-xs text-rw-muted">({g.members.length} tenant)</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteGroup(g.id)}
+                      className="text-xs text-red-400 hover:text-red-300"
+                    >
+                      Elimina gruppo
+                    </button>
+                  </div>
+
+                  {g.members.length > 0 && (
+                    <div className="mb-3 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-rw-line text-left text-rw-muted">
+                            <th className="pb-1 pr-3">Tenant</th>
+                            <th className="pb-1 pr-3">Slug</th>
+                            <th className="pb-1 pr-3">Piano</th>
+                            <th className="pb-1 pr-3">Stato</th>
+                            <th className="pb-1"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {g.members.map((m) => (
+                            <tr key={m.id} className="border-b border-rw-line/30">
+                              <td className="py-1.5 pr-3 font-semibold text-rw-ink">{m.tenantName}</td>
+                              <td className="py-1.5 pr-3 text-rw-soft">{m.tenantSlug}</td>
+                              <td className="py-1.5 pr-3 text-rw-soft">{m.tenantPlan}</td>
+                              <td className="py-1.5 pr-3">
+                                <span className={m.tenantStatus === "active" ? "text-emerald-400" : "text-amber-400"}>
+                                  {m.tenantStatus}
+                                </span>
+                              </td>
+                              <td className="py-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveTenantFromGroup(g.id, m.tenantId)}
+                                  className="text-red-400 hover:text-red-300"
+                                >
+                                  Rimuovi
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {addTenantToGroupId === g.id ? (
+                    <div className="flex items-center gap-2">
+                      <select
+                        className="flex-1 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink focus:border-rw-accent focus:outline-none"
+                        value={addTenantValue}
+                        onChange={(e) => setAddTenantValue(e.target.value)}
+                      >
+                        <option value="">Seleziona tenant…</option>
+                        {tenants
+                          .filter((t) => !g.members.some((m) => m.tenantId === t.id))
+                          .map((t) => (
+                            <option key={t.id} value={t.id}>{t.name} ({t.plan})</option>
+                          ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={!addTenantValue}
+                        onClick={() => handleAddTenantToGroup(g.id)}
+                        className="rounded-xl bg-rw-accent px-4 py-2 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-60"
+                      >
+                        Aggiungi
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAddTenantToGroupId(null); setAddTenantValue(""); }}
+                        className="text-xs text-rw-muted hover:text-rw-soft"
+                      >
+                        Annulla
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAddTenantToGroupId(g.id)}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-rw-accent hover:text-rw-accent/80"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Aggiungi tenant al gruppo
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       )}
 
       {tab === "system" && (

@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  Building2,
   CheckCircle2,
+  ExternalLink,
   Loader2,
   Mail,
+  MapPin,
   Plus,
   RotateCcw,
   Save,
@@ -36,6 +39,24 @@ import {
 } from "@/lib/api-client";
 import { formatHumanDate } from "@/lib/date-utils";
 import { useI18n } from "@/core/i18n/provider";
+
+type PortfolioTenant = {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  accessStatus: string;
+  activeStaff: number;
+  ordersToday: number;
+  revenueToday: number;
+  isCurrent: boolean;
+};
+
+type PortfolioGroup = {
+  id: string;
+  name: string;
+  tenantIds: string[];
+};
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
@@ -107,6 +128,10 @@ export function OwnerPage() {
   const [smtpBusy, setSmtpBusy] = useState<"save" | "test" | null>(null);
   const [smtpMessage, setSmtpMessage] = useState<string | null>(null);
 
+  const [portfolioTenants, setPortfolioTenants] = useState<PortfolioTenant[]>([]);
+  const [portfolioGroups, setPortfolioGroups] = useState<PortfolioGroup[]>([]);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -139,6 +164,20 @@ export function OwnerPage() {
             secure: first.secure,
           });
         }
+      }
+
+      setPortfolioLoading(true);
+      try {
+        const res = await fetch("/api/owner/portfolio");
+        if (res.ok) {
+          const json = await res.json();
+          setPortfolioTenants(json.tenants ?? []);
+          setPortfolioGroups(json.groups ?? []);
+        }
+      } catch {
+        /* non-critical */
+      } finally {
+        setPortfolioLoading(false);
       }
     } catch (err) {
       setError((err as Error).message || t("owner.loadError"));
@@ -278,6 +317,88 @@ export function OwnerPage() {
         <div className="flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-sm text-rw-muted">
           <Loader2 className="h-4 w-4 animate-spin" /> {t("owner.loading")}
         </div>
+      )}
+
+      {/* ── Portfolio multi-locale (only if > 1 tenant) ────── */}
+      {portfolioTenants.length > 1 && (
+        <Card
+          title={t("owner.portfolio.title")}
+          description={t("owner.portfolio.subtitle")}
+          headerRight={<Building2 className="h-5 w-5 text-rw-accent" />}
+        >
+          {portfolioLoading ? (
+            <div className="flex items-center gap-2 text-sm text-rw-muted">
+              <Loader2 className="h-4 w-4 animate-spin" /> {t("owner.portfolio.loading")}
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {portfolioTenants.map((pt) => (
+                <div
+                  key={pt.id}
+                  className={cn(
+                    "relative rounded-xl border p-4 transition",
+                    pt.isCurrent
+                      ? "border-rw-accent bg-rw-accent/5 ring-1 ring-rw-accent/30"
+                      : "border-rw-line bg-rw-surfaceAlt hover:border-rw-accent/40",
+                  )}
+                >
+                  {pt.isCurrent && (
+                    <span className="absolute right-3 top-3 rounded-full bg-rw-accent px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                      {t("owner.portfolio.currentTenant")}
+                    </span>
+                  )}
+                  <div className="mb-3 flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-rw-accent" />
+                    <h3 className="text-sm font-bold text-rw-ink">{pt.name}</h3>
+                  </div>
+                  <div className="space-y-1.5 text-xs text-rw-soft">
+                    <div className="flex justify-between">
+                      <span>{t("owner.portfolio.plan")}</span>
+                      <span className="font-semibold text-rw-ink">{pt.plan}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t("owner.portfolio.status")}</span>
+                      <span
+                        className={cn(
+                          "font-semibold",
+                          pt.accessStatus === "active" ? "text-emerald-400" : "text-amber-400",
+                        )}
+                      >
+                        {pt.accessStatus}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t("owner.portfolio.activeStaff")}</span>
+                      <span className="font-semibold text-rw-ink">{pt.activeStaff}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t("owner.portfolio.ordersToday")}</span>
+                      <span className="font-semibold text-rw-ink">{pt.ordersToday}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>{t("owner.portfolio.revenueToday")}</span>
+                      <span className="font-semibold text-emerald-400">
+                        € {pt.revenueToday.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  {!pt.isCurrent && (
+                    <button
+                      type="button"
+                      className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-rw-line px-3 py-2 text-xs font-semibold text-rw-soft transition hover:border-rw-accent hover:text-rw-accent"
+                      onClick={() => {
+                        window.location.href = `/api/auth/switch-tenant?tenantId=${pt.id}`;
+                      }}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {t("owner.portfolio.switchTo")} {pt.name}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -119,6 +119,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   // Hardware: configurazione stampanti/display, riservata a owner e super_admin.
   { prefix: "/api/hardware", roles: ["owner", "super_admin"] },
   { prefix: "/api/health/ai", roles: ["owner", "super_admin"] },
+  { prefix: "/api/owner/portfolio", roles: ["owner", "super_admin"] },
   { prefix: "/api/reseller", roles: ["reseller", "super_admin"] },
 ] as const;
 

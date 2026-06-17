@@ -1399,3 +1399,25 @@ model RoomServiceOrder {
   @@index([tenantId, roomCode])
   @@index([tenantId, assignedTo, status])
 }
+
+// ─── Multi-locale owner groups (100% additivo, non modifica nulla di esistente) ───
+
+model TenantGroup {
+  id        String               @id @default(cuid())
+  name      String
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  members   TenantGroupMember[]
+}
+
+model TenantGroupMember {
+  id        String      @id @default(cuid())
+  groupId   String
+  tenantId  String
+  label     String?
+  addedAt   DateTime    @default(now())
+  group     TenantGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, tenantId])
+  @@index([tenantId])
+}
