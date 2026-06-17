@@ -244,10 +244,9 @@ export function PublicMenuClient({
             items: cart.map((l) => ({ menuItemId: l.menuItemId, qty: l.qty })),
           }),
         });
-        const data = (await res.json().catch(() => ({}))) as { error?: string; data?: { course: number } };
+        const data = (await res.json().catch(() => ({}))) as { error?: string; course?: number; orderId?: string };
         if (!res.ok) {
           if (res.status === 404) {
-            // Order was closed/deleted, create a new one
             setActiveOrderId(null);
             setSentOrders([]);
             persistSession("", []);
@@ -257,7 +256,7 @@ export function PublicMenuClient({
           setSubmitError(data.error || `Errore ${res.status}`);
           return;
         }
-        const courseNum = data.data?.course ?? sentOrders.length + 2;
+        const courseNum = data.course ?? sentOrders.length + 2;
         const newSent: SentOrder = {
           course: courseNum,
           items: [...cart],
@@ -279,12 +278,12 @@ export function PublicMenuClient({
             ...(tableId?.trim() ? { tableId: tableId.trim() } : {}),
           }),
         });
-        const data = (await res.json().catch(() => ({}))) as { error?: string; data?: { id: string } };
+        const data = (await res.json().catch(() => ({}))) as { error?: string; id?: string };
         if (!res.ok) {
           setSubmitError(data.error || `Errore ${res.status}`);
           return;
         }
-        const orderId = data.data?.id ?? "";
+        const orderId = data.id ?? "";
         setActiveOrderId(orderId);
         const newSent: SentOrder = {
           course: 1,
@@ -321,15 +320,17 @@ export function PublicMenuClient({
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
-        data?: { stripeCheckoutUrl?: string; totalEuros?: number; message?: string };
+        stripeCheckoutUrl?: string;
+        totalEuros?: number;
+        message?: string;
       };
       if (!res.ok) {
         setBillError(data.error || `Errore ${res.status}`);
         return;
       }
 
-      if (payOnline && data.data?.stripeCheckoutUrl) {
-        window.location.assign(data.data.stripeCheckoutUrl);
+      if (payOnline && data.stripeCheckoutUrl) {
+        window.location.assign(data.stripeCheckoutUrl);
         return;
       }
 
