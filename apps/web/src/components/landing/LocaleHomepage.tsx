@@ -23,7 +23,7 @@ export function LocaleHomepage({ locale }: { locale: Locale }) {
       <LandingNavbar locale={locale} />
       <main>
         <HeroShowcase locale={locale} />
-        <DemoVideoSection />
+        <DemoVideoSection locale={locale} />
         <IntegrationFlowSection locale={locale} />
         <FeatureCards locale={locale} />
         <DashboardPreview />
