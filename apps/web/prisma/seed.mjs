@@ -1129,6 +1129,74 @@ async function upsertStaffShifts() {
   });
 }
 
+async function upsertWineCellar() {
+  const wines = [
+    { id: "wine_1", name: "Barolo Riserva", producer: "Giacomo Conterno", country: "Italia", region: "Piemonte", color: "rosso", body: "corposo", grapeVariety: "Nebbiolo", alcoholPct: 14.5, vintageYear: 2016, bottlingYear: 2020, pairings: "Brasato, tartufo, formaggi stagionati", purchasePrice: 45, sellingPrice: 95, stock: 6, notes: "Riserva eccezionale, da proporre come selezione del sommelier" },
+    { id: "wine_2", name: "Brunello di Montalcino", producer: "Biondi-Santi", country: "Italia", region: "Toscana", color: "rosso", body: "corposo", grapeVariety: "Sangiovese Grosso", alcoholPct: 14, vintageYear: 2017, bottlingYear: 2022, pairings: "Bistecca fiorentina, cinghiale, pecorino", purchasePrice: 38, sellingPrice: 78, stock: 8, notes: "" },
+    { id: "wine_3", name: "Chianti Classico Riserva", producer: "Antinori", country: "Italia", region: "Toscana", color: "rosso", body: "medio", grapeVariety: "Sangiovese", alcoholPct: 13.5, vintageYear: 2019, bottlingYear: 2022, pairings: "Pasta al ragù, arrosti, salumi toscani", purchasePrice: 12, sellingPrice: 28, stock: 18, notes: "Ottimo rapporto qualità-prezzo" },
+    { id: "wine_4", name: "Amarone della Valpolicella", producer: "Masi", country: "Italia", region: "Veneto", color: "rosso", body: "forte", grapeVariety: "Corvina, Rondinella, Molinara", alcoholPct: 15, vintageYear: 2018, bottlingYear: 2022, pairings: "Selvaggina, formaggi erborinati, cioccolato fondente", purchasePrice: 28, sellingPrice: 58, stock: 4, notes: "" },
+    { id: "wine_5", name: "Montepulciano d'Abruzzo", producer: "Masciarelli", country: "Italia", region: "Abruzzo", color: "rosso", body: "medio", grapeVariety: "Montepulciano", alcoholPct: 13, vintageYear: 2021, bottlingYear: 2023, pairings: "Arrosticini, pasta alla chitarra, agnello", purchasePrice: 5, sellingPrice: 14, stock: 36, notes: "Vino della casa rosso" },
+    { id: "wine_6", name: "Gavi di Gavi", producer: "La Scolca", country: "Italia", region: "Piemonte", color: "bianco", body: "leggero", grapeVariety: "Cortese", alcoholPct: 12, vintageYear: 2023, bottlingYear: 2024, pairings: "Pesce crudo, frutti di mare, antipasti leggeri", purchasePrice: 9, sellingPrice: 22, stock: 14, notes: "" },
+    { id: "wine_7", name: "Vermentino di Sardegna", producer: "Argiolas", country: "Italia", region: "Sardegna", color: "bianco", body: "medio", grapeVariety: "Vermentino", alcoholPct: 13, vintageYear: 2023, bottlingYear: 2024, pairings: "Fregola ai frutti di mare, bottarga, crostacei", purchasePrice: 7, sellingPrice: 18, stock: 20, notes: "" },
+    { id: "wine_8", name: "Gewürztraminer", producer: "Tramin", country: "Italia", region: "Alto Adige", color: "bianco", body: "corposo", grapeVariety: "Gewürztraminer", alcoholPct: 14, vintageYear: 2022, bottlingYear: 2023, pairings: "Formaggi erborinati, cucina speziata, paté", purchasePrice: 11, sellingPrice: 26, stock: 10, notes: "Aromatico, molto richiesto" },
+    { id: "wine_9", name: "Prosecco Superiore Brut", producer: "Bisol", country: "Italia", region: "Veneto", color: "bollicine", body: "leggero", grapeVariety: "Glera", alcoholPct: 11.5, vintageYear: 2023, bottlingYear: 2024, pairings: "Aperitivo, antipasti, risotto ai frutti di mare", purchasePrice: 8, sellingPrice: 18, stock: 24, notes: "" },
+    { id: "wine_10", name: "Franciacorta Rosé", producer: "Ca' del Bosco", country: "Italia", region: "Lombardia", color: "rosé", body: "medio", grapeVariety: "Chardonnay, Pinot Nero", alcoholPct: 12.5, vintageYear: 2020, bottlingYear: 2023, pairings: "Salmone, crostacei, dessert alla frutta", purchasePrice: 22, sellingPrice: 48, stock: 5, notes: "" },
+    { id: "wine_11", name: "Cerasuolo d'Abruzzo", producer: "Valentini", country: "Italia", region: "Abruzzo", color: "rosé", body: "medio", grapeVariety: "Montepulciano", alcoholPct: 13, vintageYear: 2022, bottlingYear: 2023, pairings: "Antipasti di pesce, pizza, insalate estive", purchasePrice: 6, sellingPrice: 16, stock: 12, notes: "" },
+    { id: "wine_12", name: "Passito di Pantelleria", producer: "Ferrandes", country: "Italia", region: "Sicilia", color: "passito", body: "dolce", grapeVariety: "Zibibbo", alcoholPct: 14.5, vintageYear: 2020, bottlingYear: 2022, pairings: "Pasticceria secca, formaggi, foie gras", purchasePrice: 15, sellingPrice: 35, stock: 8, notes: "Dessert wine, servire fresco" },
+    { id: "wine_13", name: "Châteauneuf-du-Pape", producer: "Château Rayas", country: "Francia", region: "Rodano", color: "rosso", body: "corposo", grapeVariety: "Grenache", alcoholPct: 14.5, vintageYear: 2018, bottlingYear: 2021, pairings: "Stufati, cacciagione, formaggi stagionati", purchasePrice: 42, sellingPrice: 85, stock: 3, notes: "Annata eccezionale" },
+    { id: "wine_14", name: "Chablis Premier Cru", producer: "William Fèvre", country: "Francia", region: "Borgogna", color: "bianco", body: "medio", grapeVariety: "Chardonnay", alcoholPct: 13, vintageYear: 2021, bottlingYear: 2023, pairings: "Ostriche, pesce al forno, risotto agli asparagi", purchasePrice: 25, sellingPrice: 52, stock: 4, notes: "" },
+    { id: "wine_15", name: "Nero d'Avola Riserva", producer: "Planeta", country: "Italia", region: "Sicilia", color: "rosso", body: "corposo", grapeVariety: "Nero d'Avola", alcoholPct: 14, vintageYear: 2019, bottlingYear: 2022, pairings: "Caponata, pasta alla norma, agnello al forno", purchasePrice: 10, sellingPrice: 24, stock: 15, notes: "" },
+    { id: "wine_16", name: "Trebbiano d'Abruzzo", producer: "Emidio Pepe", country: "Italia", region: "Abruzzo", color: "bianco", body: "medio", grapeVariety: "Trebbiano", alcoholPct: 12.5, vintageYear: 2022, bottlingYear: 2023, pairings: "Pesce alla griglia, verdure grigliate", purchasePrice: 6, sellingPrice: 15, stock: 0, notes: "ESAURITO — riordinare" },
+    { id: "wine_17", name: "Lambrusco di Sorbara", producer: "Cleto Chiarli", country: "Italia", region: "Emilia-Romagna", color: "rosso", body: "leggero", grapeVariety: "Lambrusco", alcoholPct: 11, vintageYear: 2023, bottlingYear: 2024, pairings: "Salumi emiliani, gnocco fritto, tigelle", purchasePrice: 4, sellingPrice: 12, stock: 30, notes: "Frizzante, servire freddo" },
+    { id: "wine_18", name: "Primitivo di Manduria", producer: "Gianfranco Fino", country: "Italia", region: "Puglia", color: "rosso", body: "forte", grapeVariety: "Primitivo", alcoholPct: 15, vintageYear: 2020, bottlingYear: 2022, pairings: "Carne alla brace, orecchiette al ragù, burrata", purchasePrice: 18, sellingPrice: 42, stock: 2, notes: "Ultime bottiglie" },
+  ];
+
+  await Promise.all(
+    wines.map((wine) =>
+      prisma.wineCellarItem.upsert({
+        where: { id: wine.id },
+        update: {
+          tenantId: TENANT_ID,
+          name: wine.name,
+          producer: wine.producer,
+          country: wine.country,
+          region: wine.region,
+          color: wine.color,
+          body: wine.body,
+          grapeVariety: wine.grapeVariety,
+          alcoholPct: wine.alcoholPct,
+          vintageYear: wine.vintageYear,
+          bottlingYear: wine.bottlingYear,
+          pairings: wine.pairings,
+          purchasePrice: wine.purchasePrice,
+          sellingPrice: wine.sellingPrice,
+          stock: wine.stock,
+          notes: wine.notes,
+        },
+        create: {
+          id: wine.id,
+          tenantId: TENANT_ID,
+          name: wine.name,
+          producer: wine.producer,
+          country: wine.country,
+          region: wine.region,
+          color: wine.color,
+          body: wine.body,
+          grapeVariety: wine.grapeVariety,
+          alcoholPct: wine.alcoholPct,
+          vintageYear: wine.vintageYear,
+          bottlingYear: wine.bottlingYear,
+          pairings: wine.pairings,
+          purchasePrice: wine.purchasePrice,
+          sellingPrice: wine.sellingPrice,
+          stock: wine.stock,
+          notes: wine.notes,
+        },
+      }),
+    ),
+  );
+}
+
 async function main() {
   await ensurePlatformConfig();
   await upsertTenant();
@@ -1148,6 +1216,7 @@ async function main() {
   await upsertOperationalModules();
   await upsertRestaurantLayout();
   await upsertStaffShifts();
+  await upsertWineCellar();
   console.log("Seed completato con successo.");
 }
 
