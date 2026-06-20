@@ -125,12 +125,13 @@ function FerieCalendar({ staff, shiftPlans: initialPlans, today, t }: { staff: S
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 mb-1">
+        <div className="overflow-x-auto">
+        <div className="min-w-[480px] grid grid-cols-7 gap-1 mb-1">
           {["Lun","Mar","Mer","Gio","Ven","Sab","Dom"].map((d) => (
             <div key={d} className="py-1.5 text-center text-xs font-bold text-rw-muted">{d}</div>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="min-w-[480px] grid grid-cols-7 gap-1">
           {Array.from({ length: rows * 7 }, (_, i) => {
             const dayNum = i - startOffset + 1;
             if (dayNum < 1 || dayNum > lastDay.getDate()) return <div key={i} className="min-h-[64px] rounded-xl bg-rw-surfaceAlt/30" />;
@@ -150,6 +151,7 @@ function FerieCalendar({ staff, shiftPlans: initialPlans, today, t }: { staff: S
               </div>
             );
           })}
+        </div>
         </div>
       </Card>
 

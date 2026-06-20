@@ -5,7 +5,7 @@ import { Loader2, Minus, Plus, Search, Send, Trash2 } from "lucide-react";
 import { Modal } from "@/components/shared/modal";
 import { useOrders } from "@/components/orders/orders-context";
 import { useAuth } from "@/components/auth/auth-context";
-import { menuApi, type MenuItem, type OrderArea } from "@/lib/api-client";
+import { menuApi, cantinaApi, type MenuItem, type OrderArea, type WineCellarItem } from "@/lib/api-client";
 import type { SalaTable } from "./types";
 import type { CourseDraft } from "@/components/orders/types";
 import { useI18n } from "@/core/i18n/provider";
@@ -23,6 +23,7 @@ const AREA_BADGE: Record<string, string> = {
   pizzeria: "bg-yellow-500/15 text-yellow-400",
   bar: "bg-sky-500/15 text-sky-400",
   sala: "bg-rw-surfaceAlt text-rw-muted",
+  cantina: "bg-purple-500/15 text-purple-400",
 };
 
 function normalizeArea(raw: string): OrderArea {
@@ -40,6 +41,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
   const [waiter, setWaiter] = useState<string>(user?.name || user?.username || "");
   const [notes, setNotes] = useState("");
   const [menu, setMenu] = useState<MenuItem[]>([]);
+  const [wines, setWines] = useState<WineCellarItem[]>([]);
   const [loadingMenu, setLoadingMenu] = useState(false);
   const [menuError, setMenuError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -57,10 +59,13 @@ export function OrderSendModal({ table, open, onClose }: Props) {
   useEffect(() => {
     if (!open) return;
     setLoadingMenu(true);
-    menuApi
-      .listItems()
-      .then((items) => {
+    Promise.all([
+      menuApi.listItems(),
+      cantinaApi.list().catch(() => [] as WineCellarItem[]),
+    ])
+      .then(([items, wineItems]) => {
         setMenu(items.filter((item) => item.active !== false));
+        setWines(wineItems.filter((w) => w.stock > 0));
         setMenuError(null);
       })
       .catch((err) => setMenuError((err as Error).message || t("sala.modal.order.menuLoadError")))
@@ -71,21 +76,41 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     if (user && !waiter) setWaiter(user.name || user.username || "");
   }, [user, waiter]);
 
+  const winesAsMenuItems: MenuItem[] = useMemo(
+    () =>
+      wines.map((w) => ({
+        id: `wine-${w.id}`,
+        name: `🍷 ${w.name}${w.vintageYear ? ` ${w.vintageYear}` : ""}`,
+        category: "Cantina",
+        area: "bar",
+        price: w.sellingPrice,
+        code: "",
+        active: true,
+        recipeId: null,
+        notes: w.producer ? `${w.producer}${w.region ? ` · ${w.region}` : ""}` : "",
+        foodCostPct: null,
+      })),
+    [wines],
+  );
+
+  const allItems = useMemo(() => [...menu, ...winesAsMenuItems], [menu, winesAsMenuItems]);
+
   const categories = useMemo(() => {
-    const all = new Set(menu.map((item) => item.category).filter(Boolean));
+    const all = new Set(allItems.map((item) => item.category).filter(Boolean));
     return ["all", ...Array.from(all)];
-  }, [menu]);
+  }, [allItems]);
 
   const filteredMenu = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return menu.filter((item) => {
+    return allItems.filter((item) => {
       const matchCategory = categoryFilter === "all" || item.category === categoryFilter;
       const itemArea = (item.area || "cucina").toLowerCase();
-      const matchArea = areaFilter === "all" || itemArea === areaFilter;
+      const isCantina = item.id.startsWith("wine-");
+      const matchArea = areaFilter === "all" || (areaFilter === "cantina" ? isCantina : (!isCantina && itemArea === areaFilter));
       const matchSearch = q === "" || item.name.toLowerCase().includes(q);
       return matchCategory && matchArea && matchSearch;
     });
-  }, [menu, search, categoryFilter, areaFilter]);
+  }, [allItems, search, categoryFilter, areaFilter]);
 
   if (!table) return null;
 
@@ -293,7 +318,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">
               {t("sala.modal.order.addToCourse")
                 .replace("{n}", String(activeCourse))
-                .replace("{items}", String(menu.length))}
+                .replace("{items}", String(allItems.length))}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
@@ -314,6 +339,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                 <option value="cucina">🍳 {t("sala.modal.dest.cucina")}</option>
                 <option value="pizzeria">🍕 {t("sala.modal.dest.pizzeria")}</option>
                 <option value="bar">🍹 {t("sala.modal.dest.bar")}</option>
+                <option value="cantina">🍷 {t("sala.modal.dest.cantina")}</option>
               </select>
               <select
                 value={categoryFilter}
@@ -343,7 +369,8 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           {!loadingMenu && !menuError && (
             <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto sm:grid-cols-3">
               {filteredMenu.map((item) => {
-                const itemArea = (item.area || "cucina").toLowerCase();
+                const isCantina = item.id.startsWith("wine-");
+                const itemArea = isCantina ? "cantina" : (item.area || "cucina").toLowerCase();
                 const badgeCls = AREA_BADGE[itemArea] ?? AREA_BADGE.sala;
                 return (
                   <button
@@ -353,6 +380,9 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                     className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-left text-xs transition hover:border-rw-accent/30"
                   >
                     <span className="block font-semibold text-rw-ink">{item.name}</span>
+                    {item.notes && isCantina && (
+                      <span className="block text-[10px] text-rw-muted truncate">{item.notes}</span>
+                    )}
                     <div className="mt-0.5 flex items-center gap-1.5">
                       <span className="text-rw-muted">€{item.price.toFixed(2)}</span>
                       <span className={`rounded px-1 py-0.5 text-[10px] font-bold ${badgeCls}`}>

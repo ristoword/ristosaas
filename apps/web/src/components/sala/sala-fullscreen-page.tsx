@@ -85,7 +85,7 @@ export function SalaFullscreenPage() {
   return (
     <div className="flex h-dvh flex-col bg-rw-bg">
       {/* top bar */}
-      <header className="flex shrink-0 items-center justify-between border-b border-rw-line bg-rw-surface px-4 py-3">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-rw-line bg-rw-surface px-4 py-3">
         <div className="flex items-center gap-4">
           <Clock className="h-5 w-5 text-rw-accent" />
           <span className="font-display text-lg font-semibold tabular-nums text-rw-ink">
@@ -93,9 +93,9 @@ export function SalaFullscreenPage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           {(["libero", "aperto", "conto", "sporco"] as TableStatus[]).map((s) => (
-            <span key={s} className={cn("rounded-full border px-3 py-1 text-xs font-semibold", statusColors[s])}>
+            <span key={s} className={cn("rounded-full border px-2.5 py-1 text-xs font-semibold", statusColors[s])}>
               {statusLabels[s]} {counts[s] ?? 0}
             </span>
           ))}

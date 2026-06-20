@@ -74,7 +74,7 @@ type NotifPanelProps = {
 
 function NotificationPanel({ items, onMarkRead, onMarkAll, loading, t }: NotifPanelProps) {
   return (
-    <div className="absolute right-0 top-full mt-2 z-50 w-80 overflow-hidden rounded-2xl border border-rw-line bg-rw-surface shadow-2xl">
+    <div className="absolute right-0 top-full mt-2 z-50 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-rw-line bg-rw-surface shadow-2xl">
       <div className="flex items-center justify-between border-b border-rw-line px-4 py-3">
         <h3 className="text-sm font-bold text-rw-ink">{t("topbar.notifications")}</h3>
         {items.some((n) => !n.read) && (
@@ -156,7 +156,7 @@ type UserMenuProps = {
 
 function UserMenu({ name, role, email, initials, onLogout, t }: UserMenuProps) {
   return (
-    <div className="absolute right-0 top-full mt-2 z-50 w-64 overflow-hidden rounded-2xl border border-rw-line bg-rw-surface shadow-2xl">
+    <div className="absolute right-0 top-full mt-2 z-50 w-[min(16rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-rw-line bg-rw-surface shadow-2xl">
       <div className="flex items-center gap-3 border-b border-rw-line px-4 py-4">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rw-accent to-rw-accentSoft text-sm font-bold text-white">
           {initials}

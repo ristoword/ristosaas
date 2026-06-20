@@ -29,9 +29,11 @@ import { useTenantFeatures } from "@/components/auth/auth-context";
 import {
   ordersApi,
   menuApi,
+  cantinaApi,
   reportsApi,
   type Order,
   type MenuItem as ApiMenuItem,
+  type WineCellarItem,
   type DailyClosureReport,
   type ReportTrendsSnapshot,
 } from "@/lib/api-client";
@@ -129,13 +131,15 @@ export function CassaPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<ApiMenuItem[]>([]);
+  const [wineItems, setWineItems] = useState<WineCellarItem[]>([]);
   const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
 
   const fetchData = useCallback(() => {
-    return Promise.all([ordersApi.list(), menuApi.listItems()])
-      .then(([ordersData, menuData]) => {
+    return Promise.all([ordersApi.list(), menuApi.listItems(), cantinaApi.list().catch(() => [] as WineCellarItem[])])
+      .then(([ordersData, menuData, wineData]) => {
         setOrders(ordersData);
         setMenuItems(menuData);
+        setWineItems(wineData);
       })
       .catch((err) => console.error("Failed to fetch cassa data:", err));
   }, []);
@@ -179,6 +183,7 @@ export function CassaPage() {
   const TABS = [
     { id: "cassa", label: t("cassa.tab.tables") },
     { id: "menu", label: t("cassa.tab.menu") },
+    { id: "cantina", label: t("cassa.tab.cantina") },
     { id: "report", label: t("cassa.tab.report") },
   ];
 
@@ -204,6 +209,7 @@ export function CassaPage() {
         />
       )}
       {tab === "menu" && <MenuTab menuItems={menuItems} setMenuItems={setMenuItems} />}
+      {tab === "cantina" && <CantinaTab wines={wineItems} />}
       {tab === "report" && <ReportTab orders={orders} />}
 
       <AiChat context="cassa" open={aiOpen} onClose={() => setAiOpen(false)} title={t("cassa.ai.label")} />
@@ -603,6 +609,124 @@ function MenuTab({ menuItems, setMenuItems }: { menuItems: ApiMenuItem[]; setMen
           data={filtered}
           keyExtractor={(r) => r.id}
           emptyMessage={t("cassa.menu.notFound")}
+        />
+      </Card>
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Tab: Cantina                                                       */
+/* ================================================================== */
+
+const COLOR_STYLES: Record<string, string> = {
+  rosso: "bg-red-500/15 text-red-400",
+  bianco: "bg-amber-100/15 text-amber-300",
+  "rosé": "bg-pink-500/15 text-pink-400",
+  bollicine: "bg-yellow-400/15 text-yellow-300",
+  passito: "bg-orange-500/15 text-orange-400",
+  orange: "bg-orange-400/15 text-orange-300",
+};
+
+function CantinaTab({ wines }: { wines: WineCellarItem[] }) {
+  const { t } = useI18n();
+  const [search, setSearch] = useState("");
+  const [colorFilter, setColorFilter] = useState("all");
+
+  const colors = useMemo(
+    () => ["all", ...Array.from(new Set(wines.map((w) => w.color)))],
+    [wines],
+  );
+
+  const filtered = useMemo(
+    () =>
+      wines.filter((w) => {
+        if (colorFilter !== "all" && w.color !== colorFilter) return false;
+        if (search && !w.name.toLowerCase().includes(search.toLowerCase()) && !w.producer.toLowerCase().includes(search.toLowerCase())) return false;
+        return true;
+      }),
+    [wines, colorFilter, search],
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 rounded-xl border border-rw-line bg-rw-surfaceAlt p-1">
+          {colors.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setColorFilter(c)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition",
+                colorFilter === c ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-soft",
+              )}
+            >
+              {c === "all" ? t("cassa.cantina.all") : t(`cantina.color.${c}`)}
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-rw-muted" />
+          <input className={cn(INPUT, "pl-8")} placeholder={t("cassa.cantina.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+      </div>
+
+      <Card
+        title={t("cassa.cantina.title")}
+        description={`${filtered.length} ${t("cassa.cantina.wines")}`}
+      >
+        <DataTable
+          columns={[
+            {
+              key: "name" as const,
+              header: t("cassa.cantina.col.name"),
+              render: (r: WineCellarItem) => (
+                <div>
+                  <span className="font-medium text-rw-ink">{r.name}</span>
+                  {r.vintageYear && <span className="ml-1.5 text-xs text-rw-muted">{r.vintageYear}</span>}
+                </div>
+              ),
+            },
+            {
+              key: "producer" as const,
+              header: t("cassa.cantina.col.producer"),
+              render: (r: WineCellarItem) => (
+                <span className="text-rw-soft">{r.producer}{r.country ? ` · ${r.country}` : ""}</span>
+              ),
+            },
+            {
+              key: "color" as const,
+              header: t("cassa.cantina.col.color"),
+              render: (r: WineCellarItem) => (
+                <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", COLOR_STYLES[r.color] ?? "bg-rw-surfaceAlt text-rw-muted")}>
+                  {t(`cantina.color.${r.color}`)}
+                </span>
+              ),
+            },
+            {
+              key: "sellingPrice" as const,
+              header: t("cassa.cantina.col.price"),
+              render: (r: WineCellarItem) => <span className="font-bold text-rw-ink">€{r.sellingPrice.toFixed(2)}</span>,
+            },
+            {
+              key: "stock" as const,
+              header: t("cassa.cantina.col.stock"),
+              render: (r: WineCellarItem) => (
+                <span className={cn("text-xs font-semibold", r.stock === 0 ? "text-red-400" : r.stock <= 3 ? "text-amber-400" : "text-emerald-400")}>
+                  {r.stock} {t("cantina.bottles")}
+                </span>
+              ),
+            },
+            {
+              key: "alcoholPct" as const,
+              header: t("cassa.cantina.col.alcohol"),
+              render: (r: WineCellarItem) => <span className="text-rw-muted">{r.alcoholPct}%</span>,
+            },
+          ]}
+          data={filtered}
+          keyExtractor={(r) => r.id}
+          emptyMessage={t("cassa.cantina.empty")}
         />
       </Card>
     </div>

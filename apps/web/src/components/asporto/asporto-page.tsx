@@ -255,8 +255,9 @@ export function AsportoPage() {
 
           <div className="space-y-2">
             <label className={labelCls}>Articoli</label>
+            <div className="overflow-x-auto -mx-1 px-1">
             {fItems.map((item, idx) => (
-              <div key={idx} className="grid grid-cols-[1fr_80px_100px_auto] gap-2 items-end">
+              <div key={idx} className="grid min-w-[360px] grid-cols-[1fr_80px_100px_auto] gap-2 items-end mb-2">
                 <input
                   type="text"
                   placeholder="Nome prodotto"
@@ -288,6 +289,7 @@ export function AsportoPage() {
                 )}
               </div>
             ))}
+            </div>
             <button
               type="button"
               onClick={() => setFItems((prev) => [...prev, { name: "", qty: 1, price: 0 }])}

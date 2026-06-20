@@ -186,14 +186,14 @@ function NewOrderModal({ open, onClose, catalog, onSave }: NewOrderModalProps) {
                 <Plus className="h-3 w-3" /> Voce personalizzata
               </button>
             </div>
-            <div className="space-y-2">
+            <div className="overflow-x-auto -mx-1 px-1 space-y-2">
               {items.length === 0 && (
                 <p className="rounded-xl border border-dashed border-rw-line py-4 text-center text-xs text-rw-muted">
                   Aggiungi voci dal catalogo o inserisci manualmente
                 </p>
               )}
               {items.map((it, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_60px_80px_32px] gap-2 items-center">
+                <div key={idx} className="grid min-w-[300px] grid-cols-[1fr_60px_80px_32px] gap-2 items-center">
                   <input value={it.name} onChange={(e) => updateItem(idx, { name: e.target.value })}
                     placeholder="Descrizione" className={inputCls} />
                   <input type="number" min={1} value={it.qty} onChange={(e) => updateItem(idx, { qty: Number(e.target.value) })}

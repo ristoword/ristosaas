@@ -364,7 +364,7 @@ function WeekView({ weekStart, plans, staff, filterArea, canEdit, onAdd, onEdit,
                       <div className="mt-0.5 opacity-60 uppercase tracking-wide text-[9px]">{p.area}</div>
                     )}
                     {canEdit && (
-                      <div className="absolute right-1 top-1 hidden group-hover:flex gap-0.5">
+                      <div className="absolute right-1 top-1 flex gap-0.5 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button
                           type="button"
                           onClick={() => onEdit(p)}
@@ -437,13 +437,13 @@ function MonthView({ year, month, plans, filterArea, canEdit, onAdd, onEdit, onD
   const today = new Date();
 
   return (
-    <div>
-      <div className="grid grid-cols-7 gap-1 mb-1">
+    <div className="overflow-x-auto">
+      <div className="min-w-[480px] grid grid-cols-7 gap-1 mb-1">
         {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((d) => (
           <div key={d} className="py-1.5 text-center text-xs font-bold text-rw-muted">{d}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1">
+      <div className="min-w-[480px] grid grid-cols-7 gap-1">
         {Array.from({ length: rows * 7 }, (_, i) => {
           const dayNum = i - startOffset + 1;
           if (dayNum < 1 || dayNum > lastDay.getDate()) {
@@ -477,7 +477,7 @@ function MonthView({ year, month, plans, filterArea, canEdit, onAdd, onEdit, onD
                   >
                     <span className="truncate font-semibold">{p.staffName}</span>
                     {canEdit && (
-                      <span className="hidden group-hover:flex gap-0.5 ml-1 shrink-0">
+                      <span className="flex gap-0.5 ml-1 shrink-0 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button onClick={() => onEdit(p)} className="hover:opacity-80"><Edit2 className="h-2 w-2" /></button>
                         <button onClick={() => onDelete(p.id)} className="hover:opacity-80"><Trash2 className="h-2 w-2" /></button>
                       </span>

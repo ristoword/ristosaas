@@ -725,6 +725,64 @@ export const haccpApi = {
   delete: (id: string) => del<{ deleted: boolean }>(`/haccp/${id}`),
 };
 
+/* ─── Wine Cellar (Cantina) ─────────────────────── */
+
+export type WineCellarItem = {
+  id: string;
+  tenantId: string;
+  name: string;
+  producer: string;
+  country: string;
+  region: string;
+  color: string;
+  body: string;
+  grapeVariety: string;
+  alcoholPct: number;
+  vintageYear: number | null;
+  bottlingYear: number | null;
+  pairings: string;
+  purchasePrice: number;
+  sellingPrice: number;
+  showPurchasePrice: boolean;
+  stock: number;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WineCellarCreatePayload = {
+  name: string;
+  producer?: string;
+  country?: string;
+  region?: string;
+  color?: string;
+  body?: string;
+  grapeVariety?: string;
+  alcoholPct?: number;
+  vintageYear?: number | null;
+  bottlingYear?: number | null;
+  pairings?: string;
+  purchasePrice?: number;
+  sellingPrice?: number;
+  showPurchasePrice?: boolean;
+  stock?: number;
+  notes?: string;
+};
+
+export const cantinaApi = {
+  list: (params?: { color?: string; country?: string; q?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.color) qs.set("color", params.color);
+    if (params?.country) qs.set("country", params.country);
+    if (params?.q) qs.set("q", params.q);
+    const q = qs.toString();
+    return get<WineCellarItem[]>(`/cantina${q ? `?${q}` : ""}`);
+  },
+  create: (data: WineCellarCreatePayload) => post<WineCellarItem>("/cantina", data),
+  update: (id: string, data: Partial<WineCellarCreatePayload>) => put<WineCellarItem>(`/cantina/${id}`, data),
+  delete: (id: string) => del<{ deleted: boolean }>(`/cantina/${id}`),
+};
+
 /* ─── User sessions ─────────────────────────────── */
 
 export type UserSessionRecord = {
@@ -1174,9 +1232,73 @@ export type KitchenOperationalSnapshot = {
   };
 };
 
+export type CantinaAiSnapshot = {
+  generatedAt: string;
+  kpi: {
+    totalLabels: number;
+    totalStock: number;
+    totalStockValue: number;
+    avgMarginPct: number;
+    lowStockCount: number;
+    outOfStockCount: number;
+    highMarginCount: number;
+    lowMarginCount: number;
+    oldVintageCount: number;
+  };
+  lowStockAlerts: Array<{
+    id: string;
+    name: string;
+    producer: string;
+    stock: number;
+    sellingPrice: number;
+    suggestion: string;
+  }>;
+  outOfStock: Array<{
+    id: string;
+    name: string;
+    producer: string;
+    sellingPrice: number;
+    suggestion: string;
+  }>;
+  marginAnalysis: Array<{
+    id: string;
+    name: string;
+    producer: string;
+    purchasePrice: number;
+    sellingPrice: number;
+    marginPct: number;
+    status: "excellent" | "good" | "low" | "loss";
+    suggestion: string;
+  }>;
+  pricingSuggestions: Array<{
+    id: string;
+    name: string;
+    currentPrice: number;
+    suggestedPrice: number;
+    reason: string;
+  }>;
+  salesRecommendations: Array<{
+    id: string;
+    name: string;
+    producer: string;
+    reason: string;
+    priority: "high" | "medium" | "low";
+  }>;
+  vintageAlerts: Array<{
+    id: string;
+    name: string;
+    vintageYear: number;
+    age: number;
+    suggestion: string;
+  }>;
+  colorDistribution: Record<string, number>;
+  countryDistribution: Record<string, number>;
+};
+
 export const aiOpsApi = {
   kitchenOperationalInsights: (days = 14) =>
     get<KitchenOperationalSnapshot>(`/ai/kitchen/insights?mode=operational&days=${days}`),
+  cantinaInsights: () => get<CantinaAiSnapshot>("/ai/cantina"),
   proposals: {
     list: (params?: { status?: AiProposalStatus; type?: AiProposalType; limit?: number; open?: boolean }) => {
       const qs = new URLSearchParams();

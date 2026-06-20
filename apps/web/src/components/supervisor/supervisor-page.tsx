@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Users,
   UtensilsCrossed,
+  Wine,
   XCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -35,6 +36,7 @@ import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import {
   ordersApi,
   menuApi,
+  cantinaApi,
   warehouseApi,
   staffApi,
   archivioApi,
@@ -45,6 +47,7 @@ import {
   supervisorStorniApi,
   type Order,
   type MenuItem as ApiMenuItem,
+  type WineCellarItem,
   type FolioCharge,
   type GuestFolio,
   type HotelReservation,
@@ -134,6 +137,7 @@ export function SupervisorPage() {
     { id: "storico", label: t("supervisor.tab.history") },
     { id: "storni", label: t("supervisor.tab.storni") },
     { id: "menu", label: t("supervisor.tab.menu") },
+    { id: "cantina", label: t("supervisor.tab.cantina") },
     { id: "magazzino", label: t("supervisor.tab.warehouse") },
     { id: "unified", label: t("supervisor.tab.unified") },
   ];
@@ -158,6 +162,7 @@ export function SupervisorPage() {
   const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
   const [aiProposals, setAiProposals] = useState<AiProposal[]>([]);
   const [aiSnapshot, setAiSnapshot] = useState<KitchenOperationalSnapshot | null>(null);
+  const [wineItems, setWineItems] = useState<WineCellarItem[]>([]);
   const [unifiedFrom, setUnifiedFrom] = useState("");
   const [unifiedTo, setUnifiedTo] = useState("");
 
@@ -197,8 +202,9 @@ export function SupervisorPage() {
       reportsApi.trends(),
       aiOpsApi.proposals.list({ open: true, limit: 20 }),
       aiOpsApi.kitchenOperationalInsights(14),
+      cantinaApi.list().catch(() => [] as WineCellarItem[]),
     ])
-      .then(([ordersData, menuData, warehouseData, staffData, shiftsData, archivioData, roomsData, reservationsData, foliosData, chargesData, unifiedData, trendsData, proposalsData, snapshotData]) => {
+      .then(([ordersData, menuData, warehouseData, staffData, shiftsData, archivioData, roomsData, reservationsData, foliosData, chargesData, unifiedData, trendsData, proposalsData, snapshotData, wineData]) => {
         setOrders(ordersData);
         setMenuItems(menuData);
         setStockItems(warehouseData.items);
@@ -216,6 +222,7 @@ export function SupervisorPage() {
         setTrends(trendsData);
         setAiProposals(proposalsData.proposals);
         setAiSnapshot(snapshotData);
+        setWineItems(wineData);
       })
       .catch((err) => console.error("Failed to fetch supervisor data:", err))
       .finally(() => setLoading(false));
@@ -700,6 +707,13 @@ export function SupervisorPage() {
       )}
 
       {/* ============================================================ */}
+      {/*  TAB: Cantina                                                  */}
+      {/* ============================================================ */}
+      {tab === "cantina" && (
+        <SupervisorCantinaTab wines={wineItems} t={t} />
+      )}
+
+      {/* ============================================================ */}
       {/*  TAB: Magazzino                                               */}
       {/* ============================================================ */}
       {tab === "magazzino" && (
@@ -808,6 +822,151 @@ export function SupervisorPage() {
       )}
 
       <AiChat context="supervisor" open={aiOpen} onClose={() => setAiOpen(false)} title="AI Supervisor" />
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Sub-component: Supervisor Cantina Tab                               */
+/* ================================================================== */
+
+const WINE_COLOR_STYLES: Record<string, string> = {
+  rosso: "bg-red-500/15 text-red-400",
+  bianco: "bg-amber-100/15 text-amber-300",
+  "rosé": "bg-pink-500/15 text-pink-400",
+  bollicine: "bg-yellow-400/15 text-yellow-300",
+  passito: "bg-orange-500/15 text-orange-400",
+  orange: "bg-orange-400/15 text-orange-300",
+};
+
+function SupervisorCantinaTab({ wines, t }: { wines: WineCellarItem[]; t: (key: string) => string }) {
+  const [search, setSearch] = useState("");
+  const [colorFilter, setColorFilter] = useState("tutti");
+
+  const colors = useMemo(
+    () => ["tutti", ...Array.from(new Set(wines.map((w) => w.color)))],
+    [wines],
+  );
+
+  const filtered = useMemo(
+    () =>
+      wines.filter((w) => {
+        if (colorFilter !== "tutti" && w.color !== colorFilter) return false;
+        if (search && !w.name.toLowerCase().includes(search.toLowerCase()) && !w.producer.toLowerCase().includes(search.toLowerCase())) return false;
+        return true;
+      }),
+    [wines, colorFilter, search],
+  );
+
+  const totalValue = useMemo(
+    () => wines.reduce((s, w) => s + w.sellingPrice * w.stock, 0),
+    [wines],
+  );
+  const totalBottles = useMemo(
+    () => wines.reduce((s, w) => s + w.stock, 0),
+    [wines],
+  );
+  const lowStockCount = useMemo(
+    () => wines.filter((w) => w.stock > 0 && w.stock <= 3).length,
+    [wines],
+  );
+  const outOfStockCount = useMemo(
+    () => wines.filter((w) => w.stock === 0).length,
+    [wines],
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 sm:grid-cols-4">
+        <MetricCard icon={Wine} label={t("supervisor.cantina.labels")} value={String(wines.length)} sub={t("supervisor.cantina.inCellar")} />
+        <MetricCard icon={Package} label={t("supervisor.cantina.stock")} value={String(totalBottles)} sub={t("supervisor.cantina.bottles")} />
+        <MetricCard icon={DollarSign} label={t("supervisor.cantina.value")} value={`€${totalValue.toFixed(0)}`} sub={t("supervisor.cantina.stockValue")} />
+        <MetricCard icon={ShoppingCart} label={t("supervisor.cantina.alerts")} value={String(lowStockCount + outOfStockCount)} trend={lowStockCount + outOfStockCount > 0 ? "down" : "neutral"} sub={`${outOfStockCount} ${t("supervisor.cantina.outOfStock")}`} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 rounded-xl border border-rw-line bg-rw-surfaceAlt p-1">
+          {colors.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setColorFilter(c)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition",
+                colorFilter === c ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-soft",
+              )}
+            >
+              {c === "tutti" ? t("supervisor.cantina.allColors") : t(`cantina.color.${c}`)}
+            </button>
+          ))}
+        </div>
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-rw-muted" />
+          <input className={cn(inputCls, "pl-8")} placeholder={t("supervisor.cantina.search")} value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+      </div>
+
+      <Card title={t("supervisor.cantina.title")} description={`${filtered.length} ${t("supervisor.cantina.wines")}`}>
+        <DataTable
+          columns={[
+            {
+              key: "name" as const,
+              header: t("supervisor.dish"),
+              render: (r: WineCellarItem) => (
+                <div>
+                  <span className="font-medium text-rw-ink">{r.name}</span>
+                  {r.vintageYear && <span className="ml-1.5 text-xs text-rw-muted">{r.vintageYear}</span>}
+                </div>
+              ),
+            },
+            { key: "producer" as const, header: t("supervisor.cantina.producer") },
+            {
+              key: "color" as const,
+              header: t("supervisor.cantina.color"),
+              render: (r: WineCellarItem) => (
+                <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", WINE_COLOR_STYLES[r.color] ?? "bg-rw-surfaceAlt text-rw-muted")}>
+                  {t(`cantina.color.${r.color}`)}
+                </span>
+              ),
+            },
+            {
+              key: "sellingPrice" as const,
+              header: t("supervisor.price"),
+              render: (r: WineCellarItem) => <span className="font-bold">€{r.sellingPrice.toFixed(2)}</span>,
+            },
+            {
+              key: "purchasePrice" as const,
+              header: t("supervisor.cantina.purchasePrice"),
+              render: (r: WineCellarItem) => <span className="text-rw-muted">€{r.purchasePrice.toFixed(2)}</span>,
+            },
+            {
+              key: "stock" as const,
+              header: t("supervisor.available"),
+              render: (r: WineCellarItem) => (
+                <span className={cn("text-xs font-semibold", r.stock === 0 ? "text-red-400" : r.stock <= 3 ? "text-amber-400" : "text-emerald-400")}>
+                  {r.stock}
+                </span>
+              ),
+            },
+            {
+              key: "id" as const,
+              header: t("supervisor.cantina.margin"),
+              render: (r: WineCellarItem) => {
+                if (r.sellingPrice <= 0 || r.purchasePrice <= 0) return <span className="text-rw-muted">—</span>;
+                const m = ((r.sellingPrice - r.purchasePrice) / r.sellingPrice) * 100;
+                return (
+                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-bold", m >= 50 ? "bg-emerald-500/15 text-emerald-400" : m >= 30 ? "bg-amber-400/15 text-amber-400" : "bg-red-500/15 text-red-400")}>
+                    {m.toFixed(0)}%
+                  </span>
+                );
+              },
+            },
+          ]}
+          data={filtered}
+          keyExtractor={(r) => r.id}
+          emptyMessage={t("supervisor.cantina.empty")}
+        />
+      </Card>
     </div>
   );
 }
