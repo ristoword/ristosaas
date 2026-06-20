@@ -918,7 +918,8 @@ export const aiApi = {
     context: string;
     message: string;
     history?: Array<{ role: "user" | "assistant"; content: string }>;
-  }) => post<{ reply: string }>("/ai/chat", payload),
+    enableTools?: boolean;
+  }) => post<{ reply: string; actions?: string[] }>("/ai/chat", payload),
   history: (context?: string) => {
     const qs = context ? `?context=${encodeURIComponent(context)}` : "";
     return get<AiChatLog[]>(`/ai/history${qs}`);
