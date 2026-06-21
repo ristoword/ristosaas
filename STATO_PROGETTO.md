@@ -1,5 +1,5 @@
 # STATO PROGETTO — RistoSaaS
-**Ultimo aggiornamento:** Martedì 17 Giugno 2026 — 10:10
+**Ultimo aggiornamento:** Sabato 21 Giugno 2026 — 01:30
 
 ---
 
@@ -11,7 +11,7 @@
 | **Database** | ✅ Connesso | PostgreSQL su Railway (`gondola.proxy.rlwy.net:21479`) |
 | **Health endpoint** | ✅ 200 OK | `/api/health` → `{"status":"ok","db":"up"}` |
 | **Build TypeScript** | ✅ 0 errori | `tsc --noEmit` pulito |
-| **Linter** | ✅ 0 errori | Nessun warning su nessun file |
+| **Linter** | ✅ 0 errori | Solo warning pre-esistenti su dep array `t` |
 | **ORM** | ✅ Prisma 6.19.3 | Schema sincronizzato con DB (`prisma db push`) |
 | **Autenticazione** | ✅ JWT + sessioni | Rate limit login, blocco account, session versioning |
 | **RBAC** | ✅ Centralizzato | Matrice `API_ROLE_RULES` in `rbac.ts` — 7 ruoli supportati |
@@ -25,11 +25,12 @@
 | Tenant | 8 |
 | Utenti | 22 |
 | Licenze attive | 8 (tutte `all_included`) |
-| Partner/Dealer | 2 (Indonesia, Brasil) |
+| Partner/Dealer | 2 (Indonesia, Brasil) + gestione CRUD |
 | Ordini | 21 |
 | Piatti menu | 77 |
 | Ricette | 60 |
 | Prodotti magazzino | 33 |
+| Vini cantina | 18 (seed) |
 | Tavoli | 82 |
 | Staff | 15 |
 | Fornitori | 5 |
@@ -45,10 +46,12 @@
 | Aspetto | Stato |
 |---|---|
 | **Lingue supportate** | IT (Italiano), EN (English), NL (Nederlands), PT (Português BR) |
-| **Chiavi dizionario** | 1141 per ogni lingua — **tutte allineate** |
+| **Chiavi dizionario** | ~1160 per lingua — **tutte allineate** |
 | **SEO content** | 6 blocchi per lingua (LOCALE_META, HOMEPAGE, PILLAR, RESTAURANT, BLOG_INDEX, BLOG_POSTS) |
 | **Selettore lingua** | Presente in top-bar (desktop) e sidebar footer (mobile) |
 | **Pagine coperte** | Tutte le pagine operative e landing — nessun testo hardcoded |
+| **AI risponde nella lingua utente** | ✅ Risto e tutti gli AI Chat rispondono nella lingua impostata |
+| **Voce nella lingua utente** | ✅ Speech recognition con tag BCP-47 per locale (it-IT, en-US, nl-NL, pt-PT) |
 | **Responsive** | Testato — avatar utente sempre visibile, selettore lingua accessibile su mobile |
 
 ---
@@ -80,8 +83,9 @@
 - Creazione ordini con assegnazione area (cucina/pizzeria/bar)
 - **Append ordini**: se un tavolo ha già un ordine attivo, i nuovi item vengono aggiunti all'ordine esistente (non ne crea uno nuovo)
 - Il tavolo resta "occupato" fino a "Chiedi conto" o "Chiudi tavolo"
+- **Integrazione Cantina**: vini della cantina ordinabili direttamente dal popup ordini sala
 - Note comanda visibili
-- Filtro area nel menu sala (dropdown tutte/cucina/pizzeria/bar)
+- Filtro area nel menu sala (dropdown tutte/cucina/pizzeria/bar/cantina)
 - Badge area colorato per item
 - Vista fullscreen per tablet
 - Modal azioni tavolo (conto, chiudi, sposta)
@@ -119,6 +123,7 @@
 - Visualizzazione ordini per tavolo con aggregazione di tutti gli ordini del tavolo
 - "Chiudi tavolo" chiude tutti gli ordini associati
 - Pagamento online via Stripe (link di pagamento)
+- **Tab Cantina**: visualizzazione prezzi vini per il cassiere
 - Report giornaliero con revenue filtrato per data corrente
 - Error handling robusto su tutte le operazioni
 - Chiusura giornaliera con report fiscale
@@ -149,7 +154,19 @@
 - Lotti e storico costi
 - Valore inventario aggregato
 
-### 10. 👥 Staff
+### 10. 🍷 Cantina (Wine Cellar)
+**Stato: ✅ Completo — NUOVO**
+
+- CRUD completo vini con 15+ campi (produttore, paese, regione, colore, corpo, vitigno, gradazione, annata, abbinamenti, prezzo acquisto/vendita, stock)
+- **AI Insights**: pannello AI operativo con KPI, allerte stock, analisi margini, suggerimenti prezzi, raccomandazioni vendita, allerte annata
+- **Integrazione Sala**: vini ordinabili dal popup ordini con stock live
+- **Integrazione Cassa**: tab Cantina per visualizzare prezzi vini
+- **Integrazione Supervisor**: tab Cantina con margini e prezzi acquisto
+- 18 vini di esempio nel seed (italiani e francesi, con stock variabile per test AI)
+- Filtri per colore e ricerca
+- Tabella `WineCellarItem` con indici su tenantId+color e tenantId+country
+
+### 11. 👥 Staff
 **Stato: ✅ Completo**
 
 - Gestione dipendenti CRUD
@@ -159,14 +176,14 @@
 - Timbratura badge (clock in/out)
 - Link utente ↔ staff member con error handling
 
-### 11. 📅 Turni (Shifts)
+### 12. 📅 Turni (Shifts)
 **Stato: ✅ Completo**
 
 - Pianificazione turni per reparto
 - Persistiti su DB (`ShiftPlan`)
 - Raggruppati per giorno con elimina
 
-### 12. 🚚 Fornitori (Suppliers)
+### 13. 🚚 Fornitori (Suppliers)
 **Stato: ✅ Completo**
 
 - Anagrafica fornitori CRUD
@@ -175,49 +192,57 @@
 - Report acquisti
 - Invio ordini via email
 
-### 13. 👤 Clienti (Customers)
+### 14. 👤 Clienti (Customers)
 **Stato: ✅ Completo**
 
 - Anagrafica clienti CRUD
 - Storico ordini per cliente
 - 11 clienti registrati
 
-### 14. 👑 Owner (Proprietario)
+### 15. 👑 Owner (Proprietario)
 **Stato: ✅ Completo**
 
 - Dashboard analytics avanzate
 - Report vendite, trend, performance
 - Panoramica completa attività
 
-### 15. 🔍 Supervisor
+### 16. 🔍 Supervisor
 **Stato: ✅ Completo**
 
 - Dashboard supervisore
+- **Tab Cantina**: visualizzazione vini con prezzi acquisto e margini
 - Gestione storni
 - Monitoraggio operativo
 
-### 16. 🌐 Landing / Marketing
+### 17. 🌐 Landing / Marketing
 **Stato: ✅ Completo**
 
 - Homepage multilingua con SEO ottimizzato (IT/EN/NL/PT)
+- **Sezione Risto Voice AI**: showcase del sistema comandi vocali con screenshot, capacità e comandi esempio
 - Pagine pillar localizzate per slug SEO
 - Blog con post multilingua
 - Video demo incorporato nella homepage
 - Schema.org JSON-LD per software application
 - Sitemap e robots.txt
 
-### 17. 🤝 Reseller / Partner (Controllo Vendite)
-**Stato: ✅ Completo**
+### 18. 🤝 Reseller / Partner (Controllo Vendite)
+**Stato: ✅ Completo — POTENZIATO**
 
 - Pagina `/controllo-vendite` per dealer/reseller
-- Visualizza solo i clienti del proprio partner code
-- **Pricing multi-piano**: Solo Ristorante (€79, comm. €29) + All Inclusive (€279, comm. €59)
+- **Due tab**: Dashboard Vendite + Gestione Dealer (solo super_admin)
+- **CRUD Dealer completo**: crea, modifica, elimina dealer da qualsiasi paese
+- **Commissione fissa (€) o percentuale (%)**: scelta per ogni dealer
+- **Due tier prezzo**: Solo Ristorante + All Inclusive (opzionale) con commissione per tier
+- **Filtro dealer**: dropdown per filtrare clienti per dealer specifico
+- **Colonna dealer**: nella tabella clienti mostra chi ha portato ogni cliente
+- **Contatti dealer**: email, telefono, note interne
+- **Protezione eliminazione**: dealer con licenze collegate viene disattivato, non eliminato
 - Statistiche: clienti totali, licenze attive, scadute, commissioni totali
-- Tabella dettagliata con prezzo/commissione per piano licenza
-- Super admin vede tutti i partner
-- Partner attivi: **Indonesia** e **Brasil**
+- Super admin vede tutti i partner con gestione completa
+- Partner attivi: **Indonesia** e **Brasil** (seed) + qualsiasi nuovo dealer
+- API: `GET/POST/PUT/DELETE /api/reseller/partners` (solo super_admin)
 
-### 18. ⚙️ Super Admin
+### 19. ⚙️ Super Admin
 **Stato: ✅ Completo**
 
 - Gestione tenant (crea/modifica/elimina)
@@ -226,21 +251,45 @@
 - Partner code assegnabile alla licenza
 - Gestione utenti globale
 
-### 19. 🤖 AI Assistente
-**Stato: ✅ Funzionante**
+### 20. 🤖 AI Assistente
+**Stato: ✅ Completo — POTENZIATO**
 
-- Chat AI per cucina/magazzino
+- Chat AI per ogni reparto (cucina, cassa, magazzino, cantina, sala, bar, pizzeria, hotel, prenotazioni, supervisor)
+- **Risponde nella lingua dell'utente** (IT/EN/NL/PT) — automatico tramite i18n provider
 - Proposte AI con scheduling giornaliero
 - Applicazione proposte automatiche
+- **AI Cantina**: pannello insights dedicato con KPI, allerte stock, margini, suggerimenti prezzi
 
-### 20. 📧 Email & Notifiche
+### 21. 🎙️ Risto Comandi (AI Voice Commands)
+**Stato: ✅ Completo — NUOVO**
+
+- **Pagina dedicata** `/risto-comandi` con hub vocale + chat testuale
+- **Riconoscimento vocale** con Web Speech API, trascrizione live, lingua automatica
+- **OpenAI Function Calling** — l'AI esegue azioni REALI nel database:
+  - `create_recipe` — crea ricette con ingredienti, dosi e passaggi di preparazione
+  - `update_stock` — carica/scarica merci con movimento registrato in WarehouseMovement
+  - `search_stock` — cerca prodotti e mostra giacenze con stato sotto-scorta
+  - `add_menu_item` — aggiunge piatti al menu
+  - `add_wine` — aggiunge vini alla cantina con tutti i dettagli
+  - `update_wine_stock` — aggiorna stock bottiglie
+  - `prepare_supplier_order` — prepara lista ordine fornitore per prodotti sotto scorta
+  - `get_daily_summary` — riepilogo giornaliero: ordini, incassi, scorte, cantina
+- **8 tool functions** mappate a operazioni Prisma reali
+- **Comandi rapidi** e **esempi vocali** tradotti in 4 lingue
+- **Sidebar capacità** con lista azioni possibili per reparto
+- **Accessibile da sidebar** sotto "Oggi" con icona microfono
+- **Rate limiting**: 30 req/min + 500/giorno per utente
+- **Multi-tenant**: ogni operazione usa il tenantId dell'utente loggato
+- **Log AI**: ogni conversazione loggata in AiChatLog
+
+### 22. 📧 Email & Notifiche
 **Stato: ✅ Funzionante**
 
 - Configurazione SMTP per tenant
 - Template email personalizzabili
 - Sistema notifiche in-app con mark as read
 
-### 21. 🏷️ Moduli aggiuntivi
+### 23. 🏷️ Moduli aggiuntivi
 
 | Modulo | Stato |
 |---|---|
@@ -258,19 +307,20 @@
 
 ---
 
-## 🗄️ DB Schema — Modelli principali (63 modelli)
+## 🗄️ DB Schema — Modelli principali (64 modelli)
 
 | Modello | Scopo |
 |---|---|
 | `Tenant` | Multi-tenant principale |
 | `User` + `UserSession` | Utenti con ruolo e sessioni |
 | `TenantLicense` | Licenze per tenant con partner code |
-| `Partner` | Dealer/reseller (Indonesia, Brasil) con pricing multi-piano |
+| `Partner` | Dealer/reseller con commissione fissa o %, contatti, stato attivo |
 | `RestaurantOrder` + `RestaurantOrderItem` | Ordini sala con area per item |
 | `MenuItem` + `DailyDish` | Menu permanente + menu del giorno |
 | `Recipe` + `RecipeIngredient` + `RecipeStep` | Ricette con ingredienti e passaggi |
 | `WarehouseItem` + `WarehouseLocationStock` + `WarehouseMovement` | Magazzino completo |
 | `WarehouseEquipment` + `WarehouseLot` + `WarehouseCostHistory` | Equipaggiamento e lotti |
+| `WineCellarItem` | Cantina vini con 15+ campi |
 | `HotelRoom` + `HotelReservation` + `Stay` + `GuestFolio` | Hotel completo |
 | `HotelRatePlan` + `HousekeepingTask` + `HotelKeycard` | Tariffe, pulizie, chiavi |
 | `FolioCharge` + `RoomServiceCatalogItem` + `RoomServiceOrder` | Addebiti e room service |
@@ -287,7 +337,7 @@
 | `HaccpEntry` | Registri HACCP |
 | `HardwareDevice` + `PrintRoute` | Dispositivi e stampa |
 | `SupervisorStorno` | Storni supervisor |
-| `AiChatLog` + `AiProposal` | AI assistant |
+| `AiChatLog` + `AiProposal` | AI assistant e log conversazioni |
 | `EmailLog` + `EmailTemplate` + `TenantEmailConfig` | Sistema email |
 | `Notification` | Notifiche in-app |
 | `BillingSubscription` + `BillingEvent` | Stripe billing |
@@ -299,12 +349,12 @@
 
 | Metrica | Valore |
 |---|---|
-| Pagine (route) | **78** |
-| API routes | **151** |
-| Modelli DB | **63** |
-| Chiavi i18n per lingua | **1141** |
+| Pagine (route) | **79** |
+| API routes | **153** |
+| Modelli DB | **64** |
+| Chiavi i18n per lingua | **~1160** |
 | Lingue supportate | **4** (IT, EN, NL, PT) |
-| File sorgente modificati (ultimo commit) | **50** |
+| AI tools (function calling) | **8** |
 
 ---
 
@@ -316,7 +366,7 @@ NEXT_PUBLIC_APP_URL=        # URL produzione
 STRIPE_SECRET_KEY=          # per pagamenti QR e billing
 STRIPE_WEBHOOK_SECRET=      # webhook Stripe
 AI_SCHEDULER_TOKEN=         # per AI proposals/cron
-OPENAI_API_KEY=             # per AI chat cucina/magazzino
+OPENAI_API_KEY=             # per AI chat e Risto Comandi (una chiave, tutti i tenant)
 ```
 
 ---
@@ -348,12 +398,14 @@ OPENAI_API_KEY=             # per AI chat cucina/magazzino
 
 ## 📊 Commit storia recente (branch `main`)
 ```
-f87aea5  feat: i18n completo PT, bug fix globali, ordini sala append, pricing multi-piano partner
-70a6f58  feat(i18n+responsive): full nav/topbar translations IT/EN/NL, user menu always visible on mobile
-a6db96e  feat(super-admin): show temp password and copy buttons in tenant creation success screen
-7078c8a  fix(middleware): allow public video files (webm, mp4, ogg) without auth
-8208b1b  feat(landing): add demo video section below hero
-087601b  fix(super-admin): fix UserRole type to include reseller; fix password validation
+721dad8  feat(reseller): full dealer CRUD with fixed or percentage commissions
+7d853ab  feat(i18n): Risto responds in the user language (IT/EN/NL/PT)
+8b95c8d  feat(landing): add Risto Voice AI section with preview screenshot
+8c885e4  feat(risto): add AI voice command system with OpenAI function calling
+e222711  feat(cantina): add DB migration and seed with 18 Italian/French wines
+9fe3493  feat(cantina): add wine cellar module with AI insights and cross-module integration
+7b9d43a  fix(landing): video demo visibile in tutte le lingue (IT/EN/NL/PT)
+235ba40  fix(owner): aggiungere tutte le traduzioni i18n mancanti per pagina Owner
 ```
 
 ---
