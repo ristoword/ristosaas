@@ -9,6 +9,7 @@ import { HeroShowcase } from "@/components/landing/HeroShowcase";
 import { IntegrationFlowSection } from "@/components/landing/IntegrationFlowSection";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
+import { RistoVoiceSection } from "@/components/landing/RistoVoiceSection";
 import { SoftwareApplicationJsonLd } from "@/components/landing/SoftwareApplicationJsonLd";
 import type { Locale } from "@/core/i18n/types";
 
@@ -23,6 +24,7 @@ export function LocaleHomepage({ locale }: { locale: Locale }) {
       <LandingNavbar locale={locale} />
       <main>
         <HeroShowcase locale={locale} />
+        <RistoVoiceSection locale={locale} />
         <DemoVideoSection locale={locale} />
         <IntegrationFlowSection locale={locale} />
         <FeatureCards locale={locale} />
