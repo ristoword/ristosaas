@@ -103,8 +103,12 @@ export function ControlloVenditePage() {
         const body = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error ?? `Errore ${res.status}`);
       }
-      const json = await res.json() as { data: DashboardData };
-      setData(json.data);
+      const json = await res.json() as Partial<DashboardData>;
+      setData({
+        partner: json.partner ?? null,
+        licenses: Array.isArray(json.licenses) ? json.licenses : [],
+        summary: json.summary ?? { total: 0, active: 0, expired: 0, totalCommissionEuros: 0 },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore sconosciuto");
     } finally {
@@ -116,8 +120,9 @@ export function ControlloVenditePage() {
     try {
       const res = await fetch("/api/reseller/partners", { cache: "no-store" });
       if (res.ok) {
-        const json = await res.json() as { data: Partner[] };
-        setPartners(json.data);
+        const json = await res.json() as Partner[] | { data?: Partner[] };
+        const list = Array.isArray(json) ? json : (json.data ?? []);
+        setPartners(list);
         setIsSuperAdmin(true);
       }
     } catch { /* reseller role — no access, ignore */ }
@@ -328,7 +333,7 @@ export function ControlloVenditePage() {
                 <div className="flex items-center justify-center py-16 text-rw-muted text-sm">
                   <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> Caricamento…
                 </div>
-              ) : data?.licenses.length === 0 ? (
+              ) : !data?.licenses?.length ? (
                 <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-rw-muted">
                   <Users className="h-10 w-10 opacity-30" />
                   <p className="text-sm">Nessun cliente ancora registrato.</p>
@@ -379,7 +384,7 @@ export function ControlloVenditePage() {
                         </tr>
                       ))}
                     </tbody>
-                    {data && data.licenses.length > 0 && (
+                    {(data?.licenses?.length ?? 0) > 0 && (
                       <tfoot>
                         <tr className="border-t-2 border-rw-line bg-rw-surfaceAlt/60 font-semibold">
                           <td className="px-5 py-3 text-rw-ink" colSpan={isSuperAdmin && !filterPartner ? 6 : 5}>
