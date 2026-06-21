@@ -1197,6 +1197,52 @@ async function upsertWineCellar() {
   );
 }
 
+async function upsertPartners() {
+  const partners = [
+    {
+      code: "indonesia",
+      name: "Indonesia Partner",
+      country: "Indonesia",
+      commissionType: "fixed",
+      licensePrice: 79,
+      commissionEuros: 29,
+      commissionPct: 0,
+      allInclusivePrice: 279,
+      allInclusiveCommission: 59,
+      allInclusivePct: null,
+      email: "",
+      phone: "",
+      notes: "Partner ufficiale Indonesia",
+      active: true,
+    },
+    {
+      code: "brasil",
+      name: "Brasil Partner",
+      country: "Brasil",
+      commissionType: "fixed",
+      licensePrice: 79,
+      commissionEuros: 29,
+      commissionPct: 0,
+      allInclusivePrice: 279,
+      allInclusiveCommission: 59,
+      allInclusivePct: null,
+      email: "",
+      phone: "",
+      notes: "Partner ufficiale Brasile",
+      active: true,
+    },
+  ];
+
+  for (const p of partners) {
+    await prisma.partner.upsert({
+      where: { code: p.code },
+      update: { name: p.name, country: p.country },
+      create: p,
+    });
+  }
+  console.log(`  ✔ ${partners.length} partner/dealer`);
+}
+
 async function main() {
   await ensurePlatformConfig();
   await upsertTenant();
@@ -1217,6 +1263,7 @@ async function main() {
   await upsertRestaurantLayout();
   await upsertStaffShifts();
   await upsertWineCellar();
+  await upsertPartners();
   console.log("Seed completato con successo.");
 }
 

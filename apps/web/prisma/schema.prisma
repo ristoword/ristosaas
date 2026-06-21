@@ -440,10 +440,17 @@ model Partner {
   code                    String          @unique
   name                    String
   country                 String
+  email                   String          @default("")
+  phone                   String          @default("")
+  notes                   String          @default("")
+  commissionType          String          @default("fixed")
   licensePrice            Float
   commissionEuros         Float
+  commissionPct           Float           @default(0)
   allInclusivePrice       Float?
   allInclusiveCommission  Float?
+  allInclusivePct         Float?
+  active                  Boolean         @default(true)
   createdAt               DateTime        @default(now())
   updatedAt               DateTime        @updatedAt
   licenses                TenantLicense[]

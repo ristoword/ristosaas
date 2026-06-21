@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
       where: partnerCode ? { partnerCode } : { partnerCode: { not: null } },
       include: {
         tenant: { select: { name: true, id: true } },
-        partner: { select: { code: true, name: true, country: true, licensePrice: true, commissionEuros: true, allInclusivePrice: true, allInclusiveCommission: true } },
+        partner: { select: { code: true, name: true, country: true, commissionType: true, licensePrice: true, commissionEuros: true, commissionPct: true, allInclusivePrice: true, allInclusiveCommission: true, allInclusivePct: true } },
       },
       orderBy: { activatedAt: "desc" },
     });
@@ -48,9 +48,19 @@ export async function GET(req: NextRequest) {
       const price = isAllInclusive
         ? (l.partner?.allInclusivePrice ?? l.partner?.licensePrice ?? null)
         : (l.partner?.licensePrice ?? null);
-      const commission = isAllInclusive
-        ? (l.partner?.allInclusiveCommission ?? l.partner?.commissionEuros ?? null)
-        : (l.partner?.commissionEuros ?? null);
+
+      const isPercent = l.partner?.commissionType === "percent";
+      let commission: number | null;
+      if (isPercent) {
+        const pct = isAllInclusive
+          ? (l.partner?.allInclusivePct ?? l.partner?.commissionPct ?? 0)
+          : (l.partner?.commissionPct ?? 0);
+        commission = price != null ? Math.round((price * pct / 100) * 100) / 100 : null;
+      } else {
+        commission = isAllInclusive
+          ? (l.partner?.allInclusiveCommission ?? l.partner?.commissionEuros ?? null)
+          : (l.partner?.commissionEuros ?? null);
+      }
 
       return {
         tenantId: l.tenantId,
