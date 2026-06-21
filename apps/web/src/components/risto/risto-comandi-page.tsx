@@ -114,12 +114,12 @@ const COPY: Record<string, LocaleCopy> = {
     tipTitle: "Suggerimento",
     tipText: "Premi il pulsante del microfono e parla naturalmente. Risto capisce i comandi e li esegue in tempo reale. Puoi anche scrivere nella chat.",
     quickCommands: [
+      { label: "Situazione oggi", prompt: "Risto, dammi la situazione attuale di oggi" },
       { label: "Crea ricetta", prompt: "Risto, crea una nuova ricetta" },
       { label: "Controlla scorte", prompt: "Risto, come stiamo con le scorte?" },
       { label: "Aggiungi vino", prompt: "Risto, aggiungi un nuovo vino in cantina" },
       { label: "Lista ordine", prompt: "Risto, prepara la lista ordine fornitore" },
       { label: "Riepilogo giornata", prompt: "Risto, dammi il riepilogo di oggi" },
-      { label: "Aggiorna stock", prompt: "Risto, segna il carico di oggi" },
     ],
     examples: [
       "Risto crea una ricetta per la carbonara con guanciale, uova, pecorino e pepe nero",
@@ -136,7 +136,7 @@ const COPY: Record<string, LocaleCopy> = {
       warehouse: { title: "Magazzino", items: ["Caricare e scaricare merci", "Registrare bolle e consegne", "Cercare prodotti e giacenze", "Preparare liste ordine fornitore"] },
       cellar: { title: "Cantina", items: ["Aggiungere vini con tutti i dettagli", "Aggiornare stock bottiglie", "Controllare giacenze cantina"] },
       menu: { title: "Menu", items: ["Aggiungere piatti al menu", "Collegare ricette ai piatti"] },
-      report: { title: "Report", items: ["Riepilogo giornaliero completo", "Stato scorte e allerte"] },
+      report: { title: "Briefing", items: ["Situazione completa del giorno", "Prenotazioni, staff, cucina, magazzino", "Cose da fare e notifiche"] },
     },
   },
   en: {

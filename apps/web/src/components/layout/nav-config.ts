@@ -33,6 +33,7 @@ import {
   Package,
   Pizza,
   QrCode,
+  Radio,
   ScrollText,
   Settings,
   Shield,
@@ -82,6 +83,14 @@ export const navSections: NavSection[] = [
         hint: "Assistente AI operativo per ogni reparto.",
         href: "/ai-assistente",
         icon: Bot,
+        ready: true,
+      },
+      {
+        id: "situazione-giorno",
+        label: "Situazione del Giorno",
+        hint: "Briefing operativo completo con voce AI.",
+        href: "/situazione-giorno",
+        icon: Radio,
         ready: true,
       },
       {

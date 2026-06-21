@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
+import {
+  buildBriefingNarrative,
+  operationalBriefingRepository,
+} from "@/lib/db/repositories/operational-briefing.repository";
 
 /**
  * OpenAI function/tool definitions for "Risto" — the voice-operated AI assistant.
@@ -162,9 +166,21 @@ export const RISTO_TOOLS = [
   {
     type: "function" as const,
     function: {
+      name: "get_operational_briefing",
+      description:
+        "Restituisce il briefing operativo completo della giornata: prenotazioni, staff presente, comande attive, prodotti da preparare, magazzino sotto scorta, ordini fornitore in attesa, notifiche e cose da fare. Usala per 'dammi la situazione', 'situazione attuale', 'cosa devo fare oggi', 'briefing del giorno', 'riepilogo completo'.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "get_daily_summary",
       description:
-        "Restituisce un riepilogo operativo del giorno: ordini, incassi, scorte critiche, comande. Usala per 'come stiamo?', 'riepilogo giornata', 'stato ristorante'.",
+        "Restituisce un riepilogo sintetico del giorno: ordini, incassi, scorte critiche. Usala per 'come stiamo?', 'riepilogo veloce', 'stato ristorante'. Per un briefing completo preferisci get_operational_briefing.",
       parameters: {
         type: "object",
         properties: {
@@ -197,6 +213,8 @@ export async function executeRistoTool(
       return updateWineStock(args, tenantId);
     case "prepare_supplier_order":
       return prepareSupplierOrder(args, tenantId);
+    case "get_operational_briefing":
+      return getOperationalBriefing(tenantId);
     case "get_daily_summary":
       return getDailySummary(args, tenantId);
     default:
@@ -462,6 +480,16 @@ async function prepareSupplierOrder(args: Record<string, unknown>, tenantId: str
     success: true,
     message: `${lowStock.length} prodotti da riordinare:${lines.join("\n")}`,
     data: lowStock.map((i) => ({ name: i.name, qty: Number(i.qty), minStock: Number(i.minStock), toOrder: Number(i.minStock) - Number(i.qty), supplier: i.supplier })),
+  };
+}
+
+async function getOperationalBriefing(tenantId: string): Promise<ToolResult> {
+  const briefing = await operationalBriefingRepository.build(tenantId);
+  const narrative = buildBriefingNarrative(briefing);
+  return {
+    success: true,
+    message: narrative,
+    data: briefing,
   };
 }
 

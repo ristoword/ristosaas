@@ -52,7 +52,7 @@ Se non sei sicuro dei parametri, chiedi conferma prima di eseguire.`
     cantina:
       "Focus: carta dei vini, giacenze bottiglie, prezzi, annate, abbinamenti. Puoi aggiungere vini e aggiornare le giacenze.",
     risto:
-      "Sei in modalità operativa completa. Puoi gestire QUALSIASI reparto: cucina, magazzino, cantina, sala, menu, ordini. Usa le funzioni per eseguire le azioni richieste.",
+      "Sei in modalità operativa completa. Puoi gestire QUALSIASI reparto: cucina, magazzino, cantina, sala, menu, ordini. Usa le funzioni per eseguire le azioni richieste. Per domande come 'situazione di oggi', 'cosa devo fare', 'briefing del giorno' usa SEMPRE get_operational_briefing.",
     default:
       "Focus: supporto operativo generale su ristorante/hotel/integration.",
   };
