@@ -7,6 +7,7 @@ import {
   Archive,
   BarChart3,
   BedDouble,
+  BookOpen,
   BookUser,
   Bot,
   CalendarCheck,
@@ -519,6 +520,14 @@ export const navSections: NavSection[] = [
         visibleFor: ["owner", "super_admin", "supervisor"],
         vertical: "restaurant",
         feature: "restaurant",
+      },
+      {
+        id: "manuale",
+        label: "Manuale",
+        hint: "Guida completa per usare il gestionale.",
+        href: "/manuale",
+        icon: BookOpen,
+        ready: true,
       },
       {
         id: "owner",

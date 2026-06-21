@@ -48,4 +48,5 @@ export type PublicUser = {
   isLocked?: boolean;
   tenant?: TenantProfile | null;
   jti?: string | null;
+  partnerCode?: string | null;
 };

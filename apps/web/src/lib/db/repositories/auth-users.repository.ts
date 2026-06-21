@@ -10,6 +10,7 @@ type DbUser = {
   name: string;
   role: string;
   email: string;
+  partnerCode: string | null;
   sessionVersion: number;
   mustChangePassword: boolean;
   failedLoginAttempts: number;
@@ -28,6 +29,7 @@ function sanitizeUser(user: DbUser): PublicUser {
     name: user.name,
     role: user.role as UserRole,
     email: user.email,
+    partnerCode: user.partnerCode,
     sessionVersion: user.sessionVersion,
     mustChangePassword: user.mustChangePassword,
     failedLoginAttempts: user.failedLoginAttempts,
@@ -53,6 +55,7 @@ export const authUsersRepository = {
         name: true,
         role: true,
         email: true,
+        partnerCode: true,
         sessionVersion: true,
         mustChangePassword: true,
         failedLoginAttempts: true,
@@ -71,6 +74,7 @@ export const authUsersRepository = {
       name: true,
       role: true,
       email: true,
+      partnerCode: true,
       sessionVersion: true,
       mustChangePassword: true,
       failedLoginAttempts: true,
@@ -115,17 +119,10 @@ export const authUsersRepository = {
       where: { id: userId },
       data: { failedLoginAttempts: 0, lockedUntil: null },
       select: {
-        id: true,
-        tenantId: true,
-        username: true,
-        passwordHash: true,
-        name: true,
-        role: true,
-        email: true,
-        sessionVersion: true,
-        mustChangePassword: true,
-        failedLoginAttempts: true,
-        lockedUntil: true,
+        id: true, tenantId: true, username: true, passwordHash: true,
+        name: true, role: true, email: true, partnerCode: true,
+        sessionVersion: true, mustChangePassword: true,
+        failedLoginAttempts: true, lockedUntil: true,
       },
     });
     return sanitizeUser(updated);
@@ -144,17 +141,10 @@ export const authUsersRepository = {
         lockedUntil: null,
       },
       select: {
-        id: true,
-        tenantId: true,
-        username: true,
-        passwordHash: true,
-        name: true,
-        role: true,
-        email: true,
-        sessionVersion: true,
-        mustChangePassword: true,
-        failedLoginAttempts: true,
-        lockedUntil: true,
+        id: true, tenantId: true, username: true, passwordHash: true,
+        name: true, role: true, email: true, partnerCode: true,
+        sessionVersion: true, mustChangePassword: true,
+        failedLoginAttempts: true, lockedUntil: true,
       },
     });
     return { user: sanitizeUser(updated), temporaryPassword };
@@ -173,17 +163,10 @@ export const authUsersRepository = {
         lockedUntil: null,
       },
       select: {
-        id: true,
-        tenantId: true,
-        username: true,
-        passwordHash: true,
-        name: true,
-        role: true,
-        email: true,
-        sessionVersion: true,
-        mustChangePassword: true,
-        failedLoginAttempts: true,
-        lockedUntil: true,
+        id: true, tenantId: true, username: true, passwordHash: true,
+        name: true, role: true, email: true, partnerCode: true,
+        sessionVersion: true, mustChangePassword: true,
+        failedLoginAttempts: true, lockedUntil: true,
       },
     });
     return { ok: true as const, user: sanitizeUser(updated) };
@@ -197,17 +180,10 @@ export const authUsersRepository = {
       take: limit,
       orderBy: { username: "asc" },
       select: {
-        id: true,
-        tenantId: true,
-        username: true,
-        passwordHash: true,
-        name: true,
-        role: true,
-        email: true,
-        sessionVersion: true,
-        mustChangePassword: true,
-        failedLoginAttempts: true,
-        lockedUntil: true,
+        id: true, tenantId: true, username: true, passwordHash: true,
+        name: true, role: true, email: true, partnerCode: true,
+        sessionVersion: true, mustChangePassword: true,
+        failedLoginAttempts: true, lockedUntil: true,
       },
     });
     return users.map(sanitizeUser);

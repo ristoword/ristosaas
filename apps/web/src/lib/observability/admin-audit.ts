@@ -16,6 +16,8 @@ export type AdminAuditAction =
   | "tenant.email.test"
   | "user.unlock"
   | "user.temp_password"
+  | "user.force_change_password"
+  | "user.create"
   | "user.role.change"
   | "signup.provision";
 

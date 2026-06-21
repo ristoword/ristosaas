@@ -4,8 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
+  BadgeEuro,
   Building2,
+  Eye,
+  EyeOff,
   Globe,
+  Handshake,
   HardDrive,
   Key,
   Monitor,
@@ -22,6 +26,7 @@ import {
   UnlockKeyhole,
   RefreshCcw,
   Users,
+  UserPlus,
   Wrench,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -37,6 +42,7 @@ const tabs = [
   { id: "monitor", label: "Monitor Live" },
   { id: "tenants", label: "Tenants" },
   { id: "licenses", label: "Licenze" },
+  { id: "dealer", label: "Dealer / Reseller" },
   { id: "groups", label: "Gruppi Multi-locale" },
   { id: "maintenance", label: "Manutenzione" },
   { id: "access", label: "Accessi utenti" },
@@ -136,6 +142,21 @@ export function SuperAdminPage() {
   const [addTenantToGroupId, setAddTenantToGroupId] = useState<string | null>(null);
   const [addTenantValue, setAddTenantValue] = useState("");
 
+  type DealerPartner = {
+    id: string; code: string; name: string; country: string;
+    email: string; phone: string; notes: string;
+    commissionType: string; licensePrice: number; commissionEuros: number; commissionPct: number;
+    allInclusivePrice: number | null; allInclusiveCommission: number | null; allInclusivePct: number | null;
+    active: boolean; _count?: { licenses: number };
+  };
+  const [dealerUsers, setDealerUsers] = useState<AdminUser[]>([]);
+  const [dealerPartners, setDealerPartners] = useState<DealerPartner[]>([]);
+  const [dealerLoading, setDealerLoading] = useState(false);
+  const [dealerError, setDealerError] = useState<string | null>(null);
+  const [dealerFlash, setDealerFlash] = useState<string>("");
+  const [showCreateDealer, setShowCreateDealer] = useState(false);
+  const [newDealer, setNewDealer] = useState({ username: "", name: "", email: "", password: "", partnerCode: "" });
+
   const assistantUrl = process.env.NEXT_PUBLIC_SUPERADMIN_ASSISTANT_URL?.trim() ?? "";
 
   const refreshOnline = useCallback(async () => {
@@ -166,6 +187,23 @@ export function SuperAdminPage() {
       setGroupsError(e instanceof Error ? e.message : "Errore caricamento gruppi");
     } finally {
       setGroupsLoading(false);
+    }
+  }, []);
+
+  const refreshDealers = useCallback(async () => {
+    setDealerLoading(true);
+    setDealerError(null);
+    try {
+      const [usersRes, partnersRes] = await Promise.all([
+        api.admin.users.list(),
+        fetch("/api/reseller/partners", { cache: "no-store" }).then((r) => r.ok ? r.json() : { data: [] }),
+      ]);
+      setDealerUsers(usersRes.filter((u: AdminUser) => u.role === "reseller"));
+      setDealerPartners((partnersRes as { data?: DealerPartner[] }).data ?? partnersRes ?? []);
+    } catch (e) {
+      setDealerError(e instanceof Error ? e.message : "Errore caricamento dealer");
+    } finally {
+      setDealerLoading(false);
     }
   }, []);
 
@@ -282,6 +320,30 @@ export function SuperAdminPage() {
   useEffect(() => {
     if (tab === "groups") void refreshGroups();
   }, [tab, refreshGroups]);
+
+  useEffect(() => {
+    if (tab === "dealer") void refreshDealers();
+  }, [tab, refreshDealers]);
+
+  async function handleCreateDealer() {
+    setDealerError(null);
+    try {
+      const result = await api.admin.users.create({
+        username: newDealer.username,
+        name: newDealer.name,
+        email: newDealer.email,
+        password: newDealer.password,
+        role: "reseller",
+        ...(newDealer.partnerCode ? { partnerCode: newDealer.partnerCode } : {}),
+      } as Parameters<typeof api.admin.users.create>[0]);
+      setDealerFlash(`Dealer "${result.user.username}" creato. Password: ${result.password}`);
+      setNewDealer({ username: "", name: "", email: "", password: "", partnerCode: "" });
+      setShowCreateDealer(false);
+      void refreshDealers();
+    } catch (e) {
+      setDealerError(e instanceof Error ? e.message : "Errore creazione dealer");
+    }
+  }
 
   const filteredTenants = tenants.filter((t) => t.name.toLowerCase().includes(search.toLowerCase()));
   const filteredLicenses = licenses.filter((l) => l.key.toLowerCase().includes(search.toLowerCase()) || l.tenant.toLowerCase().includes(search.toLowerCase()));
@@ -742,7 +804,28 @@ export function SuperAdminPage() {
               { key: "name", header: "Nome" },
               { key: "role", header: "Ruolo" },
               { key: "email", header: "Email" },
-              { key: "mustChangePassword", header: "Cambio password", render: (u) => (u.mustChangePassword ? "Obbligatorio" : "OK") },
+              {
+                key: "mustChangePassword",
+                header: "Cambio password",
+                render: (u) => (
+                  <button
+                    type="button"
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
+                      u.mustChangePassword
+                        ? "border-amber-500/30 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+                        : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                    }`}
+                    onClick={() =>
+                      api.admin.users.forceChangePassword(u.id).then((result) => {
+                        setUsers((prev) => prev.map((user) => (user.id === result.user.id ? result.user : user)));
+                      })
+                    }
+                    title={u.mustChangePassword ? "Clicca per rimuovere obbligo" : "Clicca per forzare cambio password"}
+                  >
+                    {u.mustChangePassword ? "⚠ Obbligatorio" : "✓ OK"}
+                  </button>
+                ),
+              },
               { key: "isLocked", header: "Lock", render: (u) => (u.isLocked ? "Bloccato" : "Attivo") },
               {
                 key: "actions",
@@ -780,6 +863,285 @@ export function SuperAdminPage() {
             keyExtractor={(u) => u.id}
           />
         </Card>
+      )}
+
+      {tab === "dealer" && (
+        <div className="space-y-4">
+          {dealerFlash && (
+            <div className="rounded-xl border border-rw-accent/30 bg-rw-accent/10 px-4 py-3 text-sm text-rw-ink">
+              <p className="font-semibold text-rw-accent">Dealer creato con successo</p>
+              <p className="mt-1 text-xs">{dealerFlash}</p>
+              <button type="button" onClick={() => setDealerFlash("")} className="mt-2 text-xs text-rw-muted hover:text-rw-soft">Chiudi</button>
+            </div>
+          )}
+          {dealerError && (
+            <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">{dealerError}</div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <article className="rounded-2xl border border-rw-line bg-gradient-to-br from-emerald-500/15 to-emerald-400/5 p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Handshake className="h-4 w-4 text-emerald-400" />
+                <p className="text-sm font-medium text-rw-muted">Partner registrati</p>
+              </div>
+              <p className="mt-2 font-display text-3xl font-semibold text-emerald-400">{dealerPartners.length}</p>
+            </article>
+            <article className="rounded-2xl border border-rw-line bg-gradient-to-br from-blue-500/15 to-blue-400/5 p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-blue-400" />
+                <p className="text-sm font-medium text-rw-muted">Utenti dealer</p>
+              </div>
+              <p className="mt-2 font-display text-3xl font-semibold text-blue-400">{dealerUsers.length}</p>
+            </article>
+            <article className="rounded-2xl border border-rw-line bg-gradient-to-br from-amber-500/15 to-amber-400/5 p-5 shadow-sm">
+              <div className="flex items-center gap-2">
+                <BadgeEuro className="h-4 w-4 text-amber-400" />
+                <p className="text-sm font-medium text-rw-muted">Licenze assegnate</p>
+              </div>
+              <p className="mt-2 font-display text-3xl font-semibold text-amber-400">
+                {dealerPartners.reduce((sum, p) => sum + (p._count?.licenses ?? 0), 0)}
+              </p>
+            </article>
+          </div>
+
+          <Card title="Partner / Dealer" description="Gestisci i partner commerciali e i loro account di accesso.">
+            <div className="mb-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCreateDealer(!showCreateDealer)}
+                className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/85"
+              >
+                <UserPlus className="h-4 w-4" /> Nuovo dealer
+              </button>
+              <button
+                type="button"
+                onClick={() => void refreshDealers()}
+                disabled={dealerLoading}
+                className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surface px-4 py-2.5 text-sm font-semibold text-rw-ink hover:bg-rw-surfaceAlt disabled:opacity-50"
+              >
+                <RefreshCcw className={`h-4 w-4 ${dealerLoading ? "animate-spin" : ""}`} /> Aggiorna
+              </button>
+            </div>
+
+            {showCreateDealer && (
+              <div className="mb-4 rounded-xl border border-rw-accent/20 bg-rw-surfaceAlt p-4 space-y-3">
+                <p className="text-sm font-bold text-rw-ink">Crea nuovo account dealer</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-rw-muted mb-1">Username</label>
+                    <input
+                      className="w-full rounded-xl border border-rw-line bg-rw-surface px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none"
+                      placeholder="dealer.nomeparnter"
+                      value={newDealer.username}
+                      onChange={(e) => setNewDealer({ ...newDealer, username: e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, "") })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-rw-muted mb-1">Nome completo</label>
+                    <input
+                      className="w-full rounded-xl border border-rw-line bg-rw-surface px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none"
+                      placeholder="Mario Rossi"
+                      value={newDealer.name}
+                      onChange={(e) => setNewDealer({ ...newDealer, name: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-rw-muted mb-1">Email</label>
+                    <input
+                      type="email"
+                      className="w-full rounded-xl border border-rw-line bg-rw-surface px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none"
+                      placeholder="dealer@partner.com"
+                      value={newDealer.email}
+                      onChange={(e) => setNewDealer({ ...newDealer, email: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-rw-muted mb-1">Password iniziale</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-xl border border-rw-line bg-rw-surface px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none"
+                      placeholder="Min 6 caratteri"
+                      value={newDealer.password}
+                      onChange={(e) => setNewDealer({ ...newDealer, password: e.target.value })}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-rw-muted mb-1">Codice partner (opzionale — collega a partner esistente)</label>
+                    <select
+                      className="w-full rounded-xl border border-rw-line bg-rw-surface px-3 py-2.5 text-sm text-rw-ink focus:border-rw-accent focus:outline-none"
+                      value={newDealer.partnerCode}
+                      onChange={(e) => setNewDealer({ ...newDealer, partnerCode: e.target.value })}
+                    >
+                      <option value="">Nessun partner</option>
+                      {dealerPartners.map((p) => (
+                        <option key={p.id} value={p.code}>{p.name} ({p.country}) — {p.code}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={!newDealer.username || !newDealer.name || !newDealer.email || newDealer.password.length < 6}
+                    onClick={() => void handleCreateDealer()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white hover:bg-rw-accent/85 disabled:opacity-50"
+                  >
+                    <UserPlus className="h-4 w-4" /> Crea dealer
+                  </button>
+                  <button type="button" onClick={() => setShowCreateDealer(false)} className="text-xs text-rw-muted hover:text-rw-soft">Annulla</button>
+                </div>
+                <p className="text-xs text-rw-muted">Il dealer dovrà cambiare la password al primo accesso.</p>
+              </div>
+            )}
+
+            <DataTable
+              columns={[
+                {
+                  key: "username" as const,
+                  header: "Username",
+                  render: (u: AdminUser) => (
+                    <div>
+                      <p className="font-semibold text-rw-ink">{u.username}</p>
+                      <p className="text-xs text-rw-muted">{u.email}</p>
+                    </div>
+                  ),
+                },
+                { key: "name" as const, header: "Nome" },
+                {
+                  key: "role" as const,
+                  header: "Partner",
+                  render: (u: AdminUser) => {
+                    const partner = dealerPartners.find((p) => p.code === (u as AdminUser & { partnerCode?: string }).partnerCode);
+                    return partner ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-400">
+                        <Handshake className="h-3 w-3" /> {partner.name} ({partner.country})
+                      </span>
+                    ) : (
+                      <span className="text-xs text-rw-muted">— non assegnato</span>
+                    );
+                  },
+                },
+                {
+                  key: "mustChangePassword" as const,
+                  header: "Stato",
+                  render: (u: AdminUser) => (
+                    <div className="flex flex-col gap-1">
+                      {u.isLocked ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-400">
+                          Bloccato
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-400">
+                          Attivo
+                        </span>
+                      )}
+                      {u.mustChangePassword && (
+                        <span className="text-[10px] text-amber-400">Cambio pw obbligatorio</span>
+                      )}
+                    </div>
+                  ),
+                },
+                {
+                  key: "id" as const,
+                  header: "",
+                  render: (u: AdminUser) => (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-lg bg-rw-accent/15 px-2 py-1 text-xs font-semibold text-rw-accent"
+                        onClick={() =>
+                          api.admin.users.generateTempPassword(u.id).then((result) => {
+                            setDealerUsers((prev) => prev.map((d) => (d.id === result.user.id ? result.user : d)));
+                            setDealerFlash(`Password provvisoria per ${result.user.username}: ${result.temporaryPassword}`);
+                          })
+                        }
+                      >
+                        <RefreshCcw className="h-3.5 w-3.5" /> Reset password
+                      </button>
+                      {u.isLocked && (
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-400"
+                          onClick={() =>
+                            api.admin.users.unlock(u.id).then((result) => {
+                              setDealerUsers((prev) => prev.map((d) => (d.id === result.user.id ? result.user : d)));
+                            })
+                          }
+                        >
+                          <UnlockKeyhole className="h-3.5 w-3.5" /> Sblocca
+                        </button>
+                      )}
+                    </div>
+                  ),
+                },
+              ]}
+              data={dealerUsers}
+              keyExtractor={(u) => u.id}
+              emptyMessage="Nessun dealer registrato. Clicca 'Nuovo dealer' per crearne uno."
+            />
+          </Card>
+
+          {dealerPartners.length > 0 && (
+            <Card title="Dettaglio Partner" description="Prezzi, commissioni e licenze per partner.">
+              <div className="space-y-3">
+                {dealerPartners.map((p) => (
+                  <div key={p.id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rw-accent/15 ring-1 ring-rw-accent/30">
+                          <Handshake className="h-5 w-5 text-rw-accent" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-rw-ink">{p.name}</p>
+                          <p className="text-xs text-rw-muted">{p.country} — codice: <code className="rounded bg-rw-surface px-1 text-rw-accent">{p.code}</code></p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${p.active ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" : "border-red-500/30 bg-red-500/10 text-red-400"}`}>
+                          {p.active ? "Attivo" : "Disattivato"}
+                        </span>
+                        <button
+                          type="button"
+                          className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${p.active ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                          onClick={async () => {
+                            try {
+                              await fetch("/api/reseller/partners", {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: p.id, active: !p.active }),
+                              });
+                              void refreshDealers();
+                            } catch { /* ignore */ }
+                          }}
+                        >
+                          {p.active ? "Disattiva" : "Attiva"}
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-4 text-xs">
+                      <div className="rounded-lg bg-rw-surface p-2">
+                        <p className="text-rw-muted">Prezzo licenza</p>
+                        <p className="font-bold text-rw-ink">€{p.licensePrice}</p>
+                      </div>
+                      <div className="rounded-lg bg-rw-surface p-2">
+                        <p className="text-rw-muted">Commissione</p>
+                        <p className="font-bold text-rw-ink">€{p.commissionEuros}{p.commissionPct > 0 ? ` (${p.commissionPct}%)` : ""}</p>
+                      </div>
+                      <div className="rounded-lg bg-rw-surface p-2">
+                        <p className="text-rw-muted">All Inclusive</p>
+                        <p className="font-bold text-rw-ink">{p.allInclusivePrice ? `€${p.allInclusivePrice}` : "—"}</p>
+                      </div>
+                      <div className="rounded-lg bg-rw-surface p-2">
+                        <p className="text-rw-muted">Licenze vendute</p>
+                        <p className="font-bold text-rw-ink">{p._count?.licenses ?? 0}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </div>
       )}
 
       {tab === "groups" && (

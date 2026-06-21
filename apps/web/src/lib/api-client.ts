@@ -52,6 +52,7 @@ type AuthUser = {
 export type AdminUser = AuthUser & {
   failedLoginAttempts?: number;
   lockedUntil?: number | null;
+  partnerCode?: string | null;
 };
 export type AdminTenant = {
   id: string;
@@ -1443,6 +1444,10 @@ export const api = {
       list: () => get<AdminUser[]>("/admin/users"),
       unlock: (id: string) => post<{ user: AdminUser }>(`/admin/users/${id}/unlock`, {}),
       generateTempPassword: (id: string) => post<{ user: AdminUser; temporaryPassword: string }>(`/admin/users/${id}/temp-password`, {}),
+      forceChangePassword: (id: string) => post<{ user: AdminUser }>(`/admin/users/${id}/force-change-password`, {}),
+      create: (payload: { username: string; name: string; email: string; password: string; role: string; tenantId?: string }) =>
+        post<{ user: AdminUser; password: string }>("/admin/users", payload),
+      toggleActive: (id: string) => patch<{ user: AdminUser }>(`/admin/users/${id}`, { toggleActive: true }),
     },
   },
   kitchen: kitchenApi,
