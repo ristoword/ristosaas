@@ -16,21 +16,21 @@ const TEMPERATURE = Number(process.env.OPENAI_TEMPERATURE || 0.4);
 
 const RISTO_ROLES = ["owner", "supervisor", "cucina", "sala", "bar", "pizzeria", "magazzino", "cassa", "super_admin"] as const;
 
-function systemPromptForContext(context: string, isRisto: boolean) {
+const LANG_NAMES: Record<string, string> = { it: "italiano", en: "English", nl: "Nederlands", pt: "português" };
+const SPEECH_TAGS: Record<string, string> = { it: "it-IT", en: "en-US", nl: "nl-NL", pt: "pt-PT" };
+
+function systemPromptForContext(context: string, isRisto: boolean, locale = "it") {
+  const langName = LANG_NAMES[locale] || LANG_NAMES.it;
+  const langRule = `Rispondi SEMPRE in ${langName}.`;
+
   const ristoIdentity = isRisto
     ? `Sei "Risto", l'assistente vocale intelligente di RistoSimply. Il tuo nome è Risto.
-Ti parlano i dipendenti del ristorante/hotel. Rispondi SEMPRE in italiano, in modo amichevole ma professionale.
+Ti parlano i dipendenti del ristorante/hotel. ${langRule}
+Rispondi in modo amichevole ma professionale.
 Quando l'utente chiede di FARE qualcosa (creare ricette, aggiornare scorte, aggiungere vini, ecc.), USA le funzioni/tools disponibili per eseguire l'azione realmente nel gestionale.
 Dopo aver eseguito un'azione, conferma con un riepilogo chiaro di cosa hai fatto.
-Se non sei sicuro dei parametri, chiedi conferma prima di eseguire.
-Puoi gestire comandi vocali come:
-- "Risto crea una ricetta con questi ingredienti..."
-- "Risto segna 10 kg di filetto per stasera"
-- "Risto carica questa bolla dal fornitore..."
-- "Risto aggiungi un Barolo in cantina"
-- "Risto come stiamo oggi?"
-- "Risto prepara la lista verdure da ordinare"`
-    : "Sei l'assistente operativo di RistoSimply. Rispondi in italiano, in modo sintetico e pratico, con focus su azioni concrete.";
+Se non sei sicuro dei parametri, chiedi conferma prima di eseguire.`
+    : `Sei l'assistente operativo di RistoSimply. ${langRule} Rispondi in modo sintetico e pratico, con focus su azioni concrete.`;
 
   const byContext: Record<string, string> = {
     supervisor:
@@ -141,11 +141,13 @@ export async function POST(req: NextRequest) {
     message?: string;
     history?: AiMessage[];
     enableTools?: boolean;
+    locale?: string;
   }>(req);
 
   const message = payload.message?.trim();
   if (!message) return err("message is required");
   const context = (payload.context || "default").trim().toLowerCase();
+  const locale = (payload.locale || "it").trim().toLowerCase();
 
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
@@ -170,7 +172,7 @@ export async function POST(req: NextRequest) {
   const userRole = user.role || "";
   const canUseFunctions = isRisto && (RISTO_ROLES as readonly string[]).includes(userRole);
 
-  let systemPrompt = systemPromptForContext(context, isRisto);
+  let systemPrompt = systemPromptForContext(context, isRisto, locale);
   if (context === "cucina" || (isRisto && ["cucina", "risto"].includes(context))) {
     try {
       const snapshot = await aiKitchenRepository.snapshot(tenantId, 14);

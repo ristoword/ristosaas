@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Bot, Loader2, Send, Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { aiApi } from "@/lib/api-client";
+import { useI18n } from "@/core/i18n/provider";
 
 export type AiMessage = { role: "user" | "assistant"; content: string; ts: number };
 
@@ -12,10 +13,13 @@ type Props = {
   open: boolean;
   onClose: () => void;
   title?: string;
+  locale?: string;
   onAction?: (action: string, data: Record<string, unknown>) => void;
 };
 
-export function AiChat({ context, open, onClose, title }: Props) {
+export function AiChat({ context, open, onClose, title, locale: localeProp }: Props) {
+  const i18n = useI18n();
+  const locale = localeProp || i18n.locale;
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,7 +42,7 @@ export function AiChat({ context, open, onClose, title }: Props) {
       .map((m) => ({ role: m.role, content: m.content }));
 
     aiApi
-      .chat({ context, message: text, history })
+      .chat({ context, message: text, history, locale })
       .then((data) => {
         const reply = String(data.reply || "").trim();
         if (!reply) throw new Error("Risposta AI vuota");
@@ -56,7 +60,7 @@ export function AiChat({ context, open, onClose, title }: Props) {
         ]);
       })
       .finally(() => setLoading(false));
-  }, [input, loading, context, messages]);
+  }, [input, loading, context, messages, locale]);
 
   if (!open) return null;
 
