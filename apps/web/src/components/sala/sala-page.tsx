@@ -371,7 +371,7 @@ export function SalaPage() {
                   <button
                     type="button"
                     onClick={() => handleMarcia(order)}
-                    disabled={courseNums.indexOf(order.activeCourse) >= courseNums.length - 1}
+                    disabled={courseNums.every((n) => order.courseStates[String(n)] === "servito")}
                     className="flex-1 rounded-xl border border-rw-accent/30 bg-rw-accent/10 px-3 py-2 text-xs font-bold text-rw-accent transition hover:bg-rw-accent/20 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <Send className="mr-1 inline h-3.5 w-3.5" />

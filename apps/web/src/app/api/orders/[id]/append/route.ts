@@ -54,8 +54,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const mergedItems = [...existing.items, ...remappedItems];
 
   const newCourseStates: Record<string, CourseStatus> = { ...existing.courseStates };
-  for (const c of courseRemap.values()) {
-    newCourseStates[String(c)] = "queued";
+  const newCourseNumbers = [...courseRemap.values()].sort((a, b) => a - b);
+  for (const c of newCourseNumbers) {
+    newCourseStates[String(c)] = "in_attesa";
   }
 
   const mergedNotes = payload.notes?.trim()
@@ -64,6 +65,9 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       : payload.notes.trim()
     : existing.notes;
 
+  const allCourseNums = [...new Set(mergedItems.map((i) => i.course))].sort((a, b) => a - b);
+  const firstPending = allCourseNums.find((n) => newCourseStates[String(n)] !== "servito");
+  const newActiveCourse = firstPending ?? newCourseNumbers[0] ?? existing.activeCourse;
   const statusUpdate = existing.status === "servito" ? "in_attesa" : existing.status;
 
   const updated = await ordersRepository.update(tenantId, id, {
@@ -71,6 +75,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     courseStates: newCourseStates,
     notes: mergedNotes,
     status: statusUpdate,
+    activeCourse: newActiveCourse,
   });
 
   if (!updated) return err("Failed to update order", 500);
