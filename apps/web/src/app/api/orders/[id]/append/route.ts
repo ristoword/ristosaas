@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   const existing = await ordersRepository.get(tenantId, id);
   if (!existing) return err("Order not found", 404);
 
-  if (["chiuso", "annullato", "servito"].includes(existing.status)) {
+  if (["chiuso", "annullato", "conto_richiesto"].includes(existing.status)) {
     return err("Cannot add items to a closed/cancelled order", 400);
   }
 
@@ -64,10 +64,13 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       : payload.notes.trim()
     : existing.notes;
 
+  const statusUpdate = existing.status === "servito" ? "in_attesa" : existing.status;
+
   const updated = await ordersRepository.update(tenantId, id, {
     items: mergedItems,
     courseStates: newCourseStates,
     notes: mergedNotes,
+    status: statusUpdate,
   });
 
   if (!updated) return err("Failed to update order", 500);
