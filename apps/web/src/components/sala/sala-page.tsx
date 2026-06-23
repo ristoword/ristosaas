@@ -188,6 +188,11 @@ export function SalaPage() {
       }
       case "chiedi-conto": {
         await tablesApi.patchStatus(tbl.id, "conto").catch(console.error);
+        for (const order of ordersForTable) {
+          if (!["chiuso", "annullato", "conto_richiesto"].includes(order.status)) {
+            await patchStatus(order.id, "conto_richiesto").catch(console.error);
+          }
+        }
         await refreshTables();
         break;
       }

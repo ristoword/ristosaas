@@ -149,7 +149,7 @@ export function CassaPage() {
     reportsApi.trends().then(setTrends).catch(() => setTrends(null));
   }, [fetchData]);
 
-  const servedOrders = useMemo(() => orders.filter((o) => o.status === "servito"), [orders]);
+  const servedOrders = useMemo(() => orders.filter((o) => o.status === "servito" || o.status === "conto_richiesto"), [orders]);
   const tavoliDaChiudere = useMemo(
     () => new Set(servedOrders.filter((o) => o.table).map((o) => o.table)).size,
     [servedOrders],

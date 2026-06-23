@@ -1499,7 +1499,8 @@ export type OrderStatus =
   | "pronto"
   | "servito"
   | "chiuso"
-  | "annullato";
+  | "annullato"
+  | "conto_richiesto";
 export type OrderOnlinePaymentStatus = "unpaid" | "paid";
 export type OrderArea = "sala" | "cucina" | "bar" | "pizzeria";
 export type OrderItem = {
