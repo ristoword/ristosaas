@@ -80,14 +80,14 @@ export function TableActionsModal({
     { id: "apri-tavolo", label: t("sala.action.apriTavolo"), icon: DoorOpen, tone: "success" },
     { id: "cancella-tavolo", label: t("sala.action.cancellaTavolo"), icon: Trash2, tone: "danger" },
     { id: "prendi-ordine", label: t("sala.action.prendiOrdine"), icon: ClipboardList, tone: "accent" },
-    { id: "menu-casa", label: t("sala.action.menuCasa"), icon: BookOpen },
-    { id: "menu-giorno", label: t("sala.action.menuGiorno"), icon: CalendarDays },
+    { id: "menu-casa", label: "Menu della Casa", icon: BookOpen, tone: "accent" },
+    { id: "menu-giorno", label: "Menu del Giorno", icon: CalendarDays, tone: "accent" },
+    { id: "ordine-bevande", label: "Menu Bevande", icon: Wine, tone: "accent" },
     { id: "fuori-menu", label: t("sala.action.fuoriMenu"), icon: ScrollText },
     { id: "marcia-portata", label: t("sala.action.marciaPortata"), icon: Send, tone: "accent" },
     { id: "chiudi-tavolo", label: t("sala.action.chiudiTavolo"), icon: CircleDot },
     { id: "chiedi-conto", label: t("sala.action.chiediConto"), icon: Banknote, tone: "accent" },
     { id: "tavolo-libero", label: t("sala.action.tavoloLibero"), icon: UtensilsCrossed, tone: "success" },
-    { id: "ordine-bevande", label: t("sala.action.ordineBevande"), icon: Wine },
   ];
 
   const destLabels: Record<NoteDestinazione, string> = {
@@ -123,11 +123,13 @@ export function TableActionsModal({
 
   const statoLabel = t(`sala.status.${table.stato}`);
 
+  const orderActions: AzioneId[] = ["prendi-ordine", "menu-casa", "menu-giorno", "ordine-bevande"];
+
   const navActions: Record<AzioneId, string | null> = {
-    "menu-casa": "/menu-admin",
-    "menu-giorno": "/daily-menu",
+    "menu-casa": null,
+    "menu-giorno": null,
     "fuori-menu": "/menu-admin",
-    "ordine-bevande": "/bar",
+    "ordine-bevande": null,
     "prendi-ordine": null,
     "marcia-portata": null,
     "chiudi-tavolo": null,
@@ -138,7 +140,7 @@ export function TableActionsModal({
   };
 
   async function simulaAzione(id: AzioneId, label: string) {
-    if (id === "prendi-ordine" && onSendOrder) {
+    if (orderActions.includes(id) && onSendOrder) {
       onSendOrder(table!);
       return;
     }
