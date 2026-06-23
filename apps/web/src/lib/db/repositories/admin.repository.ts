@@ -6,7 +6,7 @@ import {
   type EnsureTenantDefaultsSummary,
 } from "@/lib/db/repositories/tenant-defaults.bootstrap";
 
-type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
+type ProductPlan = "restaurant_only" | "hotel_only" | "all_included" | "risto_premium" | "risto_premium_gold" | "hotel_premium" | "hotel_premium_gold";
 
 /**
  * Griglia percentuale per i tavoli di sala (UI usa left:%/top:%).
@@ -46,8 +46,10 @@ async function bootstrapMinimalTenantResources(
   tenantId: string,
   plan: ProductPlan,
 ) {
-  const hasRestaurant = plan === "restaurant_only" || plan === "all_included";
-  const hasHotel = plan === "hotel_only" || plan === "all_included";
+  const RESTAURANT_PLANS: ProductPlan[] = ["restaurant_only", "all_included", "risto_premium", "risto_premium_gold", "hotel_premium", "hotel_premium_gold"];
+  const HOTEL_PLANS: ProductPlan[] = ["hotel_only", "all_included", "hotel_premium", "hotel_premium_gold"];
+  const hasRestaurant = RESTAURANT_PLANS.includes(plan);
+  const hasHotel = HOTEL_PLANS.includes(plan);
   const summary: {
     restaurantRooms: number;
     restaurantTables: number;
@@ -186,7 +188,7 @@ export const adminRepository = {
   async createTenantWithLicense(payload: {
     name: string;
     slug: string;
-    plan: "restaurant_only" | "hotel_only" | "all_included";
+    plan: ProductPlan;
     billingCycle: "monthly" | "annual";
     seats: number;
     /** Months until license expires (default 12). Clamped 1–120. */
@@ -209,10 +211,15 @@ export const adminRepository = {
     const months = Math.min(120, Math.max(1, rawMonths));
     const expiresAt = new Date(now);
     expiresAt.setMonth(expiresAt.getMonth() + months);
-    const enabledFeaturesByPlan: Record<"restaurant_only" | "hotel_only" | "all_included", Array<"restaurant" | "hotel" | "integration_room_charge" | "integration_unified_folio" | "integration_meal_plans">> = {
+    type FeatureCode = "restaurant" | "hotel" | "integration_room_charge" | "integration_unified_folio" | "integration_meal_plans";
+    const enabledFeaturesByPlan: Record<ProductPlan, FeatureCode[]> = {
       restaurant_only: ["restaurant"],
       hotel_only: ["hotel"],
       all_included: ["restaurant", "hotel", "integration_room_charge", "integration_unified_folio", "integration_meal_plans"],
+      risto_premium: ["restaurant"],
+      risto_premium_gold: ["restaurant"],
+      hotel_premium: ["restaurant", "hotel", "integration_room_charge", "integration_unified_folio", "integration_meal_plans"],
+      hotel_premium_gold: ["restaurant", "hotel", "integration_room_charge", "integration_unified_folio", "integration_meal_plans"],
     };
 
     return prisma.$transaction(async (tx) => {

@@ -9,6 +9,7 @@ import { HeroShowcase } from "@/components/landing/HeroShowcase";
 import { IntegrationFlowSection } from "@/components/landing/IntegrationFlowSection";
 import { LandingFooter } from "@/components/landing/LandingFooter";
 import { LandingNavbar } from "@/components/landing/LandingNavbar";
+import { PricingSection } from "@/components/landing/PricingSection";
 import { RistoVoiceSection } from "@/components/landing/RistoVoiceSection";
 import { SoftwareApplicationJsonLd } from "@/components/landing/SoftwareApplicationJsonLd";
 import type { Locale } from "@/core/i18n/types";
@@ -31,6 +32,7 @@ export function LocaleHomepage({ locale }: { locale: Locale }) {
         <DashboardPreview />
         <BenefitsSection locale={locale} />
         <BrandTrustSection locale={locale} />
+        <PricingSection locale={locale} />
         <ContactSection locale={locale} />
         <FinalCta locale={locale} />
       </main>

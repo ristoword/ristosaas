@@ -14,11 +14,14 @@ import {
 
 type Props = { locale?: Locale };
 
+const NAV_PREZZI: Record<Locale, string> = { it: "Prezzi", en: "Pricing", nl: "Prijzen", pt: "Preços" };
+
 function buildLinks(locale: Locale, copy: HomepageCopy) {
   const base = locale === "it" ? "" : `/${locale}`;
   return [
     { href: `${base}#come-funziona`, label: copy.navComeFunziona },
     { href: `${base}#funzioni`, label: copy.navFunzioni },
+    { href: `${base}#prezzi`, label: NAV_PREZZI[locale] },
     { href: pillarPath(locale), label: copy.navIntegrato },
     { href: `${base}#demo`, label: copy.navDemo },
   ];

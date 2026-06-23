@@ -11,6 +11,10 @@ enum ProductPlan {
   restaurant_only
   hotel_only
   all_included
+  risto_premium
+  risto_premium_gold
+  hotel_premium
+  hotel_premium_gold
 }
 
 enum CustomerType {

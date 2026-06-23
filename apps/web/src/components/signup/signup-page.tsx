@@ -1,14 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { CheckCircle2, Sparkles } from "lucide-react";
 
-type Plan = "restaurant_only" | "hotel_only" | "all_included";
+type Plan = "restaurant_only" | "hotel_only" | "all_included" | "risto_premium" | "risto_premium_gold" | "hotel_premium" | "hotel_premium_gold";
 type Cycle = "monthly" | "annual";
 
 const PLANS: { id: Plan; label: string; description: string }[] = [
-  { id: "restaurant_only", label: "Ristorante", description: "Sala, cucina, cassa, magazzino, delivery." },
-  { id: "hotel_only", label: "Hotel", description: "Reception, camere, housekeeping, rate plans." },
+  { id: "risto_premium", label: "Risto Premium (5 locali)", description: "Sala, cucina, cassa, magazzino, AI. Fino a 5 ristoranti." },
+  { id: "risto_premium_gold", label: "Risto Premium Gold", description: "Enterprise ristorazione. Ristoranti illimitati." },
+  { id: "hotel_premium", label: "Hotel Premium (5 strutture)", description: "PMS + ristorante integrati. Fino a 5 strutture." },
+  { id: "hotel_premium_gold", label: "Hotel Premium Gold", description: "Enterprise hospitality. Tenant illimitati." },
+  { id: "restaurant_only", label: "Ristorante Base", description: "Sala, cucina, cassa, magazzino, delivery." },
+  { id: "hotel_only", label: "Hotel Base", description: "Reception, camere, housekeeping, rate plans." },
   { id: "all_included", label: "All Included", description: "Ristorante + hotel integrati, folio unico." },
 ];
 
@@ -26,12 +31,18 @@ function suggestUsername(name: string) {
   return `${base}.owner`.slice(0, 40);
 }
 
+const VALID_PLAN_IDS = PLANS.map((p) => p.id);
+
 export function SignupPage() {
+  const searchParams = useSearchParams();
+  const initialPlan = searchParams.get("plan");
+  const defaultPlan: Plan = initialPlan && VALID_PLAN_IDS.includes(initialPlan as Plan) ? (initialPlan as Plan) : "risto_premium";
+
   const [tenantName, setTenantName] = useState("");
   const [ownerName, setOwnerName] = useState("");
   const [ownerEmail, setOwnerEmail] = useState("");
   const [ownerUsername, setOwnerUsername] = useState("");
-  const [plan, setPlan] = useState<Plan>("all_included");
+  const [plan, setPlan] = useState<Plan>(defaultPlan);
   const [cycle, setCycle] = useState<Cycle>("monthly");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

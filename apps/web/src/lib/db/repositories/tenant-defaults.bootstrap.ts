@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 
-export type TenantPlanForDefaults = "restaurant_only" | "hotel_only" | "all_included";
+export type TenantPlanForDefaults = "restaurant_only" | "hotel_only" | "all_included" | "risto_premium" | "risto_premium_gold" | "hotel_premium" | "hotel_premium_gold";
 
 export type EnsureTenantDefaultsSummary = {
   hotelRoomsAdded: number;
@@ -395,8 +395,10 @@ export async function ensureTenantDefaults(
   tenantId: string,
   plan: TenantPlanForDefaults,
 ): Promise<EnsureTenantDefaultsSummary> {
-  const hasRestaurant = plan === "restaurant_only" || plan === "all_included";
-  const hasHotel = plan === "hotel_only" || plan === "all_included";
+  const RESTAURANT_PLANS: TenantPlanForDefaults[] = ["restaurant_only", "all_included", "risto_premium", "risto_premium_gold", "hotel_premium", "hotel_premium_gold"];
+  const HOTEL_PLANS: TenantPlanForDefaults[] = ["hotel_only", "all_included", "hotel_premium", "hotel_premium_gold"];
+  const hasRestaurant = RESTAURANT_PLANS.includes(plan);
+  const hasHotel = HOTEL_PLANS.includes(plan);
   let hotelRoomsAdded = 0;
   if (hasHotel) {
     hotelRoomsAdded = await ensureDefaultHotelRooms(tx, tenantId);

@@ -4,11 +4,16 @@ import { prisma } from "@/lib/db/prisma";
 import { stripePostForm } from "@/lib/billing/stripe-client";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 
-type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
+type ProductPlan = "restaurant_only" | "hotel_only" | "all_included" | "risto_premium" | "risto_premium_gold" | "hotel_premium" | "hotel_premium_gold";
 type BillingCycle = "monthly" | "annual";
 
+const VALID_PLANS: ProductPlan[] = [
+  "restaurant_only", "hotel_only", "all_included",
+  "risto_premium", "risto_premium_gold", "hotel_premium", "hotel_premium_gold",
+];
+
 function validPlan(value: unknown): value is ProductPlan {
-  return value === "restaurant_only" || value === "hotel_only" || value === "all_included";
+  return typeof value === "string" && VALID_PLANS.includes(value as ProductPlan);
 }
 
 function validCycle(value: unknown): value is BillingCycle {
@@ -28,6 +33,22 @@ function resolvePriceId(plan: ProductPlan, billingCycle: BillingCycle) {
     all_included: {
       monthly: process.env.STRIPE_PRICE_ALL_INCLUDED_MONTHLY,
       annual: process.env.STRIPE_PRICE_ALL_INCLUDED_ANNUAL,
+    },
+    risto_premium: {
+      monthly: process.env.STRIPE_PRICE_RISTO_PREMIUM_MONTHLY,
+      annual: process.env.STRIPE_PRICE_RISTO_PREMIUM_MONTHLY,
+    },
+    risto_premium_gold: {
+      monthly: process.env.STRIPE_PRICE_RISTO_PREMIUM_GOLD_MONTHLY,
+      annual: process.env.STRIPE_PRICE_RISTO_PREMIUM_GOLD_MONTHLY,
+    },
+    hotel_premium: {
+      monthly: process.env.STRIPE_PRICE_HOTEL_PREMIUM_MONTHLY,
+      annual: process.env.STRIPE_PRICE_HOTEL_PREMIUM_MONTHLY,
+    },
+    hotel_premium_gold: {
+      monthly: process.env.STRIPE_PRICE_HOTEL_PREMIUM_GOLD_MONTHLY,
+      annual: process.env.STRIPE_PRICE_HOTEL_PREMIUM_GOLD_MONTHLY,
     },
   };
   return map[plan][billingCycle] || null;

@@ -7,7 +7,7 @@ type StripeLikeEvent = {
   data?: { object?: any };
 };
 
-type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
+type ProductPlan = "restaurant_only" | "hotel_only" | "all_included" | "risto_premium" | "risto_premium_gold" | "hotel_premium" | "hotel_premium_gold";
 type TenantFeatureCode =
   | "restaurant"
   | "hotel"
@@ -27,6 +27,10 @@ const PLAN_FEATURES: Record<ProductPlan, TenantFeatureCode[]> = {
   restaurant_only: ["restaurant"],
   hotel_only: ["hotel"],
   all_included: ["restaurant", "hotel", "integration_room_charge", "integration_unified_folio", "integration_meal_plans"],
+  risto_premium: ["restaurant"],
+  risto_premium_gold: ["restaurant"],
+  hotel_premium: ["restaurant", "hotel", "integration_room_charge", "integration_unified_folio", "integration_meal_plans"],
+  hotel_premium_gold: ["restaurant", "hotel", "integration_room_charge", "integration_unified_folio", "integration_meal_plans"],
 };
 
 const ALL_FEATURES: TenantFeatureCode[] = [
@@ -65,8 +69,13 @@ function parseSeats(value: unknown, fallback = 25) {
   return Math.floor(parsed);
 }
 
+const VALID_PLANS: ProductPlan[] = [
+  "restaurant_only", "hotel_only", "all_included",
+  "risto_premium", "risto_premium_gold", "hotel_premium", "hotel_premium_gold",
+];
+
 function parsePlan(value: unknown): ProductPlan | null {
-  if (value === "restaurant_only" || value === "hotel_only" || value === "all_included") return value;
+  if (typeof value === "string" && VALID_PLANS.includes(value as ProductPlan)) return value as ProductPlan;
   return null;
 }
 
@@ -128,6 +137,40 @@ function resolveEntitlementFromPriceId(priceId: string | null): EntitlementPaylo
       plan: "all_included",
       seats: parseSeats(process.env.STRIPE_SEATS_ALL_INCLUDED, 25),
       billingCycle: "annual",
+    };
+  }
+
+  const ristoPremium = process.env.STRIPE_PRICE_RISTO_PREMIUM_MONTHLY;
+  const ristoPremiumGold = process.env.STRIPE_PRICE_RISTO_PREMIUM_GOLD_MONTHLY;
+  const hotelPremium = process.env.STRIPE_PRICE_HOTEL_PREMIUM_MONTHLY;
+  const hotelPremiumGold = process.env.STRIPE_PRICE_HOTEL_PREMIUM_GOLD_MONTHLY;
+
+  if (ristoPremium) {
+    catalogue[ristoPremium] = {
+      plan: "risto_premium",
+      seats: parseSeats(process.env.STRIPE_SEATS_RISTO_PREMIUM, 5),
+      billingCycle: "monthly",
+    };
+  }
+  if (ristoPremiumGold) {
+    catalogue[ristoPremiumGold] = {
+      plan: "risto_premium_gold",
+      seats: parseSeats(process.env.STRIPE_SEATS_RISTO_PREMIUM_GOLD, 999),
+      billingCycle: "monthly",
+    };
+  }
+  if (hotelPremium) {
+    catalogue[hotelPremium] = {
+      plan: "hotel_premium",
+      seats: parseSeats(process.env.STRIPE_SEATS_HOTEL_PREMIUM, 5),
+      billingCycle: "monthly",
+    };
+  }
+  if (hotelPremiumGold) {
+    catalogue[hotelPremiumGold] = {
+      plan: "hotel_premium_gold",
+      seats: parseSeats(process.env.STRIPE_SEATS_HOTEL_PREMIUM_GOLD, 999),
+      billingCycle: "monthly",
     };
   }
 
