@@ -1,108 +1,109 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Star } from "lucide-react";
 import type { Locale } from "@/core/i18n/types";
+import { dictionaries } from "@/core/i18n/dictionaries";
 
-type PlanCard = {
-  badge: string;
+type PlanDef = {
+  badgeKey: string;
   badgeColor: string;
-  name: string;
-  description: string;
+  nameKey: string;
+  descKey: string;
   price: string;
   stripePlanKey: string;
   recommended?: boolean;
-  features: string[];
+  featureKeys: string[];
 };
 
-const PLANS: PlanCard[] = [
+const PLANS: PlanDef[] = [
   {
-    badge: "RISTORAZIONE",
+    badgeKey: "pricing.badge.ristorazione",
     badgeColor: "text-emerald-400",
-    name: "RistoSaaS Risto Premium",
-    description: "Gestisci fino a 5 ristoranti da un'unica piattaforma cloud.",
+    nameKey: "pricing.plan.ristoPremium",
+    descKey: "pricing.desc.ristoPremium",
     price: "349",
     stripePlanKey: "risto_premium",
-    features: [
-      "Sala e tavoli",
-      "Comande cucina, bar e pizzeria",
-      "KDS professionale",
-      "Magazzino",
-      "Food Cost",
-      "Cantina AI",
-      "CRM clienti",
-      "HACCP",
-      "Prenotazioni",
-      "QR Menu e QR Ordering",
-      "AI Risto Assistant",
-      "Briefing Operativo AI",
-      "Dashboard multi-locale fino a 5 ristoranti",
+    featureKeys: [
+      "pricing.feat.salaETavoli",
+      "pricing.feat.comandeCucinaBarPizzeria",
+      "pricing.feat.kds",
+      "pricing.feat.magazzino",
+      "pricing.feat.foodCost",
+      "pricing.feat.cantinaAi",
+      "pricing.feat.crm",
+      "pricing.feat.haccp",
+      "pricing.feat.prenotazioni",
+      "pricing.feat.qrMenu",
+      "pricing.feat.aiAssistant",
+      "pricing.feat.briefingAi",
+      "pricing.feat.multiLocale5",
     ],
   },
   {
-    badge: "ENTERPRISE",
+    badgeKey: "pricing.badge.enterprise",
     badgeColor: "text-landing-magenta",
-    name: "RistoSaaS Risto Premium Gold",
-    description: "Versione enterprise per gruppi di ristorazione. Ristoranti illimitati.",
+    nameKey: "pricing.plan.ristoPremiumGold",
+    descKey: "pricing.desc.ristoPremiumGold",
     price: "999",
     stripePlanKey: "risto_premium_gold",
     recommended: true,
-    features: [
-      "Tutte le funzioni Premium",
-      "Ristoranti illimitati",
-      "Dashboard centralizzata",
-      "Controllo multi-locale avanzato",
-      "KPI aggregati",
-      "Monitoraggio centralizzato",
-      "Gestione gruppi e proprietà",
+    featureKeys: [
+      "pricing.feat.tuttePremium",
+      "pricing.feat.ristorantiIllimitati",
+      "pricing.feat.dashboardCentralizzata",
+      "pricing.feat.controlloMultiLocale",
+      "pricing.feat.kpiAggregati",
+      "pricing.feat.monitoraggioCentralizzato",
+      "pricing.feat.gestioneGruppi",
     ],
   },
   {
-    badge: "HOSPITALITY",
+    badgeKey: "pricing.badge.hospitality",
     badgeColor: "text-sky-400",
-    name: "RistoSaaS Hotel Premium",
-    description: "Piattaforma completa per hotel, resort e strutture ricettive con gestione ristorante integrata. Fino a 5 strutture.",
+    nameKey: "pricing.plan.hotelPremium",
+    descKey: "pricing.desc.hotelPremium",
     price: "999",
     stripePlanKey: "hotel_premium",
-    features: [
-      "PMS Hotel",
-      "Prenotazioni camere",
-      "Check-in / Check-out",
-      "Room Planner",
-      "Housekeeping",
-      "Room Service",
-      "Guest Folio",
-      "Addebiti in camera",
-      "QR Services",
-      "Ristorante completo",
-      "Cantina",
-      "Magazzino",
-      "AI Manager",
-      "Briefing Operativo AI",
-      "Dashboard multi-locale fino a 5 strutture",
+    featureKeys: [
+      "pricing.feat.pmsHotel",
+      "pricing.feat.prenotazioniCamere",
+      "pricing.feat.checkInOut",
+      "pricing.feat.roomPlanner",
+      "pricing.feat.housekeeping",
+      "pricing.feat.roomService",
+      "pricing.feat.guestFolio",
+      "pricing.feat.addebitiCamera",
+      "pricing.feat.qrServices",
+      "pricing.feat.ristoranteCompleto",
+      "pricing.feat.cantina",
+      "pricing.feat.magazzino",
+      "pricing.feat.aiManager",
+      "pricing.feat.briefingAi",
+      "pricing.feat.multiLocale5Hotel",
     ],
   },
   {
-    badge: "ENTERPRISE HOTEL",
+    badgeKey: "pricing.badge.enterpriseHotel",
     badgeColor: "text-amber-400",
-    name: "RistoSaaS Hotel Premium Gold",
-    description: "Soluzione enterprise per catene alberghiere, resort e gruppi hospitality. Tenant illimitati.",
+    nameKey: "pricing.plan.hotelPremiumGold",
+    descKey: "pricing.desc.hotelPremiumGold",
     price: "1.999",
     stripePlanKey: "hotel_premium_gold",
     recommended: true,
-    features: [
-      "Tutte le funzioni Hotel Premium",
-      "Hotel illimitati",
-      "Ristoranti illimitati",
-      "Multi-tenant enterprise",
-      "Dashboard centralizzata globale",
-      "Controllo operativo in tempo reale",
-      "Report consolidati",
-      "AI Manager multi-struttura",
-      "Gestione gruppi hospitality",
+    featureKeys: [
+      "pricing.feat.tutteHotelPremium",
+      "pricing.feat.hotelIllimitati",
+      "pricing.feat.ristorantiIllimitati",
+      "pricing.feat.multiTenant",
+      "pricing.feat.dashboardGlobale",
+      "pricing.feat.controlloRealtime",
+      "pricing.feat.reportConsolidati",
+      "pricing.feat.aiManagerMulti",
+      "pricing.feat.gestioneHospitality",
     ],
   },
 ];
 
-const COPY: Record<Locale, { eyebrow: string; h2: string; lead: string; ctaStart: string; ctaDemo: string; perMonth: string }> = {
+const COPY: Record<Locale, { eyebrow: string; h2: string; lead: string; ctaStart: string; ctaDemo: string; perMonth: string; recommended: string; demoSubject: string; demoBody: string }> = {
   it: {
     eyebrow: "Piani e Prezzi",
     h2: "Scegli il piano perfetto per la tua struttura",
@@ -110,6 +111,9 @@ const COPY: Record<Locale, { eyebrow: string; h2: string; lead: string; ctaStart
     ctaStart: "Inizia Ora",
     ctaDemo: "Richiedi Demo",
     perMonth: "/ mese",
+    recommended: "Consigliato",
+    demoSubject: "Richiesta demo RistoSimply",
+    demoBody: "Buongiorno, vorrei richiedere una demo di RistoSimply.",
   },
   en: {
     eyebrow: "Plans & Pricing",
@@ -118,6 +122,9 @@ const COPY: Record<Locale, { eyebrow: string; h2: string; lead: string; ctaStart
     ctaStart: "Start Now",
     ctaDemo: "Request Demo",
     perMonth: "/ month",
+    recommended: "Recommended",
+    demoSubject: "RistoSimply demo request",
+    demoBody: "Hello, I would like to request a demo of RistoSimply.",
   },
   nl: {
     eyebrow: "Plannen & Prijzen",
@@ -126,6 +133,9 @@ const COPY: Record<Locale, { eyebrow: string; h2: string; lead: string; ctaStart
     ctaStart: "Start Nu",
     ctaDemo: "Demo Aanvragen",
     perMonth: "/ maand",
+    recommended: "Aanbevolen",
+    demoSubject: "RistoSimply demo aanvraag",
+    demoBody: "Goedendag, ik zou graag een demo van RistoSimply willen aanvragen.",
   },
   pt: {
     eyebrow: "Planos e Preços",
@@ -134,14 +144,20 @@ const COPY: Record<Locale, { eyebrow: string; h2: string; lead: string; ctaStart
     ctaStart: "Comece Agora",
     ctaDemo: "Solicitar Demo",
     perMonth: "/ mês",
+    recommended: "Recomendado",
+    demoSubject: "Pedido de demo RistoSimply",
+    demoBody: "Bom dia, gostaria de solicitar uma demo do RistoSimply.",
   },
 };
 
 export function PricingSection({ locale = "it" }: { locale?: Locale } = {}) {
   const copy = COPY[locale];
+  const dict = dictionaries[locale];
+  const tx = (key: string) => dict[key] ?? key;
+
   const demoHref = `mailto:hello@gestionesemplificata.com?subject=${encodeURIComponent(
-    "Richiesta demo RistoSimply",
-  )}&body=${encodeURIComponent("Buongiorno, vorrei richiedere una demo di RistoSimply.")}`;
+    copy.demoSubject,
+  )}&body=${encodeURIComponent(copy.demoBody)}`;
 
   return (
     <section className="relative py-20 md:py-28" id="prezzi">
@@ -169,20 +185,20 @@ export function PricingSection({ locale = "it" }: { locale?: Locale } = {}) {
               {plan.recommended && (
                 <span className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-landing-violet via-landing-magenta to-landing-pink px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-landing-soft">
                   <Star className="h-3 w-3" aria-hidden />
-                  Consigliato
+                  {copy.recommended}
                 </span>
               )}
 
               <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${plan.badgeColor}`}>
-                {plan.badge}
+                {tx(plan.badgeKey)}
               </p>
 
               <h3 className="mt-3 font-display text-xl font-semibold text-landing-ink">
-                {plan.name}
+                {tx(plan.nameKey)}
               </h3>
 
               <p className="mt-2 text-sm leading-relaxed text-landing-soft">
-                {plan.description}
+                {tx(plan.descKey)}
               </p>
 
               <p className="mt-4 flex items-baseline gap-1">
@@ -191,10 +207,10 @@ export function PricingSection({ locale = "it" }: { locale?: Locale } = {}) {
               </p>
 
               <ul className="mt-6 flex-1 space-y-2">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-landing-soft">
+                {plan.featureKeys.map((fk) => (
+                  <li key={fk} className="flex items-start gap-2 text-sm text-landing-soft">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400/70" aria-hidden />
-                    {f}
+                    {tx(fk)}
                   </li>
                 ))}
               </ul>

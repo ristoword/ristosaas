@@ -31,6 +31,7 @@ import {
 import type { SalaTable } from "./types";
 import type { CourseDraft } from "@/components/orders/types";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/core/i18n/provider";
 
 type SpeechRecognitionInstance = {
   continuous: boolean;
@@ -53,11 +54,11 @@ type Props = {
 
 type MenuType = "casa" | "giorno" | "bevande" | "vini";
 
-const MENU_TYPES: { id: MenuType; label: string; icon: typeof BookOpen }[] = [
-  { id: "casa", label: "Menu della Casa", icon: BookOpen },
-  { id: "giorno", label: "Menu del Giorno", icon: CalendarDays },
-  { id: "bevande", label: "Menu Bevande", icon: GlassWater },
-  { id: "vini", label: "Menu Vini", icon: Wine },
+const MENU_TYPE_DEFS: { id: MenuType; tKey: string; icon: typeof BookOpen }[] = [
+  { id: "casa", tKey: "orderModal.menuCasa", icon: BookOpen },
+  { id: "giorno", tKey: "orderModal.menuGiorno", icon: CalendarDays },
+  { id: "bevande", tKey: "orderModal.menuBevande", icon: GlassWater },
+  { id: "vini", tKey: "orderModal.menuVini", icon: Wine },
 ];
 
 const FOOD_CATEGORIES = ["Antipasti", "Primi", "Secondi", "Pizze", "Contorni", "Dolci"];
@@ -73,6 +74,7 @@ function normalizeArea(raw: string): OrderArea {
 export function OrderSendModal({ table, open, onClose }: Props) {
   const { createOrder, appendToOrder, getOrdersForTable } = useOrders();
   const { user } = useAuth();
+  const { t } = useI18n();
 
   const [courses, setCourses] = useState<CourseDraft[]>([{ n: 1, items: [] }]);
   const [activeCourse, setActiveCourse] = useState(1);
@@ -132,7 +134,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
         setWines(wineItems.filter((w) => w.stock > 0));
         setMenuError(null);
       })
-      .catch((err) => setMenuError((err as Error).message || "Errore caricamento menu"))
+      .catch((err) => setMenuError((err as Error).message || t("orderModal.menuLoadError")))
       .finally(() => setLoadingMenu(false));
   }, [open]);
 
@@ -259,7 +261,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
 
   function startVoiceOrder() {
     const rec = recognitionRef.current;
-    if (!rec) { setVoiceError("Riconoscimento vocale non supportato dal browser."); return; }
+    if (!rec) { setVoiceError(t("voice.notSupported")); return; }
     setVoiceTranscript("");
     setVoiceError(null);
     setVoiceListening(true);
@@ -287,7 +289,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
 
     rec.onerror = (event: { error: string }) => {
       setVoiceListening(false);
-      if (event.error !== "aborted") setVoiceError(`Errore vocale: ${event.error}`);
+      if (event.error !== "aborted") setVoiceError(t("voice.errorPrefix").replace("{err}", event.error));
     };
 
     rec.start();
@@ -308,7 +310,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
         body: JSON.stringify({ transcript: text }),
       });
       const data = await res.json();
-      if (!res.ok) { setVoiceError(data.error || "Errore parsing AI"); return; }
+      if (!res.ok) { setVoiceError(data.error || t("voice.parseError")); return; }
 
       const items = data.items as Array<{
         name: string; qty: number; course: number; category: string;
@@ -316,7 +318,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
         matchedMenuItemId: string | null; matchedPrice: number | null;
       }>;
 
-      if (!items || items.length === 0) { setVoiceError("Nessun piatto riconosciuto. Riprova."); return; }
+      if (!items || items.length === 0) { setVoiceError(t("voice.noItems")); return; }
 
       const maxCourse = Math.max(...items.map((i) => i.course));
       setCourses((prev) => {
@@ -345,7 +347,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
       setActiveMenuType(null);
       setActiveCategory(null);
     } catch (e) {
-      setVoiceError(e instanceof Error ? e.message : "Errore connessione AI");
+      setVoiceError(e instanceof Error ? e.message : t("voice.connectionError"));
     } finally {
       setVoiceParsing(false);
     }
@@ -429,7 +431,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
       setActiveCategory(null);
       onClose();
     } catch (e) {
-      setSendError(e instanceof Error ? e.message : "Errore invio ordine");
+      setSendError(e instanceof Error ? e.message : t("orderModal.sendError"));
     } finally {
       setSending(false);
     }
@@ -470,14 +472,14 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             )}
             <div>
               <h2 className="font-display text-lg font-semibold text-rw-ink">
-                {existingOrder ? `Aggiungi a ${table.nome}` : `Ordine ${table.nome}`}
+                {existingOrder ? t("orderModal.titleAppend").replace("{table}", table.nome) : t("orderModal.titleNew").replace("{table}", table.nome)}
               </h2>
               <p className="text-xs text-rw-muted">
                 {activeMenuType && activeCategory
-                  ? `${MENU_TYPES.find((m) => m.id === activeMenuType)?.label} › ${activeCategory}`
+                  ? `${t(MENU_TYPE_DEFS.find((m) => m.id === activeMenuType)?.tKey ?? "")} › ${activeCategory}`
                   : activeMenuType
-                    ? MENU_TYPES.find((m) => m.id === activeMenuType)?.label
-                    : "Scegli il menu"}
+                    ? t(MENU_TYPE_DEFS.find((m) => m.id === activeMenuType)?.tKey ?? "")
+                    : t("orderModal.chooseMenu")}
               </p>
             </div>
           </div>
@@ -494,21 +496,21 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                     ? "border-rw-accent/30 bg-rw-accent/10 text-rw-accent"
                     : "border-rw-line bg-rw-surfaceAlt text-rw-soft hover:text-rw-ink hover:border-rw-accent/30",
               )}
-              title={voiceListening ? "Stop" : "Ordine vocale AI"}
+              title={voiceListening ? t("voice.stop") : t("voice.title")}
             >
               {voiceParsing ? <Loader2 className="h-4 w-4 animate-spin" /> : voiceListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-              <span className="hidden sm:inline">{voiceParsing ? "Elaboro..." : voiceListening ? "Stop" : "Voce AI"}</span>
+              <span className="hidden sm:inline">{voiceParsing ? t("voice.processing") : voiceListening ? t("voice.stop") : t("voice.label")}</span>
             </button>
             {totalItems > 0 && (
               <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-sm font-bold text-emerald-300">
-                {totalItems} piatti · €{totalPrice.toFixed(2)}
+                {t("orderModal.dishes").replace("{n}", String(totalItems)).replace("{total}", totalPrice.toFixed(2))}
               </span>
             )}
             <button
               type="button"
               onClick={onClose}
               className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink"
-              aria-label="Chiudi"
+              aria-label={t("orderModal.close")}
             >
               <X className="h-5 w-5" />
             </button>
@@ -522,7 +524,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
               {!existingOrder && (
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <span className="text-[10px] font-semibold uppercase text-rw-muted">Coperti</span>
+                    <span className="text-[10px] font-semibold uppercase text-rw-muted">{t("orderModal.covers")}</span>
                     <div className="mt-1 flex items-center gap-1">
                       <button type="button" onClick={() => setCovers((n) => Math.max(1, n - 1))} className="h-8 w-8 rounded-lg border border-rw-line bg-rw-surfaceAlt text-rw-ink text-xs"><Minus className="mx-auto h-3.5 w-3.5" /></button>
                       <span className="w-6 text-center font-bold text-rw-ink text-sm">{covers}</span>
@@ -530,7 +532,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                     </div>
                   </div>
                   <div>
-                    <span className="text-[10px] font-semibold uppercase text-rw-muted">Cameriere</span>
+                    <span className="text-[10px] font-semibold uppercase text-rw-muted">{t("orderModal.waiter")}</span>
                     <input value={waiter} onChange={(e) => setWaiter(e.target.value)} className="mt-1 h-8 w-full rounded-lg border border-rw-line bg-rw-surfaceAlt px-2 text-xs text-rw-ink" />
                   </div>
                 </div>
@@ -547,12 +549,12 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                       activeCourse === c.n ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-rw-surfaceAlt text-rw-muted border border-rw-line",
                     )}
                   >
-                    Corso {c.n}
+                    {t("orderModal.course").replace("{n}", String(c.n))}
                     {c.items.length > 0 && <span className="ml-0.5 opacity-70">({c.items.length})</span>}
                   </button>
                 ))}
-                <button type="button" onClick={addCourse} className="rounded-lg border border-dashed border-rw-line px-2 py-1.5 text-xs text-rw-muted hover:text-rw-accent" title="Aggiungi un nuovo corso">
-                  <Plus className="inline h-3 w-3 mr-0.5" /> Corso
+                <button type="button" onClick={addCourse} className="rounded-lg border border-dashed border-rw-line px-2 py-1.5 text-xs text-rw-muted hover:text-rw-accent" title={t("orderModal.addCourseTitle")}>
+                  <Plus className="inline h-3 w-3 mr-0.5" /> {t("orderModal.addCourse")}
                 </button>
               </div>
 
@@ -561,7 +563,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                 return (
                   <div key={c.n} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-2">
                     <p className={cn("text-[10px] font-bold uppercase tracking-wide mb-1", c.n === activeCourse ? "text-emerald-400" : "text-rw-muted")}>
-                      Corso {c.n}
+                      {t("orderModal.course").replace("{n}", String(c.n))}
                     </p>
                     <div className="space-y-0.5">
                       {c.items.map((it) => {
@@ -586,7 +588,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                                       ? "border-amber-500/40 text-amber-400 bg-amber-500/10"
                                       : "border-rw-line text-rw-muted hover:text-rw-accent",
                                   )}
-                                  title="Modifica (senza cipolla, ben cotta…)"
+                                  title={t("orderModal.noteEdit")}
                                 >
                                   <Pencil className="mx-auto h-3 w-3" />
                                 </button>
@@ -605,7 +607,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                               <div className="mt-1.5 flex gap-1">
                                 <input
                                   autoFocus
-                                  placeholder="es. senza cipolla, ben cotta, extra mozzarella..."
+                                  placeholder={t("orderModal.notePlaceholder")}
                                   defaultValue={it.note ?? ""}
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
@@ -633,7 +635,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Note ordine..."
+                placeholder={t("orderModal.orderNotes")}
                 rows={2}
                 className="w-full rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs text-rw-ink placeholder:text-rw-muted"
               />
@@ -644,7 +646,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           <div className="flex flex-1 flex-col overflow-hidden">
             {loadingMenu && (
               <div className="flex flex-1 items-center justify-center gap-2 text-sm text-rw-muted">
-                <Loader2 className="h-5 w-5 animate-spin" /> Caricamento menu…
+                <Loader2 className="h-5 w-5 animate-spin" /> {t("orderModal.loadingMenu")}
               </div>
             )}
             {menuError && !loadingMenu && (
@@ -659,7 +661,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
                       <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
                     </span>
-                    Ascoltando… detta l&apos;ordine. Di &quot;SEGUE&quot; per cambiare portata.
+                    {t("voice.listening")}
                   </div>
                 )}
                 {voiceTranscript && (
@@ -669,7 +671,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                 )}
                 {voiceParsing && (
                   <div className="mt-2 flex items-center gap-2 text-xs text-rw-muted">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Risto sta elaborando l&apos;ordine…
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("voice.elaborating")}
                   </div>
                 )}
                 {voiceError && (
@@ -681,7 +683,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                     onClick={() => void parseVoiceTranscript(voiceTranscript)}
                     className="mt-2 rounded-lg border border-rw-accent/30 bg-rw-accent/10 px-3 py-1.5 text-xs font-semibold text-rw-accent"
                   >
-                    Rielabora trascritto
+                    {t("voice.reprocess")}
                   </button>
                 )}
               </div>
@@ -690,9 +692,9 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             {/* Level 0: Choose menu type */}
             {!loadingMenu && !menuError && !showCategoryPanel && (
               <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6">
-                <p className="text-sm font-semibold uppercase tracking-wide text-rw-muted">Quale menu?</p>
+                <p className="text-sm font-semibold uppercase tracking-wide text-rw-muted">{t("orderModal.whichMenu")}</p>
                 <div className="grid w-full max-w-md grid-cols-2 gap-3">
-                  {MENU_TYPES.map((mt) => {
+                  {MENU_TYPE_DEFS.map((mt) => {
                     const Icon = mt.icon;
                     const count = categoriesForMenuType(mt.id).length;
                     return (
@@ -711,8 +713,8 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                         <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-rw-accent/15">
                           <Icon className="h-7 w-7 text-rw-accent" />
                         </span>
-                        <span className="text-sm font-semibold">{mt.label}</span>
-                        {count > 0 && <span className="text-[10px] text-rw-muted">{count} categorie</span>}
+                        <span className="text-sm font-semibold">{t(mt.tKey)}</span>
+                        {count > 0 && <span className="text-[10px] text-rw-muted">{t("orderModal.categories").replace("{n}", String(count))}</span>}
                       </button>
                     );
                   })}
@@ -723,7 +725,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             {/* Level 1: Choose category */}
             {!loadingMenu && !menuError && showCategoryPanel && !showItemsPanel && activeMenuType && (
               <div className="flex flex-1 flex-col p-4 overflow-y-auto">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-rw-muted">Categoria</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-rw-muted">{t("orderModal.category")}</p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {categoriesForMenuType(activeMenuType).map((cat) => (
                     <button
@@ -743,7 +745,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             {!loadingMenu && !menuError && showItemsPanel && (
               <div className="flex flex-1 flex-col p-4 overflow-y-auto">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                  {activeCategory} — tocca per aggiungere al Corso {activeCourse}
+                  {t("orderModal.tapToAdd").replace("{category}", activeCategory ?? "").replace("{n}", String(activeCourse))}
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {itemsForCategorySelection.map((item) => {
@@ -777,7 +779,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                   })}
                   {itemsForCategorySelection.length === 0 && (
                     <p className="col-span-full py-10 text-center text-sm text-rw-muted">
-                      Nessun piatto in questa categoria.
+                      {t("orderModal.noItems")}
                     </p>
                   )}
                 </div>
@@ -788,7 +790,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             <div className="border-t border-rw-line p-3 sm:hidden">
               <details className="group">
                 <summary className="flex cursor-pointer items-center justify-between text-xs font-semibold text-rw-muted">
-                  <span>Riepilogo ordine ({totalItems} piatti)</span>
+                  <span>{t("orderModal.summary").replace("{n}", String(totalItems))}</span>
                   <span className="text-rw-ink">€{totalPrice.toFixed(2)}</span>
                 </summary>
                 <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
@@ -824,7 +826,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                           {isEditingMobile && (
                             <input
                               autoFocus
-                              placeholder="es. senza cipolla, ben cotta..."
+                              placeholder={t("orderModal.notePlaceholderMobile")}
                               defaultValue={it.note ?? ""}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") {
@@ -863,10 +865,10 @@ export function OrderSendModal({ table, open, onClose }: Props) {
           >
             {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             {sending
-              ? "Invio..."
+              ? t("orderModal.sending")
               : existingOrder
-                ? `Aggiungi ${totalItems} piatti`
-                : `Invia ordine (${totalItems} piatti · €${totalPrice.toFixed(2)})`}
+                ? t("orderModal.sendAppend").replace("{n}", String(totalItems))
+                : t("orderModal.sendNew").replace("{n}", String(totalItems)).replace("{total}", totalPrice.toFixed(2))}
           </button>
         </footer>
       </div>
