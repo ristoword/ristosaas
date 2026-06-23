@@ -144,6 +144,10 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     if (!open) {
       setActiveMenuType(null);
       setActiveCategory(null);
+      setEditingNote(null);
+      setVoiceTranscript("");
+      setVoiceError(null);
+      setSendError(null);
     }
   }, [open]);
 
@@ -347,7 +351,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     }
   }
 
-  if (!table) return null;
+  if (!table || !open) return null;
 
   function addItem(item: { id: string; name: string; price: number; area: string; category: string }) {
     const area = normalizeArea(item.area);
@@ -441,11 +445,12 @@ export function OrderSendModal({ table, open, onClose }: Props) {
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
       role="presentation"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         role="dialog"
         aria-modal="true"
+        onClick={(e) => e.stopPropagation()}
         className="flex max-h-[min(95dvh,960px)] w-full max-w-5xl flex-col rounded-t-[1.75rem] border border-rw-line bg-rw-surface shadow-rw sm:max-h-[90dvh] sm:rounded-3xl"
       >
         {/* Header */}
@@ -542,12 +547,12 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                       activeCourse === c.n ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-rw-surfaceAlt text-rw-muted border border-rw-line",
                     )}
                   >
-                    P{c.n}
+                    Corso {c.n}
                     {c.items.length > 0 && <span className="ml-0.5 opacity-70">({c.items.length})</span>}
                   </button>
                 ))}
-                <button type="button" onClick={addCourse} className="rounded-lg border border-dashed border-rw-line px-2 py-1.5 text-xs text-rw-muted hover:text-rw-accent">
-                  <Plus className="inline h-3 w-3" />
+                <button type="button" onClick={addCourse} className="rounded-lg border border-dashed border-rw-line px-2 py-1.5 text-xs text-rw-muted hover:text-rw-accent" title="Aggiungi un nuovo corso">
+                  <Plus className="inline h-3 w-3 mr-0.5" /> Corso
                 </button>
               </div>
 
@@ -556,7 +561,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
                 return (
                   <div key={c.n} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-2">
                     <p className={cn("text-[10px] font-bold uppercase tracking-wide mb-1", c.n === activeCourse ? "text-emerald-400" : "text-rw-muted")}>
-                      Portata {c.n}
+                      Corso {c.n}
                     </p>
                     <div className="space-y-0.5">
                       {c.items.map((it) => {
@@ -738,7 +743,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
             {!loadingMenu && !menuError && showItemsPanel && (
               <div className="flex flex-1 flex-col p-4 overflow-y-auto">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-rw-muted">
-                  {activeCategory} — tocca per aggiungere alla P{activeCourse}
+                  {activeCategory} — tocca per aggiungere al Corso {activeCourse}
                 </p>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {itemsForCategorySelection.map((item) => {
