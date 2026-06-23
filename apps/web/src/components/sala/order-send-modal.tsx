@@ -91,6 +91,7 @@ export function OrderSendModal({ table, open, onClose }: Props) {
 
   const [sendError, setSendError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [editingNote, setEditingNote] = useState<{ courseN: number; name: string } | null>(null);
 
   // Voice ordering
   const [voiceListening, setVoiceListening] = useState(false);
@@ -387,8 +388,6 @@ export function OrderSendModal({ table, open, onClose }: Props) {
       ),
     );
   }
-
-  const [editingNote, setEditingNote] = useState<{ courseN: number; name: string } | null>(null);
 
   function addCourse() {
     const next = courses.length + 1;
