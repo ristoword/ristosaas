@@ -12,12 +12,13 @@ import {
   Printer,
   Search,
   ShoppingBag,
+  Trash2,
   Truck,
   User,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { asportoApi, menuApi, type AsportoOrder, type MenuItem, type DailyDish } from "@/lib/api-client";
+import { asportoApi, menuApi, type AsportoOrder, type AsportoCloseDaySummary } from "@/lib/api-client";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
@@ -32,16 +33,18 @@ const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
 const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 
-function getStatusFlow(type: "asporto" | "delivery"): Record<AsportoStatus, AsportoStatus | null> {
+function getStatusFlow(): Record<AsportoStatus, AsportoStatus | null> {
   return {
     nuovo: "in_preparazione",
     in_preparazione: "pronto",
-    pronto: type === "delivery" ? "consegnato" : "ritirato",
+    pronto: null,
     ritirato: null,
     consegnato: null,
     annullato: null,
   };
 }
+
+const DONE_STATUSES: AsportoStatus[] = ["pronto", "ritirato", "consegnato"];
 
 type MenuEntry = { name: string; price: number; category: string; source: string };
 
@@ -50,17 +53,20 @@ function OrderCard({
   onAdvance,
   onCancel,
   onPrint,
+  onRemove,
   t,
 }: {
   order: AsportoOrder;
   onAdvance: () => void;
   onCancel: () => void;
   onPrint: () => void;
+  onRemove?: () => void;
   t: (key: string) => string;
 }) {
-  const flow = getStatusFlow(order.type);
+  const flow = getStatusFlow();
   const nextStatus = flow[order.status];
   const isActive = !["ritirato", "consegnato", "annullato"].includes(order.status);
+  const isDone = DONE_STATUSES.includes(order.status);
 
   return (
     <div className={cn("rounded-xl border p-3 space-y-2", order.status === "annullato" ? "border-red-500/30 bg-red-500/5 opacity-60" : "border-rw-line bg-rw-surface")}>
@@ -107,9 +113,20 @@ function OrderCard({
             {t(`asporto.status.${nextStatus}`)}
           </button>
         )}
+        {isDone && (
+          <span className="flex-1 inline-flex items-center justify-center gap-1 rounded-lg bg-emerald-500/15 px-2 py-1.5 text-[11px] font-semibold text-emerald-400">
+            <CheckCircle2 className="h-3 w-3" />
+            {t("asporto.status.pronto")}
+          </span>
+        )}
         <button type="button" onClick={onPrint} className="inline-flex items-center justify-center rounded-lg border border-rw-line px-2 py-1.5 text-[11px] text-rw-muted hover:text-rw-ink transition">
           <Printer className="h-3 w-3" />
         </button>
+        {isDone && onRemove && (
+          <button type="button" onClick={onRemove} className="inline-flex items-center justify-center rounded-lg border border-rw-line px-2 py-1.5 text-[11px] text-rw-muted hover:text-red-400 transition" title={t("asporto.removeOrder")}>
+            <Trash2 className="h-3 w-3" />
+          </button>
+        )}
         {isActive && (
           <button type="button" onClick={onCancel} className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1.5 text-[11px] font-semibold text-red-400 hover:bg-red-500/20 transition">
             <X className="h-3 w-3" />
@@ -137,6 +154,8 @@ export function AsportoPage() {
   const [fAddress, setFAddress] = useState("");
   const [fItems, setFItems] = useState<{ name: string; qty: number; price: number }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [closingDay, setClosingDay] = useState(false);
+  const [daySummary, setDaySummary] = useState<AsportoCloseDaySummary | null>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -194,13 +213,39 @@ export function AsportoPage() {
   }
 
   async function advanceStatus(order: AsportoOrder) {
-    const flow = getStatusFlow(order.type);
+    const flow = getStatusFlow();
     const next = flow[order.status];
     if (!next) return;
     try {
       const updated = await asportoApi.update(order.id, { status: next });
       setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
     } catch { /* */ }
+  }
+
+  async function removeOrder(order: AsportoOrder) {
+    if (!window.confirm(t("asporto.removeOrderConfirm"))) return;
+    try {
+      await asportoApi.delete(order.id);
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
+    } catch { /* */ }
+  }
+
+  async function handleCloseDay() {
+    const activeCount = orders.filter((o) => o.status !== "annullato").length;
+    if (activeCount === 0) return;
+    const pending = orders.filter((o) => o.status === "nuovo" || o.status === "in_preparazione").length;
+    const msg = pending > 0
+      ? t("asporto.closeDayConfirmPending").replace("{n}", String(pending))
+      : t("asporto.closeDayConfirm");
+    if (!window.confirm(msg)) return;
+
+    setClosingDay(true);
+    try {
+      const summary = await asportoApi.closeDay();
+      setDaySummary(summary);
+      setOrders([]);
+    } catch { /* */ }
+    finally { setClosingDay(false); }
   }
 
   async function cancelOrder(order: AsportoOrder) {
@@ -259,10 +304,13 @@ export function AsportoPage() {
 
   const nuovi = orders.filter((o) => o.status === "nuovo");
   const inPrep = orders.filter((o) => o.status === "in_preparazione");
-  const pronti = orders.filter((o) => o.status === "pronto");
-  const completati = orders.filter((o) => ["ritirato", "consegnato"].includes(o.status));
+  const pronti = orders.filter((o) => DONE_STATUSES.includes(o.status));
   const annullati = orders.filter((o) => o.status === "annullato");
-  const todayRevenue = [...completati].reduce((s, o) => s + o.total, 0);
+  const deliveryPronti = pronti.filter((o) => o.type === "delivery");
+  const takeawayPronti = pronti.filter((o) => o.type === "asporto");
+  const todayRevenue = pronti.reduce((s, o) => s + o.total, 0);
+  const deliveryRevenue = deliveryPronti.reduce((s, o) => s + o.total, 0);
+  const canCloseDay = orders.some((o) => o.status !== "annullato");
 
   if (loading) {
     return <div className="flex items-center justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-rw-primary" /></div>;
@@ -282,8 +330,8 @@ export function AsportoPage() {
         <Chip label={t("asporto.status.nuovo")} value={nuovi.length} tone="warn" />
         <Chip label={t("asporto.status.in_preparazione")} value={inPrep.length} tone="accent" />
         <Chip label={t("asporto.status.pronto")} value={pronti.length} tone="info" />
-        <Chip label={t("asporto.completed")} value={completati.length} tone="success" />
         {annullati.length > 0 && <Chip label={t("asporto.status.annullato")} value={annullati.length} />}
+        <Chip label={t("asporto.deliveryRevenue")} value={`\u20AC${deliveryRevenue.toFixed(2)}`} tone="info" />
         <Chip label={t("asporto.todayRevenue")} value={`\u20AC${todayRevenue.toFixed(2)}`} tone="success" />
       </div>
 
@@ -396,7 +444,7 @@ export function AsportoPage() {
       )}
 
       {/* KDS Columns */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KdsColumn title={t("asporto.status.nuovo")} tone="pending" count={nuovi.length}>
           {nuovi.length === 0 && <p className="py-4 text-center text-xs text-rw-muted">{t("asporto.empty")}</p>}
           {nuovi.map((o) => <OrderCard key={o.id} order={o} onAdvance={() => advanceStatus(o)} onCancel={() => cancelOrder(o)} onPrint={() => printTicket(o)} t={t} />)}
@@ -406,15 +454,86 @@ export function AsportoPage() {
           {inPrep.map((o) => <OrderCard key={o.id} order={o} onAdvance={() => advanceStatus(o)} onCancel={() => cancelOrder(o)} onPrint={() => printTicket(o)} t={t} />)}
         </KdsColumn>
         <KdsColumn title={t("asporto.status.pronto")} tone="ready" count={pronti.length}>
-          {pronti.length === 0 && <p className="py-4 text-center text-xs text-rw-muted">{t("asporto.empty")}</p>}
-          {pronti.map((o) => <OrderCard key={o.id} order={o} onAdvance={() => advanceStatus(o)} onCancel={() => cancelOrder(o)} onPrint={() => printTicket(o)} t={t} />)}
-        </KdsColumn>
-        <KdsColumn title={t("asporto.completed")} tone="ready" count={completati.length}>
-          {completati.length === 0 && annullati.length === 0 && <p className="py-4 text-center text-xs text-rw-muted">{t("asporto.empty")}</p>}
-          {completati.map((o) => <OrderCard key={o.id} order={o} onAdvance={() => advanceStatus(o)} onCancel={() => cancelOrder(o)} onPrint={() => printTicket(o)} t={t} />)}
-          {annullati.map((o) => <OrderCard key={o.id} order={o} onAdvance={() => advanceStatus(o)} onCancel={() => cancelOrder(o)} onPrint={() => printTicket(o)} t={t} />)}
+          {pronti.length === 0 && <p className="py-4 text-center text-xs text-rw-muted">{t("asporto.emptyPronto")}</p>}
+          {pronti.map((o) => (
+            <OrderCard
+              key={o.id}
+              order={o}
+              onAdvance={() => advanceStatus(o)}
+              onCancel={() => cancelOrder(o)}
+              onPrint={() => printTicket(o)}
+              onRemove={() => removeOrder(o)}
+              t={t}
+            />
+          ))}
         </KdsColumn>
       </div>
+
+      {annullati.length > 0 && (
+        <Card title={t("asporto.status.annullato")}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {annullati.map((o) => (
+              <OrderCard key={o.id} order={o} onAdvance={() => advanceStatus(o)} onCancel={() => cancelOrder(o)} onPrint={() => printTicket(o)} t={t} />
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Chiudi giornata */}
+      <Card title={t("asporto.closeDay")}>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1 text-sm text-rw-muted">
+            <p>{t("asporto.closeDayHint")}</p>
+            <p>
+              {t("asporto.closeDayStats")
+                .replace("{pronti}", String(pronti.length))
+                .replace("{delivery}", String(deliveryPronti.length))
+                .replace("{asporto}", String(takeawayPronti.length))}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleCloseDay}
+            disabled={!canCloseDay || closingDay}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {closingDay ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+            {t("asporto.closeDay")}
+          </button>
+        </div>
+      </Card>
+
+      {/* Riepilogo chiusura giornata */}
+      {daySummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={() => setDaySummary(null)}>
+          <div className="w-full max-w-md rounded-2xl border border-rw-line bg-rw-surface p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-rw-ink">{t("asporto.closeDaySummary")}</h3>
+              <button type="button" onClick={() => setDaySummary(null)} className="text-rw-muted hover:text-rw-ink"><X className="h-5 w-5" /></button>
+            </div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between border-b border-rw-line/50 pb-2">
+                <span className="text-rw-muted">{t("asporto.delivery")}</span>
+                <span className="font-semibold text-rw-ink">{daySummary.deliveryCount} — {"\u20AC"}{daySummary.deliveryRevenue.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between border-b border-rw-line/50 pb-2">
+                <span className="text-rw-muted">{t("asporto.takeaway")}</span>
+                <span className="font-semibold text-rw-ink">{daySummary.takeawayCount} — {"\u20AC"}{daySummary.takeawayRevenue.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between pt-1 text-base">
+                <span className="font-bold text-rw-ink">{t("asporto.total")}</span>
+                <span className="font-bold text-emerald-400">{"\u20AC"}{daySummary.totalRevenue.toFixed(2)}</span>
+              </div>
+              <p className="text-xs text-rw-muted pt-2">
+                {t("asporto.closeDayCleared").replace("{n}", String(daySummary.clearedCount))}
+              </p>
+            </div>
+            <button type="button" onClick={() => setDaySummary(null)} className="mt-5 w-full rounded-xl bg-rw-accent py-2.5 text-sm font-semibold text-white hover:bg-rw-accent/90">
+              {t("asporto.closeDayDone")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

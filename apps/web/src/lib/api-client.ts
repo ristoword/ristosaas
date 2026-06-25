@@ -415,12 +415,25 @@ export const cateringApi = {
 
 /* ─── Asporto ────────────────────────────────────── */
 
+export type AsportoCloseDaySummary = {
+  takeawayCount: number;
+  takeawayRevenue: number;
+  deliveryCount: number;
+  deliveryRevenue: number;
+  totalRevenue: number;
+  totalOrders: number;
+  cancelledCount: number;
+  pendingCount: number;
+  clearedCount: number;
+};
+
 export const asportoApi = {
   list: () => get<AsportoOrder[]>("/asporto"),
   get: (id: string) => get<AsportoOrder>(`/asporto/${id}`),
   create: (data: Omit<AsportoOrder, "id">) => post<AsportoOrder>("/asporto", data),
   update: (id: string, data: Partial<AsportoOrder>) => put<AsportoOrder>(`/asporto/${id}`, data),
   delete: (id: string) => del<{ deleted: boolean }>(`/asporto/${id}`),
+  closeDay: () => post<AsportoCloseDaySummary>("/asporto/close-day", {}),
 };
 
 /* ─── Archivio ───────────────────────────────────── */

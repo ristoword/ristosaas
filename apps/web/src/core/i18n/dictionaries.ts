@@ -1889,6 +1889,18 @@ const it: TranslationDictionary = {
   "asporto.status.ritirato": "Ritirato",
   "asporto.status.consegnato": "Consegnato",
   "asporto.status.annullato": "Annullato",
+  "asporto.deliveryRevenue": "Incasso delivery",
+  "asporto.emptyPronto": "Nessun ordine pronto. Gli ordini restano qui fino a chiusura giornata.",
+  "asporto.closeDay": "Chiudi giornata",
+  "asporto.closeDayHint": "Gli ordini in Pronto restano visibili tutto il giorno. Alla chiusura vedi l'incasso e la board si svuota.",
+  "asporto.closeDayStats": "Pronti: {pronti} (delivery {delivery}, asporto {asporto})",
+  "asporto.closeDayConfirm": "Chiudere la giornata? Verrà mostrato il riepilogo incassi e tutti i buoni saranno rimossi.",
+  "asporto.closeDayConfirmPending": "Attenzione: {n} ordini non sono ancora in Pronto. Chiudere comunque e rimuovere tutti i buoni?",
+  "asporto.closeDaySummary": "Riepilogo giornata",
+  "asporto.closeDayCleared": "Rimossi {n} buoni dalla board.",
+  "asporto.closeDayDone": "OK",
+  "asporto.removeOrder": "Rimuovi buono",
+  "asporto.removeOrderConfirm": "Rimuovere questo buono dalla board?",
 };
 
 const en: TranslationDictionary = {
@@ -3780,6 +3792,18 @@ const en: TranslationDictionary = {
   "asporto.status.ritirato": "Picked up",
   "asporto.status.consegnato": "Delivered",
   "asporto.status.annullato": "Cancelled",
+  "asporto.deliveryRevenue": "Delivery revenue",
+  "asporto.emptyPronto": "No ready orders. Orders stay here until end-of-day close.",
+  "asporto.closeDay": "Close day",
+  "asporto.closeDayHint": "Ready orders stay visible all day. On close you see revenue and the board clears.",
+  "asporto.closeDayStats": "Ready: {pronti} (delivery {delivery}, takeaway {asporto})",
+  "asporto.closeDayConfirm": "Close the day? Revenue summary will be shown and all tickets removed.",
+  "asporto.closeDayConfirmPending": "Warning: {n} orders are not ready yet. Close anyway and remove all tickets?",
+  "asporto.closeDaySummary": "Day summary",
+  "asporto.closeDayCleared": "Removed {n} tickets from the board.",
+  "asporto.closeDayDone": "OK",
+  "asporto.removeOrder": "Remove ticket",
+  "asporto.removeOrderConfirm": "Remove this ticket from the board?",
 };
 
 const nl: TranslationDictionary = {
@@ -5671,6 +5695,18 @@ const nl: TranslationDictionary = {
   "asporto.status.ritirato": "Opgehaald",
   "asporto.status.consegnato": "Bezorgd",
   "asporto.status.annullato": "Geannuleerd",
+  "asporto.deliveryRevenue": "Bezorgomzet",
+  "asporto.emptyPronto": "Geen klaar bestellingen. Bestellingen blijven hier tot dagafsluiting.",
+  "asporto.closeDay": "Dag afsluiten",
+  "asporto.closeDayHint": "Klaar bestellingen blijven de hele dag zichtbaar. Bij afsluiten zie je omzet en wordt het bord leeggemaakt.",
+  "asporto.closeDayStats": "Klaar: {pronti} (bezorgen {delivery}, afhalen {asporto})",
+  "asporto.closeDayConfirm": "Dag afsluiten? Omzetoverzicht wordt getoond en alle bonnen worden verwijderd.",
+  "asporto.closeDayConfirmPending": "Let op: {n} bestellingen zijn nog niet klaar. Toch afsluiten en alle bonnen verwijderen?",
+  "asporto.closeDaySummary": "Dagoverzicht",
+  "asporto.closeDayCleared": "{n} bonnen verwijderd van het bord.",
+  "asporto.closeDayDone": "OK",
+  "asporto.removeOrder": "Bon verwijderen",
+  "asporto.removeOrderConfirm": "Deze bon van het bord verwijderen?",
 };
 
 const pt: TranslationDictionary = {
@@ -7562,6 +7598,18 @@ const pt: TranslationDictionary = {
   "asporto.status.ritirato": "Retirado",
   "asporto.status.consegnato": "Entregue",
   "asporto.status.annullato": "Cancelado",
+  "asporto.deliveryRevenue": "Receita delivery",
+  "asporto.emptyPronto": "Nenhum pedido pronto. Os pedidos ficam aqui até o fecho do dia.",
+  "asporto.closeDay": "Fechar dia",
+  "asporto.closeDayHint": "Pedidos prontos ficam visíveis o dia todo. No fecho vê a receita e o quadro limpa.",
+  "asporto.closeDayStats": "Prontos: {pronti} (delivery {delivery}, viagem {asporto})",
+  "asporto.closeDayConfirm": "Fechar o dia? Será mostrado o resumo de receitas e todos os tickets removidos.",
+  "asporto.closeDayConfirmPending": "Atenção: {n} pedidos ainda não estão prontos. Fechar mesmo assim e remover todos?",
+  "asporto.closeDaySummary": "Resumo do dia",
+  "asporto.closeDayCleared": "Removidos {n} tickets do quadro.",
+  "asporto.closeDayDone": "OK",
+  "asporto.removeOrder": "Remover ticket",
+  "asporto.removeOrderConfirm": "Remover este ticket do quadro?",
 };
 
 

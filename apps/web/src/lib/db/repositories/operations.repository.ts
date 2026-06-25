@@ -338,6 +338,47 @@ export const operationsRepository = {
       return mapAsporto(await prisma.takeawayOrder.update({ where: { id }, data: updates }));
     },
     delete: (tenantId: string, id: string) => deleteScoped("takeawayOrder", tenantId, id),
+    closeDay: async (tenantId: string) => {
+      const orders = await prisma.takeawayOrder.findMany({ where: { tenantId } });
+      let takeawayRevenue = 0;
+      let deliveryRevenue = 0;
+      let takeawayCount = 0;
+      let deliveryCount = 0;
+      let cancelledCount = 0;
+      let pendingCount = 0;
+
+      for (const o of orders) {
+        if (o.status === "annullato") {
+          cancelledCount++;
+          continue;
+        }
+        if (o.status === "nuovo" || o.status === "in_preparazione") {
+          pendingCount++;
+        }
+        const total = o.total.toNumber();
+        if (o.type === "delivery") {
+          deliveryCount++;
+          deliveryRevenue += total;
+        } else {
+          takeawayCount++;
+          takeawayRevenue += total;
+        }
+      }
+
+      await prisma.takeawayOrder.deleteMany({ where: { tenantId } });
+
+      return {
+        takeawayCount,
+        takeawayRevenue,
+        deliveryCount,
+        deliveryRevenue,
+        totalRevenue: takeawayRevenue + deliveryRevenue,
+        totalOrders: takeawayCount + deliveryCount,
+        cancelledCount,
+        pendingCount,
+        clearedCount: orders.length,
+      };
+    },
   },
   archivio: {
     list: async (tenantId: string) => (await prisma.archivedOrder.findMany({ where: { tenantId }, orderBy: { closedAt: "desc" } })).map(mapArchived),
