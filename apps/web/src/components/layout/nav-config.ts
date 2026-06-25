@@ -555,6 +555,7 @@ export const navSections: NavSection[] = [
         href: "/owner",
         icon: Settings,
         ready: true,
+        visibleFor: ["owner", "super_admin", "supervisor"],
       },
       {
         id: "licenses",

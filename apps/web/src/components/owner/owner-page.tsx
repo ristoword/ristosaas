@@ -110,6 +110,7 @@ export function OwnerPage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
+  const isOwnerOrAbove = user?.role === "owner" || isSuperAdmin;
 
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
@@ -320,7 +321,7 @@ export function OwnerPage() {
       )}
 
       {/* ── Portfolio multi-locale (only if > 1 tenant) ────── */}
-      {portfolioTenants.length > 1 && (
+      {isOwnerOrAbove && portfolioTenants.length > 1 && (
         <Card
           title={t("owner.portfolio.title")}
           description={t("owner.portfolio.subtitle")}
@@ -402,7 +403,7 @@ export function OwnerPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card title={t("owner.licenseCard")} headerRight={<Shield className="h-4 w-4 text-emerald-400" />}>
+        {isOwnerOrAbove && <Card title={t("owner.licenseCard")} headerRight={<Shield className="h-4 w-4 text-emerald-400" />}>
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               {readiness?.tenantReady ? (
@@ -451,7 +452,7 @@ export function OwnerPage() {
               value={`€ ${(trends?.forecast.next30.projectedRevenue ?? 0).toFixed(2)}`}
             />
           </div>
-        </Card>
+        </Card>}
 
         <Card title={t("owner.staffCard")} headerRight={<Users className="h-4 w-4 text-rw-muted" />}>
           <div className="space-y-2">
@@ -486,57 +487,61 @@ export function OwnerPage() {
           </div>
         </Card>
 
-        <Card
-          title={t("owner.checklistCard")}
-          headerRight={<UserCog className="h-4 w-4 text-rw-accent" />}
-        >
-          <ul className="space-y-2 text-xs">
-            {checklistItems.length === 0 && (
-              <li className="text-rw-muted">{t("owner.noChecks")}</li>
-            )}
-            {checklistItems.map((item) => (
-              <li key={item.key} className="flex items-start gap-2">
-                {item.ok ? (
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-400" />
-                ) : (
-                  <XCircle className="mt-0.5 h-4 w-4 text-amber-400" />
-                )}
-                <div>
-                  <p className="font-semibold text-rw-ink">{item.key}</p>
-                  <p className="text-rw-muted">{item.message}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Card>
+        {isOwnerOrAbove && (
+          <Card
+            title={t("owner.checklistCard")}
+            headerRight={<UserCog className="h-4 w-4 text-rw-accent" />}
+          >
+            <ul className="space-y-2 text-xs">
+              {checklistItems.length === 0 && (
+                <li className="text-rw-muted">{t("owner.noChecks")}</li>
+              )}
+              {checklistItems.map((item) => (
+                <li key={item.key} className="flex items-start gap-2">
+                  {item.ok ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-400" />
+                  ) : (
+                    <XCircle className="mt-0.5 h-4 w-4 text-amber-400" />
+                  )}
+                  <div>
+                    <p className="font-semibold text-rw-ink">{item.key}</p>
+                    <p className="text-rw-muted">{item.message}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
 
-        <Card
-          title={t("owner.hotelCard")}
-          description={t("owner.hotelCardDesc")}
-          headerRight={<Users className="h-4 w-4 text-rw-muted" />}
-        >
-          <div className="space-y-2 text-xs">
-            <div className="flex items-baseline justify-between">
-              <span className="text-rw-muted">{t("owner.occupiedRooms")}</span>
-              <span className="font-semibold text-rw-ink">
-                {unified?.occupancy.occupiedRooms ?? 0} /{" "}
-                {unified?.occupancy.totalRooms ?? 0}
-              </span>
+        {isOwnerOrAbove && (
+          <Card
+            title={t("owner.hotelCard")}
+            description={t("owner.hotelCardDesc")}
+            headerRight={<Users className="h-4 w-4 text-rw-muted" />}
+          >
+            <div className="space-y-2 text-xs">
+              <div className="flex items-baseline justify-between">
+                <span className="text-rw-muted">{t("owner.occupiedRooms")}</span>
+                <span className="font-semibold text-rw-ink">
+                  {unified?.occupancy.occupiedRooms ?? 0} /{" "}
+                  {unified?.occupancy.totalRooms ?? 0}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-rw-muted">{t("owner.arrivalsToday")}</span>
+                <span className="font-semibold text-rw-ink">{unified?.arrivalsToday ?? 0}</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-rw-muted">{t("owner.departuresToday")}</span>
+                <span className="font-semibold text-rw-ink">{unified?.departuresToday ?? 0}</span>
+              </div>
+              <div className="flex items-baseline justify-between">
+                <span className="text-rw-muted">{t("owner.openFolios")}</span>
+                <span className="font-semibold text-rw-ink">{unified?.openFolios ?? 0}</span>
+              </div>
             </div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-rw-muted">{t("owner.arrivalsToday")}</span>
-              <span className="font-semibold text-rw-ink">{unified?.arrivalsToday ?? 0}</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-rw-muted">{t("owner.departuresToday")}</span>
-              <span className="font-semibold text-rw-ink">{unified?.departuresToday ?? 0}</span>
-            </div>
-            <div className="flex items-baseline justify-between">
-              <span className="text-rw-muted">{t("owner.openFolios")}</span>
-              <span className="font-semibold text-rw-ink">{unified?.openFolios ?? 0}</span>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
       </div>
 
       <Card
