@@ -47,6 +47,7 @@ import {
   Users,
   UtensilsCrossed,
   Wine,
+  Wallet,
   Wrench,
 } from "lucide-react";
 
@@ -457,6 +458,15 @@ export const navSections: NavSection[] = [
         href: "/staff-hr",
         icon: UserCheck,
         ready: true,
+      },
+      {
+        id: "staff-costo",
+        label: "Staff Costo",
+        hint: "Calcolo costo dipendente al centesimo: lordo, netto, contributi, TFR, IRAP.",
+        href: "/staff-costo",
+        icon: Wallet,
+        ready: true,
+        visibleFor: ["owner", "super_admin", "supervisor"],
       },
       {
         id: "staff-me",
