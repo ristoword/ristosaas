@@ -278,6 +278,7 @@ model Tenant {
   emailTemplates           EmailTemplate[]
   emailLogs                EmailLog[]
   wineCellarItems          WineCellarItem[]
+  chatMessages             ChatMessage[]
 }
 
 model BillingSubscription {
@@ -1461,4 +1462,19 @@ model TenantGroupMember {
 
   @@unique([groupId, tenantId])
   @@index([tenantId])
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  userName   String
+  userRole   String
+  body       String
+  replyToId  String?
+  pinned     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
 }

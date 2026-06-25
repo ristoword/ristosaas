@@ -47,6 +47,7 @@ import {
   Users,
   UtensilsCrossed,
   Wine,
+  MessageSquare,
   Wallet,
   Wrench,
 } from "lucide-react";
@@ -482,6 +483,14 @@ export const navSections: NavSection[] = [
         hint: "Anagrafica, preferenze, allergie.",
         href: "/customers",
         icon: Globe,
+        ready: true,
+      },
+      {
+        id: "chat-staff",
+        label: "Chat Staff",
+        hint: "Chat di gruppo con tutto il personale.",
+        href: "/chat-staff",
+        icon: MessageSquare,
         ready: true,
       },
       {
