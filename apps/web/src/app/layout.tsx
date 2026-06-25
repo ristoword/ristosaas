@@ -23,6 +23,19 @@ export const metadata: Metadata = {
   },
   description:
     "Software gestionale per ristorante e hotel: ordini, cucina, camere e magazzino in un unico sistema.",
+  manifest: "/manifest/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "RistoSimply",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {
@@ -40,6 +53,11 @@ export default function RootLayout({
     <html lang="it" className={`${lexend.variable} ${fraunces.variable}`}>
       <body className="min-h-dvh font-sans text-[15px] leading-relaxed">
         <I18nProvider>{children}</I18nProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `if("serviceWorker"in navigator){window.addEventListener("load",function(){navigator.serviceWorker.register("/sw.js")})}`,
+          }}
+        />
       </body>
     </html>
   );

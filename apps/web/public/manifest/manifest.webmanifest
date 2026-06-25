@@ -1,0 +1,53 @@
+{
+  "name": "RistoSimply",
+  "short_name": "RistoSimply",
+  "description": "Gestionale ristorante e hotel — ordini, cucina, camere e magazzino.",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0e1117",
+  "theme_color": "#0e1117",
+  "categories": ["business", "food", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Sala",
+      "short_name": "Sala",
+      "url": "/rooms",
+      "icons": []
+    },
+    {
+      "name": "Cucina",
+      "short_name": "Cucina",
+      "url": "/cucina",
+      "icons": []
+    },
+    {
+      "name": "Cassa",
+      "short_name": "Cassa",
+      "url": "/cassa",
+      "icons": []
+    }
+  ]
+}
