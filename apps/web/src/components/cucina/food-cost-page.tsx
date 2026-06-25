@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
-import { kitchenApi, type FoodCostResult, type Recipe } from "@/lib/api-client";
+import { kitchenApi, menuApi, type FoodCostResult, type Recipe, type MenuItem, type DailyDish } from "@/lib/api-client";
 import { useI18n } from "@/core/i18n/provider";
 
 const inputCls =
@@ -23,9 +23,18 @@ const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50";
 
+type FoodCostEntry = {
+  id: string;
+  recipeId: string;
+  name: string;
+  source: "recipe" | "menu_casa" | "menu_giorno";
+  price: number | null;
+};
+
 export function FoodCostPage() {
   const { t } = useI18n();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [entries, setEntries] = useState<FoodCostEntry[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [foodCost, setFoodCost] = useState<FoodCostResult | null>(null);
   const [loadingList, setLoadingList] = useState(true);
@@ -35,10 +44,35 @@ export function FoodCostPage() {
   const loadRecipes = useCallback(async () => {
     setLoadingList(true);
     try {
-      const rows = await kitchenApi.listRecipes();
-      setRecipes(rows);
-      if (rows.length > 0 && !selectedId) {
-        setSelectedId(rows[0].id);
+      const [recipeRows, menuItems, dailyDishes] = await Promise.all([
+        kitchenApi.listRecipes(),
+        menuApi.listItems().catch(() => [] as MenuItem[]),
+        menuApi.listDaily().catch(() => [] as DailyDish[]),
+      ]);
+      setRecipes(recipeRows);
+
+      const recipeIds = new Set(recipeRows.map((r) => r.id));
+      const all: FoodCostEntry[] = [];
+
+      for (const r of recipeRows) {
+        all.push({ id: r.id, recipeId: r.id, name: r.name, source: "recipe", price: r.sellingPrice ?? null });
+      }
+      for (const m of menuItems) {
+        if (m.recipeId && !recipeIds.has(m.recipeId)) continue;
+        if (m.recipeId) {
+          all.push({ id: `mi-${m.id}`, recipeId: m.recipeId, name: m.name, source: "menu_casa", price: m.price });
+        }
+      }
+      for (const d of dailyDishes) {
+        if (d.recipeId && !recipeIds.has(d.recipeId)) continue;
+        if (d.recipeId) {
+          all.push({ id: `dd-${d.id}`, recipeId: d.recipeId, name: d.name, source: "menu_giorno", price: d.price });
+        }
+      }
+
+      setEntries(all);
+      if (all.length > 0 && !selectedId) {
+        setSelectedId(all[0].id);
       }
       setError(null);
     } catch (err) {
@@ -52,15 +86,21 @@ export function FoodCostPage() {
     void loadRecipes();
   }, [loadRecipes]);
 
+  const selectedEntry = useMemo(
+    () => entries.find((e) => e.id === selectedId) ?? null,
+    [entries, selectedId],
+  );
+
   useEffect(() => {
-    if (!selectedId) {
+    const recipeId = selectedEntry?.recipeId;
+    if (!recipeId) {
       setFoodCost(null);
       return;
     }
     let cancelled = false;
     setLoadingDetail(true);
     kitchenApi
-      .getFoodCost(selectedId)
+      .getFoodCost(recipeId)
       .then((result) => {
         if (!cancelled) setFoodCost(result);
       })
@@ -73,11 +113,14 @@ export function FoodCostPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedId]);
+  }, [selectedEntry]);
 
   const selectedRecipe = useMemo(
-    () => recipes.find((r) => r.id === selectedId) ?? null,
-    [recipes, selectedId],
+    () => {
+      const recipeId = selectedEntry?.recipeId;
+      return recipeId ? recipes.find((r) => r.id === recipeId) ?? null : null;
+    },
+    [recipes, selectedEntry],
   );
 
   const fcPct = foodCost?.fcPct ?? 0;
@@ -87,7 +130,7 @@ export function FoodCostPage() {
   const productionCost = foodCost?.productionCost ?? 0;
   const portionCost = foodCost?.portionCost ?? 0;
   const targetFc = selectedRecipe?.targetFcPct ?? 0;
-  const sellingPrice = selectedRecipe?.sellingPrice ?? 0;
+  const sellingPrice = selectedEntry?.price ?? selectedRecipe?.sellingPrice ?? 0;
   const fcHealthy = targetFc > 0 ? fcPct <= targetFc : false;
 
   return (
@@ -111,14 +154,30 @@ export function FoodCostPage() {
               className={cn(inputCls, "appearance-none pr-9")}
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
-              disabled={loadingList || recipes.length === 0}
+              disabled={loadingList || entries.length === 0}
             >
-              {recipes.length === 0 && <option value="">{t("cucina.recipe.no_recipes")}</option>}
-              {recipes.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
+              {entries.length === 0 && <option value="">{t("cucina.recipe.no_recipes")}</option>}
+              {entries.filter((e) => e.source === "menu_casa").length > 0 && (
+                <optgroup label={t("nav.menu-admin.label")}>
+                  {entries.filter((e) => e.source === "menu_casa").map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}{e.price != null ? ` — €${e.price.toFixed(2)}` : ""}</option>
+                  ))}
+                </optgroup>
+              )}
+              {entries.filter((e) => e.source === "menu_giorno").length > 0 && (
+                <optgroup label={t("nav.daily-menu.label")}>
+                  {entries.filter((e) => e.source === "menu_giorno").map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}{e.price != null ? ` — €${e.price.toFixed(2)}` : ""}</option>
+                  ))}
+                </optgroup>
+              )}
+              {entries.filter((e) => e.source === "recipe").length > 0 && (
+                <optgroup label={t("cucina.recipe.label")}>
+                  {entries.filter((e) => e.source === "recipe").map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
           </div>
@@ -136,8 +195,8 @@ export function FoodCostPage() {
 
       <div className="flex flex-wrap gap-3">
         <Chip
-          label={t("cucina.recipe.label")}
-          value={selectedRecipe?.name ?? "—"}
+          label={selectedEntry?.source === "menu_casa" ? t("nav.menu-admin.label") : selectedEntry?.source === "menu_giorno" ? t("nav.daily-menu.label") : t("cucina.recipe.label")}
+          value={selectedEntry?.name ?? "—"}
           tone="accent"
         />
         <Chip
@@ -153,7 +212,7 @@ export function FoodCostPage() {
       </div>
 
       <Card
-        title={selectedRecipe?.name ?? "Food cost"}
+        title={selectedEntry?.name ?? "Food Cost"}
         description={t("cucina.foodcost.card_desc")}
       >
         {!selectedRecipe ? (
