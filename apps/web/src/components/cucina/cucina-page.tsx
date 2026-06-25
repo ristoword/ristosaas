@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BookOpen, CalendarDays, Clock, Edit2, Flame, Loader2, Minus, Plus, Printer, Save, ThermometerSun, Trash2, Upload, Users, UtensilsCrossed, X } from "lucide-react";
+import { AlertTriangle, ArrowRight, BookOpen, CalendarDays, CheckCircle2, Clock, Droplets, Edit2, Flame, Loader2, Minus, Plus, Printer, Save, Shield, ThermometerSun, Trash2, Upload, Users, UtensilsCrossed, X } from "lucide-react";
 import { useOrders } from "@/components/orders/orders-context";
 import { useMenu, calcFoodCost } from "@/components/menu/menu-context";
 import type { RecipeIngredient, RecipeStep, Recipe } from "@/components/menu/menu-context";
@@ -15,7 +15,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { cn } from "@/lib/utils";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { VoiceButton } from "@/components/ai/ai-voice";
-import { aiOpsApi, haccpApi, roomServiceApi, shiftPlansApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry, type RoomServiceOrder, type ShiftPlan } from "@/lib/api-client";
+import { aiOpsApi, haccpApi, roomServiceApi, shiftPlansApi, type KitchenOperationalSnapshot, type HaccpEntry as ApiHaccpEntry, type HaccpCreatePayload, type RoomServiceOrder, type ShiftPlan } from "@/lib/api-client";
 import { StockAlertBanner } from "@/components/shared/stock-alert-banner";
 import { LoadErrorBanner } from "@/components/shared/load-error-banner";
 import { useI18n } from "@/core/i18n/provider";
@@ -1086,63 +1086,138 @@ function HaccpTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [filterType, setFilterType] = useState<string>("all");
 
-  const HACCP_TYPE_LABELS: Record<string, string> = {
-    temp_frigo: t("cucina.haccp.type.temp_frigo"),
-    temp_freezer: t("cucina.haccp.type.temp_freezer"),
-    temp_cottura: t("cucina.haccp.type.temp_cottura"),
-    temp_abbattitore: t("cucina.haccp.type.temp_abbattitore"),
-    sanificazione: t("cucina.haccp.type.sanificazione"),
-    ricezione_merce: t("cucina.haccp.type.ricezione_merce"),
-    altro: t("cucina.haccp.type.altro"),
+  const HACCP_TYPES: { value: ApiHaccpEntry["type"]; group: string }[] = [
+    { value: "temp_frigo", group: "temperature" },
+    { value: "temp_freezer", group: "temperature" },
+    { value: "temp_cottura", group: "temperature" },
+    { value: "temp_abbattitore", group: "temperature" },
+    { value: "olio_frittura", group: "temperature" },
+    { value: "sanificazione", group: "igiene" },
+    { value: "pulizia_manutenzione", group: "igiene" },
+    { value: "disinfestazione", group: "igiene" },
+    { value: "acqua_potabile", group: "igiene" },
+    { value: "rifiuti", group: "igiene" },
+    { value: "ricezione_merce", group: "tracciabilita" },
+    { value: "allergeni", group: "tracciabilita" },
+    { value: "non_conformita", group: "controllo" },
+    { value: "formazione_personale", group: "controllo" },
+    { value: "altro", group: "controllo" },
+  ];
+
+  const HACCP_TYPE_LABELS: Record<string, string> = Object.fromEntries(
+    HACCP_TYPES.map((tp) => [tp.value, t(`cucina.haccp.type.${tp.value}`)])
+  );
+
+  const GROUP_LABELS: Record<string, string> = {
+    temperature: t("cucina.haccp.group.temperature"),
+    igiene: t("cucina.haccp.group.igiene"),
+    tracciabilita: t("cucina.haccp.group.tracciabilita"),
+    controllo: t("cucina.haccp.group.controllo"),
+  };
+
+  const TEMP_THRESHOLDS: Record<string, { min: number; max: number }> = {
+    temp_frigo: { min: 0, max: 4 },
+    temp_freezer: { min: -25, max: -18 },
+    temp_cottura: { min: 75, max: 100 },
+    temp_abbattitore: { min: -40, max: 3 },
+    olio_frittura: { min: 160, max: 180 },
   };
 
   const [type, setType] = useState<ApiHaccpEntry["type"]>("temp_frigo");
   const [recordedAt, setRecordedAt] = useState(() => new Date().toISOString().slice(0, 16));
   const [location, setLocation] = useState("");
   const [temp, setTemp] = useState("");
+  const [thresholdMin, setThresholdMin] = useState("");
+  const [thresholdMax, setThresholdMax] = useState("");
+  const [conforme, setConforme] = useState<boolean | null>(null);
+  const [correctiveAction, setCorrectiveAction] = useState("");
   const [operator, setOperator] = useState("");
   const [notes, setNotes] = useState("");
+  const [supplier, setSupplier] = useState("");
+  const [product, setProduct] = useState("");
+  const [lotNumber, setLotNumber] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [cleaningProduct, setCleaningProduct] = useState("");
+  const [dilution, setDilution] = useState("");
+  const [contactTime, setContactTime] = useState("");
+
+  const isTemp = ["temp_frigo", "temp_freezer", "temp_cottura", "temp_abbattitore", "olio_frittura"].includes(type);
+  const isRicezione = type === "ricezione_merce";
+  const isSanificazione = type === "sanificazione" || type === "pulizia_manutenzione" || type === "acqua_potabile";
+  const isDisinfestazione = type === "disinfestazione";
+  const isNonConformita = type === "non_conformita";
+  const isFormazione = type === "formazione_personale";
+  const isAllergeni = type === "allergeni";
+  const isRifiuti = type === "rifiuti";
+
+  useEffect(() => {
+    if (isTemp && TEMP_THRESHOLDS[type]) {
+      setThresholdMin(String(TEMP_THRESHOLDS[type].min));
+      setThresholdMax(String(TEMP_THRESHOLDS[type].max));
+    } else {
+      setThresholdMin("");
+      setThresholdMax("");
+    }
+  }, [type]);
 
   useEffect(() => {
     haccpApi
-      .list({ limit: 100 })
-      .then((rows) => {
-        setEntries(rows);
-        setError(null);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : t("cucina.haccp.error_load"));
-      })
+      .list({ limit: 200 })
+      .then((rows) => { setEntries(rows); setError(null); })
+      .catch((e) => setError(e instanceof Error ? e.message : t("cucina.haccp.error_load")))
       .finally(() => setLoading(false));
   }, []);
+
+  function resetForm() {
+    setLocation(""); setTemp(""); setThresholdMin(""); setThresholdMax("");
+    setConforme(null); setCorrectiveAction(""); setOperator(""); setNotes("");
+    setSupplier(""); setProduct(""); setLotNumber(""); setExpiryDate("");
+    setCleaningProduct(""); setDilution(""); setContactTime("");
+    setRecordedAt(new Date().toISOString().slice(0, 16));
+  }
 
   async function save() {
     if (!recordedAt) return;
     const parsedTemp = temp.trim() ? Number.parseFloat(temp.replace(",", ".")) : null;
     if (temp.trim() && (parsedTemp === null || Number.isNaN(parsedTemp))) {
-      setError(t("cucina.haccp.error_temp"));
-      return;
+      setError(t("cucina.haccp.error_temp")); return;
     }
-    setSaving(true);
-    setError(null);
+    const parsedMin = thresholdMin.trim() ? Number.parseFloat(thresholdMin.replace(",", ".")) : null;
+    const parsedMax = thresholdMax.trim() ? Number.parseFloat(thresholdMax.replace(",", ".")) : null;
+
+    let autoConforme = conforme;
+    if (isTemp && parsedTemp != null && parsedMin != null && parsedMax != null) {
+      autoConforme = parsedTemp >= parsedMin && parsedTemp <= parsedMax;
+    }
+
+    setSaving(true); setError(null);
     try {
-      const created = await haccpApi.create({
+      const payload: HaccpCreatePayload = {
         type,
         recordedAt: new Date(recordedAt).toISOString(),
         location: location.trim(),
         tempC: parsedTemp,
+        thresholdMin: parsedMin,
+        thresholdMax: parsedMax,
+        conforme: autoConforme,
+        correctiveAction: correctiveAction.trim(),
         operator: operator.trim(),
         notes: notes.trim(),
-      });
+        supplier: supplier.trim(),
+        product: product.trim(),
+        lotNumber: lotNumber.trim(),
+        expiryDate: expiryDate ? new Date(expiryDate).toISOString() : null,
+        cleaningProduct: cleaningProduct.trim(),
+        dilution: dilution.trim(),
+        contactTime: contactTime.trim(),
+      };
+      const created = await haccpApi.create(payload);
       setEntries((prev) => [created, ...prev]);
-      setLocation("");
-      setTemp("");
-      setOperator("");
-      setNotes("");
-      setRecordedAt(new Date().toISOString().slice(0, 16));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("cucina.haccp.error_save"));
+      resetForm();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("cucina.haccp.error_save"));
     } finally {
       setSaving(false);
     }
@@ -1152,49 +1227,214 @@ function HaccpTab() {
     try {
       await haccpApi.delete(id);
       setEntries((prev) => prev.filter((e) => e.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("cucina.haccp.error_delete"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("cucina.haccp.error_delete"));
     }
   }
 
+  const filteredEntries = filterType === "all" ? entries : entries.filter((e) => e.type === filterType);
   const printDate = new Date().toLocaleDateString("it-IT", { day: "2-digit", month: "long", year: "numeric" });
+  const inputCls = "w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent";
+  const labelCls = "mb-1 block text-xs font-semibold text-rw-muted";
+
+  function conformeBadge(row: ApiHaccpEntry) {
+    if (row.conforme === true) return <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-400"><CheckCircle2 className="h-3 w-3" />{t("cucina.haccp.conforme")}</span>;
+    if (row.conforme === false) return <span className="inline-flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-bold text-red-400"><AlertTriangle className="h-3 w-3" />{t("cucina.haccp.non_conforme")}</span>;
+    return <span className="text-[10px] text-rw-muted">—</span>;
+  }
 
   return (
     <div className="space-y-6">
-      {/* Form di registrazione — nascosto in stampa */}
+      {/* Legal Reference Banner */}
+      <div className="flex items-start gap-3 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4" data-no-print>
+        <Shield className="mt-0.5 h-5 w-5 shrink-0 text-blue-400" />
+        <div className="text-xs text-rw-muted">
+          <p className="font-semibold text-blue-400">{t("cucina.haccp.legal_ref")}</p>
+          <p className="mt-1">{t("cucina.haccp.legal_desc")}</p>
+        </div>
+      </div>
+
+      {/* Registration Form */}
       <div data-no-print>
         <Card title={t("cucina.haccp.register_title")} description={t("cucina.haccp.register_desc")}>
           <div className="space-y-4">
+            {/* Type + DateTime */}
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-rw-muted">{t("cucina.haccp.type_label")}</span>
-                <select value={type} onChange={(e) => setType(e.target.value as ApiHaccpEntry["type"])} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent">
-                  {(Object.keys(HACCP_TYPE_LABELS) as Array<keyof typeof HACCP_TYPE_LABELS>).map((typeKey) => (
-                    <option key={typeKey} value={typeKey}>{HACCP_TYPE_LABELS[typeKey]}</option>
+                <span className={labelCls}>{t("cucina.haccp.type_label")}</span>
+                <select value={type} onChange={(e) => setType(e.target.value as ApiHaccpEntry["type"])} className={inputCls}>
+                  {Object.entries(GROUP_LABELS).map(([gKey, gLabel]) => (
+                    <optgroup key={gKey} label={gLabel}>
+                      {HACCP_TYPES.filter((tp) => tp.group === gKey).map((tp) => (
+                        <option key={tp.value} value={tp.value}>{HACCP_TYPE_LABELS[tp.value]}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-rw-muted">{t("cucina.haccp.datetime")}</span>
-                <input type="datetime-local" value={recordedAt} onChange={(e) => setRecordedAt(e.target.value)} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+                <span className={labelCls}>{t("cucina.haccp.datetime")}</span>
+                <input type="datetime-local" value={recordedAt} onChange={(e) => setRecordedAt(e.target.value)} className={inputCls} />
               </label>
             </div>
+
+            {/* Location + Operator (always shown) */}
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-rw-muted">{t("cucina.haccp.location")}</span>
-                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("cucina.haccp.location_placeholder")} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
+                <span className={labelCls}>{t("cucina.haccp.location")}</span>
+                <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder={t("cucina.haccp.location_placeholder")} className={inputCls} />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold text-rw-muted">{t("cucina.haccp.temp")}</span>
-                <div className="flex items-center gap-2">
-                  <ThermometerSun className="h-4 w-4 text-rw-muted" />
-                  <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder={t("cucina.haccp.temp_placeholder")} className="flex-1 rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-                </div>
+                <span className={labelCls}>{t("cucina.haccp.operator_label")}</span>
+                <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder={t("cucina.haccp.operator_placeholder")} className={inputCls} />
               </label>
             </div>
-            <input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder={t("cucina.haccp.operator_placeholder")} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("cucina.haccp.notes_placeholder")} rows={3} className="w-full rounded-xl border border-rw-line bg-rw-bg px-4 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent" />
-            {error ? <p className="text-xs text-red-400">{error}</p> : null}
+
+            {/* Temperature fields */}
+            {isTemp && (
+              <div className="grid gap-4 sm:grid-cols-3">
+                <label className="block">
+                  <span className={labelCls}>{t("cucina.haccp.temp")}</span>
+                  <div className="flex items-center gap-2">
+                    <ThermometerSun className="h-4 w-4 text-rw-muted" />
+                    <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder={t("cucina.haccp.temp_placeholder")} className={cn(inputCls, "flex-1")} />
+                  </div>
+                </label>
+                <label className="block">
+                  <span className={labelCls}>{t("cucina.haccp.threshold_min")}</span>
+                  <input value={thresholdMin} onChange={(e) => setThresholdMin(e.target.value)} placeholder="Min °C" className={inputCls} />
+                </label>
+                <label className="block">
+                  <span className={labelCls}>{t("cucina.haccp.threshold_max")}</span>
+                  <input value={thresholdMax} onChange={(e) => setThresholdMax(e.target.value)} placeholder="Max °C" className={inputCls} />
+                </label>
+              </div>
+            )}
+
+            {/* Goods receiving fields */}
+            {isRicezione && (
+              <div className="space-y-4 rounded-xl border border-rw-line/50 bg-rw-surfaceAlt/30 p-4">
+                <p className="text-xs font-bold text-rw-muted">{t("cucina.haccp.ricezione_section")}</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.supplier")}</span>
+                    <input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder={t("cucina.haccp.supplier_placeholder")} className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.product")}</span>
+                    <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder={t("cucina.haccp.product_placeholder")} className={inputCls} />
+                  </label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.lot_number")}</span>
+                    <input value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} placeholder="LOT-2026-001" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.expiry_date")}</span>
+                    <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.temp")}</span>
+                    <input value={temp} onChange={(e) => setTemp(e.target.value)} placeholder={t("cucina.haccp.temp_arrival")} className={inputCls} />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Sanificazione / Pulizia / Acqua potabile fields */}
+            {isSanificazione && (
+              <div className="space-y-4 rounded-xl border border-rw-line/50 bg-rw-surfaceAlt/30 p-4">
+                <p className="text-xs font-bold text-rw-muted">{t("cucina.haccp.sanificazione_section")}</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.cleaning_product")}</span>
+                    <input value={cleaningProduct} onChange={(e) => setCleaningProduct(e.target.value)} placeholder={t("cucina.haccp.cleaning_placeholder")} className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.dilution")}</span>
+                    <input value={dilution} onChange={(e) => setDilution(e.target.value)} placeholder="es. 1:100" className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.contact_time")}</span>
+                    <input value={contactTime} onChange={(e) => setContactTime(e.target.value)} placeholder="es. 15 min" className={inputCls} />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Disinfestazione fields */}
+            {isDisinfestazione && (
+              <div className="space-y-4 rounded-xl border border-rw-line/50 bg-rw-surfaceAlt/30 p-4">
+                <p className="text-xs font-bold text-rw-muted">{t("cucina.haccp.disinfestazione_section")}</p>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.pest_company")}</span>
+                    <input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder={t("cucina.haccp.pest_company_placeholder")} className={inputCls} />
+                  </label>
+                  <label className="block">
+                    <span className={labelCls}>{t("cucina.haccp.pest_product")}</span>
+                    <input value={cleaningProduct} onChange={(e) => setCleaningProduct(e.target.value)} placeholder={t("cucina.haccp.pest_product_placeholder")} className={inputCls} />
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {/* Allergeni fields */}
+            {isAllergeni && (
+              <div className="space-y-4 rounded-xl border border-rw-line/50 bg-rw-surfaceAlt/30 p-4">
+                <p className="text-xs font-bold text-rw-muted">{t("cucina.haccp.allergeni_section")}</p>
+                <label className="block">
+                  <span className={labelCls}>{t("cucina.haccp.product")}</span>
+                  <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder={t("cucina.haccp.allergeni_product_placeholder")} className={inputCls} />
+                </label>
+              </div>
+            )}
+
+            {/* Formazione fields */}
+            {isFormazione && (
+              <div className="space-y-4 rounded-xl border border-rw-line/50 bg-rw-surfaceAlt/30 p-4">
+                <p className="text-xs font-bold text-rw-muted">{t("cucina.haccp.formazione_section")}</p>
+                <label className="block">
+                  <span className={labelCls}>{t("cucina.haccp.training_topic")}</span>
+                  <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder={t("cucina.haccp.training_topic_placeholder")} className={inputCls} />
+                </label>
+              </div>
+            )}
+
+            {/* Rifiuti fields */}
+            {isRifiuti && (
+              <div className="space-y-4 rounded-xl border border-rw-line/50 bg-rw-surfaceAlt/30 p-4">
+                <p className="text-xs font-bold text-rw-muted">{t("cucina.haccp.rifiuti_section")}</p>
+                <label className="block">
+                  <span className={labelCls}>{t("cucina.haccp.waste_type")}</span>
+                  <input value={product} onChange={(e) => setProduct(e.target.value)} placeholder={t("cucina.haccp.waste_type_placeholder")} className={inputCls} />
+                </label>
+              </div>
+            )}
+
+            {/* Conformità + Azione correttiva */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className={labelCls}>{t("cucina.haccp.conforme_label")}</span>
+                <select value={conforme === null ? "" : conforme ? "true" : "false"} onChange={(e) => setConforme(e.target.value === "" ? null : e.target.value === "true")} className={inputCls}>
+                  <option value="">—</option>
+                  <option value="true">{t("cucina.haccp.conforme")}</option>
+                  <option value="false">{t("cucina.haccp.non_conforme")}</option>
+                </select>
+              </label>
+              {(conforme === false || isNonConformita) && (
+                <label className="block">
+                  <span className={labelCls}>{t("cucina.haccp.corrective_action")}</span>
+                  <input value={correctiveAction} onChange={(e) => setCorrectiveAction(e.target.value)} placeholder={t("cucina.haccp.corrective_placeholder")} className={inputCls} />
+                </label>
+              )}
+            </div>
+
+            {/* Notes */}
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("cucina.haccp.notes_placeholder")} rows={2} className={inputCls} />
+
+            {error && <p className="text-xs text-red-400">{error}</p>}
             <button type="button" onClick={save} disabled={saving} className="rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-bold text-white transition hover:bg-rw-accent/85 disabled:opacity-50">
               {saving ? t("cucina.saving") : t("cucina.haccp.register_btn")}
             </button>
@@ -1202,97 +1442,84 @@ function HaccpTab() {
         </Card>
       </div>
 
-      {/* Storico + pulsante stampa */}
+      {/* History + Print */}
       <Card
         title={t("cucina.haccp.history_title")}
-        description={loading ? t("ui.loading") : t("cucina.haccp.history_desc").replace("{n}", String(entries.length))}
+        description={loading ? t("ui.loading") : t("cucina.haccp.history_desc").replace("{n}", String(filteredEntries.length))}
         headerRight={
-          entries.length > 0 ? (
-            <button
-              type="button"
-              data-no-print
-              onClick={() => window.print()}
-              className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft hover:text-rw-ink transition"
-            >
-              {t("cucina.haccp.print_btn")}
-            </button>
-          ) : undefined
+          <div className="flex items-center gap-2">
+            <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="rounded-lg border border-rw-line bg-rw-bg px-2 py-1 text-xs text-rw-ink" data-no-print>
+              <option value="all">{t("cucina.haccp.filter_all")}</option>
+              {HACCP_TYPES.map((tp) => (
+                <option key={tp.value} value={tp.value}>{HACCP_TYPE_LABELS[tp.value]}</option>
+              ))}
+            </select>
+            {filteredEntries.length > 0 && (
+              <button type="button" data-no-print onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft hover:text-rw-ink transition">
+                {t("cucina.haccp.print_btn")}
+              </button>
+            )}
+          </div>
         }
       >
-        {/* ── Contenuto stampabile HACCP ─────────────────────── */}
         <div data-print-content>
-          {/* Intestazione documento — visibile SOLO in stampa */}
-          <div className="hidden" style={{ display: "none" }}
-            ref={(el) => {
-              if (el) {
-                el.setAttribute("data-print-header", "true");
-              }
-            }}
-          />
-          <style>{`
-            @media print {
-              [data-print-header] { display: block !important; }
-              [data-print-header-hide] { display: none !important; }
-            }
-          `}</style>
+          <div className="hidden" style={{ display: "none" }} ref={(el) => { if (el) el.setAttribute("data-print-header", "true"); }} />
+          <style>{`@media print { [data-print-header] { display: block !important; } [data-print-header-hide] { display: none !important; } }`}</style>
 
-          {/* Header documento HACCP — visibile solo in stampa */}
-          <div data-print-header style={{ display: "none" }}
-            className="mb-6 border-b-2 border-black pb-4"
-          >
+          {/* Print Header */}
+          <div data-print-header style={{ display: "none" }} className="mb-6 border-b-2 border-black pb-4">
             <div className="flex items-start justify-between">
               <div>
                 <div className="text-2xl font-bold uppercase tracking-wide">{t("cucina.haccp.doc_title")}</div>
                 <div className="text-sm mt-1">{t("cucina.haccp.doc_subtitle")}</div>
-                <div className="text-sm">D.Lgs. 193/2007 — Reg. CE 852/2004</div>
+                <div className="text-sm">Reg. CE 852/2004 — Reg. CE 178/2002 — D.Lgs. 193/2007</div>
+                <div className="text-sm">D.Lgs. 231/2017 (allergeni) — Reg. CE 1169/2011</div>
               </div>
               <div className="text-right text-sm">
                 <div className="font-semibold">{t("cucina.haccp.print_date").replace("{date}", printDate)}</div>
-                <div className="mt-1">{t("cucina.haccp.print_count").replace("{n}", String(entries.length))}</div>
+                <div className="mt-1">{t("cucina.haccp.print_count").replace("{n}", String(filteredEntries.length))}</div>
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-8 text-sm">
-              <div>
-                <span className="font-semibold">{t("cucina.haccp.structure")}</span>
-                <span className="ml-2 border-b border-black inline-block w-40">&nbsp;</span>
-              </div>
-              <div>
-                <span className="font-semibold">{t("cucina.haccp.responsible")}</span>
-                <span className="ml-2 border-b border-black inline-block w-32">&nbsp;</span>
-              </div>
+              <div><span className="font-semibold">{t("cucina.haccp.structure")}</span><span className="ml-2 border-b border-black inline-block w-40">&nbsp;</span></div>
+              <div><span className="font-semibold">{t("cucina.haccp.responsible")}</span><span className="ml-2 border-b border-black inline-block w-32">&nbsp;</span></div>
             </div>
           </div>
 
-          {/* Tabella dati */}
-          {!loading && entries.length === 0 ? (
+          {!loading && filteredEntries.length === 0 ? (
             <p className="py-4 text-center text-sm text-rw-muted">{t("cucina.haccp.empty")}</p>
           ) : (
             <>
-              {/* Versione schermo (DataTable) */}
+              {/* Screen version */}
               <div data-print-header-hide>
                 <DataTable
                   columns={[
                     { key: "recordedAt", header: t("cucina.haccp.col_datetime"), render: (r: ApiHaccpEntry) => <span className="text-rw-ink">{new Date(r.recordedAt).toLocaleString("it-IT")}</span> },
                     { key: "type", header: t("cucina.haccp.col_type"), render: (r: ApiHaccpEntry) => <span className="text-rw-soft">{HACCP_TYPE_LABELS[r.type] ?? r.type}</span> },
                     { key: "location", header: t("cucina.haccp.col_location") },
-                    { key: "tempC", header: t("cucina.haccp.col_temp"), render: (r: ApiHaccpEntry) => (r.tempC != null ? `${r.tempC.toFixed(1)}°` : "—") },
+                    { key: "tempC", header: t("cucina.haccp.col_temp"), render: (r: ApiHaccpEntry) => r.tempC != null ? <span className={cn("font-semibold", r.conforme === false ? "text-red-400" : r.conforme === true ? "text-emerald-400" : "text-rw-ink")}>{r.tempC.toFixed(1)}°</span> : <span className="text-rw-muted">—</span> },
+                    { key: "conforme", header: t("cucina.haccp.col_conforme"), render: (r: ApiHaccpEntry) => conformeBadge(r) },
                     { key: "operator", header: t("cucina.haccp.col_operator") },
-                    { key: "notes", header: t("cucina.haccp.col_notes"), render: (r: ApiHaccpEntry) => <span className="text-rw-muted">{r.notes || "—"}</span> },
-                    {
-                      key: "actions",
-                      header: "",
-                      render: (r: ApiHaccpEntry) => (
-                        <button type="button" onClick={() => removeEntry(r.id)} className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/20">
-                          {t("ui.delete")}
-                        </button>
-                      ),
-                    },
+                    { key: "detail", header: t("cucina.haccp.col_detail"), render: (r: ApiHaccpEntry) => {
+                      const parts: string[] = [];
+                      if (r.supplier) parts.push(r.supplier);
+                      if (r.product) parts.push(r.product);
+                      if (r.lotNumber) parts.push(`Lotto: ${r.lotNumber}`);
+                      if (r.cleaningProduct) parts.push(r.cleaningProduct);
+                      if (r.correctiveAction) parts.push(`AC: ${r.correctiveAction}`);
+                      if (r.notes) parts.push(r.notes);
+                      return <span className="text-xs text-rw-muted">{parts.join(" · ") || "—"}</span>;
+                    }},
+                    { key: "actions", header: "", render: (r: ApiHaccpEntry) => (
+                      <button type="button" onClick={() => removeEntry(r.id)} className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400 hover:bg-red-500/20">{t("ui.delete")}</button>
+                    )},
                   ]}
-                  data={entries}
+                  data={filteredEntries}
                   keyExtractor={(r) => r.id}
                 />
               </div>
-              {/* Versione stampa (tabella HTML nativa — più affidabile per @media print) */}
+
+              {/* Print version */}
               <table style={{ display: "none" }} data-print-header className="w-full text-sm border-collapse">
                 <thead>
                   <tr>
@@ -1300,19 +1527,25 @@ function HaccpTab() {
                     <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_type_full")}</th>
                     <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_location")}</th>
                     <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-center text-xs font-bold">{t("cucina.haccp.col_temp")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-center text-xs font-bold">{t("cucina.haccp.col_limits")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-center text-xs font-bold">{t("cucina.haccp.col_conforme")}</th>
                     <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_operator")}</th>
-                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_notes_esito")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_detail_print")}</th>
+                    <th className="border border-gray-400 bg-gray-100 px-2 py-1 text-left text-xs font-bold">{t("cucina.haccp.col_corrective")}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {entries.map((r) => (
+                  {filteredEntries.map((r) => (
                     <tr key={r.id}>
                       <td className="border border-gray-300 px-2 py-1 text-xs">{new Date(r.recordedAt).toLocaleString("it-IT")}</td>
                       <td className="border border-gray-300 px-2 py-1 text-xs">{HACCP_TYPE_LABELS[r.type] ?? r.type}</td>
                       <td className="border border-gray-300 px-2 py-1 text-xs">{r.location || "—"}</td>
                       <td className="border border-gray-300 px-2 py-1 text-xs text-center font-semibold">{r.tempC != null ? `${r.tempC.toFixed(1)}°` : "—"}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs text-center">{r.thresholdMin != null && r.thresholdMax != null ? `${r.thresholdMin}°/${r.thresholdMax}°` : "—"}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs text-center font-bold">{r.conforme === true ? "CONFORME" : r.conforme === false ? "NON CONFORME" : "—"}</td>
                       <td className="border border-gray-300 px-2 py-1 text-xs">{r.operator || "—"}</td>
-                      <td className="border border-gray-300 px-2 py-1 text-xs">{r.notes || "—"}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{[r.supplier, r.product, r.lotNumber ? `Lotto: ${r.lotNumber}` : "", r.cleaningProduct, r.notes].filter(Boolean).join(", ") || "—"}</td>
+                      <td className="border border-gray-300 px-2 py-1 text-xs">{r.correctiveAction || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1320,8 +1553,8 @@ function HaccpTab() {
             </>
           )}
 
-          {/* Footer firme — solo in stampa */}
-          <div data-print-header style={{ display: "none" }} className="mt-10 grid grid-cols-2 gap-16 text-sm">
+          {/* Print Footer */}
+          <div data-print-header style={{ display: "none" }} className="mt-10 grid grid-cols-3 gap-10 text-sm">
             <div>
               <div className="mb-8 font-semibold">{t("cucina.haccp.sign_operator")}</div>
               <div className="border-b border-black w-full">&nbsp;</div>
@@ -1329,6 +1562,11 @@ function HaccpTab() {
             </div>
             <div>
               <div className="mb-8 font-semibold">{t("cucina.haccp.sign_responsible")}</div>
+              <div className="border-b border-black w-full">&nbsp;</div>
+              <div className="mt-1 text-xs text-gray-600">{t("cucina.haccp.name_sign")}</div>
+            </div>
+            <div>
+              <div className="mb-8 font-semibold">{t("cucina.haccp.sign_legal")}</div>
               <div className="border-b border-black w-full">&nbsp;</div>
               <div className="mt-1 text-xs text-gray-600">{t("cucina.haccp.name_sign")}</div>
             </div>

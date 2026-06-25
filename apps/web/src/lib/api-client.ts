@@ -682,6 +682,14 @@ export type HaccpEntryType =
   | "temp_abbattitore"
   | "sanificazione"
   | "ricezione_merce"
+  | "pulizia_manutenzione"
+  | "disinfestazione"
+  | "non_conformita"
+  | "formazione_personale"
+  | "olio_frittura"
+  | "allergeni"
+  | "acqua_potabile"
+  | "rifiuti"
   | "altro";
 
 export type HaccpEntry = {
@@ -691,10 +699,41 @@ export type HaccpEntry = {
   recordedAt: string;
   location: string;
   tempC: number | null;
+  thresholdMin: number | null;
+  thresholdMax: number | null;
+  conforme: boolean | null;
+  correctiveAction: string;
   operator: string;
   notes: string;
+  supplier: string;
+  product: string;
+  lotNumber: string;
+  expiryDate: string | null;
+  cleaningProduct: string;
+  dilution: string;
+  contactTime: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type HaccpCreatePayload = {
+  type?: HaccpEntryType;
+  recordedAt?: string;
+  location?: string;
+  tempC?: number | null;
+  thresholdMin?: number | null;
+  thresholdMax?: number | null;
+  conforme?: boolean | null;
+  correctiveAction?: string;
+  operator?: string;
+  notes?: string;
+  supplier?: string;
+  product?: string;
+  lotNumber?: string;
+  expiryDate?: string | null;
+  cleaningProduct?: string;
+  dilution?: string;
+  contactTime?: string;
 };
 
 export const haccpApi = {
@@ -707,22 +746,8 @@ export const haccpApi = {
     const q = qs.toString();
     return get<HaccpEntry[]>(`/haccp${q ? `?${q}` : ""}`);
   },
-  create: (data: {
-    type?: HaccpEntryType;
-    recordedAt?: string;
-    location?: string;
-    tempC?: number | null;
-    operator?: string;
-    notes?: string;
-  }) => post<HaccpEntry>("/haccp", data),
-  update: (id: string, data: Partial<{
-    type: HaccpEntryType;
-    recordedAt: string;
-    location: string;
-    tempC: number | null;
-    operator: string;
-    notes: string;
-  }>) => put<HaccpEntry>(`/haccp/${id}`, data),
+  create: (data: HaccpCreatePayload) => post<HaccpEntry>("/haccp", data),
+  update: (id: string, data: Partial<HaccpCreatePayload>) => put<HaccpEntry>(`/haccp/${id}`, data),
   delete: (id: string) => del<{ deleted: boolean }>(`/haccp/${id}`),
 };
 

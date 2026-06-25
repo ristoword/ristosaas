@@ -1175,21 +1175,40 @@ enum HaccpEntryType {
   temp_abbattitore
   sanificazione
   ricezione_merce
+  pulizia_manutenzione
+  disinfestazione
+  non_conformita
+  formazione_personale
+  olio_frittura
+  allergeni
+  acqua_potabile
+  rifiuti
   altro
 }
 
 model HaccpEntry {
-  id         String          @id @default(cuid())
-  tenantId   String
-  type       HaccpEntryType  @default(temp_frigo)
-  recordedAt DateTime        @default(now())
-  location   String          @default("")
-  tempC      Decimal?        @db.Decimal(5, 2)
-  operator   String          @default("")
-  notes      String          @default("")
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id               String          @id @default(cuid())
+  tenantId         String
+  type             HaccpEntryType  @default(temp_frigo)
+  recordedAt       DateTime        @default(now())
+  location         String          @default("")
+  tempC            Decimal?        @db.Decimal(5, 2)
+  thresholdMin     Decimal?        @db.Decimal(5, 2)
+  thresholdMax     Decimal?        @db.Decimal(5, 2)
+  conforme         Boolean?
+  correctiveAction String          @default("")
+  operator         String          @default("")
+  notes            String          @default("")
+  supplier         String          @default("")
+  product          String          @default("")
+  lotNumber        String          @default("")
+  expiryDate       DateTime?
+  cleaningProduct  String          @default("")
+  dilution         String          @default("")
+  contactTime      String          @default("")
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  tenant           Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, recordedAt])
   @@index([tenantId, type, recordedAt])

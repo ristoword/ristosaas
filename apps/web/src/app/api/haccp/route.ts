@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { ok, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
-import { haccpRepository, type HaccpEntryType } from "@/lib/db/repositories/haccp.repository";
+import { haccpRepository, type HaccpEntryType, type HaccpCreatePayload } from "@/lib/db/repositories/haccp.repository";
 
 const HACCP_ROLES = ["owner", "supervisor", "cucina", "pizzeria", "bar", "magazzino", "super_admin"] as const;
 
@@ -28,14 +28,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, HACCP_ROLES);
   if (guard.error) return guard.error;
-  const data = await body<{
-    type?: HaccpEntryType;
-    recordedAt?: string;
-    location?: string;
-    tempC?: number | null;
-    operator?: string;
-    notes?: string;
-  }>(req);
+  const data = await body<HaccpCreatePayload>(req);
   const item = await haccpRepository.create(getTenantId(), data);
   return ok(item, 201);
 }
