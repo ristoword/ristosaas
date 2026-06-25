@@ -42,6 +42,7 @@ import {
   Star,
   Store,
   Terminal,
+  Trophy,
   Truck,
   UserCheck,
   Users,
@@ -492,6 +493,15 @@ export const navSections: NavSection[] = [
         href: "/chat-staff",
         icon: MessageSquare,
         ready: true,
+      },
+      {
+        id: "obiettivi",
+        label: "Obiettivi",
+        hint: "Performance staff, classifica vendite, premi e report AI.",
+        href: "/obiettivi",
+        icon: Trophy,
+        ready: true,
+        visibleFor: ["supervisor", "owner", "super_admin"],
       },
       {
         id: "supervisor",

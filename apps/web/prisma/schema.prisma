@@ -279,6 +279,7 @@ model Tenant {
   emailLogs                EmailLog[]
   wineCellarItems          WineCellarItem[]
   chatMessages             ChatMessage[]
+  staffRewards             StaffReward[]
 }
 
 model BillingSubscription {
@@ -1477,4 +1478,20 @@ model ChatMessage {
   tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, createdAt])
+}
+
+model StaffReward {
+  id            String   @id @default(cuid())
+  tenantId      String
+  staffName     String
+  type          String
+  description   String
+  value         Decimal? @db.Decimal(10, 2)
+  period        String
+  awardedBy     String
+  awardedByName String
+  createdAt     DateTime @default(now())
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, staffName, createdAt])
 }

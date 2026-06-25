@@ -189,6 +189,20 @@ export const RISTO_TOOLS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_staff_performance",
+      description:
+        "Restituisce classifica performance del personale: ordini, incassi, coperti, bottiglie premium, turni e premi. Usala per 'come va il personale?', 'classifica camerieri', 'obiettivi staff', 'chi ha venduto di più?', 'report personale'.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", description: "Periodo: 'today', 'week', 'month'. Default 'today'." },
+        },
+      },
+    },
+  },
 ];
 
 type ToolResult = { success: boolean; message: string; data?: unknown };
@@ -217,6 +231,8 @@ export async function executeRistoTool(
       return getOperationalBriefing(tenantId);
     case "get_daily_summary":
       return getDailySummary(args, tenantId);
+    case "get_staff_performance":
+      return getStaffPerformance(args, tenantId);
     default:
       return { success: false, message: `Tool sconosciuto: ${toolName}` };
   }
@@ -530,4 +546,54 @@ async function getDailySummary(_args: Record<string, unknown>, tenantId: string)
     message: summary.join("\n"),
     data: { totalOrders, totalRevenue, menuItems, lowStockCount, winesLowStock, winesOutOfStock },
   };
+}
+
+async function getStaffPerformance(
+  args: Record<string, unknown>,
+  tenantId: string,
+): Promise<ToolResult> {
+  const period = String(args.period || "today");
+  const now = new Date();
+  const dateFrom = new Date(now);
+  dateFrom.setHours(0, 0, 0, 0);
+  if (period === "week") dateFrom.setDate(dateFrom.getDate() - 6);
+  else if (period === "month") dateFrom.setDate(1);
+  const dateTo = new Date(now);
+  dateTo.setHours(23, 59, 59, 999);
+
+  const orders = await prisma.restaurantOrder.findMany({
+    where: { tenantId, createdAt: { gte: dateFrom, lte: dateTo }, status: { notIn: ["annullato"] } },
+    include: { items: true },
+  });
+
+  const waiterMap: Record<string, { orders: number; revenue: number; covers: number; tables: Set<string>; items: number; premium: number }> = {};
+  for (const order of orders) {
+    const w = order.waiter || "Sconosciuto";
+    if (!waiterMap[w]) waiterMap[w] = { orders: 0, revenue: 0, covers: 0, tables: new Set(), items: 0, premium: 0 };
+    const s = waiterMap[w];
+    s.orders++;
+    s.covers += order.covers ?? 0;
+    if (order.table) s.tables.add(order.table);
+    for (const item of order.items) {
+      const p = Number(item.price ?? 0);
+      s.revenue += p * item.qty;
+      s.items += item.qty;
+      const lc = item.name.toLowerCase();
+      if (p >= 40 && (lc.includes("vino") || lc.includes("bottiglia") || lc.includes("champagne"))) s.premium += item.qty;
+    }
+  }
+
+  const ranked = Object.entries(waiterMap)
+    .map(([name, s]) => ({ name, ...s, tables: s.tables.size, avg: s.orders > 0 ? s.revenue / s.orders : 0 }))
+    .sort((a, b) => b.revenue - a.revenue);
+
+  const lines = [
+    `🏆 Classifica staff (${period === "today" ? "oggi" : period === "week" ? "ultima settimana" : "mese corrente"}):`,
+    ...ranked.map((w, i) =>
+      `${i + 1}. ${w.name}: ${w.orders} ordini, ${w.covers} coperti, ${w.tables} tavoli, €${w.revenue.toFixed(2)} incasso (media €${w.avg.toFixed(2)})${w.premium > 0 ? ` 🍷 ${w.premium} bottiglie premium` : ""}`,
+    ),
+    `\nTotale: ${orders.length} ordini, €${ranked.reduce((s, w) => s + w.revenue, 0).toFixed(2)} incasso`,
+  ];
+
+  return { success: true, message: lines.join("\n"), data: ranked };
 }
