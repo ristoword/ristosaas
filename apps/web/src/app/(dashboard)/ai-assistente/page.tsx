@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import { AiAssistentePage } from "@/components/ai/ai-assistente-page";
 
 export default function AiAssistenteRoute() {
-  return <AiAssistentePage />;
+  return (
+    <Suspense fallback={null}>
+      <AiAssistentePage />
+    </Suspense>
+  );
 }

@@ -107,7 +107,7 @@ export async function recordSupervisorFeedback(params: {
   const outcome: FeedbackOutcome =
     params.action === "approve" ? "approved" : params.action === "reject" ? "rejected" : "cancelled";
 
-  const module = extractModuleFromProposal(params.proposal);
+  const domainModule = extractModuleFromProposal(params.proposal);
   const confidence = extractConfidenceFromProposal(params.proposal);
   const decision = extractDecisionFromProposal(params.proposal);
   const motivo = extractMotivoFromProposal(params.proposal, params.notes);
@@ -118,7 +118,7 @@ export async function recordSupervisorFeedback(params: {
         tenantId: params.tenantId,
         userId: params.userId,
         userRole: params.userRole ?? "",
-        module,
+        module: domainModule,
         proposalId: params.proposal.id,
         outcome,
         motivo,
@@ -128,7 +128,7 @@ export async function recordSupervisorFeedback(params: {
     });
 
     if (outcome === "approved" || outcome === "rejected") {
-      await trainModulePatterns(params.tenantId, module).catch(() => undefined);
+      await trainModulePatterns(params.tenantId, domainModule).catch(() => undefined);
     }
 
     return mapFeedback(row);

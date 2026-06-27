@@ -117,8 +117,8 @@ export const automationConfigStore = {
   },
 
   isTriggerEnabled(configs: AutomationConfig[], trigger: AutomationTriggerType): boolean {
-    const module = TRIGGER_TO_MODULE[trigger];
-    const cfg = configs.find((c) => c.module === module && !c.role);
+    const automationModule = TRIGGER_TO_MODULE[trigger];
+    const cfg = configs.find((c) => c.module === automationModule && !c.role);
     if (!cfg?.enabled) return false;
     return cfg.triggers[trigger] !== false;
   },
