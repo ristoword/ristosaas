@@ -734,6 +734,23 @@ model AiChatLog {
   @@index([tenantId, userId, createdAt])
 }
 
+/// Platform knowledge for AI RAG (pgvector). Not tenant-scoped — shared manual chunks.
+model AiVectorChunk {
+  id             String                      @id @default(cuid())
+  source         String                      @default("manual")
+  chunkKey       String
+  sectionId      String
+  content        String                      @db.Text
+  embeddingModel String
+  contentHash    String
+  embedding      Unsupported("vector(1536)")
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  @@unique([source, chunkKey])
+  @@index([source])
+}
+
 model AiProposal {
   id           String           @id @default(cuid())
   tenantId     String

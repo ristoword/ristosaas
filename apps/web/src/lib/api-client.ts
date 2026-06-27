@@ -959,6 +959,7 @@ export const aiApi = {
     history?: Array<{ role: "user" | "assistant"; content: string }>;
     enableTools?: boolean;
     locale?: string;
+    stream?: boolean;
   }) => post<{ reply: string; actions?: string[] }>("/ai/chat", payload),
   history: (context?: string) => {
     const qs = context ? `?context=${encodeURIComponent(context)}` : "";
@@ -1349,8 +1350,8 @@ export const aiOpsApi = {
       if (params?.open) qs.set("open", "true");
       return get<{ proposals: AiProposal[] }>(`/ai/proposals${qs.toString() ? `?${qs.toString()}` : ""}`);
     },
-    generate: (payload?: { days?: number; status?: "draft" | "pending_review" }) =>
-      post<{ snapshot: KitchenOperationalSnapshot; proposals: AiProposal[]; generated: number }>(
+    generate: (payload?: { days?: number; status?: "draft" | "pending_review"; enrich?: boolean }) =>
+      post<{ snapshot: KitchenOperationalSnapshot; proposals: AiProposal[]; generated: number; source?: string }>(
         "/ai/proposals/generate",
         payload || {},
       ),
@@ -1358,6 +1359,26 @@ export const aiOpsApi = {
       patch<{ proposal: AiProposal }>(`/ai/proposals/${id}/review`, payload),
     apply: (id: string, payload?: { notes?: string }) =>
       post<{ proposal: AiProposal | null }>(`/ai/proposals/${id}/apply`, payload || {}),
+  },
+  decisions: {
+    generate: (payload?: {
+      domains?: string[];
+      periodDays?: number;
+      locale?: string;
+      persist?: boolean;
+      enrich?: boolean;
+      status?: "draft" | "pending_review";
+    }) => post<{ generatedAt: string; periodDays: number; decisions: unknown[]; source: string }>(
+      "/ai/decisions/generate",
+      payload || {},
+    ),
+    domain: (domain: string, params?: { enrich?: boolean; periodDays?: number; locale?: string }) => {
+      const qs = new URLSearchParams();
+      if (params?.enrich === false) qs.set("enrich", "false");
+      if (params?.periodDays) qs.set("periodDays", String(params.periodDays));
+      if (params?.locale) qs.set("locale", params.locale);
+      return get<unknown>(`/ai/decisions/${domain}${qs.toString() ? `?${qs.toString()}` : ""}`);
+    },
   },
 };
 

@@ -1,21 +1,16 @@
 import { NextRequest } from "next/server";
-import { ok, err } from "@/lib/api/helpers";
+import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
+import { createSseResponse } from "@/lib/ai/sse";
+import { streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
+import { pickStatusMessage } from "@/lib/ai/stream-status";
 
 const MANAGER_ROLES = ["supervisor", "owner", "super_admin"] as const;
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-export async function POST(req: NextRequest) {
-  const guard = await requireApiUser(req, MANAGER_ROLES);
-  if (guard.error) return guard.error;
-
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return err("OPENAI_API_KEY non configurata", 500);
-
-  const tenantId = getTenantId();
-
+async function buildStaffReportPayload(tenantId: string) {
   const today = new Date();
   const startOfDay = new Date(today); startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(today); endOfDay.setHours(23, 59, 59, 999);
@@ -65,19 +60,6 @@ export async function POST(req: NextRequest) {
     media_ordine: s.orders > 0 ? Math.round((s.revenue / s.orders) * 100) / 100 : 0,
   }));
 
-  const rewardsSummary = rewards.map((r) => ({
-    staffName: r.staffName,
-    type: r.type,
-    description: r.description,
-    value: r.value ? Number(r.value) : null,
-  }));
-
-  const shiftsSummary = shifts.map((s) => ({
-    name: s.staffMember.name,
-    clockIn: s.clockInAt.toISOString(),
-    clockOut: s.clockOutAt?.toISOString() ?? "in corso",
-  }));
-
   const systemPrompt = `Sei il direttore AI di un ristorante. Analizza i dati giornalieri del personale e produci un report dettagliato e professionale in italiano.
 
 Il report deve includere:
@@ -96,9 +78,71 @@ Formatta il report in modo leggibile con sezioni chiare.`;
     data: today.toISOString().slice(0, 10),
     totale_ordini: orders.length,
     personale: staffSummary,
-    premi_oggi: rewardsSummary,
-    turni_oggi: shiftsSummary,
+    premi_oggi: rewards.map((r) => ({
+      staffName: r.staffName,
+      type: r.type,
+      description: r.description,
+      value: r.value ? Number(r.value) : null,
+    })),
+    turni_oggi: shifts.map((s) => ({
+      name: s.staffMember.name,
+      clockIn: s.clockInAt.toISOString(),
+      clockOut: s.clockOutAt?.toISOString() ?? "in corso",
+    })),
   });
+
+  return { systemPrompt, userContent };
+}
+
+export async function POST(req: NextRequest) {
+  const guard = await requireApiUser(req, MANAGER_ROLES);
+  if (guard.error) return guard.error;
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return err("OPENAI_API_KEY non configurata", 500);
+
+  const tenantId = getTenantId();
+  const payload = await body<{ stream?: boolean }>(req).catch(() => ({} as { stream?: boolean }));
+
+  const { systemPrompt, userContent } = await buildStaffReportPayload(tenantId);
+  const generatedAt = new Date().toISOString();
+
+  if (payload.stream) {
+    return createSseResponse(async (emit, signal) => {
+      emit({ type: "status", message: pickStatusMessage("staff", 0) });
+      emit({ type: "status", message: pickStatusMessage("staff", 1) });
+      emit({ type: "status", message: pickStatusMessage("staff", 2) });
+
+      try {
+        let report = "";
+        const result = await streamOpenAIChatCompletion(
+          apiKey,
+          {
+            model: MODEL,
+            temperature: 0.4,
+            max_tokens: 2000,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userContent },
+            ],
+          },
+          (token) => {
+            report += token;
+            emit({ type: "token", content: token });
+          },
+          signal,
+        );
+        report = result.content.trim() || "Nessun report generato.";
+        emit({ type: "done", report, generatedAt });
+      } catch (e) {
+        if (signal.aborted) {
+          emit({ type: "error", message: "Report interrotto" });
+          return;
+        }
+        emit({ type: "error", message: e instanceof Error ? e.message : "Errore generazione report" });
+      }
+    }, req.signal);
+  }
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -122,5 +166,5 @@ Formatta il report in modo leggibile con sezioni chiare.`;
   const json = await res.json();
   const report = json.choices?.[0]?.message?.content ?? "Nessun report generato.";
 
-  return ok({ report, generatedAt: new Date().toISOString() });
+  return ok({ report, generatedAt });
 }

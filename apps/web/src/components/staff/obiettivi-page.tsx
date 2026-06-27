@@ -10,6 +10,7 @@ import {
   Gift,
   Loader2,
   Medal,
+  Square,
   Star,
   Target,
   Trophy,
@@ -22,6 +23,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Chip } from "@/components/shared/chip";
 import { useAuth } from "@/components/auth/auth-context";
 import { useI18n } from "@/core/i18n/provider";
+import { useAiStreamText } from "@/hooks/use-ai-stream";
 
 type RewardEntry = {
   id: string;
@@ -85,7 +87,7 @@ export function ObiettiviPage() {
   const [dateTo, setDateTo] = useState(() => todayStr());
   const [expanded, setExpanded] = useState<string | null>(null);
   const [aiReport, setAiReport] = useState<string | null>(null);
-  const [aiLoading, setAiLoading] = useState(false);
+  const { streamFrom, stop, isStreaming, statusText, text: streamingReport } = useAiStreamText();
 
   const [rewardModal, setRewardModal] = useState<string | null>(null);
   const [rewardType, setRewardType] = useState("recognition");
@@ -111,17 +113,11 @@ export function ObiettiviPage() {
   useEffect(() => { loadData(); }, [loadData]);
 
   const requestAiReport = useCallback(async () => {
-    setAiLoading(true);
-    try {
-      const res = await fetch("/api/staff/obiettivi/ai-report", { method: "POST" });
-      if (res.ok) {
-        const json = await res.json();
-        setAiReport(json.report);
-      }
-    } finally {
-      setAiLoading(false);
-    }
-  }, []);
+    setAiReport("");
+    await streamFrom("/staff/obiettivi/ai-report", {}, {
+      onComplete: (full) => setAiReport(full),
+    });
+  }, [streamFrom]);
 
   const saveReward = useCallback(async () => {
     if (!rewardModal || !rewardDesc) return;
@@ -172,14 +168,25 @@ export function ObiettiviPage() {
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6">
       <PageHeader title={t("obiettivi.title")} subtitle={t("obiettivi.subtitle")}>
         {isManager && (
-          <button
-            onClick={requestAiReport}
-            disabled={aiLoading}
-            className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:opacity-50"
-          >
-            {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
-            {t("obiettivi.aiReport")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => void requestAiReport()}
+              disabled={isStreaming}
+              className="flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-700 disabled:opacity-50"
+            >
+              {isStreaming ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
+              {t("obiettivi.aiReport")}
+            </button>
+            {isStreaming && (
+              <button
+                type="button"
+                onClick={stop}
+                className="flex items-center gap-1 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-400"
+              >
+                <Square className="h-3 w-3 fill-current" /> Stop
+              </button>
+            )}
+          </div>
         )}
       </PageHeader>
 
@@ -215,14 +222,24 @@ export function ObiettiviPage() {
       )}
 
       {/* AI Report */}
-      {aiReport && (
+      {(aiReport || isStreaming) && (
         <div className="relative rounded-xl border border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-purple-500/5 p-5">
-          <button onClick={() => setAiReport(null)} className="absolute right-3 top-3 text-rw-muted hover:text-rw-ink"><X className="h-4 w-4" /></button>
+          {!isStreaming && (
+            <button onClick={() => setAiReport(null)} className="absolute right-3 top-3 text-rw-muted hover:text-rw-ink"><X className="h-4 w-4" /></button>
+          )}
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-violet-400">
             <Bot className="h-5 w-5" />
             {t("obiettivi.aiReportTitle")}
           </div>
-          <div className="whitespace-pre-wrap text-sm leading-relaxed text-rw-ink">{aiReport}</div>
+          {isStreaming && statusText && (
+            <p className="mb-2 text-xs text-rw-muted">{statusText}</p>
+          )}
+          <div className="whitespace-pre-wrap text-sm leading-relaxed text-rw-ink">
+            {aiReport ?? streamingReport}
+            {isStreaming && (
+              <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-violet-400 align-middle" />
+            )}
+          </div>
         </div>
       )}
 

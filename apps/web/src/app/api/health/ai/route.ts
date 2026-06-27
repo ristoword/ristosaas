@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { DEFAULT_EMBEDDING_MODEL, EMBEDDING_DIM, getEmbeddingModel } from "@/lib/ai/embeddings";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,9 @@ export async function GET() {
       model,
       maxTokens: Number.isFinite(maxTokens) ? maxTokens : null,
       temperature: Number.isFinite(temperature) ? temperature : null,
+      embeddingModel: getEmbeddingModel(),
+      embeddingDimensions: EMBEDDING_DIM,
+      embeddingDefaultModel: DEFAULT_EMBEDDING_MODEL,
       timestamp: new Date().toISOString(),
     },
     { status: status === "ok" ? 200 : 503 },

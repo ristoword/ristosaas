@@ -6,7 +6,6 @@ import {
   MicOff,
   Send,
   Bot,
-  Loader2,
   ChefHat,
   Package,
   Wine,
@@ -15,18 +14,20 @@ import {
   BarChart3,
   Trash2,
   CheckCircle2,
+  Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { aiApi } from "@/lib/api-client";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { useI18n } from "@/core/i18n/provider";
+import { useAiStreamChat } from "@/hooks/use-ai-stream";
 
 type AiMessage = {
   role: "user" | "assistant";
   content: string;
   ts: number;
   isAction?: boolean;
+  streaming?: boolean;
 };
 
 type SpeechRecognitionType = {
@@ -283,10 +284,10 @@ export function RistoComandiPage() {
 
   const [messages, setMessages] = useState<AiMessage[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState("");
   const [voiceSupported, setVoiceSupported] = useState(true);
+  const { streamChat, stop, isStreaming, statusText } = useAiStreamChat();
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recRef = useRef<SpeechRecognitionType | null>(null);
@@ -312,38 +313,52 @@ export function RistoComandiPage() {
   const sendMessage = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || loading) return;
+      if (!trimmed || isStreaming) return;
       setInput("");
       setLiveTranscript("");
 
       const userMsg: AiMessage = { role: "user", content: trimmed, ts: Date.now() };
-      setMessages((p) => [...p, userMsg]);
-      setLoading(true);
+      const assistantTs = Date.now() + 1;
+      const history = messages
+        .filter((m) => !m.streaming)
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: m.content }));
 
-      const history = messages.slice(-8).map((m) => ({ role: m.role, content: m.content }));
+      setMessages((p) => [
+        ...p,
+        userMsg,
+        { role: "assistant", content: "", ts: assistantTs, streaming: true },
+      ]);
 
-      aiApi
-        .chat({ context: "risto", message: trimmed, history, enableTools: true, locale })
-        .then((data) => {
-          const reply = String(data.reply || "").trim();
-          if (!reply) throw new Error("Empty response");
-
-          const hasActions = data.actions && data.actions.length > 0;
-          setMessages((p) => [
-            ...p,
-            { role: "assistant", content: reply, ts: Date.now(), isAction: hasActions },
-          ]);
-        })
-        .catch((e: unknown) => {
-          const msg = e instanceof Error ? e.message : "Error";
-          setMessages((p) => [
-            ...p,
-            { role: "assistant", content: `Error: ${msg}`, ts: Date.now() },
-          ]);
-        })
-        .finally(() => setLoading(false));
+      void streamChat(
+        { context: "risto", message: trimmed, history, enableTools: true, locale },
+        (fullText) => {
+          setMessages((p) =>
+            p.map((m) => (m.ts === assistantTs ? { ...m, content: fullText } : m)),
+          );
+        },
+        ({ reply, actions }) => {
+          const hasActions = Boolean(actions && actions.length > 0);
+          setMessages((p) =>
+            p.map((m) =>
+              m.ts === assistantTs
+                ? { role: "assistant", content: reply, ts: assistantTs, isAction: hasActions, streaming: false }
+                : m,
+            ),
+          );
+        },
+        (msg) => {
+          setMessages((p) =>
+            p.map((m) =>
+              m.ts === assistantTs
+                ? { role: "assistant", content: `Error: ${msg}`, ts: assistantTs, streaming: false }
+                : m,
+            ),
+          );
+        },
+      );
     },
-    [loading, messages, locale],
+    [isStreaming, messages, locale, streamChat],
   );
 
   const startListening = useCallback(() => {
@@ -506,6 +521,9 @@ export function RistoComandiPage() {
                     </div>
                   )}
                   {m.content}
+                  {m.streaming && m.content.length > 0 && (
+                    <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-rw-accent align-middle" />
+                  )}
                 </div>
               </div>
             ))}
@@ -519,10 +537,10 @@ export function RistoComandiPage() {
               </div>
             )}
 
-            {loading && (
+            {isStreaming && (
               <div className="flex justify-start">
-                <div className="flex items-center gap-2 rounded-2xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-muted">
-                  <Loader2 className="h-4 w-4 animate-spin" /> {c.thinking}
+                <div className="rounded-2xl border border-rw-accent/20 bg-rw-accent/5 px-4 py-3 text-xs text-rw-muted">
+                  {statusText || c.thinking}
                 </div>
               </div>
             )}
@@ -560,11 +578,16 @@ export function RistoComandiPage() {
               />
               <button
                 type="button"
-                onClick={() => sendMessage(input)}
-                disabled={loading || !input.trim()}
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rw-accent text-white transition hover:bg-rw-accent/85 disabled:opacity-40"
+                onClick={() => (isStreaming ? stop() : sendMessage(input))}
+                disabled={!isStreaming && !input.trim()}
+                className={cn(
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-40",
+                  isStreaming
+                    ? "border border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20"
+                    : "bg-rw-accent text-white hover:bg-rw-accent/85",
+                )}
               >
-                <Send className="h-4 w-4" />
+                {isStreaming ? <Square className="h-4 w-4 fill-current" /> : <Send className="h-4 w-4" />}
               </button>
             </div>
             {listening && (

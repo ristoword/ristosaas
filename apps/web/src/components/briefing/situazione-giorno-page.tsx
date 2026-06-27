@@ -21,6 +21,7 @@ import {
 import { PageHeader } from "@/components/shared/page-header";
 import { cn } from "@/lib/utils";
 import type { OperationalBriefing } from "@/lib/db/repositories/operational-briefing.repository";
+import { consumeAiStream } from "@/lib/ai/consume-ai-stream";
 
 type BriefingResponse = {
   briefing: OperationalBriefing;
@@ -114,31 +115,66 @@ export function SituazioneGiornoPage() {
   const [speaking, setSpeaking] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [streamStatus, setStreamStatus] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const recRef = useRef<SpeechRecognitionType | null>(null);
 
   const load = useCallback(async (withAi = true) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch("/api/operational-briefing/narrate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ locale: "it", enhance: withAi }),
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error ?? `Errore ${res.status}`);
-      }
-      const json = await res.json() as BriefingResponse;
-      setData(json);
-      return json;
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore caricamento");
-      return null;
-    } finally {
-      setLoading(false);
-    }
+    setStreamStatus("AI sta analizzando…");
+
+    let briefing: OperationalBriefing | null = null;
+    let narrative = "";
+    let source: string | undefined = withAi ? "ai" : "template";
+
+    await consumeAiStream(
+      "/operational-briefing/narrate",
+      { locale: "it", enhance: withAi },
+      {
+        onStatus: (message) => setStreamStatus(message),
+        onMeta: (meta) => {
+          if (meta.briefing) {
+            briefing = meta.briefing as OperationalBriefing;
+            setData((prev) => ({
+              briefing: briefing!,
+              narrative: prev?.narrative ?? "",
+              source: (meta.source as string) ?? source,
+            }));
+          }
+        },
+        onToken: (token) => {
+          narrative += token;
+          setData((prev) => ({
+            briefing: briefing ?? prev?.briefing ?? ({} as OperationalBriefing),
+            narrative,
+            source,
+          }));
+        },
+        onDone: (event) => {
+          narrative = event.narrative ?? narrative;
+          source = event.source ?? source;
+          if (event.briefing) briefing = event.briefing as OperationalBriefing;
+          const result: BriefingResponse = {
+            briefing: (briefing ?? ({} as OperationalBriefing)) as OperationalBriefing,
+            narrative,
+            source,
+          };
+          setData(result);
+        },
+        onError: (message) => setError(message),
+      },
+      controller.signal,
+    );
+
+    setLoading(false);
+    setStreamStatus(null);
+    abortRef.current = null;
+    if (!briefing) return null;
+    return { briefing, narrative, source };
   }, []);
 
   useEffect(() => {
@@ -266,7 +302,15 @@ export function SituazioneGiornoPage() {
               Dati letti in tempo reale dal gestionale — nessun dato demo o simulato.
             </p>
             {data?.narrative && (
-              <p className="mt-2 text-sm text-rw-soft leading-relaxed line-clamp-4">{data.narrative}</p>
+              <p className="mt-2 text-sm text-rw-soft leading-relaxed whitespace-pre-wrap">
+                {data.narrative}
+                {loading && streamStatus && (
+                  <span className="block mt-2 text-xs text-rw-muted">{streamStatus}</span>
+                )}
+              </p>
+            )}
+            {loading && streamStatus && !data?.narrative && (
+              <p className="mt-2 text-xs text-rw-muted">{streamStatus}</p>
             )}
             <div className="mt-3 flex items-center gap-2">
               <button
