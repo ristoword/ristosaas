@@ -1380,6 +1380,189 @@ export const aiOpsApi = {
       return get<unknown>(`/ai/decisions/${domain}${qs.toString() ? `?${qs.toString()}` : ""}`);
     },
   },
+  orchestrator: {
+    ask: (payload: {
+      query: string;
+      locale?: string;
+      periodDays?: number;
+      enrich?: boolean;
+      contextHint?: string;
+      stream?: boolean;
+    }) =>
+      post<{
+        reply: string;
+        generatedAt: string;
+        plan: { modules: string[]; reasoning: string; source: string };
+        modules: unknown[];
+        ragUsed: boolean;
+        source: string;
+      }>("/ai/orchestrator", payload),
+  },
+  vision: {
+    tasks: () =>
+      get<{
+        tasks: Array<{ type: string; label: string; integrations: string[] }>;
+      }>("/ai/vision"),
+    analyze: (payload: {
+      taskType: string;
+      image: string;
+      locale?: string;
+      hints?: string;
+      mimeType?: string;
+    }) =>
+      post<{
+        taskType: string;
+        generatedAt: string;
+        tenantId: string;
+        analysis: unknown;
+        integrations: unknown[];
+        source: string;
+        valid: boolean;
+        validationErrors: string[];
+      }>("/ai/vision", payload),
+    analyzeType: (
+      type: string,
+      payload: { image: string; locale?: string; hints?: string; mimeType?: string },
+    ) =>
+      post<{
+        taskType: string;
+        generatedAt: string;
+        analysis: unknown;
+        integrations: unknown[];
+        source: string;
+        valid: boolean;
+      }>(`/ai/vision/${type}`, payload),
+  },
+  voice: {
+    createSession: (payload?: { locale?: string }) =>
+      post<{ sessionId: string; locale: string; createdAt: string }>("/ai/voice/session", payload || {}),
+    getSession: (id: string) =>
+      get<{ sessionId: string; locale: string; turns: unknown[]; updatedAt: string }>(
+        `/ai/voice/session/${id}`,
+      ),
+    turn: (payload: { sessionId: string; transcript: string; locale?: string; stream?: boolean }) =>
+      post<{
+        sessionId: string;
+        reply: string;
+        plan: unknown;
+        modulesUsed: string[];
+        actions: string[];
+        source: string;
+      }>("/ai/voice/turn", payload),
+    tts: (payload: { text: string; locale?: string }) =>
+      post<{ audioBase64: string; mimeType: string; voice: string }>("/ai/voice/tts", payload),
+  },
+};
+
+export type CommandCenterFilters = {
+  module?: string;
+  periodDays?: number;
+  userId?: string;
+  workflowId?: string;
+  automationModule?: string;
+};
+
+export type CommandCenterDashboard = {
+  generatedAt: string;
+  tenantId: string;
+  filters: CommandCenterFilters;
+  status: {
+    online: boolean;
+    provider: string;
+    model: string;
+    streamingActive: boolean;
+    ragActive: boolean;
+    vectorDbActive: boolean;
+    memoryActive: boolean;
+    automationActive: boolean;
+    schedulerActive: boolean;
+    lastHeartbeat: string;
+  };
+  kpis: Record<string, number>;
+  savings: Record<string, number>;
+  timeline: Array<{ id: string; at: string; level: string; message: string; module?: string }>;
+  workflowsLive: Array<{
+    id: string;
+    status: string;
+    module: string;
+    userId: string;
+    tenantId: string;
+    startedAt: string;
+    elapsedMs: number;
+    currentStep: string;
+    progressPct: number;
+  }>;
+  automations: Array<{
+    module: string;
+    enabled: boolean;
+    level: number;
+    triggers: string[];
+    lastRunAt: string | null;
+    nextRunEstimate: string | null;
+    avgDurationMs: number;
+    lastOutcome: string | null;
+  }>;
+  decisions: Array<{
+    id: string;
+    module: string;
+    decision: string;
+    motivation: string;
+    confidence: number | null;
+    dataSources: string[];
+    ruleBased: boolean;
+    openAi: boolean;
+    rag: boolean;
+    status: string;
+    createdAt: string;
+  }>;
+  health: Array<{ id: string; label: string; status: string; detail: string }>;
+  stats: Record<string, Array<{ date: string; value: number }>>;
+  logs: Array<{ id: string; at: string; level: string; module: string; message: string; userId?: string }>;
+};
+
+export const aiCommandCenterApi = {
+  dashboard: (filters?: CommandCenterFilters) => {
+    const qs = new URLSearchParams();
+    if (filters?.module) qs.set("module", filters.module);
+    if (filters?.periodDays) qs.set("periodDays", String(filters.periodDays));
+    if (filters?.userId) qs.set("userId", filters.userId);
+    if (filters?.workflowId) qs.set("workflowId", filters.workflowId);
+    if (filters?.automationModule) qs.set("automationModule", filters.automationModule);
+    return get<CommandCenterDashboard>(`/ai/command-center/dashboard${qs.toString() ? `?${qs}` : ""}`);
+  },
+  exportUrl: (params: CommandCenterFilters & { format: "csv" | "pdf" }) => {
+    const qs = new URLSearchParams({ format: params.format });
+    if (params.periodDays) qs.set("periodDays", String(params.periodDays));
+    if (params.module) qs.set("module", params.module);
+    return `/api/ai/command-center/export?${qs.toString()}`;
+  },
+  automationRuns: (limit = 50) => get<{ runs: unknown[] }>(`/ai/automation/runs?limit=${limit}`),
+  automationConfig: () => get<{ configs: unknown[] }>("/ai/automation/config"),
+  updateAutomationConfig: (payload: {
+    module: string;
+    enabled?: boolean;
+    level?: 1 | 2 | 3;
+    role?: string | null;
+  }) => patch<{ config: unknown }>("/ai/automation/config", payload),
+};
+
+export type AiMemoryProfile = {
+  id: string;
+  tenantId: string;
+  userId: string;
+  preferences: Record<string, unknown>;
+  lastContext: string | null;
+  summary: string | null;
+  updatedAt: string;
+};
+
+export const aiMemoryApi = {
+  profile: () => get<AiMemoryProfile>("/ai/memory/profile"),
+  updateProfile: (payload: {
+    preferences?: Record<string, unknown>;
+    lastContext?: string;
+    summary?: string;
+  }) => patch<AiMemoryProfile>("/ai/memory/profile", payload),
 };
 
 export type BillingSubscription = {
@@ -1533,6 +1716,8 @@ export const api = {
   integration: integrationApi,
   reports: reportsApi,
   aiOps: aiOpsApi,
+  aiCommandCenter: aiCommandCenterApi,
+  aiMemory: aiMemoryApi,
   ai: aiApi,
   billing: billingApi,
 };

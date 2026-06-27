@@ -246,7 +246,15 @@ model Tenant {
   operationalNotes OperationalNote[]
   shiftPlans ShiftPlan[]
   aiChatLogs  AiChatLog[]
+  aiUserMemoryProfiles AiUserMemoryProfile[]
+  aiMemoryTurns AiMemoryTurn[]
+  aiMemoryVectors AiMemoryVector[]
   aiProposals AiProposal[]
+  aiLearningFeedback AiLearningFeedback[]
+  aiLearningPatterns AiLearningPattern[]
+  aiAutomationConfigs AiAutomationConfig[]
+  aiAutomationRuns AiAutomationRun[]
+  aiAutomationAuditLogs AiAutomationAuditLog[]
   recipes     Recipe[]
   menuItems   MenuItem[]
   dailyDishes DailyDish[]
@@ -734,6 +742,55 @@ model AiChatLog {
   @@index([tenantId, userId, createdAt])
 }
 
+model AiUserMemoryProfile {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  preferences Json     @default("{}")
+  lastContext String   @default("")
+  summary     String   @default("") @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+}
+
+model AiMemoryTurn {
+  id               String   @id @default(cuid())
+  tenantId         String
+  userId           String
+  channel          String   @default("chat")
+  context          String   @default("")
+  userMessage      String   @db.Text
+  assistantMessage String?  @db.Text
+  toolsUsed        Json     @default("[]")
+  aiDecisions      Json     @default("[]")
+  metadata         Json     @default("{}")
+  createdAt        DateTime @default(now())
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, createdAt])
+}
+
+model AiMemoryVector {
+  id             String                      @id @default(cuid())
+  tenantId       String
+  userId         String
+  memoryKey      String
+  turnId         String?
+  content        String                      @db.Text
+  embeddingModel String
+  contentHash    String
+  embedding      Unsupported("vector(1536)")
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+  tenant         Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId, memoryKey])
+  @@index([tenantId, userId])
+}
+
 /// Platform knowledge for AI RAG (pgvector). Not tenant-scoped — shared manual chunks.
 model AiVectorChunk {
   id             String                      @id @default(cuid())
@@ -769,6 +826,100 @@ model AiProposal {
   tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, status, type, createdAt])
+}
+
+model AiLearningFeedback {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String
+  userRole   String   @default("")
+  module     String
+  proposalId String?
+  outcome    String
+  motivo     String   @default("") @db.Text
+  decision   Json     @default("{}")
+  confidence Float?
+  createdAt  DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, module, outcome, createdAt])
+  @@index([tenantId, proposalId])
+}
+
+model AiLearningPattern {
+  id              String   @id @default(cuid())
+  tenantId        String
+  module          String
+  patternKey      String
+  approvalCount   Int      @default(0)
+  rejectionCount  Int      @default(0)
+  avgConfidence   Float?
+  signals         Json     @default("[]")
+  hints           Json     @default("{}")
+  updatedAt       DateTime @updatedAt
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, module, patternKey])
+  @@index([tenantId, module])
+}
+
+model AiAutomationConfig {
+  id         String   @id @default(cuid())
+  tenantId   String
+  module     String
+  role       String   @default("")
+  level      Int      @default(2)
+  enabled    Boolean  @default(true)
+  triggers   Json     @default("{}")
+  conditions Json     @default("{}")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, module, role])
+}
+
+model AiAutomationRun {
+  id              String    @id @default(cuid())
+  tenantId        String
+  workflowId      String
+  module          String
+  triggerType     String
+  status          String    @default("pending")
+  level           Int       @default(2)
+  idempotencyKey  String
+  context         Json      @default("{}")
+  dataUsed        Json      @default("[]")
+  aiReasoning     String?   @db.Text
+  confidence      Float?
+  motivation      String?   @db.Text
+  proposalId      String?
+  approvedBy      String?
+  approvedAt      DateTime?
+  executedActions Json      @default("[]")
+  rollbackPayload Json?
+  errorMessage    String?   @db.Text
+  triggeredBy     String    @default("scheduler")
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, startedAt])
+  @@index([tenantId, idempotencyKey])
+}
+
+model AiAutomationAuditLog {
+  id        String   @id @default(cuid())
+  runId     String
+  tenantId  String
+  event     String
+  payload   Json     @default("{}")
+  userId    String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 model WarehouseLot {

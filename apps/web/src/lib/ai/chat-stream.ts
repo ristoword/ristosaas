@@ -1,8 +1,8 @@
 import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 import { executeRistoTool } from "@/lib/ai/risto-tools";
-import { buildChatContext } from "@/lib/ai/chat-core";
 import { callOpenAIChatCompletion, streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
+import { prepareBuiltChatContext, recordMemoryExchange } from "@/lib/ai/memory/context-manager";
 import type { AiMessage } from "@/lib/ai/chat-core";
 import type { SseEmitter } from "@/lib/ai/sse";
 
@@ -26,7 +26,7 @@ export async function runAiChatStream(
   const { tenantId, userId, context, message, apiKey } = params;
 
   try {
-    const built = await buildChatContext({ ...params, emit });
+    const built = await prepareBuiltChatContext({ ...params, emit });
 
     if (built.canUseFunctions) {
       emit({ type: "status", message: pickStatusMessage("risto", 2) });
@@ -34,6 +34,7 @@ export async function runAiChatStream(
 
       if (first.toolCalls.length > 0) {
         emit({ type: "status", message: "Eseguo le azioni richieste…" });
+        const toolsUsed = first.toolCalls.map((tc) => tc.function.name);
         built.messages.push({
           role: "assistant",
           content: first.content,
@@ -87,6 +88,16 @@ export async function runAiChatStream(
           userMessage: message,
           assistantMessage: fullReply,
         });
+        await recordMemoryExchange({
+          tenantId,
+          userId,
+          channel: "chat",
+          context,
+          userMessage: message,
+          assistantMessage: fullReply,
+          toolsUsed,
+          locale: params.locale,
+        });
         emit({ type: "done", reply: fullReply, actions: actionResults });
         return;
       }
@@ -99,6 +110,15 @@ export async function runAiChatStream(
           context,
           userMessage: message,
           assistantMessage: first.content,
+        });
+        await recordMemoryExchange({
+          tenantId,
+          userId,
+          channel: "chat",
+          context,
+          userMessage: message,
+          assistantMessage: first.content,
+          locale: params.locale,
         });
         emit({ type: "done", reply: first.content });
         return;
@@ -136,6 +156,15 @@ export async function runAiChatStream(
       context,
       userMessage: message,
       assistantMessage: fullReply,
+    });
+    await recordMemoryExchange({
+      tenantId,
+      userId,
+      channel: "chat",
+      context,
+      userMessage: message,
+      assistantMessage: fullReply,
+      locale: params.locale,
     });
     emit({ type: "done", reply: fullReply });
   } catch (e) {

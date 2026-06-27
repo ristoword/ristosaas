@@ -53,11 +53,24 @@ export async function enrichRuleWithAi(params: {
   supplementalContext: unknown;
   locale?: string;
   signal?: AbortSignal;
+  tenantId?: string;
 }): Promise<AiDecisionLayer | null> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
 
   const locale = params.locale ?? "it";
+  let systemPrompt = buildSystemPrompt(params.domain, locale);
+
+  if (params.tenantId && process.env.AI_LEARNING_ENABLED !== "false") {
+    try {
+      const { getLearnedContextBlock } = await import("@/lib/ai/learning/trainer");
+      const learned = await getLearnedContextBlock(params.tenantId, params.domain);
+      if (learned) systemPrompt = `${systemPrompt}\n\n${learned}`;
+    } catch {
+      /* non-blocking */
+    }
+  }
+
   const userContent = JSON.stringify(
     {
       domain: params.domain,
@@ -76,7 +89,7 @@ export async function enrichRuleWithAi(params: {
       max_tokens: 1200,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: buildSystemPrompt(params.domain, locale) },
+        { role: "system", content: systemPrompt },
         { role: "user", content: userContent },
       ],
     },

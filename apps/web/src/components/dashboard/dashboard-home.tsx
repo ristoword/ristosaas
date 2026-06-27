@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
   BedDouble,
@@ -22,6 +22,8 @@ import { useOrders } from "@/components/orders/orders-context";
 import { reportsApi, type ReportTrendsSnapshot } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { todayIso } from "@/lib/date-utils";
+import { useDashboardModuleAi } from "@/hooks/use-dashboard-module-ai";
+import { DashboardModuleAiPanel } from "@/components/dashboard/dashboard-module-ai-panel";
 
 export function DashboardHome() {
   const { user } = useAuth();
@@ -30,6 +32,8 @@ export function DashboardHome() {
   const { t } = useI18n();
   const { formatCurrency } = useI10n();
   const modules = getVisibleNavSections(user?.role).flatMap((s) => s.items).filter((i) => i.id !== "dashboard");
+  const moduleIds = useMemo(() => modules.map((m) => m.id), [modules]);
+  const { insights, loading: aiLoading } = useDashboardModuleAi(moduleIds);
   const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
   const { plan, isRestaurantEnabled, isHotelEnabled } = useTenantFeatures();
   const inHouseReservations = reservations.filter((reservation) => reservation.status === "in_casa");
@@ -401,6 +405,7 @@ export function DashboardHome() {
         <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {modules.map((m) => {
             const Icon = m.icon;
+            const aiInsight = insights.get(m.id);
             const inner = (
               <>
                 <div className="flex items-start gap-3">
@@ -421,25 +426,44 @@ export function DashboardHome() {
                           {t("dashboard.active")}
                         </span>
                       )}
+                      {aiInsight?.aiOnline && (
+                        <span className="rounded-full bg-rw-accent/10 px-2 py-0.5 text-[10px] font-semibold text-rw-accent">
+                          AI
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-rw-muted">{m.hint}</p>
                   </div>
                 </div>
-                <p className="mt-4 text-xs text-rw-muted">
-                  {t("dashboard.modules.hint")}
-                </p>
+                <DashboardModuleAiPanel navId={m.id} label={m.label} insight={aiInsight} loading={aiLoading} />
               </>
             );
 
             return (
               <li key={m.id}>
                 {m.ready ? (
-                  <Link
-                    href={m.href}
-                    className="flex h-full flex-col rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm transition hover:border-rw-accent/35 hover:shadow-rw-sm"
-                  >
-                    {inner}
-                  </Link>
+                  <div className="flex h-full flex-col rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm transition hover:border-rw-accent/35 hover:shadow-rw-sm">
+                    <Link href={m.href} className="block flex-1 outline-none focus-visible:ring-2 focus-visible:ring-rw-accent/40 rounded-xl">
+                      <div className="flex items-start gap-3">
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rw-surfaceAlt text-rw-accent ring-1 ring-rw-line">
+                          <Icon className="h-6 w-6" aria-hidden />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-display text-lg font-semibold text-rw-ink">{m.label}</p>
+                            <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-400">
+                              {t("dashboard.active")}
+                            </span>
+                            {aiInsight?.aiOnline && (
+                              <span className="rounded-full bg-rw-accent/10 px-2 py-0.5 text-[10px] font-semibold text-rw-accent">AI</span>
+                            )}
+                          </div>
+                          <p className="mt-1 text-sm text-rw-muted">{m.hint}</p>
+                        </div>
+                      </div>
+                    </Link>
+                    <DashboardModuleAiPanel navId={m.id} label={m.label} insight={aiInsight} loading={aiLoading} />
+                  </div>
                 ) : (
                   <div className="flex h-full flex-col rounded-3xl border border-rw-line bg-rw-surface p-5 shadow-sm">
                     {inner}

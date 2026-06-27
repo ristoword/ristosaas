@@ -4,9 +4,10 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 import { executeRistoTool } from "@/lib/ai/risto-tools";
-import { buildChatContext, type AiMessage } from "@/lib/ai/chat-core";
+import { type AiMessage } from "@/lib/ai/chat-core";
 import { callOpenAIChatCompletion } from "@/lib/ai/openai-stream";
 import { runAiChatStream } from "@/lib/ai/chat-stream";
+import { prepareBuiltChatContext, recordMemoryExchange } from "@/lib/ai/memory/context-manager";
 import { createSseResponse } from "@/lib/ai/sse";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 
@@ -91,10 +92,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const built = await buildChatContext({ ...chatParams });
+    const built = await prepareBuiltChatContext({ ...chatParams });
     let response = await callOpenAIChatCompletion(apiKey, built.openaiBodyBase);
+    let toolsUsed: string[] = [];
 
     if (built.canUseFunctions && response.toolCalls.length > 0) {
+      toolsUsed = response.toolCalls.map((tc) => tc.function.name);
       built.messages.push({
         role: "assistant",
         content: response.content,
@@ -124,6 +127,16 @@ export async function POST(req: NextRequest) {
       if (!response.content) {
         const content = actionResults.join("\n\n");
         await aiChatRepository.log({ tenantId, userId: user.id, context, userMessage: message, assistantMessage: content });
+        await recordMemoryExchange({
+          tenantId,
+          userId: user.id,
+          channel: "chat",
+          context,
+          userMessage: message,
+          assistantMessage: content,
+          toolsUsed,
+          locale,
+        });
         return ok({ reply: content, actions: actionResults });
       }
     }
@@ -135,6 +148,16 @@ export async function POST(req: NextRequest) {
     }
 
     await aiChatRepository.log({ tenantId, userId: user.id, context, userMessage: message, assistantMessage: content });
+    await recordMemoryExchange({
+      tenantId,
+      userId: user.id,
+      channel: "chat",
+      context,
+      userMessage: message,
+      assistantMessage: content,
+      toolsUsed,
+      locale,
+    });
     return ok({ reply: content });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Errore sconosciuto";

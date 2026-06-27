@@ -34,6 +34,7 @@ async function wrapDecision(
       supplementalContext: options.supplemental,
       locale: options.locale,
       signal: options.signal,
+      tenantId: options.tenantId,
     });
   }
 

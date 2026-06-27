@@ -3,6 +3,7 @@ import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { aiProposalsRepository } from "@/lib/db/repositories/ai-proposals.repository";
+import { recordSupervisorFeedback } from "@/lib/ai/learning/feedback";
 
 const REVIEW_ROLES = ["owner", "supervisor", "super_admin"] as const;
 
@@ -27,5 +28,15 @@ export async function PATCH(
     notes: payload.notes,
   });
   if (!proposal) return err("Proposal not found", 404);
+
+  await recordSupervisorFeedback({
+    tenantId,
+    userId: guard.user.id,
+    userRole: guard.user.role ?? "",
+    proposal,
+    action,
+    notes: payload.notes,
+  }).catch(() => undefined);
+
   return ok({ proposal });
 }

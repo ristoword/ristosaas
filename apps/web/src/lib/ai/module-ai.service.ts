@@ -6,6 +6,7 @@ import {
 } from "@/lib/ai/modules/config";
 import type { ModuleAiRequest, ModuleAiResponse, ModuleId } from "@/lib/ai/modules/types";
 import { callOpenAIChatCompletion, streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
+import { augmentSystemPrompt, recordMemoryExchange } from "@/lib/ai/memory/context-manager";
 import { createSseResponse, type SseEmitter } from "@/lib/ai/sse";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
 
@@ -25,14 +26,25 @@ Regole:
 async function generateInsights(
   moduleId: ModuleId,
   snapshot: unknown,
-  options: { locale?: string; signal?: AbortSignal },
+  options: { locale?: string; signal?: AbortSignal; tenantId?: string; userId?: string },
 ): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) return null;
 
   const def = getModuleDefinition(moduleId);
   const locale = options.locale ?? "it";
-  const systemPrompt = buildInsightPrompt(moduleId, def.focus, locale);
+  let systemPrompt = buildInsightPrompt(moduleId, def.focus, locale);
+
+  if (options.userId && options.tenantId) {
+    systemPrompt = await augmentSystemPrompt(systemPrompt, {
+      tenantId: options.tenantId,
+      userId: options.userId,
+      query: `modulo ${moduleId}`,
+      context: moduleId,
+      channel: "module",
+      locale,
+    });
+  }
 
   const { content } = await callOpenAIChatCompletion(
     apiKey,
@@ -58,7 +70,7 @@ async function streamInsights(
   moduleId: ModuleId,
   snapshot: unknown,
   emit: SseEmitter,
-  options: { locale?: string; signal?: AbortSignal },
+  options: { locale?: string; signal?: AbortSignal; tenantId?: string; userId?: string },
 ): Promise<string | null> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
@@ -72,7 +84,18 @@ async function streamInsights(
   emit({ type: "status", message: pickStatusMessage(statusKey, 1) });
 
   const locale = options.locale ?? "it";
-  const systemPrompt = buildInsightPrompt(moduleId, def.focus, locale);
+  let systemPrompt = buildInsightPrompt(moduleId, def.focus, locale);
+
+  if (options.userId && options.tenantId) {
+    systemPrompt = await augmentSystemPrompt(systemPrompt, {
+      tenantId: options.tenantId,
+      userId: options.userId,
+      query: `modulo ${moduleId}`,
+      context: moduleId,
+      channel: "module",
+      locale,
+    });
+  }
 
   const { content } = await streamOpenAIChatCompletion(
     apiKey,
@@ -114,7 +137,23 @@ export async function runModuleAi(
   let insights: string | null = null;
 
   if (req.enrich) {
-    insights = await generateInsights(moduleId, snapshot, { locale: req.locale });
+    insights = await generateInsights(moduleId, snapshot, {
+      locale: req.locale,
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+    });
+  }
+
+  if (req.enrich && insights && ctx.userId) {
+    await recordMemoryExchange({
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
+      channel: "module",
+      context: moduleId,
+      userMessage: `Insight modulo ${moduleId}`,
+      assistantMessage: insights,
+      locale: req.locale,
+    });
   }
 
   return {
@@ -152,7 +191,21 @@ export function runModuleAiStream(
     const insights = await streamInsights(moduleId, snapshot, emit, {
       locale: req.locale,
       signal,
+      tenantId: ctx.tenantId,
+      userId: ctx.userId,
     });
+
+    if (insights && ctx.userId) {
+      await recordMemoryExchange({
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        channel: "module",
+        context: moduleId,
+        userMessage: `Insight modulo ${moduleId}`,
+        assistantMessage: insights,
+        locale: req.locale,
+      });
+    }
 
     emit({
       type: "done",

@@ -8,6 +8,7 @@ import {
   type AiDecisionGenerateResult,
 } from "@/lib/ai/decisions/types";
 import { aiProposalsRepository } from "@/lib/db/repositories/ai-proposals.repository";
+import { optimizeDecisions } from "@/lib/ai/learning/optimizer";
 
 export async function generateAiDecisions(
   tenantId: string,
@@ -34,7 +35,8 @@ export async function generateAiDecisions(
     supplemental,
   };
 
-  const decisions = await Promise.all(domains.map((domain) => runDomainEngine(domain, engineOptions)));
+  const rawDecisions = await Promise.all(domains.map((domain) => runDomainEngine(domain, engineOptions)));
+  const decisions = await optimizeDecisions(tenantId, rawDecisions);
 
   const hasAi = decisions.some((d) => d.aiEnhanced && !d.aiEnhanced.fallbackToRule);
   const generatedAt = new Date().toISOString();
@@ -77,5 +79,8 @@ export async function generateSingleDomainDecision(
     enrich: useEnrich,
     supplemental,
     signal: options?.signal,
+  }).then(async (decision) => {
+    const [optimized] = await optimizeDecisions(tenantId, [decision]);
+    return optimized;
   });
 }

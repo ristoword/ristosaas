@@ -10,6 +10,7 @@ import {
   BookOpen,
   BookUser,
   Bot,
+  Brain,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -79,6 +80,15 @@ export const navSections: NavSection[] = [
         href: "/dashboard",
         icon: LayoutDashboard,
         ready: true,
+      },
+      {
+        id: "ai-command-center",
+        label: "AI Command Center",
+        hint: "Dashboard AI: automazioni, decisioni, health e KPI.",
+        href: "/ai-command-center",
+        icon: Brain,
+        ready: true,
+        visibleFor: ["owner", "supervisor", "super_admin"],
       },
       {
         id: "ai-assistente",
