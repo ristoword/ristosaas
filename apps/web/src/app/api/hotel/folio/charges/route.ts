@@ -3,6 +3,8 @@ import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { actorFromRequest, postFolioCharge } from "@/lib/hotel/folio-service";
+import type { RevenueSection } from "@/lib/hotel/folio-revenue-engine";
+import { buildRevenueChargeInput } from "@/lib/hotel/folio-revenue-engine";
 import type { FolioChargeSource } from "@prisma/client";
 
 const ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
@@ -29,20 +31,25 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const charge = await postFolioCharge({
+    const base = {
       tenantId,
       folioId: payload.folioId,
-      source: payload.source ?? "manual",
       description: payload.description,
       amount: payload.amount,
+      source: payload.source,
       department: payload.department,
-      section: payload.section,
       quantity: payload.quantity,
       unitPrice: payload.unitPrice,
       vatPct: payload.vatPct,
       splitCode: payload.splitCode,
       actor: actorFromRequest(guard.user, req.headers),
-    });
+    };
+    const charge = payload.section
+      ? await postFolioCharge(buildRevenueChargeInput({ ...base, section: payload.section as RevenueSection }))
+      : await postFolioCharge({
+          ...base,
+          source: payload.source ?? "manual",
+        });
     return ok({ charge });
   } catch (e) {
     return err(e instanceof Error ? e.message : "Errore addebito", 400);

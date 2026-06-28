@@ -7,11 +7,10 @@ import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { GuestFolioWorkspace } from "@/components/hotel/folio/guest-folio-workspace";
+import { useFolioStream } from "@/components/hotel/folio/use-folio-stream";
 import { customersApi, hotelFolioApi, roomServiceApi, type Customer, type FolioAttachmentEntry, type FolioAuditLogEntry, type GuestFolio } from "@/lib/api-client";
 import { paymentStatusLabel, reservationForFolio } from "@/lib/hotel/folio-utils";
 import { cn } from "@/lib/utils";
-
-const POLL_MS = 30_000;
 
 export function HotelFolioPage() {
   const { folios, charges, reservations, loading, failedSlices, refresh } = useHotel();
@@ -30,12 +29,7 @@ export function HotelFolioPage() {
       .catch(() => setPendingRoomService(0));
   }, []);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      refresh();
-    }, POLL_MS);
-    return () => clearInterval(id);
-  }, [refresh]);
+  useFolioStream({ onUpdate: refresh });
 
   const filteredFolios = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -148,7 +142,7 @@ export function HotelFolioPage() {
           </Card>
           <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-xs text-rw-muted">
             <CreditCard className="mb-2 h-4 w-4 text-rw-accent" />
-            Aggiornamento automatico ogni 30s. Addebiti da cassa, bar e room service confluiscono nel folio selezionato.
+            Aggiornamento in tempo reale via SSE. Addebiti da cassa, bar e room service confluiscono nel folio selezionato.
           </div>
         </div>
 

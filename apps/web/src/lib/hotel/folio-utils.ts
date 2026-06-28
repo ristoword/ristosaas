@@ -11,6 +11,8 @@ export const FOLIO_SECTIONS = [
   "LAVANDERIA",
   "PARCHEGGIO",
   "TELEFONO",
+  "CATERING",
+  "EVENTI",
   "TAX",
   "TASSA_DI_SOGGIORNO",
   "SCONTI",
@@ -18,7 +20,7 @@ export const FOLIO_SECTIONS = [
 ] as const;
 
 export type FolioSection = (typeof FOLIO_SECTIONS)[number];
-export type FolioSplitId = "A" | "B" | "C" | "D";
+export type FolioSplitId = string;
 
 export type FolioChargeRow = FolioCharge & {
   section: FolioSection;
@@ -42,8 +44,7 @@ function parseSection(value: string | null | undefined, charge: FolioCharge): Fo
 }
 
 function parseSplitCode(value: string | undefined): FolioSplitId {
-  if (value === "B" || value === "C" || value === "D") return value;
-  return "A";
+  return value?.trim() || "A";
 }
 
 export type FolioTimelineEvent = {
@@ -89,6 +90,8 @@ const SECTION_LABELS: Record<FolioSection, string> = {
   LAVANDERIA: "Lavanderia",
   PARCHEGGIO: "Parcheggio",
   TELEFONO: "Telefono",
+  CATERING: "Catering",
+  EVENTI: "Eventi",
   TAX: "Tax",
   TASSA_DI_SOGGIORNO: "Tassa di soggiorno",
   SCONTI: "Sconti",
@@ -354,12 +357,12 @@ export function groupBySection(rows: FolioChargeRow[]): Map<FolioSection, FolioC
   return map;
 }
 
-export function splitTotals(rows: FolioChargeRow[], assignments: Record<string, FolioSplitId>): Record<FolioSplitId, number> {
-  const totals: Record<FolioSplitId, number> = { A: 0, B: 0, C: 0, D: 0 };
+export function splitTotals(rows: FolioChargeRow[], assignments: Record<string, FolioSplitId>): Record<string, number> {
+  const totals: Record<string, number> = {};
   for (const row of rows) {
     if (row.source === "payment" || row.status === "void") continue;
     const split = assignments[row.id] ?? row.split;
-    totals[split] += row.amount;
+    totals[split] = (totals[split] ?? 0) + row.amount;
   }
   return totals;
 }

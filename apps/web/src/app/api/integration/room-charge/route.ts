@@ -1,9 +1,9 @@
-import type { Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { actorFromRequest, mapChargeRow, postFolioCharge } from "@/lib/hotel/folio-service";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 
 const INTEGRATION_ROLES = ["hotel_manager", "reception", "cassa", "supervisor", "owner", "super_admin"] as const;
@@ -14,7 +14,7 @@ function mapFolio(row: {
   customerId: string;
   stayId: string | null;
   currency: string;
-  balance: Prisma.Decimal;
+  balance: { toNumber: () => number };
   status: GuestFolio["status"];
 }): GuestFolio {
   return {
@@ -25,26 +25,6 @@ function mapFolio(row: {
     currency: row.currency,
     balance: row.balance.toNumber(),
     status: row.status,
-  };
-}
-
-function mapCharge(row: {
-  id: string;
-  folioId: string;
-  source: FolioCharge["source"];
-  sourceId: string | null;
-  description: string;
-  amount: Prisma.Decimal;
-  postedAt: Date;
-}): FolioCharge {
-  return {
-    id: row.id,
-    folioId: row.folioId,
-    source: row.source,
-    sourceId: row.sourceId,
-    description: row.description,
-    amount: row.amount.toNumber(),
-    postedAt: row.postedAt.toISOString(),
   };
 }
 
@@ -60,9 +40,11 @@ export async function POST(req: NextRequest) {
     serviceType: "breakfast" | "lunch" | "dinner";
   }>(req);
 
-  if (!reservationId || !orderId || !description || !amount || !serviceType) return err("reservationId, orderId, description, amount and serviceType required");
+  if (!reservationId || !orderId || !description || !amount || !serviceType) {
+    return err("reservationId, orderId, description, amount and serviceType required");
+  }
   const tenantId = getTenantId();
-  const now = new Date();
+  const actor = actorFromRequest(guard.user, req.headers);
 
   const reservation = await prisma.hotelReservation.findFirst({
     where: { id: reservationId, tenantId },
@@ -70,16 +52,13 @@ export async function POST(req: NextRequest) {
   });
   if (!reservation) return err("Reservation not found", 404);
 
-  const folioWhere: Array<{ stayId?: string; customerId?: string; status?: "open" }> = [{ customerId: reservation.customerId, status: "open" }];
-  if (reservation.stay) {
-    folioWhere.unshift({ stayId: reservation.stay.id });
-  }
+  const folioWhere: Array<{ stayId?: string; customerId?: string; status?: "open" }> = [
+    { customerId: reservation.customerId, status: "open" },
+  ];
+  if (reservation.stay) folioWhere.unshift({ stayId: reservation.stay.id });
 
   let folio = await prisma.guestFolio.findFirst({
-    where: {
-      tenantId,
-      OR: folioWhere,
-    },
+    where: { tenantId, OR: folioWhere },
     orderBy: { id: "asc" },
   });
 
@@ -96,15 +75,16 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const charge = await prisma.folioCharge.create({
-    data: {
-      folioId: folio.id,
-      source: "restaurant",
-      sourceId: orderId,
-      description,
-      amount,
-      postedAt: now,
-    },
+  const charge = await postFolioCharge({
+    tenantId,
+    folioId: folio.id,
+    source: "restaurant",
+    sourceId: orderId,
+    description,
+    amount,
+    department: "Ristorante",
+    section: "RISTORANTE",
+    actor,
   });
 
   const coveredByMealPlan =
@@ -113,39 +93,28 @@ export async function POST(req: NextRequest) {
     (reservation.boardType === "full_board" && ["breakfast", "lunch", "dinner"].includes(serviceType));
 
   if (coveredByMealPlan) {
-    await prisma.folioCharge.create({
-      data: {
-        folioId: folio.id,
-        source: "meal_plan_credit",
-        sourceId: reservation.id,
-        description: `Copertura piano pasti (${serviceType})`,
-        amount: -amount,
-        postedAt: now,
-      },
+    await postFolioCharge({
+      tenantId,
+      folioId: folio.id,
+      source: "meal_plan_credit",
+      sourceId: `${orderId}-meal-credit`,
+      description: `Copertura piano pasti (${serviceType})`,
+      amount: -amount,
+      department: "PMS",
+      section: "SCONTI",
+      actor,
     });
   }
 
-  const allCharges = await prisma.folioCharge.findMany({
-    where: { folioId: folio.id },
-  });
-  const nextBalance = allCharges.reduce((sum, item) => sum + item.amount.toNumber(), 0);
-
-  const updatedFolio = await prisma.guestFolio.update({
-    where: { id: folio.id },
-    data: { balance: nextBalance },
-  });
-
+  const updatedFolio = await prisma.guestFolio.findUniqueOrThrow({ where: { id: folio.id } });
   const credits = await prisma.folioCharge.findMany({
-    where: {
-      folioId: folio.id,
-      source: "meal_plan_credit",
-    },
+    where: { folioId: folio.id, source: "meal_plan_credit" },
     orderBy: { postedAt: "desc" },
   });
 
   return ok({
     folio: mapFolio(updatedFolio),
-    charge: mapCharge(charge),
-    credits: credits.map((c) => mapCharge(c)),
+    charge,
+    credits: credits.map((c) => mapChargeRow(c)),
   });
 }

@@ -1245,6 +1245,30 @@ export const hotelFolioApi = {
   ) => post<{ attachment: FolioAttachmentEntry }>(`/hotel/folio/${folioId}/attachments`, payload),
   exportPdf: (folioId: string) => fetchBlob(`/hotel/folio/${folioId}/export?format=pdf`),
   exportCsv: (folioId: string) => fetchBlob(`/hotel/folio/${folioId}/export?format=csv`),
+  exportExcel: (folioId: string) => fetchBlob(`/hotel/folio/${folioId}/export?format=xlsx`),
+  email: (folioId: string, toEmail: string, subject?: string) =>
+    post<{ sent: boolean }>(`/hotel/folio/${folioId}/email`, { toEmail, subject }),
+  merge: (sourceFolioId: string, targetFolioId: string) =>
+    post<{ merged: boolean }>("/hotel/folio/merge", { sourceFolioId, targetFolioId }),
+  transferBatch: (chargeIds: string[], targetFolioId: string) =>
+    post<{ transferred: number }>("/hotel/folio/transfer-batch", { chargeIds, targetFolioId }),
+  getBilling: (folioId: string) =>
+    get<{
+      assignments: Array<{
+        id: string;
+        companyName: string;
+        billingMode: string;
+        splitCode: string;
+        creditLimit: number;
+        outstandingBalance: number;
+      }>;
+      splits: Array<{ id: string; code: string; label: string }>;
+      emailLogs: Array<{ id: string; toEmail: string; status: string; sentAt: string }>;
+      mergeLogs: Array<{ id: string; sourceFolioId: string; targetFolioId: string; createdAt: string }>;
+    }>(`/hotel/folio/${folioId}/billing`),
+  listCompanies: () => get<{ companies: Array<{ id: string; name: string; vatNumber: string | null; creditLimit: number }> }>("/hotel/folio/companies"),
+  assignCompany: (folioId: string, companyId: string, billingMode?: string) =>
+    post(`/hotel/folio/${folioId}/billing`, { companyId, billingMode }),
 };
 
 export type GuestRegisterEntryStatus = "draft" | "incomplete" | "complete" | "checked_out";

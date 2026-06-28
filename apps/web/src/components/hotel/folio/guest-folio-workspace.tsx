@@ -104,7 +104,12 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
   const timeline = useMemo(() => buildTimeline(allRows, reservation), [allRows, reservation]);
   const bySection = useMemo(() => groupBySection(filteredRows.filter((r) => r.source !== "payment")), [filteredRows]);
   const payments = useMemo(() => allRows.filter((r) => r.source === "payment"), [allRows]);
-  const splits = useMemo(() => splitTotals(allRows, splitAssignments), [allRows, splitAssignments]);
+  const splits = useMemo(() => {
+    const totals = splitTotals(allRows, splitAssignments);
+    const keys = Object.keys(totals);
+    if (!keys.includes("A")) keys.unshift("A");
+    return { totals, keys: keys.length ? keys : ["A"] };
+  }, [allRows, splitAssignments]);
 
   const handlePay = async () => {
     if (!reservation || locked) return;
@@ -224,6 +229,40 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
           <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(true)} icon={RefreshCw} label="Checkout rapido" />
           <ActionBtn disabled={lockBusy} onClick={() => void onToggleLock()} icon={locked ? Unlock : Lock} label={locked ? "Sblocca folio" : "Blocca folio"} />
           <ActionBtn onClick={() => void handleExportPdf()} icon={Download} label="Export PDF" />
+          <ActionBtn
+            onClick={async () => {
+              try {
+                const blob = await hotelFolioApi.exportExcel(folio.id);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `folio-${folio.id}.xls`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch (e) {
+                setMsg(e instanceof Error ? e.message : "Export Excel fallito");
+              }
+            }}
+            icon={Download}
+            label="Export Excel"
+          />
+          <ActionBtn
+            onClick={async () => {
+              const email = customer?.email || reservation?.email;
+              if (!email) {
+                setMsg("Email ospite non disponibile");
+                return;
+              }
+              try {
+                await hotelFolioApi.email(folio.id, email);
+                setMsg(`Folio inviato a ${email}`);
+              } catch (e) {
+                setMsg(e instanceof Error ? e.message : "Invio email fallito");
+              }
+            }}
+            icon={Mail}
+            label="Invia PDF email"
+          />
           <ActionBtn onClick={() => window.print()} icon={Printer} label="Stampa folio" />
           <ActionBtn
             onClick={() => {
@@ -347,10 +386,10 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       {tab === "split" && (
         <Card title="Split Folio" description="Trascina gli addebiti tra Folio A–D. Le assegnazioni sono persistite sul backend.">
           <div className="mb-4 grid gap-2 sm:grid-cols-4">
-            {(["A", "B", "C", "D"] as FolioSplitId[]).map((id) => (
+            {splits.keys.map((id) => (
               <div key={id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
                 <p className="text-xs text-rw-muted">Folio {id}</p>
-                <p className="font-display text-lg font-semibold text-rw-ink">€ {splits[id].toFixed(2)}</p>
+                <p className="font-display text-lg font-semibold text-rw-ink">€ {(splits.totals[id] ?? 0).toFixed(2)}</p>
               </div>
             ))}
           </div>
@@ -467,10 +506,12 @@ function SplitDropZones({
   assignments: Record<string, FolioSplitId>;
   onAssign: (chargeId: string, split: FolioSplitId) => void;
 }) {
-  const splits: FolioSplitId[] = ["A", "B", "C", "D"];
+  const discovered = new Set<string>(["A", "B", "C", "D", "COMPANY"]);
+  for (const row of rows) discovered.add(assignments[row.id] ?? row.split);
+  const splitKeys = [...discovered];
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      {splits.map((split) => (
+      {splitKeys.map((split) => (
         <div
           key={split}
           className="min-h-[120px] rounded-2xl border border-dashed border-rw-line bg-rw-surfaceAlt/50 p-3"
