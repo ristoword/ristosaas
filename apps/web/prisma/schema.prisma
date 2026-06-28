@@ -148,6 +148,16 @@ enum FolioStatus {
   closed
 }
 
+enum FolioAttachmentType {
+  document
+  passport
+  contract
+  signature
+  voucher
+  receipt
+  photo
+}
+
 enum FolioChargeSource {
   hotel
   restaurant
@@ -181,6 +191,65 @@ enum KeycardStatus {
   attiva
   scaduta
   annullata
+}
+
+enum GuestRegisterEntryStatus {
+  draft
+  incomplete
+  complete
+  checked_out
+}
+
+enum GuestRegisterTransmissionStatus {
+  pending
+  sent
+  error
+  cancelled
+}
+
+enum GuestRegisterPersonSex {
+  M
+  F
+  X
+  unknown
+}
+
+enum GuestRegisterDocumentType {
+  passport
+  identity_card
+  driving_license
+  visa
+  other
+}
+
+enum GuestRegisterAttachmentType {
+  document_front
+  document_back
+  passport
+  visa
+  driving_license
+  receipt
+  contract
+  signature_privacy
+  signature_checkin
+  signature_rules
+}
+
+enum GuestRegisterOcrStatus {
+  none
+  pending
+  completed
+  verified
+  failed
+}
+
+enum GuestRegisterCountry {
+  IT
+  NL
+  BE
+  DE
+  FR
+  ES
 }
 
 enum WarehouseMovementType {
@@ -235,6 +304,14 @@ model Tenant {
   reservations HotelReservation[]
   stays       Stay[]
   folios      GuestFolio[]
+  folioAuditLogs FolioAuditLog[]
+  folioAttachments FolioAttachment[]
+  guestRegisterEntries GuestRegisterEntry[]
+  guestRegisterPersons GuestRegisterPerson[]
+  guestRegisterAttachments GuestRegisterAttachment[]
+  guestRegisterTransmissions GuestRegisterTransmission[]
+  guestRegisterAuditLogs GuestRegisterAuditLog[]
+  guestRegisterAccessLogs GuestRegisterAccessLog[]
   housekeepingTasks HousekeepingTask[]
   keycards    HotelKeycard[]
   warehouseItems WarehouseItem[]
@@ -501,6 +578,7 @@ model HotelRoom {
   reservations HotelReservation[]
   tasks        HousekeepingTask[]
   keycards     HotelKeycard[]
+  guestRegisterEntries GuestRegisterEntry[]
 
   @@unique([tenantId, code])
 }
@@ -540,11 +618,24 @@ model HotelReservation {
   nights       Int
   rate         Decimal               @db.Decimal(10, 2)
   documentCode String?
+  nationality  String?
+  address      String?
+  company      String?
+  channel      String?               @default("direct")
+  children     Int                   @default(0)
+  crib         Boolean               @default(false)
+  lateCheckout Boolean               @default(false)
+  earlyCheckin Boolean               @default(false)
+  depositReceived Decimal?           @db.Decimal(10, 2)
+  receptionNotes String?
+  packageName  String?
+  ratePlanName String?
   tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer     Customer              @relation(fields: [customerId], references: [id], onDelete: Restrict)
   room         HotelRoom?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
   stay         Stay?
   keycards     HotelKeycard[]
+  guestRegisterEntry GuestRegisterEntry?
 
   @@index([tenantId, checkInDate])
   @@index([tenantId, status])
@@ -559,6 +650,7 @@ model Stay {
   tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   reservation      HotelReservation   @relation(fields: [reservationId], references: [id], onDelete: Cascade)
   folio            GuestFolio?
+  guestRegisterEntry GuestRegisterEntry?
 }
 
 model HousekeepingTask {
@@ -580,21 +672,240 @@ model GuestFolio {
   currency   String       @default("EUR")
   balance    Decimal      @db.Decimal(10, 2)
   status     FolioStatus  @default(open)
+  locked     Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
   tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   customer   Customer     @relation(fields: [customerId], references: [id], onDelete: Restrict)
   stay       Stay?        @relation(fields: [stayId], references: [id], onDelete: SetNull)
-  charges     FolioCharge[]
+  charges    FolioCharge[]
+  auditLogs  FolioAuditLog[]
+  attachments FolioAttachment[]
 }
 
 model FolioCharge {
-  id          String            @id @default(cuid())
-  folioId     String
-  source      FolioChargeSource
-  sourceId    String?
-  description String
-  amount      Decimal           @db.Decimal(10, 2)
-  postedAt    DateTime          @default(now())
-  folio       GuestFolio        @relation(fields: [folioId], references: [id], onDelete: Cascade)
+  id              String            @id @default(cuid())
+  folioId         String
+  source          FolioChargeSource
+  sourceId        String?
+  description     String
+  amount          Decimal           @db.Decimal(10, 2)
+  postedAt        DateTime          @default(now())
+  department      String?
+  operator        String?
+  quantity        Decimal           @default(1) @db.Decimal(10, 3)
+  unitPrice       Decimal?          @db.Decimal(10, 2)
+  vatPct          Decimal           @default(10) @db.Decimal(5, 2)
+  section         String?
+  splitCode       String            @default("A")
+  lineStatus      String            @default("posted")
+  createdByUserId String?
+  createdByName   String?
+  folio           GuestFolio        @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([folioId, postedAt])
+  @@index([folioId, splitCode])
+}
+
+model FolioAuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  folioId   String
+  chargeId  String?
+  userId    String?
+  userName  String?
+  action    String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  ip        String?
+  userAgent String?
+  device    String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  folio     GuestFolio @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, folioId, createdAt])
+}
+
+model FolioAttachment {
+  id               String              @id @default(cuid())
+  tenantId         String
+  folioId          String
+  type             FolioAttachmentType
+  fileName         String
+  mimeType         String
+  fileSize         Int
+  dataBase64       String              @db.Text
+  uploadedByUserId String?
+  uploadedByName   String?
+  createdAt        DateTime            @default(now())
+  tenant           Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  folio            GuestFolio          @relation(fields: [folioId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, folioId])
+}
+
+model GuestRegisterEntry {
+  id                  String                          @id @default(cuid())
+  tenantId            String
+  reservationId       String                          @unique
+  stayId              String?                         @unique
+  roomId              String?
+  status              GuestRegisterEntryStatus        @default(draft)
+  transmissionStatus  GuestRegisterTransmissionStatus @default(pending)
+  transmissionCountry GuestRegisterCountry            @default(IT)
+  arrivalDate         DateTime
+  departureDate       DateTime
+  guestCount          Int                             @default(1)
+  adults              Int                             @default(1)
+  children            Int                             @default(0)
+  roomCode            String?
+  notes               String?
+  lastTransmissionAt  DateTime?
+  createdAt           DateTime                        @default(now())
+  updatedAt           DateTime                        @updatedAt
+  tenant              Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservation         HotelReservation                @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  stay                Stay?                           @relation(fields: [stayId], references: [id], onDelete: SetNull)
+  room                HotelRoom?                      @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  persons             GuestRegisterPerson[]
+  attachments         GuestRegisterAttachment[]
+  transmissions       GuestRegisterTransmission[]
+  auditLogs           GuestRegisterAuditLog[]
+
+  @@index([tenantId, arrivalDate])
+  @@index([tenantId, departureDate])
+  @@index([tenantId, status])
+  @@index([tenantId, transmissionStatus])
+  @@index([tenantId, roomCode])
+}
+
+model GuestRegisterPerson {
+  id                       String                     @id @default(cuid())
+  tenantId                 String
+  entryId                  String
+  firstName                String                     @default("")
+  lastName                 String                     @default("")
+  sex                      GuestRegisterPersonSex     @default(unknown)
+  dateOfBirth              DateTime?
+  placeOfBirth             String?
+  stateOfBirth             String?
+  nationality              String?
+  residenceCountry         String?
+  address                  String?
+  postalCode               String?
+  city                     String?
+  province                 String?
+  taxCode                  String?
+  phone                    String?
+  email                    String?
+  documentType             GuestRegisterDocumentType?
+  documentNumber           String?
+  documentIssueDate        DateTime?
+  documentExpiryDate       DateTime?
+  documentIssuingAuthority String?
+  isPrimary                Boolean                    @default(false)
+  sortOrder                Int                        @default(0)
+  isComplete               Boolean                    @default(false)
+  ocrStatus                GuestRegisterOcrStatus     @default(none)
+  ocrPayload               Json?
+  ocrVerifiedAt            DateTime?
+  ocrVerifiedByUserId      String?
+  createdAt                DateTime                   @default(now())
+  updatedAt                DateTime                   @updatedAt
+  tenant                   Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entry                    GuestRegisterEntry         @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  attachments              GuestRegisterAttachment[]
+  auditLogs                GuestRegisterAuditLog[]
+
+  @@index([tenantId, entryId])
+  @@index([tenantId, lastName, firstName])
+  @@index([tenantId, documentNumber])
+  @@index([tenantId, nationality])
+}
+
+model GuestRegisterAttachment {
+  id                 String                      @id @default(cuid())
+  tenantId           String
+  entryId            String
+  personId           String?
+  type               GuestRegisterAttachmentType
+  fileName           String
+  mimeType           String
+  fileSize           Int
+  encryptionIv       String
+  encryptedData      String                      @db.Text
+  uploadedByUserId   String?
+  uploadedByName     String?
+  createdAt          DateTime                    @default(now())
+  tenant             Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entry              GuestRegisterEntry          @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  person             GuestRegisterPerson?        @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entryId])
+  @@index([tenantId, personId])
+}
+
+model GuestRegisterTransmission {
+  id              String                          @id @default(cuid())
+  tenantId        String
+  entryId         String
+  country         GuestRegisterCountry
+  adapterCode     String
+  status          GuestRegisterTransmissionStatus
+  requestPayload  Json?
+  responsePayload Json?
+  errorMessage    String?
+  externalRef     String?
+  sentAt          DateTime?
+  createdAt       DateTime                        @default(now())
+  tenant          Tenant                          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entry           GuestRegisterEntry              @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, entryId])
+  @@index([tenantId, status])
+  @@index([tenantId, country])
+}
+
+model GuestRegisterAuditLog {
+  id        String              @id @default(cuid())
+  tenantId  String
+  entryId   String?
+  personId  String?
+  userId    String?
+  userName  String?
+  action    String
+  field     String?
+  oldValue  String?             @db.Text
+  newValue  String?             @db.Text
+  ip        String?
+  userAgent String?
+  device    String?
+  createdAt DateTime            @default(now())
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entry     GuestRegisterEntry? @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  person    GuestRegisterPerson? @relation(fields: [personId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entryId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model GuestRegisterAccessLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  entryId   String?
+  personId  String?
+  userId    String?
+  userName  String?
+  action    String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entryId])
 }
 
 model HotelKeycard {

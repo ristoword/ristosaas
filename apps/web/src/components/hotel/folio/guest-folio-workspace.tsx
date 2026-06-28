@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  AlertTriangle,
   CreditCard,
+  Download,
   Lock,
   Mail,
+  Paperclip,
   Printer,
   RefreshCw,
   Unlock,
@@ -17,7 +18,8 @@ import { FolioHeaderBar } from "@/components/hotel/folio/folio-header-bar";
 import { FolioGuestReservationPanels } from "@/components/hotel/folio/folio-guest-reservation-panels";
 import { FolioEconomicDashboard } from "@/components/hotel/folio/folio-economic-dashboard";
 import { useHotel } from "@/components/hotel/hotel-context";
-import type { Customer, GuestFolio, HotelManualPaymentMethod } from "@/lib/api-client";
+import type { Customer, FolioAttachmentEntry, FolioAuditLogEntry, GuestFolio, HotelManualPaymentMethod } from "@/lib/api-client";
+import { hotelFolioApi } from "@/lib/api-client";
 import {
   FOLIO_SECTIONS,
   type FolioChargeFilters,
@@ -42,7 +44,8 @@ type Props = {
   customers: Customer[];
   onRefresh: () => Promise<void>;
   locked: boolean;
-  onToggleLock: () => void;
+  onToggleLock: () => Promise<void>;
+  lockBusy?: boolean;
 };
 
 const DEFAULT_FILTERS: FolioChargeFilters = {
@@ -56,17 +59,39 @@ const DEFAULT_FILTERS: FolioChargeFilters = {
   amountMax: "",
 };
 
-export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onToggleLock }: Props) {
+export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onToggleLock, lockBusy }: Props) {
   const { reservations, rooms, charges, ratePlans, recordFolioPayment, finalizeCheckout } = useHotel();
   const [filters, setFilters] = useState<FolioChargeFilters>(DEFAULT_FILTERS);
   const [tab, setTab] = useState<"conto" | "timeline" | "pagamenti" | "split">("conto");
   const [splitAssignments, setSplitAssignments] = useState<Record<string, FolioSplitId>>({});
+  const [auditLogs, setAuditLogs] = useState<FolioAuditLogEntry[]>([]);
+  const [attachments, setAttachments] = useState<FolioAttachmentEntry[]>([]);
   const [payOpen, setPayOpen] = useState(false);
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<HotelManualPaymentMethod>("carta");
   const [payNote, setPayNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    hotelFolioApi
+      .getDetail(folio.id)
+      .then((detail) => {
+        if (cancelled) return;
+        setAuditLogs(detail.auditLogs);
+        setAttachments(detail.attachments);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAuditLogs([]);
+          setAttachments([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [folio.id, charges.length]);
 
   const reservation = useMemo(() => reservationForFolio(folio, reservations), [folio, reservations]);
   const customer = useMemo(() => customerForFolio(folio, customers), [folio, customers]);
@@ -119,9 +144,65 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
     }
   };
 
-  const onDragAssign = useCallback((chargeId: string, split: FolioSplitId) => {
-    setSplitAssignments((prev) => ({ ...prev, [chargeId]: split }));
-  }, []);
+  const onDragAssign = useCallback(
+    async (chargeId: string, split: FolioSplitId) => {
+      if (locked) return;
+      setSplitAssignments((prev) => ({ ...prev, [chargeId]: split }));
+      try {
+        await hotelFolioApi.patchCharge(chargeId, "split", { splitCode: split });
+        await onRefresh();
+      } catch (e) {
+        setMsg(e instanceof Error ? e.message : "Errore split");
+      }
+    },
+    [locked, onRefresh],
+  );
+
+  const handleExportPdf = async () => {
+    setBusy(true);
+    try {
+      const blob = await hotelFolioApi.exportPdf(folio.id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `folio-${folio.id}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Errore export PDF");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUploadAttachment = async (file: File) => {
+    if (locked) return;
+    setBusy(true);
+    try {
+      const dataBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const type =
+        file.type.startsWith("image/") ? "photo" : file.type === "application/pdf" ? "contract" : "document";
+      await hotelFolioApi.uploadAttachment(folio.id, {
+        type,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        dataBase64,
+      });
+      const detail = await hotelFolioApi.getDetail(folio.id);
+      setAttachments(detail.attachments);
+      setAuditLogs(detail.auditLogs);
+      setMsg("Allegato caricato.");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Errore upload");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -141,7 +222,8 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
           <ActionBtn disabled={locked || !reservation} onClick={() => setPayOpen(true)} icon={CreditCard} label="Registra pagamento" />
           <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(false)} icon={CreditCard} label="Checkout" />
           <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(true)} icon={RefreshCw} label="Checkout rapido" />
-          <ActionBtn onClick={onToggleLock} icon={locked ? Unlock : Lock} label={locked ? "Sblocca folio" : "Blocca folio"} />
+          <ActionBtn disabled={lockBusy} onClick={() => void onToggleLock()} icon={locked ? Unlock : Lock} label={locked ? "Sblocca folio" : "Blocca folio"} />
+          <ActionBtn onClick={() => void handleExportPdf()} icon={Download} label="Export PDF" />
           <ActionBtn onClick={() => window.print()} icon={Printer} label="Stampa folio" />
           <ActionBtn
             onClick={() => {
@@ -160,7 +242,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
         </div>
         {locked && (
           <p className="mt-2 flex items-center gap-2 text-xs text-amber-400">
-            <Lock className="h-3.5 w-3.5" /> Folio bloccato — modifiche disabilitate in sessione.
+            <Lock className="h-3.5 w-3.5" /> Folio bloccato — modifiche disabilitate.
           </p>
         )}
         {msg && <p className="mt-2 text-xs text-rw-soft">{msg}</p>}
@@ -263,7 +345,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       )}
 
       {tab === "split" && (
-        <Card title="Split Folio" description="Trascina gli addebiti tra Folio A–D (vista operativa sessione).">
+        <Card title="Split Folio" description="Trascina gli addebiti tra Folio A–D. Le assegnazioni sono persistite sul backend.">
           <div className="mb-4 grid gap-2 sm:grid-cols-4">
             {(["A", "B", "C", "D"] as FolioSplitId[]).map((id) => (
               <div key={id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
@@ -273,25 +355,58 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
             ))}
           </div>
           <SplitDropZones
-            rows={allRows.filter((r) => r.source !== "payment")}
+            rows={allRows.filter((r) => r.source !== "payment" && r.status !== "void")}
             assignments={splitAssignments}
-            onAssign={onDragAssign}
+            onAssign={(id, split) => void onDragAssign(id, split)}
           />
-          <p className="mt-3 flex items-start gap-2 text-xs text-rw-muted">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            Lo split è operativo in sessione. La persistenza multi-folio richiede estensione backend PMS.
-          </p>
         </Card>
       )}
 
-      <Card title="Audit movimenti" description="Tracciamento basato sui movimenti folio registrati (audit esteso IP/dispositivo: roadmap backend).">
-        <ChargeTable rows={allRows.slice(0, 50)} compact />
+      <Card title="Audit movimenti" description="Tracciamento operazioni folio con operatore e IP.">
+        <DataTable
+          columns={[
+            { key: "at", header: "Data", render: (r) => new Date(r.createdAt).toLocaleString("it-IT") },
+            { key: "action", header: "Azione", render: (r) => r.action },
+            { key: "user", header: "Operatore", render: (r) => r.userName || "—" },
+            { key: "detail", header: "Dettaglio", render: (r) => r.newValue || r.oldValue || "—" },
+            { key: "ip", header: "IP", render: (r) => r.ip || "—" },
+          ]}
+          data={auditLogs}
+          keyExtractor={(r) => r.id}
+          emptyMessage="Nessun evento audit"
+        />
       </Card>
 
       <Card title="Allegati">
-        <p className="text-sm text-rw-muted">
-          Upload documenti (passaporto, contratto, firma, voucher) disponibile con modulo documentale hotel — collegare storage tenant.
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs font-semibold text-rw-ink hover:border-rw-accent/40">
+            <Paperclip className="h-3.5 w-3.5" /> Carica documento
+            <input
+              type="file"
+              className="hidden"
+              accept="image/*,.pdf,.doc,.docx"
+              disabled={locked || busy}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleUploadAttachment(file);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {attachments.length === 0 && <p className="text-sm text-rw-muted">Nessun allegato.</p>}
+        </div>
+        {attachments.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {attachments.map((a) => (
+              <li key={a.id} className="flex items-center justify-between rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm">
+                <span>{a.fileName}</span>
+                <span className="text-xs text-rw-muted">
+                  {a.type} · {(a.fileSize / 1024).toFixed(0)} KB
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </Card>
     </div>
   );
@@ -368,7 +483,7 @@ function SplitDropZones({
           <p className="mb-2 text-xs font-semibold uppercase text-rw-muted">Folio {split}</p>
           <ul className="space-y-1">
             {rows
-              .filter((r) => (assignments[r.id] ?? "A") === split)
+              .filter((r) => (assignments[r.id] ?? r.split) === split)
               .map((r) => (
                 <li
                   key={r.id}

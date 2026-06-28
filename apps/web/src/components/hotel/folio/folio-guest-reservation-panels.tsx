@@ -21,7 +21,7 @@ export function FolioGuestReservationPanels({ customer, reservation, ratePlans }
           <Row label="Email" value={customer?.email || reservation?.email || "—"} />
           <Row label="VIP" value={customer?.type === "vip" ? "Sì" : "No"} highlight={customer?.type === "vip"} />
           <Row label="Loyalty" value={customer ? `${customer.visits} visite · €${customer.totalSpent.toFixed(0)}` : "—"} />
-          <Row label="Note Reception" value={customer?.notes || customer?.preferences || "—"} />
+          <Row label="Note Reception" value={reservation?.receptionNotes || customer?.notes || customer?.preferences || "—"} />
           <Row label="Allergie" value={customer?.allergies || "—"} />
         </dl>
       </Card>
@@ -29,12 +29,25 @@ export function FolioGuestReservationPanels({ customer, reservation, ratePlans }
         {reservation ? (
           <dl className="grid gap-2 text-sm">
             <Row label="N. prenotazione" value={reservation.id} mono />
-            <Row label="Canale" value="Direct / PMS" />
-            <Row label="Tariffa" value={`€ ${reservation.rate.toFixed(2)} / notte`} />
-            <Row label="Piano tariffario" value={ratePlanLabel(reservation, ratePlans)} />
-            <Row label="Pensione" value={boardTypeLabel(reservation.boardType)} />
-            <Row label="Adulti" value={String(reservation.guests)} />
-            <Row label="Notti" value={String(reservation.nights)} />
+          <Row label="Nazionalità" value={reservation.nationality || "—"} />
+          <Row label="Indirizzo" value={reservation.address || "—"} />
+          <Row label="Azienda" value={reservation.company || "—"} />
+          <Row label="Canale" value={reservation.channel || "Direct"} />
+          <Row label="Tariffa" value={`€ ${reservation.rate.toFixed(2)} / notte`} />
+          <Row label="Piano tariffario" value={reservation.ratePlanName || ratePlanLabel(reservation, ratePlans)} />
+          <Row label="Pacchetto" value={reservation.packageName || "—"} />
+          <Row label="Pensione" value={boardTypeLabel(reservation.boardType)} />
+          <Row label="Adulti" value={String(reservation.guests)} />
+          <Row label="Bambini" value={String(reservation.children ?? 0)} />
+          <Row label="Culla" value={reservation.crib ? "Sì" : "No"} />
+          <Row label="Notti" value={String(reservation.nights)} />
+          <Row label="Early check-in" value={reservation.earlyCheckin ? "Sì" : "No"} />
+          <Row label="Late checkout" value={reservation.lateCheckout ? "Sì" : "No"} />
+          <Row
+            label="Caparra"
+            value={reservation.depositReceived != null ? `€ ${reservation.depositReceived.toFixed(2)}` : "—"}
+          />
+          <Row label="Note reception" value={reservation.receptionNotes || "—"} />
             <Row label="Tipo camera" value={reservation.roomType} />
             <Row label="Stato" value={reservation.status} />
           </dl>

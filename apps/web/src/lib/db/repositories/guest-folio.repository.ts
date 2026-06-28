@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
+import { mapChargeRow } from "@/lib/hotel/folio-service";
+import type { FolioAttachmentEntry, FolioAuditLogEntry, FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 
 type FolioRow = {
   id: string;
@@ -10,6 +11,9 @@ type FolioRow = {
   currency: string;
   balance: Prisma.Decimal;
   status: GuestFolio["status"];
+  locked: boolean;
+  createdAt: Date;
+  updatedAt: Date;
   customer?: { name: string | null } | null;
   stay?: {
     reservationId: string;
@@ -31,29 +35,12 @@ function mapFolio(row: FolioRow): GuestFolio {
     currency: row.currency,
     balance: row.balance.toNumber(),
     status: row.status,
+    locked: row.locked,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
     guestName: stayReservation?.guestName ?? row.customer?.name ?? null,
     roomCode: stayReservation?.room?.code ?? null,
     reservationId: row.stay?.reservationId ?? null,
-  };
-}
-
-function mapCharge(row: {
-  id: string;
-  folioId: string;
-  source: FolioCharge["source"];
-  sourceId: string | null;
-  description: string;
-  amount: Prisma.Decimal;
-  postedAt: Date;
-}): FolioCharge {
-  return {
-    id: row.id,
-    folioId: row.folioId,
-    source: row.source,
-    sourceId: row.sourceId,
-    description: row.description,
-    amount: row.amount.toNumber(),
-    postedAt: row.postedAt.toISOString(),
   };
 }
 
@@ -61,7 +48,7 @@ export const guestFolioRepository = {
   async allFolios(tenantId: string) {
     const rows = await prisma.guestFolio.findMany({
       where: { tenantId },
-      orderBy: { id: "asc" },
+      orderBy: { updatedAt: "desc" },
       include: {
         customer: { select: { name: true } },
         stay: {
@@ -78,17 +65,101 @@ export const guestFolioRepository = {
         },
       },
     });
-    return rows.map((r) => mapFolio(r));
+    return rows.map((r) => mapFolio(r as FolioRow));
   },
-  async allCharges(tenantId: string) {
-    const rows = await prisma.folioCharge.findMany({
-      where: {
-        folio: {
-          tenantId,
+
+  async getFolio(tenantId: string, folioId: string) {
+    const row = await prisma.guestFolio.findFirst({
+      where: { id: folioId, tenantId },
+      include: {
+        customer: { select: { name: true } },
+        stay: {
+          select: {
+            reservationId: true,
+            reservation: {
+              select: {
+                guestName: true,
+                roomId: true,
+                room: { select: { code: true } },
+              },
+            },
+          },
         },
       },
+    });
+    return row ? mapFolio(row as FolioRow) : null;
+  },
+
+  async allCharges(tenantId: string) {
+    const rows = await prisma.folioCharge.findMany({
+      where: { folio: { tenantId }, lineStatus: { not: "void" } },
       orderBy: { postedAt: "desc" },
     });
-    return rows.map((r) => mapCharge(r));
+    return rows.map((r) => mapChargeRow(r));
+  },
+
+  async chargesForFolio(tenantId: string, folioId: string): Promise<FolioCharge[]> {
+    const rows = await prisma.folioCharge.findMany({
+      where: { folioId, folio: { tenantId }, lineStatus: { not: "void" } },
+      orderBy: { postedAt: "desc" },
+    });
+    return rows.map((r) => mapChargeRow(r));
+  },
+
+  async getDetail(tenantId: string, folioId: string) {
+    const folio = await this.getFolio(tenantId, folioId);
+    if (!folio) return null;
+
+    const [charges, auditLogs, attachments] = await Promise.all([
+      this.chargesForFolio(tenantId, folioId),
+      prisma.folioAuditLog.findMany({
+        where: { tenantId, folioId },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      }),
+      prisma.folioAttachment.findMany({
+        where: { tenantId, folioId },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          folioId: true,
+          type: true,
+          fileName: true,
+          mimeType: true,
+          fileSize: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    return {
+      folio,
+      charges,
+      auditLogs: auditLogs.map(
+        (a): FolioAuditLogEntry => ({
+          id: a.id,
+          folioId: a.folioId,
+          chargeId: a.chargeId,
+          action: a.action,
+          field: a.field,
+          oldValue: a.oldValue,
+          newValue: a.newValue,
+          userName: a.userName,
+          ip: a.ip,
+          createdAt: a.createdAt.toISOString(),
+        }),
+      ),
+      attachments: attachments.map(
+        (a): FolioAttachmentEntry => ({
+          id: a.id,
+          folioId: a.folioId,
+          type: a.type,
+          fileName: a.fileName,
+          mimeType: a.mimeType,
+          fileSize: a.fileSize,
+          createdAt: a.createdAt.toISOString(),
+        }),
+      ),
+    };
   },
 };

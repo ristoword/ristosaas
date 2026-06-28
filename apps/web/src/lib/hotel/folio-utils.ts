@@ -31,7 +31,20 @@ export type FolioChargeRow = FolioCharge & {
   status: "posted" | "payment" | "credit" | "void";
   time: string;
   date: string;
+  split: FolioSplitId;
 };
+
+function parseSection(value: string | null | undefined, charge: FolioCharge): FolioSection {
+  if (value && (FOLIO_SECTIONS as readonly string[]).includes(value)) {
+    return value as FolioSection;
+  }
+  return mapChargeToSection(charge);
+}
+
+function parseSplitCode(value: string | undefined): FolioSplitId {
+  if (value === "B" || value === "C" || value === "D") return value;
+  return "A";
+}
 
 export type FolioTimelineEvent = {
   id: string;
@@ -126,20 +139,22 @@ export function mapSourceToDepartment(source: FolioCharge["source"]): string {
 
 export function enrichCharge(charge: FolioCharge): FolioChargeRow {
   const posted = new Date(charge.postedAt);
-  const section = mapChargeToSection(charge);
+  const section = parseSection(charge.section, charge);
   const isPayment = charge.source === "payment" || charge.amount < 0;
+  const lineVoid = charge.lineStatus === "void";
   return {
     ...charge,
     section,
-    department: mapSourceToDepartment(charge.source),
-    operator: charge.source === "payment" ? "Reception" : mapSourceToDepartment(charge.source),
-    qty: 1,
-    unitPrice: Math.abs(charge.amount),
-    vatPct: section === "TASSA_DI_SOGGIORNO" ? 0 : 10,
+    department: charge.department ?? mapSourceToDepartment(charge.source),
+    operator: charge.operator ?? charge.createdByName ?? (charge.source === "payment" ? "Reception" : mapSourceToDepartment(charge.source)),
+    qty: charge.quantity ?? 1,
+    unitPrice: charge.unitPrice ?? Math.abs(charge.amount),
+    vatPct: charge.vatPct ?? (section === "TASSA_DI_SOGGIORNO" ? 0 : 10),
     total: charge.amount,
-    status: charge.source === "meal_plan_credit" ? "credit" : isPayment ? "payment" : "posted",
+    status: lineVoid ? "void" : charge.source === "meal_plan_credit" ? "credit" : isPayment ? "payment" : "posted",
     date: posted.toLocaleDateString("it-IT"),
     time: posted.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }),
+    split: parseSplitCode(charge.splitCode),
   };
 }
 
@@ -342,8 +357,8 @@ export function groupBySection(rows: FolioChargeRow[]): Map<FolioSection, FolioC
 export function splitTotals(rows: FolioChargeRow[], assignments: Record<string, FolioSplitId>): Record<FolioSplitId, number> {
   const totals: Record<FolioSplitId, number> = { A: 0, B: 0, C: 0, D: 0 };
   for (const row of rows) {
-    if (row.source === "payment") continue;
-    const split = assignments[row.id] ?? "A";
+    if (row.source === "payment" || row.status === "void") continue;
+    const split = assignments[row.id] ?? row.split;
     totals[split] += row.amount;
   }
   return totals;

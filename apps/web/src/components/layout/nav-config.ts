@@ -267,6 +267,17 @@ export const navSections: NavSection[] = [
         feature: "hotel",
       },
       {
+        id: "hotel-guest-register",
+        label: "Registro Alloggiati",
+        hint: "Scheda ospite, documenti, trasmissione autorità e conformità.",
+        href: "/hotel/guest-register",
+        icon: UserCheck,
+        ready: true,
+        vertical: "hotel",
+        feature: "hotel",
+        visibleFor: ["reception", "hotel_manager", "supervisor", "owner", "super_admin"],
+      },
+      {
         id: "hotel-housekeeping",
         label: "Housekeeping",
         hint: "Pulizie, camere pronte e manutenzione.",

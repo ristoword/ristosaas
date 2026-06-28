@@ -7,7 +7,7 @@ import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { GuestFolioWorkspace } from "@/components/hotel/folio/guest-folio-workspace";
-import { customersApi, roomServiceApi, type Customer, type GuestFolio } from "@/lib/api-client";
+import { customersApi, hotelFolioApi, roomServiceApi, type Customer, type FolioAttachmentEntry, type FolioAuditLogEntry, type GuestFolio } from "@/lib/api-client";
 import { paymentStatusLabel, reservationForFolio } from "@/lib/hotel/folio-utils";
 import { cn } from "@/lib/utils";
 
@@ -19,8 +19,8 @@ export function HotelFolioPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "open" | "closed">("open");
-  const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
   const [pendingRoomService, setPendingRoomService] = useState(0);
+  const [lockBusy, setLockBusy] = useState(false);
 
   useEffect(() => {
     customersApi.list().then(setCustomers).catch(() => setCustomers([]));
@@ -62,14 +62,17 @@ export function HotelFolioPage() {
 
   const selected = folios.find((f) => f.id === selectedId) ?? null;
 
-  const toggleLock = useCallback((folioId: string) => {
-    setLockedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(folioId)) next.delete(folioId);
-      else next.add(folioId);
-      return next;
-    });
-  }, []);
+  const toggleLock = useCallback(async () => {
+    if (!selected || lockBusy) return;
+    setLockBusy(true);
+    try {
+      if (selected.locked) await hotelFolioApi.unlock(selected.id);
+      else await hotelFolioApi.lock(selected.id);
+      await refresh();
+    } finally {
+      setLockBusy(false);
+    }
+  }, [selected, lockBusy, refresh]);
 
   const integrationOk = !failedSlices.includes("folios") && !failedSlices.includes("charges");
 
@@ -155,8 +158,9 @@ export function HotelFolioPage() {
               folio={selected}
               customers={customers}
               onRefresh={refresh}
-              locked={lockedIds.has(selected.id)}
-              onToggleLock={() => toggleLock(selected.id)}
+              locked={selected.locked ?? false}
+              onToggleLock={toggleLock}
+              lockBusy={lockBusy}
             />
           ) : (
             <Card title="Seleziona un folio">

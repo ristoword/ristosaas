@@ -4,6 +4,8 @@ import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { actorFromRequest } from "@/lib/hotel/folio-service";
+import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
@@ -403,6 +405,12 @@ export async function POST(req: NextRequest) {
         },
       };
     });
+
+    await guestRegisterRepository.markCheckedOut(
+      tenantId,
+      reservationId,
+      actorFromRequest(guard.user, req.headers),
+    );
 
     return ok(result);
   } catch (e) {

@@ -25,6 +25,18 @@ function mapReservation(row: {
   nights: number;
   rate: { toNumber: () => number };
   documentCode: string | null;
+  nationality?: string | null;
+  address?: string | null;
+  company?: string | null;
+  channel?: string | null;
+  children?: number;
+  crib?: boolean;
+  lateCheckout?: boolean;
+  earlyCheckin?: boolean;
+  depositReceived?: { toNumber: () => number } | null;
+  receptionNotes?: string | null;
+  packageName?: string | null;
+  ratePlanName?: string | null;
 }): HotelReservation {
   return {
     id: row.id,
@@ -42,6 +54,18 @@ function mapReservation(row: {
     nights: row.nights,
     rate: row.rate.toNumber(),
     documentCode: row.documentCode ?? "",
+    nationality: row.nationality ?? undefined,
+    address: row.address ?? undefined,
+    company: row.company ?? undefined,
+    channel: row.channel ?? undefined,
+    children: row.children,
+    crib: row.crib,
+    lateCheckout: row.lateCheckout,
+    earlyCheckin: row.earlyCheckin,
+    depositReceived: row.depositReceived?.toNumber() ?? null,
+    receptionNotes: row.receptionNotes ?? undefined,
+    packageName: row.packageName ?? undefined,
+    ratePlanName: row.ratePlanName ?? undefined,
   };
 }
 
@@ -109,6 +133,18 @@ export const hotelReservationsRepository = {
         nights: data.nights,
         rate: data.rate,
         documentCode: data.documentCode || null,
+        nationality: data.nationality || null,
+        address: data.address || null,
+        company: data.company || null,
+        channel: data.channel || "direct",
+        children: data.children ?? 0,
+        crib: data.crib ?? false,
+        lateCheckout: data.lateCheckout ?? false,
+        earlyCheckin: data.earlyCheckin ?? false,
+        depositReceived: data.depositReceived ?? null,
+        receptionNotes: data.receptionNotes || null,
+        packageName: data.packageName || null,
+        ratePlanName: data.ratePlanName || null,
       },
     });
     return mapReservation(row);
@@ -146,6 +182,18 @@ export const hotelReservationsRepository = {
         nights: data.nights,
         rate: data.rate,
         documentCode: data.documentCode === undefined ? undefined : data.documentCode || null,
+        nationality: data.nationality === undefined ? undefined : data.nationality || null,
+        address: data.address === undefined ? undefined : data.address || null,
+        company: data.company === undefined ? undefined : data.company || null,
+        channel: data.channel,
+        children: data.children,
+        crib: data.crib,
+        lateCheckout: data.lateCheckout,
+        earlyCheckin: data.earlyCheckin,
+        depositReceived: data.depositReceived === undefined ? undefined : data.depositReceived,
+        receptionNotes: data.receptionNotes === undefined ? undefined : data.receptionNotes || null,
+        packageName: data.packageName === undefined ? undefined : data.packageName || null,
+        ratePlanName: data.ratePlanName === undefined ? undefined : data.ratePlanName || null,
       },
     });
     return mapReservation(row);

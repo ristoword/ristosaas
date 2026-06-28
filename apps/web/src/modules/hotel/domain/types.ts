@@ -51,6 +51,18 @@ export type HotelReservation = {
   nights: number;
   rate: number;
   documentCode: string;
+  nationality?: string;
+  address?: string;
+  company?: string;
+  channel?: string;
+  children?: number;
+  crib?: boolean;
+  lateCheckout?: boolean;
+  earlyCheckin?: boolean;
+  depositReceived?: number | null;
+  receptionNotes?: string;
+  packageName?: string;
+  ratePlanName?: string;
 };
 
 export type HotelStay = {

@@ -3,6 +3,7 @@ import { ok, err, fireAndForget } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
+import { actorFromRequest, postFolioCharge } from "@/lib/hotel/folio-service";
 
 const CHARGE_ROLES = ["hotel_manager", "supervisor", "owner", "super_admin"] as const;
 
@@ -48,20 +49,16 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   };
   const description = `${categoryLabel[order.category] ?? order.category} — Camera ${order.roomCode}`;
 
-  const charge = await prisma.folioCharge.create({
-    data: {
-      folioId,
-      source: "room_service",
-      sourceId: order.id,
-      description,
-      amount: order.total,
-    },
-    select: { id: true, folioId: true, source: true, description: true, amount: true, postedAt: true },
-  });
-
-  await prisma.guestFolio.update({
-    where: { id: folioId },
-    data: { balance: { increment: order.total } },
+  const charge = await postFolioCharge({
+    tenantId,
+    folioId,
+    source: "room_service",
+    sourceId: order.id,
+    description,
+    amount: Number(order.total),
+    department: "Room Service",
+    section: "ROOM_SERVICE",
+    actor: actorFromRequest(guard.user, req.headers),
   });
 
   await prisma.roomServiceOrder.update({
@@ -79,5 +76,5 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     },
   }), "notification:room-service-charge");
 
-  return ok({ charge: { ...charge, amount: Number(charge.amount), postedAt: charge.postedAt.toISOString() } });
+  return ok({ charge });
 }

@@ -3,6 +3,8 @@ import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { actorFromRequest, postRoomChargesOnCheckIn } from "@/lib/hotel/folio-service";
+import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
 import type { HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
 const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
@@ -158,7 +160,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  await prisma.guestFolio.upsert({
+  const folio = await prisma.guestFolio.upsert({
     where: { stayId: stay.id },
     update: {},
     create: {
@@ -169,6 +171,27 @@ export async function POST(req: NextRequest) {
       balance: 0,
       status: "open",
     },
+    select: { id: true },
+  });
+
+  const actor = actorFromRequest(guard.user, req.headers);
+
+  await postRoomChargesOnCheckIn({
+    tenantId,
+    folioId: folio.id,
+    nights: updatedReservation.nights,
+    rate: updatedReservation.rate.toNumber(),
+    roomCode: room.code,
+    actor,
+  });
+
+  await guestRegisterRepository.upsertFromReservation({
+    tenantId,
+    reservationId: reservation.id,
+    stayId: stay.id,
+    roomId: room.id,
+    roomCode: room.code,
+    actor,
   });
 
   await prisma.hotelKeycard.updateMany({

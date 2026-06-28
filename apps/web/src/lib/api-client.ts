@@ -40,6 +40,15 @@ function del<T>(path: string) {
   return request<T>(path, { method: "DELETE" });
 }
 
+async function fetchBlob(path: string): Promise<Blob> {
+  const res = await fetch(`${BASE}${path}`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+  }
+  return res.blob();
+}
+
 type AuthUser = {
   id: string;
   username: string;
@@ -1004,12 +1013,83 @@ export type HotelReservation = {
   nights: number;
   rate: number;
   documentCode: string;
+  nationality?: string;
+  address?: string;
+  company?: string;
+  channel?: string;
+  children?: number;
+  crib?: boolean;
+  lateCheckout?: boolean;
+  earlyCheckin?: boolean;
+  depositReceived?: number | null;
+  receptionNotes?: string;
+  packageName?: string;
+  ratePlanName?: string;
 };
 export type HotelStay = { id: string; reservationId: string; roomId: string; actualCheckInAt: string | null; actualCheckOutAt: string | null };
 export type HousekeepingTask = { id: string; roomId: string; assignedTo: string; status: "todo" | "in_progress" | "done"; scheduledFor: string; inspected: boolean };
 export type HotelKeycard = { id: string; roomId: string; reservationId: string; validFrom: string; validUntil: string; status: "attiva" | "scaduta" | "annullata"; issuedBy: string };
-export type GuestFolio = { id: string; tenantId: string; customerId: string; stayId: string | null; currency: string; balance: number; status: "open" | "closed"; guestName?: string | null; roomCode?: string | null; reservationId?: string | null };
-export type FolioCharge = { id: string; folioId: string; source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit" | "room_service"; sourceId: string | null; description: string; amount: number; postedAt: string };
+export type GuestFolio = {
+  id: string;
+  tenantId: string;
+  customerId: string;
+  stayId: string | null;
+  currency: string;
+  balance: number;
+  status: "open" | "closed";
+  locked?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  guestName?: string | null;
+  roomCode?: string | null;
+  reservationId?: string | null;
+};
+export type FolioCharge = {
+  id: string;
+  folioId: string;
+  source: "hotel" | "restaurant" | "manual" | "city_tax" | "payment" | "meal_plan_credit" | "room_service";
+  sourceId: string | null;
+  description: string;
+  amount: number;
+  postedAt: string;
+  department?: string | null;
+  operator?: string | null;
+  quantity?: number;
+  unitPrice?: number | null;
+  vatPct?: number;
+  section?: string | null;
+  splitCode?: string;
+  lineStatus?: string;
+  createdByUserId?: string | null;
+  createdByName?: string | null;
+};
+export type FolioAuditLogEntry = {
+  id: string;
+  folioId: string;
+  chargeId: string | null;
+  action: string;
+  field: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  userName: string | null;
+  ip: string | null;
+  createdAt: string;
+};
+export type FolioAttachmentEntry = {
+  id: string;
+  folioId: string;
+  type: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: string;
+};
+export type FolioDetail = {
+  folio: GuestFolio;
+  charges: FolioCharge[];
+  auditLogs: FolioAuditLogEntry[];
+  attachments: FolioAttachmentEntry[];
+};
 
 /** Pagamento manuale reception (checkout hotel, senza Stripe). */
 export type HotelManualPaymentMethod =
@@ -1136,6 +1216,161 @@ export const integrationApi = {
   listCharges: () => get<FolioCharge[]>("/integration/charges"),
   chargeRoom: (reservationId: string, orderId: string, description: string, amount: number, serviceType: "breakfast" | "lunch" | "dinner") =>
     post<{ folio: GuestFolio; charge: FolioCharge; credits: FolioCharge[] }>("/integration/room-charge", { reservationId, orderId, description, amount, serviceType }),
+};
+
+export const hotelFolioApi = {
+  getDetail: (folioId: string) => get<FolioDetail>(`/hotel/folio/${folioId}`),
+  postCharge: (payload: {
+    folioId: string;
+    description: string;
+    amount: number;
+    source?: FolioCharge["source"];
+    department?: string;
+    section?: string;
+    quantity?: number;
+    unitPrice?: number;
+    vatPct?: number;
+    splitCode?: string;
+  }) => post<{ charge: FolioCharge }>("/hotel/folio/charges", payload),
+  patchCharge: (
+    chargeId: string,
+    action: "transfer" | "split" | "void",
+    extra?: { targetFolioId?: string; splitCode?: string },
+  ) => patch<{ success: boolean }>(`/hotel/folio/charges/${chargeId}`, { action, ...extra }),
+  lock: (folioId: string) => post<{ locked: boolean }>(`/hotel/folio/${folioId}/lock`, {}),
+  unlock: (folioId: string) => post<{ locked: boolean }>(`/hotel/folio/${folioId}/unlock`, {}),
+  uploadAttachment: (
+    folioId: string,
+    payload: { type: string; fileName: string; mimeType: string; dataBase64: string },
+  ) => post<{ attachment: FolioAttachmentEntry }>(`/hotel/folio/${folioId}/attachments`, payload),
+  exportPdf: (folioId: string) => fetchBlob(`/hotel/folio/${folioId}/export?format=pdf`),
+  exportCsv: (folioId: string) => fetchBlob(`/hotel/folio/${folioId}/export?format=csv`),
+};
+
+export type GuestRegisterEntryStatus = "draft" | "incomplete" | "complete" | "checked_out";
+export type GuestRegisterTransmissionStatus = "pending" | "sent" | "error" | "cancelled";
+export type GuestRegisterCountry = "IT" | "NL" | "BE" | "DE" | "FR" | "ES";
+export type GuestRegisterPersonSex = "M" | "F" | "X" | "unknown";
+export type GuestRegisterDocumentType = "passport" | "identity_card" | "driving_license" | "visa" | "other";
+export type GuestRegisterAttachmentType =
+  | "document_front"
+  | "document_back"
+  | "passport"
+  | "visa"
+  | "driving_license"
+  | "receipt"
+  | "contract"
+  | "signature_privacy"
+  | "signature_checkin"
+  | "signature_rules";
+export type GuestRegisterOcrStatus = "none" | "pending" | "completed" | "verified" | "failed";
+
+export type GuestRegisterPerson = {
+  id: string;
+  entryId: string;
+  firstName: string;
+  lastName: string;
+  sex: GuestRegisterPersonSex;
+  dateOfBirth: string | null;
+  placeOfBirth: string | null;
+  stateOfBirth: string | null;
+  nationality: string | null;
+  residenceCountry: string | null;
+  address: string | null;
+  postalCode: string | null;
+  city: string | null;
+  province: string | null;
+  taxCode: string | null;
+  phone: string | null;
+  email: string | null;
+  documentType: GuestRegisterDocumentType | null;
+  documentNumber: string | null;
+  documentIssueDate: string | null;
+  documentExpiryDate: string | null;
+  documentIssuingAuthority: string | null;
+  isPrimary: boolean;
+  sortOrder: number;
+  isComplete: boolean;
+  ocrStatus: GuestRegisterOcrStatus;
+  ocrPayload: Record<string, unknown> | null;
+  ocrVerifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type GuestRegisterEntry = {
+  id: string;
+  tenantId: string;
+  reservationId: string;
+  stayId: string | null;
+  roomId: string | null;
+  status: GuestRegisterEntryStatus;
+  transmissionStatus: GuestRegisterTransmissionStatus;
+  transmissionCountry: GuestRegisterCountry;
+  arrivalDate: string;
+  departureDate: string;
+  guestCount: number;
+  adults: number;
+  children: number;
+  roomCode: string | null;
+  notes: string | null;
+  lastTransmissionAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  guestName?: string | null;
+  reservationStatus?: string | null;
+};
+
+export type GuestRegisterEntryDetail = GuestRegisterEntry & {
+  persons: GuestRegisterPerson[];
+  attachments: { id: string; entryId: string; personId: string | null; type: GuestRegisterAttachmentType; fileName: string; mimeType: string; fileSize: number; createdAt: string }[];
+  transmissions: { id: string; entryId: string; country: GuestRegisterCountry; adapterCode: string; status: GuestRegisterTransmissionStatus; errorMessage: string | null; externalRef: string | null; sentAt: string | null; createdAt: string }[];
+  auditLogs: { id: string; entryId: string | null; personId: string | null; action: string; userName: string | null; ip: string | null; createdAt: string }[];
+};
+
+export type GuestRegisterDashboard = {
+  date: string;
+  arrivalsToday: number;
+  departuresToday: number;
+  guestsPresent: number;
+  toRegister: number;
+  incomplete: number;
+  sent: number;
+  transmissionErrors: number;
+  nationalityBreakdown: { nationality: string; count: number }[];
+  statusBreakdown: { status: GuestRegisterEntryStatus; count: number }[];
+  transmissionBreakdown: { status: GuestRegisterTransmissionStatus; count: number }[];
+};
+
+export const hotelGuestRegisterApi = {
+  dashboard: (date?: string) => get<GuestRegisterDashboard>(`/hotel/guest-register/dashboard${date ? `?date=${date}` : ""}`),
+  search: (params: Record<string, string | number | undefined>) => {
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(params)) {
+      if (v != null && v !== "") qs.set(k, String(v));
+    }
+    return get<{ items: GuestRegisterEntry[]; total: number; page: number; pageSize: number }>(`/hotel/guest-register/search?${qs}`);
+  },
+  getEntry: (id: string) => get<GuestRegisterEntryDetail>(`/hotel/guest-register/entries/${id}`),
+  createEntry: (reservationId: string) => post<{ entry: GuestRegisterEntry }>("/hotel/guest-register/entries", { reservationId }),
+  updateEntry: (id: string, data: Partial<{ transmissionCountry: GuestRegisterCountry; notes: string | null }>) =>
+    patch<{ entry: GuestRegisterEntry }>(`/hotel/guest-register/entries/${id}`, data),
+  addPerson: (entryId: string, data: Partial<GuestRegisterPerson>) =>
+    post<{ person: GuestRegisterPerson }>(`/hotel/guest-register/entries/${entryId}/persons`, data),
+  updatePerson: (personId: string, data: Partial<GuestRegisterPerson>) =>
+    patch<{ person: GuestRegisterPerson }>(`/hotel/guest-register/persons/${personId}`, data),
+  deletePerson: (personId: string) => del<{ deleted: boolean }>(`/hotel/guest-register/persons/${personId}`),
+  uploadAttachment: (personId: string, payload: { type: GuestRegisterAttachmentType; fileName: string; mimeType: string; dataBase64: string }) =>
+    post<{ attachment: unknown }>(`/hotel/guest-register/persons/${personId}/attachments`, payload),
+  runOcr: (personId: string, payload: { dataBase64: string; mimeType: string; fileName: string }) =>
+    post<{ extracted: Record<string, unknown>; person: GuestRegisterPerson }>(`/hotel/guest-register/persons/${personId}/ocr`, payload),
+  verifyOcr: (personId: string, applyOcr?: boolean) =>
+    patch<{ person: GuestRegisterPerson }>(`/hotel/guest-register/persons/${personId}/ocr/verify`, { applyOcr }),
+  transmit: (entryId: string, country?: GuestRegisterCountry) =>
+    post<{ transmission: unknown }>(`/hotel/guest-register/entries/${entryId}/transmit`, { country }),
+  sync: (date?: string) => post<{ synced: number }>(`/hotel/guest-register/sync${date ? `?date=${date}` : ""}`, {}),
+  listAdapters: () => get<{ adapters: { code: string; country: GuestRegisterCountry; name: string }[] }>("/hotel/guest-register/adapters"),
+  attachmentUrl: (attachmentId: string) => `/api/hotel/guest-register/attachments/${attachmentId}`,
 };
 
 export const reportsApi = {
