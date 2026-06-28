@@ -158,7 +158,7 @@ export function useDashboardModuleAi(navIds: string[]) {
     setLoading(true);
     try {
       const [cc, k, c, t, props] = await Promise.all([
-        aiCommandCenterApi.dashboard({ periodDays: 7 }),
+        aiCommandCenterApi.dashboard({ periodDays: 7 }).catch(() => null),
         aiOpsApi.kitchenOperationalInsights(14).catch(() => null),
         aiOpsApi.cantinaInsights().catch(() => null),
         reportsApi.trends().catch(() => null),
