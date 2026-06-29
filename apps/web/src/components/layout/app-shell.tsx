@@ -39,13 +39,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onNavigate={() => setMobileOpen(false)}
       />
 
-      <div className="flex min-w-0 flex-1 flex-col md:pl-0">
+      <div className="flex min-w-0 flex-1 flex-col overflow-x-clip md:pl-0">
         <TopBar
           menuOpen={mobileOpen}
           onOpenSidebar={() => setMobileOpen((o) => !o)}
         />
-        <div className="flex-1 px-4 py-6 md:px-8 md:py-8">
-          <div className="mx-auto max-w-6xl">{children}</div>
+        <div className="flex-1 overflow-x-clip px-4 py-6 md:px-8 md:py-8">
+          <div className="mx-auto w-full min-w-0 max-w-6xl">{children}</div>
         </div>
       </div>
     </div>

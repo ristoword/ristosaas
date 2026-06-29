@@ -24,6 +24,28 @@ export const ALERT_WARN =
 export const ALERT_INFO =
   "rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-soft";
 
-export const KPI_GRID = "grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8";
+/** KPI responsive — colonne auto con larghezza minima, nessuna compressione sotto il minimo. */
+export const KPI_GRID =
+  "grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10.5rem),1fr))]";
+
+/** KPI compatto per pannelli stretti (es. AI Concierge). */
+export const KPI_GRID_COMPACT =
+  "grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,8.5rem),1fr))]";
+
+/** Due pannelli affiancati (ospite + prenotazione, grafici, ecc.). */
+export const PANEL_GRID_2 =
+  "grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]";
+
+/** Lista folio + area workspace. */
+export const FOLIO_PAGE_GRID =
+  "grid items-start gap-4 [grid-template-columns:minmax(0,1fr)] lg:[grid-template-columns:minmax(17.5rem,20rem)_minmax(0,1fr)]";
+
+/** Contenuto folio + AI Concierge (stack sotto 1512px, affiancati sopra). */
+export const FOLIO_WORKSPACE_GRID =
+  "grid items-start gap-6 [grid-template-columns:minmax(0,1fr)] min-[1512px]:[grid-template-columns:minmax(28rem,1fr)_minmax(20rem,24rem)]";
+
+/** Riga statistiche (pagamenti, split). */
+export const STAT_GRID =
+  "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,10rem),1fr))]";
 
 export const PAGE_STACK = "space-y-6 pb-10";

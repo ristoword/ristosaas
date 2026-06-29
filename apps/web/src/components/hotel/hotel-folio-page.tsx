@@ -13,7 +13,7 @@ import { customersApi, hotelFolioApi, roomServiceApi, type Customer, type GuestF
 import { folioPaymentStatusKey, reservationForFolio } from "@/lib/hotel/folio-utils";
 import { useI18n } from "@/core/i18n/provider";
 import { useI10n } from "@/core/i18n/formatters";
-import { ALERT_WARN, BTN_GHOST, INPUT_CLASS, SELECT_CLASS } from "@/components/shared/ui-classes";
+import { ALERT_WARN, BTN_GHOST, FOLIO_PAGE_GRID, INPUT_CLASS, SELECT_CLASS } from "@/components/shared/ui-classes";
 import { cn } from "@/lib/utils";
 
 export function HotelFolioPage() {
@@ -77,7 +77,7 @@ export function HotelFolioPage() {
   const integrationOk = !failedSlices.includes("folios") && !failedSlices.includes("charges");
 
   return (
-    <div className="space-y-6 pb-10 print:space-y-2">
+    <div className="space-y-6 overflow-x-clip pb-10 print:space-y-2">
       <PageHeader title={t("hotel.folio.page.title")} subtitle={t("hotel.folio.page.subtitle")}>
         <button type="button" onClick={() => refresh()} className={BTN_GHOST}>
           <RefreshCw className="h-4 w-4" /> {t("ui.update")}
@@ -91,8 +91,8 @@ export function HotelFolioPage() {
 
       {!integrationOk && <div className={ALERT_WARN}>{t("hotel.folio.alert.partial")}</div>}
 
-      <div className="grid gap-4 xl:grid-cols-12">
-        <div className="xl:col-span-4 space-y-3">
+      <div className={FOLIO_PAGE_GRID}>
+        <div className="min-w-0 space-y-3">
           <Card title={t("hotel.folio.list.title")}>
             <div className="mb-3 flex gap-2">
               <div className="relative flex-1">
@@ -142,7 +142,7 @@ export function HotelFolioPage() {
           </div>
         </div>
 
-        <div className="xl:col-span-8">
+        <div className="min-w-0">
           {selected ? (
             <GuestFolioWorkspace
               folio={selected}
@@ -191,14 +191,14 @@ function FolioListItem({
           selected ? "border-rw-accent/50 bg-rw-accent/10" : "border-rw-line bg-rw-surfaceAlt hover:border-rw-accent/30",
         )}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <p className="font-semibold text-rw-ink">{guest}</p>
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="font-semibold text-rw-ink [overflow-wrap:anywhere]">{guest}</p>
             <p className="text-xs text-rw-muted">
               {t("hotel.folio.list.room")} {room}
             </p>
           </div>
-          <p className="font-display text-sm font-semibold text-rw-ink">{formatCurrency(folio.balance)}</p>
+          <p className="shrink-0 font-display text-sm font-semibold tabular-nums text-rw-ink">{formatCurrency(folio.balance)}</p>
         </div>
         <div className="mt-2 flex flex-wrap gap-1">
           <StatusPill tone={folio.status === "open" ? "accent" : "default"}>

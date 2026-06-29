@@ -2,7 +2,9 @@
 
 import type { Customer, HotelReservation, RatePlan } from "@/lib/api-client";
 import { folioBoardKey, folioStayStatusKey, ratePlanLabel } from "@/lib/hotel/folio-utils";
+import { cn } from "@/lib/utils";
 import { Card } from "@/components/shared/card";
+import { PANEL_GRID_2 } from "@/components/shared/ui-classes";
 import { tf } from "@/core/i18n/interpolate";
 import { useI18n } from "@/core/i18n/provider";
 import { useI10n } from "@/core/i18n/formatters";
@@ -20,8 +22,8 @@ export function FolioGuestReservationPanels({ customer, reservation, ratePlans }
   const no = t("hotel.folio.guestPanel.no");
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card title={t("hotel.folio.guestPanel.guest.title")}>
+    <div className={PANEL_GRID_2}>
+      <Card className="min-w-0" title={t("hotel.folio.guestPanel.guest.title")}>
         <dl className="grid gap-2 text-sm">
           <Row label={t("hotel.folio.guestPanel.fullName")} value={customer?.name || reservation?.guestName || "—"} />
           <Row label={t("hotel.folio.guestPanel.document")} value={reservation?.documentCode || "—"} />
@@ -43,7 +45,7 @@ export function FolioGuestReservationPanels({ customer, reservation, ratePlans }
           <Row label={t("hotel.folio.guestPanel.allergies")} value={customer?.allergies || "—"} />
         </dl>
       </Card>
-      <Card title={t("hotel.folio.guestPanel.reservation.title")}>
+      <Card className="min-w-0" title={t("hotel.folio.guestPanel.reservation.title")}>
         {reservation ? (
           <dl className="grid gap-2 text-sm">
             <Row label={t("hotel.folio.guestPanel.bookingNo")} value={reservation.id} mono />
@@ -92,9 +94,14 @@ function Row({
   highlight?: boolean;
 }) {
   return (
-    <div className="flex justify-between gap-3 border-b border-rw-line/40 py-1.5">
-      <dt className="text-rw-muted">{label}</dt>
-      <dd className={mono ? "font-mono text-xs text-rw-ink" : highlight ? "font-semibold text-amber-400" : "text-right text-rw-ink"}>
+    <div className="flex min-w-0 justify-between gap-3 border-b border-rw-line/40 py-1.5">
+      <dt className="shrink-0 text-rw-muted">{label}</dt>
+      <dd
+        className={cn(
+          "min-w-0 text-right [overflow-wrap:anywhere]",
+          mono ? "font-mono text-xs text-rw-ink" : highlight ? "font-semibold text-amber-400" : "text-rw-ink",
+        )}
+      >
         {value}
       </dd>
     </div>

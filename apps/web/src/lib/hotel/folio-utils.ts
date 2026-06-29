@@ -53,6 +53,8 @@ export type FolioTimelineEvent = {
   kind: "check_in" | "room_change" | "consumption" | "payment" | "charge" | "note" | "check_out";
   title: string;
   detail: string;
+  detailKey?: string;
+  detailParams?: Record<string, string>;
   amount?: number;
 };
 
@@ -294,7 +296,9 @@ export function buildTimeline(
       at: `${reservation.checkInDate}T14:00:00`,
       kind: reservation.status === "in_casa" ? "check_in" : "check_in",
       title: "Check-in",
-      detail: `Arrivo previsto · ${reservation.guestName}`,
+      detail: "",
+      detailKey: "hotel.folio.timeline.arrival",
+      detailParams: { name: reservation.guestName },
     });
     if (reservation.status === "check_out") {
       events.push({
@@ -302,7 +306,8 @@ export function buildTimeline(
         at: `${reservation.checkOutDate}T11:00:00`,
         kind: "check_out",
         title: "Check-out",
-        detail: "Soggiorno chiuso",
+        detail: "",
+        detailKey: "hotel.folio.timeline.stayClosed",
       });
     }
   }
@@ -315,6 +320,8 @@ export function buildTimeline(
         kind: "payment",
         title: "Pagamento registrato",
         detail: row.description,
+        detailKey: "hotel.folio.timeline.paymentDesc",
+        detailParams: { desc: row.description },
         amount: row.amount,
       });
     } else {

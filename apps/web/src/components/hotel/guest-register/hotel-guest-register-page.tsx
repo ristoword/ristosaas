@@ -17,9 +17,10 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { KpiTile } from "@/components/shared/kpi-tile";
 import { StatusPill } from "@/components/shared/status-pill";
-import { ALERT_INFO, BTN_GHOST, INPUT_CLASS, KPI_GRID, SELECT_CLASS } from "@/components/shared/ui-classes";
+import { ALERT_INFO, BTN_GHOST, INPUT_CLASS, KPI_GRID, PANEL_GRID_2, SELECT_CLASS } from "@/components/shared/ui-classes";
 import { tf } from "@/core/i18n/interpolate";
 import { useI18n } from "@/core/i18n/provider";
+import { translateApiError } from "@/core/i18n/translate-api-error";
 import { hotelGuestRegisterApi, type GuestRegisterDashboard, type GuestRegisterEntry } from "@/lib/api-client";
 import { todayIso } from "@/lib/date-utils";
 
@@ -62,7 +63,7 @@ export function HotelGuestRegisterPage() {
       setDashboard(dash);
       setEntries(search.items);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.loadErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.guestRegister.loadErr"), t));
     } finally {
       setLoading(false);
     }
@@ -85,7 +86,7 @@ export function HotelGuestRegisterPage() {
       setMsg(tf(t, "hotel.guestRegister.syncOk", { n: r.synced }));
       await load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.syncErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.guestRegister.syncErr"), t));
     } finally {
       setBusy(false);
     }
@@ -118,8 +119,8 @@ export function HotelGuestRegisterPage() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card title={t("hotel.guestRegister.nationality.title")}>
+      <div className={PANEL_GRID_2}>
+        <Card className="min-w-0" title={t("hotel.guestRegister.nationality.title")}>
           {nationalityChart.length === 0 ? (
             <p className="text-sm text-rw-muted">{t("hotel.guestRegister.nationality.empty")}</p>
           ) : (
@@ -139,8 +140,8 @@ export function HotelGuestRegisterPage() {
           )}
         </Card>
 
-        <Card title={t("hotel.guestRegister.status.title")}>
-          <div className="grid grid-cols-2 gap-2">
+        <Card className="min-w-0" title={t("hotel.guestRegister.status.title")}>
+          <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,8rem),1fr))]">
             {dashboard?.statusBreakdown.map((s) => (
               <div key={s.status} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
                 <p className="text-xs text-rw-muted">{t(STATUS_KEYS[s.status] ?? s.status)}</p>

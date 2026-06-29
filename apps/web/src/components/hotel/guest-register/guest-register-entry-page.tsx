@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
-import { ALERT_INFO, BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, SELECT_CLASS } from "@/components/shared/ui-classes";
+import { ALERT_INFO, BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, PANEL_GRID_2, SELECT_CLASS } from "@/components/shared/ui-classes";
 import {
   hotelGuestRegisterApi,
   type GuestRegisterAttachmentType,
@@ -25,6 +25,14 @@ import { cn } from "@/lib/utils";
 import { tf } from "@/core/i18n/interpolate";
 import { useI10n } from "@/core/i18n/formatters";
 import { useI18n } from "@/core/i18n/provider";
+import { translateApiError } from "@/core/i18n/translate-api-error";
+
+const TX_KEYS: Record<string, string> = {
+  pending: "hotel.guestRegister.tx.pending",
+  sent: "hotel.guestRegister.tx.sent",
+  error: "hotel.guestRegister.tx.error",
+  cancelled: "hotel.guestRegister.tx.cancelled",
+};
 
 type Props = { entryId: string };
 
@@ -56,7 +64,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       setSelectedPersonId(primary?.id ?? null);
       if (primary) setForm(primary);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.error"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.guestRegister.msg.error"), t));
     } finally {
       setLoading(false);
     }
@@ -83,7 +91,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       await load();
       setMsg(t("hotel.guestRegister.msg.saved"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.saveErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.guestRegister.msg.saveErr"), t));
     } finally {
       setBusy(false);
     }
@@ -96,7 +104,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       await load();
       setMsg(t("hotel.guestRegister.msg.guestAdded"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.error"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.guestRegister.msg.error"), t));
     } finally {
       setBusy(false);
     }
@@ -123,7 +131,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       await load();
       setMsg(t("hotel.guestRegister.msg.docUploaded"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.uploadErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.guestRegister.msg.uploadErr"), t));
     } finally {
       setBusy(false);
     }
@@ -138,7 +146,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       await load();
       setMsg(t("hotel.guestRegister.msg.ocrApplied"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.ocrErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.guestRegister.msg.ocrErr"), t));
     } finally {
       setBusy(false);
     }
@@ -152,7 +160,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       await load();
       setMsg(t("hotel.guestRegister.msg.transmitted"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.transmitErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.guestRegister.msg.transmitErr"), t));
     } finally {
       setBusy(false);
     }
@@ -236,8 +244,8 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
 
       {msg && <div className={ALERT_INFO}>{msg}</div>}
 
-      <div className="grid gap-4 lg:grid-cols-12">
-        <div className="lg:col-span-3 space-y-3">
+      <div className="grid items-start gap-4 [grid-template-columns:minmax(0,1fr)] lg:[grid-template-columns:minmax(15rem,18rem)_minmax(0,1fr)]">
+        <div className="min-w-0 space-y-3">
           <Card title={t("hotel.guestRegister.entry.guests.title")}>
             <button type="button" disabled={busy} onClick={() => void addGuest()} className={cn(BTN_OUTLINE, "mb-3 w-full border-dashed py-2.5 text-sm text-rw-soft")}>
               <UserPlus className="h-4 w-4" /> {t("hotel.guestRegister.entry.guests.add")}
@@ -270,16 +278,16 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
             <button type="button" disabled={busy} onClick={() => void transmit()} className={cn(BTN_PRIMARY, "w-full")}>
               <Send className="h-4 w-4" /> {t("hotel.guestRegister.entry.transmission.send")}
             </button>
-            <p className="mt-2 text-[10px] text-rw-muted">{tf(t, "hotel.guestRegister.entry.transmission.status", { status: detail.transmissionStatus })}</p>
+            <p className="mt-2 text-[10px] text-rw-muted">{tf(t, "hotel.guestRegister.entry.transmission.status", { status: t(TX_KEYS[detail.transmissionStatus] ?? detail.transmissionStatus) })}</p>
           </Card>
         </div>
 
-        <div className="lg:col-span-9 space-y-4">
+        <div className="min-w-0 space-y-4">
           <Card title={t("hotel.guestRegister.entry.form.title")}>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr))]">
               <Field label={t("hotel.guestRegister.field.firstName")} value={form.firstName ?? ""} onChange={(v) => setForm({ ...form, firstName: v })} />
               <Field label={t("hotel.guestRegister.field.lastName")} value={form.lastName ?? ""} onChange={(v) => setForm({ ...form, lastName: v })} />
-              <Field label={t("hotel.guestRegister.field.sex")} value={form.sex ?? "unknown"} onChange={(v) => setForm({ ...form, sex: v as GuestRegisterPerson["sex"] })} select options={["M", "F", "X", "unknown"]} />
+              <Field label={t("hotel.guestRegister.field.sex")} value={form.sex ?? "unknown"} onChange={(v) => setForm({ ...form, sex: v as GuestRegisterPerson["sex"] })} select options={["M", "F", "X", "unknown"]} optionKeyPrefix="hotel.guestRegister.sex" />
               <Field label={t("hotel.guestRegister.field.dob")} value={form.dateOfBirth?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, dateOfBirth: v || null })} type="date" />
               <Field label={t("hotel.guestRegister.field.birthPlace")} value={form.placeOfBirth ?? ""} onChange={(v) => setForm({ ...form, placeOfBirth: v })} />
               <Field label={t("hotel.guestRegister.field.birthState")} value={form.stateOfBirth ?? ""} onChange={(v) => setForm({ ...form, stateOfBirth: v })} />
@@ -292,7 +300,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
               <Field label={t("hotel.guestRegister.field.taxCode")} value={form.taxCode ?? ""} onChange={(v) => setForm({ ...form, taxCode: v })} />
               <Field label={t("hotel.guestRegister.field.phone")} value={form.phone ?? ""} onChange={(v) => setForm({ ...form, phone: v })} />
               <Field label={t("hotel.guestRegister.field.email")} value={form.email ?? ""} onChange={(v) => setForm({ ...form, email: v })} />
-              <Field label={t("hotel.guestRegister.field.docType")} value={form.documentType ?? ""} onChange={(v) => setForm({ ...form, documentType: (v || null) as GuestRegisterPerson["documentType"] })} select options={["passport", "identity_card", "driving_license", "visa", "other", ""]} />
+              <Field label={t("hotel.guestRegister.field.docType")} value={form.documentType ?? ""} onChange={(v) => setForm({ ...form, documentType: (v || null) as GuestRegisterPerson["documentType"] })} select options={["passport", "identity_card", "driving_license", "visa", "other", ""]} optionKeyPrefix="hotel.guestRegister.docType" />
               <Field label={t("hotel.guestRegister.field.docNumber")} value={form.documentNumber ?? ""} onChange={(v) => setForm({ ...form, documentNumber: v })} />
               <Field label={t("hotel.guestRegister.field.docIssue")} value={form.documentIssueDate?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, documentIssueDate: v || null })} type="date" />
               <Field label={t("hotel.guestRegister.field.docExpiry")} value={form.documentExpiryDate?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, documentExpiryDate: v || null })} type="date" />
@@ -356,7 +364,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
           </Card>
 
           <Card title={t("hotel.guestRegister.entry.audit.title")}>
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className={PANEL_GRID_2}>
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase text-rw-muted">{t("hotel.guestRegister.entry.audit.label")}</p>
                 <ul className="max-h-48 space-y-1 overflow-y-auto text-xs">
@@ -392,6 +400,7 @@ function Field({
   type = "text",
   select,
   options,
+  optionKeyPrefix,
 }: {
   label: string;
   value: string;
@@ -399,14 +408,18 @@ function Field({
   type?: string;
   select?: boolean;
   options?: string[];
+  optionKeyPrefix?: string;
 }) {
+  const { t } = useI18n();
   return (
     <label className="block text-xs">
       <span className="text-rw-muted">{label}</span>
       {select ? (
         <select className={cn(SELECT_CLASS, "mt-1")} value={value} onChange={(e) => onChange(e.target.value)}>
           {options?.map((o) => (
-            <option key={o} value={o}>{o || "—"}</option>
+            <option key={o} value={o}>
+              {optionKeyPrefix ? t(`${optionKeyPrefix}.${o || "empty"}`) : o || "—"}
+            </option>
           ))}
         </select>
       ) : (

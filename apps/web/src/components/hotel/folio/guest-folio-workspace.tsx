@@ -16,7 +16,7 @@ import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
 import { Modal } from "@/components/shared/modal";
 import { TabBar } from "@/components/shared/tab-bar";
-import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, SELECT_CLASS } from "@/components/shared/ui-classes";
+import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, FOLIO_WORKSPACE_GRID, INPUT_CLASS, SELECT_CLASS, STAT_GRID } from "@/components/shared/ui-classes";
 import { FolioHeaderBar } from "@/components/hotel/folio/folio-header-bar";
 import { FolioGuestReservationPanels } from "@/components/hotel/folio/folio-guest-reservation-panels";
 import { FolioEconomicDashboard } from "@/components/hotel/folio/folio-economic-dashboard";
@@ -42,8 +42,9 @@ import {
   splitTotals,
 } from "@/lib/hotel/folio-utils";
 import { tf } from "@/core/i18n/interpolate";
-import { useI18n } from "@/core/i18n/provider";
 import { useI10n } from "@/core/i18n/formatters";
+import { useI18n } from "@/core/i18n/provider";
+import { translateApiError } from "@/core/i18n/translate-api-error";
 import { FolioAiPanel, FolioAiToggle } from "@/components/hotel/folio/folio-ai-panel";
 import { cn } from "@/lib/utils";
 
@@ -138,7 +139,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       setPayNote("");
       setMsg(t("hotel.folio.msg.paymentOk"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.paymentErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.paymentErr"), t));
     } finally {
       setBusy(false);
     }
@@ -160,7 +161,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       await onRefresh();
       setMsg(t("hotel.folio.msg.checkoutOk"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.checkoutErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.checkoutErr"), t));
     } finally {
       setBusy(false);
     }
@@ -174,7 +175,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
         await hotelFolioApi.patchCharge(chargeId, "split", { splitCode: split });
         await onRefresh();
       } catch (e) {
-        setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.splitErr"));
+        setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.splitErr"), t));
       }
     },
     [locked, onRefresh],
@@ -191,7 +192,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.exportPdfErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.exportPdfErr"), t));
     } finally {
       setBusy(false);
     }
@@ -220,15 +221,15 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       setAuditLogs(detail.auditLogs);
       setMsg(t("hotel.folio.msg.attachmentOk"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.uploadErr"));
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.uploadErr"), t));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
-      <div className="min-w-0 flex-1 space-y-6">
+    <div className={FOLIO_WORKSPACE_GRID}>
+      <div className="w-full min-w-0 space-y-6">
       <div className="flex justify-end">
         <FolioAiToggle onClick={() => setAiOpen((v) => !v)} collapsed={!aiOpen} />
       </div>
@@ -261,7 +262,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
                 a.click();
                 URL.revokeObjectURL(url);
               } catch (e) {
-                setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.exportExcelErr"));
+                setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.exportExcelErr"), t));
               }
             }}
             icon={Download}
@@ -278,7 +279,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
                 await hotelFolioApi.email(folio.id, email);
                 setMsg(tf(t, "hotel.folio.msg.emailSent", { email }));
               } catch (e) {
-                setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.emailErr"));
+                setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.emailErr"), t));
               }
             }}
             icon={Mail}
@@ -341,7 +342,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       />
 
       <Card title={t("hotel.folio.filters.title")}>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]">
           <input className={INPUT_CLASS} placeholder={t("hotel.folio.filters.query")} value={filters.query} onChange={(e) => setFilters({ ...filters, query: e.target.value })} />
           <input className={INPUT_CLASS} type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
           <input className={INPUT_CLASS} type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
@@ -389,7 +390,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
             keyExtractor={(r) => r.id}
             emptyMessage={t("hotel.folio.payments.empty")}
           />
-          <div className="mt-4 grid gap-2 sm:grid-cols-4 text-sm">
+          <div className={cn(STAT_GRID, "mt-4 text-sm")}>
             <Stat label={t("hotel.folio.payments.due")} value={economics.dueTotal} />
             <Stat label={t("hotel.folio.payments.paid")} value={economics.paidTotal} positive />
             <Stat label={t("hotel.folio.payments.balance")} value={economics.balance} />
@@ -400,9 +401,9 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
 
       {tab === "split" && (
         <Card title={t("hotel.folio.split.title")} description={t("hotel.folio.split.desc")}>
-          <div className="mb-4 grid gap-2 sm:grid-cols-4">
+          <div className={cn(STAT_GRID, "mb-4")}>
             {splits.keys.map((id) => (
-              <div key={id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
+              <div key={id} className="min-w-[10rem] rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
                 <p className="text-xs text-rw-muted">{tf(t, "hotel.folio.split.label", { id })}</p>
                 <p className="font-display text-lg font-semibold text-rw-ink">{formatCurrency(splits.totals[id] ?? 0)}</p>
               </div>
@@ -466,7 +467,13 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       </div>
 
       {aiOpen && (
-        <div className="w-full shrink-0 xl:w-[min(100%,24rem)] 2xl:w-[26rem] max-xl:fixed max-xl:inset-x-0 max-xl:bottom-0 max-xl:z-40 max-xl:max-h-[85dvh]">
+        <div
+          className={cn(
+            "w-full min-w-[20rem] max-w-full",
+            "max-[1511px]:fixed max-[1511px]:inset-x-0 max-[1511px]:bottom-0 max-[1511px]:z-40 max-[1511px]:max-h-[85dvh]",
+            "min-[1512px]:sticky min-[1512px]:top-4 min-[1512px]:self-start",
+          )}
+        >
         <FolioAiPanel
           folio={folio}
           reservation={reservation}
@@ -484,7 +491,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
               await hotelFolioApi.email(folio.id, email);
               setMsg(tf(t, "hotel.folio.msg.emailSent", { email }));
             } catch (e) {
-              setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.emailErr"));
+              setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.emailErr"), t));
             }
           }}
           onToggleCollapse={() => setAiOpen(false)}
@@ -541,7 +548,11 @@ function FolioTimelineView({ events }: { events: FolioTimelineEvent[] }) {
                   ? t(folioTimelineTitleKey(ev.kind))
                   : t(folioSectionKey(ev.title as FolioChargeRow["section"])) || ev.title}
               </p>
-              <p className="text-xs text-rw-soft">{ev.detail}</p>
+              <p className="text-xs text-rw-soft">
+                {ev.detailKey
+                  ? tf(t, ev.detailKey, ev.detailParams ?? {})
+                  : ev.detail}
+              </p>
               <p className="text-[10px] text-rw-muted">{formatDateTime(ev.at)}</p>
             </div>
             {ev.amount != null && (
@@ -569,7 +580,7 @@ function SplitDropZones({
   for (const row of rows) discovered.add(assignments[row.id] ?? row.split);
   const splitKeys = [...discovered];
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]">
       {splitKeys.map((split) => (
         <div
           key={split}
@@ -627,9 +638,11 @@ function ActionBtn({
 function Stat({ label, value, positive }: { label: string; value: number; positive?: boolean }) {
   const { formatCurrency } = useI10n();
   return (
-    <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-      <p className="text-xs text-rw-muted">{label}</p>
-      <p className={cn("font-semibold", positive ? "text-emerald-400" : "text-rw-ink")}>{formatCurrency(value)}</p>
+    <div className="min-w-[10rem] rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
+      <p className="text-xs text-rw-muted [overflow-wrap:anywhere]">{label}</p>
+      <p className={cn("font-semibold tabular-nums [overflow-wrap:anywhere]", positive ? "text-emerald-400" : "text-rw-ink")}>
+        {formatCurrency(value)}
+      </p>
     </div>
   );
 }

@@ -30,15 +30,22 @@ export function KpiTile({ label, value, icon: Icon, tone = "default", highlight,
   return (
     <div
       className={cn(
-        "rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 min-h-[5.5rem] flex flex-col justify-between",
+        "flex min-h-[5.5rem] min-w-[10.5rem] flex-col justify-between rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4",
         highlight && "ring-1 ring-rw-accent/30",
         className,
       )}
     >
       {Icon && <Icon className={cn("mb-2 h-5 w-5 shrink-0", iconTone[tone])} aria-hidden />}
-      <div>
-        <p className="text-sm font-medium text-rw-muted">{label}</p>
-        <p className={cn("font-display text-3xl font-semibold tracking-tight", valueTone[tone])}>{value}</p>
+      <div className="min-w-0">
+        <p className="text-sm font-medium leading-snug text-rw-muted [overflow-wrap:anywhere]">{label}</p>
+        <p
+          className={cn(
+            "mt-1 font-display text-[clamp(1.125rem,1.5vw+0.5rem,1.875rem)] font-semibold leading-tight tracking-tight tabular-nums [overflow-wrap:anywhere]",
+            valueTone[tone],
+          )}
+        >
+          {value}
+        </p>
       </div>
     </div>
   );

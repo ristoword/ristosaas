@@ -18,15 +18,27 @@ import {
 import { TabBar } from "@/components/shared/tab-bar";
 import { KpiTile } from "@/components/shared/kpi-tile";
 import { StatusPill } from "@/components/shared/status-pill";
-import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, KPI_GRID } from "@/components/shared/ui-classes";
+import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, KPI_GRID_COMPACT } from "@/components/shared/ui-classes";
 import { cn } from "@/lib/utils";
 import { consumeAiStream } from "@/lib/ai/consume-ai-stream";
 import { VoiceButton } from "@/components/ai/ai-voice";
 import { hotelFolioAiApi, type FolioAiAnalysis, type FolioAiProposedAction } from "@/lib/api-client";
 import type { Customer, GuestFolio, HotelReservation } from "@/lib/api-client";
+import {
+  localizeCheckoutBlockReason,
+  localizeChecklistItem,
+  localizeForecastNote,
+  localizeFraudAlert,
+  localizeGuestHistory,
+  localizeGuestIssue,
+  localizePaymentSuggestion,
+  localizeProposedAction,
+  localizeStayOverview,
+} from "@/lib/hotel/folio-ai-display";
 import { tf } from "@/core/i18n/interpolate";
 import { useI10n } from "@/core/i18n/formatters";
 import { useI18n } from "@/core/i18n/provider";
+import { translateApiError, translateStreamStatus } from "@/core/i18n/translate-api-error";
 
 type AiMessage = { role: "user" | "assistant"; content: string; ts: number; streaming?: boolean };
 
@@ -86,7 +98,7 @@ export function FolioAiPanel({
       setAnalysis(result);
       onAnalysis?.(result);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("hotel.folio.ai.error.analysis"));
+      setError(translateApiError(e instanceof Error ? e.message : t("hotel.folio.ai.error.analysis"), t));
     } finally {
       setLoading(false);
     }
@@ -127,7 +139,7 @@ export function FolioAiPanel({
         `/hotel/folio/${folio.id}/ai/chat`,
         { message: trimmed, history, locale },
         {
-          onStatus: (msg) => setStatusText(msg),
+          onStatus: (msg) => setStatusText(translateStreamStatus(msg, t)),
           onToken: (token) => {
             accumulated += token;
             setMessages((p) => p.map((m) => (m.ts === assistantTs ? { ...m, content: accumulated } : m)));
@@ -161,19 +173,24 @@ export function FolioAiPanel({
   const handleVoice = useCallback(
     (text: string) => {
       const lower = text.toLowerCase();
-      if (lower.includes("registra pagamento") || lower.includes("pagamento")) {
+      const paymentWords = ["registra pagamento", "pagamento", "record payment", "payment", "betaling", "registar pagamento"];
+      const checkoutWords = ["checkout", "chiudi il conto", "chiudi conto", "close account", "afrekenen", "fechar conta", "sluit rekening"];
+      const balanceWords = ["saldo", "mostra il saldo", "show balance", "balance", "toon saldo", "mostrar saldo"];
+      const folioWords = ["apri il folio", "open folio", "folio openen", "abrir folio"];
+
+      if (paymentWords.some((w) => lower.includes(w))) {
         onOpenPayment?.();
         return;
       }
-      if (lower.includes("checkout") || lower.includes("chiudi il conto") || lower.includes("chiudi conto")) {
+      if (checkoutWords.some((w) => lower.includes(w))) {
         onCheckout?.();
         return;
       }
-      if (lower.includes("saldo") || lower.includes("mostra il saldo")) {
+      if (balanceWords.some((w) => lower.includes(w))) {
         void sendChat(t("hotel.folio.ai.chat.balanceQuestion"));
         return;
       }
-      if (lower.includes("apri il folio") || lower.includes("folio")) {
+      if (folioWords.some((w) => lower.includes(w))) {
         setSection("overview");
         return;
       }
@@ -183,7 +200,8 @@ export function FolioAiPanel({
   );
 
   const executeAction = async (action: FolioAiProposedAction) => {
-    if (!confirm(tf(t, "hotel.folio.ai.confirmAction", { label: action.label, description: action.description }))) return;
+    const localized = localizeProposedAction(action, t, formatCurrency);
+    if (!confirm(tf(t, "hotel.folio.ai.confirmAction", { label: localized.label, description: localized.description }))) return;
     try {
       await hotelFolioAiApi.confirmAction(folio.id, action.id, action.type);
       if (action.type === "payment") onOpenPayment?.();
@@ -191,7 +209,7 @@ export function FolioAiPanel({
       else if (action.type === "pdf") onExportPdf?.();
       else if (action.type === "email") onEmail?.();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("hotel.folio.ai.error.action"));
+      setError(translateApiError(e instanceof Error ? e.message : t("hotel.folio.ai.error.action"), t));
     }
   };
 
@@ -205,7 +223,7 @@ export function FolioAiPanel({
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("hotel.folio.ai.error.report"));
+      setError(translateApiError(e instanceof Error ? e.message : t("hotel.folio.ai.error.report"), t));
     }
   };
 
@@ -224,7 +242,7 @@ export function FolioAiPanel({
   }
 
   return (
-    <aside className="flex h-full w-full flex-col overflow-hidden rounded-t-2xl border border-rw-line bg-rw-surface shadow-2xl max-xl:max-h-[85dvh] xl:min-w-[320px] xl:max-w-[400px] xl:rounded-2xl xl:shadow-xl lg:sticky lg:top-4 lg:h-[calc(100vh-6rem)]">
+    <aside className="flex h-full w-full min-w-[20rem] max-w-full flex-col overflow-hidden rounded-t-2xl border border-rw-line bg-rw-surface shadow-2xl max-[1511px]:max-h-[85dvh] min-[1512px]:rounded-2xl min-[1512px]:shadow-xl min-[1512px]:lg:sticky min-[1512px]:lg:top-4 min-[1512px]:lg:h-[calc(100vh-6rem)]">
       <div className="flex items-center justify-between border-b border-rw-line px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-rw-accent" />
@@ -267,27 +285,39 @@ export function FolioAiPanel({
 
         {analysis && section === "overview" && (
           <div className="space-y-3">
-            <SummaryCard title={t("hotel.folio.ai.staySummary")} text={analysis.guestSummary.stayOverview} />
+            <SummaryCard title={t("hotel.folio.ai.staySummary")} text={localizeStayOverview(folio, reservation, t)} />
             {analysis.guestSummary.vip && (
               <StatusPill tone="warn">{t("hotel.folio.guestPanel.vip")}</StatusPill>
             )}
             {analysis.guestSummary.allergies.length > 0 && (
               <SummaryCard title={t("hotel.folio.ai.allergies")} text={analysis.guestSummary.allergies.join(", ")} warn />
             )}
+            {analysis.guestSummary.issues.length > 0 && (
+              <SummaryCard
+                title={t("hotel.folio.ai.issues.title")}
+                text={analysis.guestSummary.issues.map((issue) => localizeGuestIssue(issue, t, formatCurrency)).join(" · ")}
+                warn
+              />
+            )}
+            <SummaryCard title={t("hotel.folio.guestPanel.loyalty")} text={localizeGuestHistory(customer, t, formatCurrency)} />
 
-            <div className={cn(KPI_GRID, "grid-cols-2 sm:grid-cols-2")}>
-              <KpiTile label={t("hotel.folio.ai.kpi.spending")} value={formatCurrency(analysis.guestSummary.spending.total)} className="min-h-0 p-3 [&_p:last-child]:text-xl" />
-              <KpiTile label={t("hotel.folio.ai.kpi.balance")} value={formatCurrency(analysis.guestSummary.spending.balance)} tone="warn" highlight={analysis.guestSummary.spending.balance > 0} className="min-h-0 p-3 [&_p:last-child]:text-xl" />
-              <KpiTile label={t("hotel.folio.ai.kpi.paid")} value={formatCurrency(analysis.guestSummary.spending.paid)} tone="success" className="min-h-0 p-3 [&_p:last-child]:text-xl" />
-              <KpiTile label={t("hotel.folio.ai.kpi.return")} value={`${Math.round(analysis.customerInsights.returnProbability * 100)}%`} className="min-h-0 p-3 [&_p:last-child]:text-xl" />
+            <div className={KPI_GRID_COMPACT}>
+              <KpiTile label={t("hotel.folio.ai.kpi.spending")} value={formatCurrency(analysis.guestSummary.spending.total)} className="min-h-0 min-w-[8.5rem] p-3 [&_p:last-child]:text-xl" />
+              <KpiTile label={t("hotel.folio.ai.kpi.balance")} value={formatCurrency(analysis.guestSummary.spending.balance)} tone="warn" highlight={analysis.guestSummary.spending.balance > 0} className="min-h-0 min-w-[8.5rem] p-3 [&_p:last-child]:text-xl" />
+              <KpiTile label={t("hotel.folio.ai.kpi.paid")} value={formatCurrency(analysis.guestSummary.spending.paid)} tone="success" className="min-h-0 min-w-[8.5rem] p-3 [&_p:last-child]:text-xl" />
+              <KpiTile label={t("hotel.folio.ai.kpi.return")} value={`${Math.round(analysis.customerInsights.returnProbability * 100)}%`} className="min-h-0 min-w-[8.5rem] p-3 [&_p:last-child]:text-xl" />
             </div>
 
             {analysis.anomalies.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-rw-ink">{tf(t, "hotel.folio.ai.anomalies", { n: analysis.anomalies.length })}</p>
-                {analysis.anomalies.slice(0, 5).map((a) => (
-                  <AnomalyChip key={a.id} severity={a.severity} title={a.title} detail={a.detail} />
-                ))}
+                {analysis.anomalies.slice(0, 5).map((a) => {
+                  const titleKey = `hotel.folio.ai.anomaly.${a.category}.title`;
+                  const title = t(titleKey);
+                  return (
+                    <AnomalyChip key={a.id} severity={a.severity} title={title.startsWith("hotel.") ? a.title : title} detail={a.detail} />
+                  );
+                })}
               </div>
             )}
 
@@ -309,31 +339,37 @@ export function FolioAiPanel({
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-amber-400">{t("hotel.folio.ai.fraud")}</p>
                 {analysis.fraudAlerts.map((f) => (
-                  <p key={f.id} className="text-[11px] text-rw-soft">{f.detail}</p>
+                  <p key={f.id} className="text-[11px] text-rw-soft">{localizeFraudAlert(f, t, formatCurrency)}</p>
                 ))}
               </div>
             )}
 
             <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-xs">
-              <p className="font-semibold text-rw-ink">Forecast</p>
-              <p className="text-rw-muted">Spesa prevista: € {analysis.forecast.projectedFinalSpend.toFixed(0)}</p>
-              <p className="text-rw-muted">Ricavo stimato: € {analysis.forecast.estimatedRevenue.toFixed(0)}</p>
+              <p className="font-semibold text-rw-ink">{t("hotel.folio.ai.forecast")}</p>
+              <p className="text-rw-muted">{tf(t, "hotel.folio.ai.forecast.spend", { amount: formatCurrency(analysis.forecast.projectedFinalSpend) })}</p>
+              <p className="text-rw-muted">{tf(t, "hotel.folio.ai.forecast.revenue", { amount: formatCurrency(analysis.forecast.estimatedRevenue) })}</p>
+              {analysis.forecast.notes.map((note) => (
+                <p key={note} className="text-rw-muted">{localizeForecastNote(note, analysis, t, formatCurrency)}</p>
+              ))}
             </div>
 
             {analysis.proposedActions.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-rw-ink">{t("hotel.folio.ai.suggestedActions")}</p>
-                {analysis.proposedActions.map((a) => (
+                {analysis.proposedActions.map((a) => {
+                  const localized = localizeProposedAction(a, t, formatCurrency);
+                  return (
                   <button
                     key={a.id}
                     type="button"
                     onClick={() => void executeAction(a)}
                     className="w-full rounded-xl border border-rw-accent/30 bg-rw-accent/5 px-3 py-2 text-left text-xs hover:bg-rw-accent/10"
                   >
-                    <p className="font-semibold text-rw-accent">{a.label}</p>
-                    <p className="text-rw-muted">{a.description}</p>
+                    <p className="font-semibold text-rw-accent">{localized.label}</p>
+                    <p className="text-rw-muted">{localized.description}</p>
                   </button>
-                ))}
+                  );
+                })}
               </div>
             )}
 
@@ -378,7 +414,7 @@ export function FolioAiPanel({
                 </div>
               ))}
               {statusText && (
-                <p className="text-[10px] text-rw-muted">{statusText}</p>
+                <p className="text-[10px] text-rw-muted">{translateStreamStatus(statusText, t)}</p>
               )}
             </div>
           </div>
@@ -391,27 +427,30 @@ export function FolioAiPanel({
                 <p className="font-semibold">{t("hotel.folio.ai.checkout.blocked")}</p>
                 <ul className="mt-1 list-inside list-disc">
                   {analysis.checkoutBlockReasons.map((r) => (
-                    <li key={r}>{r}</li>
+                    <li key={r}>{localizeCheckoutBlockReason(r, analysis, t)}</li>
                   ))}
                 </ul>
               </div>
             )}
-            <p className="text-xs font-semibold text-rw-ink">Checklist pre-checkout</p>
-            {analysis.checkoutChecklist.map((item) => (
+            <p className="text-xs font-semibold text-rw-ink">{t("hotel.folio.ai.checkout.checklist")}</p>
+            {analysis.checkoutChecklist.map((item) => {
+              const localized = localizeChecklistItem(item, analysis, t, formatCurrency);
+              return (
               <div key={item.id} className="flex items-start gap-2 text-xs">
                 {item.status === "ok" && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />}
                 {item.status === "warn" && <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />}
                 {item.status === "fail" && <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-400" />}
                 <div>
-                  <p className="font-semibold text-rw-ink">{item.label}</p>
-                  <p className="text-rw-muted">{item.detail}</p>
+                  <p className="font-semibold text-rw-ink">{localized.label}</p>
+                  <p className="text-rw-muted">{localized.detail}</p>
                 </div>
               </div>
-            ))}
+              );
+            })}
             <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-xs">
               <p className="font-semibold text-rw-ink">{t("hotel.folio.ai.paymentAssistant")}</p>
               {analysis.paymentAssistant.suggestedActions.map((a) => (
-                <p key={a} className="text-rw-muted">• {a}</p>
+                <p key={a} className="text-rw-muted">• {localizePaymentSuggestion(a, analysis, t, formatCurrency)}</p>
               ))}
             </div>
           </div>

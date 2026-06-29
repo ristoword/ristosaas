@@ -15,7 +15,7 @@ export function FolioEconomicDashboard({ economics, currency }: { economics: Fol
   const fmt = (n: number) => formatCurrency(n);
 
   return (
-    <Card title={t("hotel.folio.economics.title")}>
+    <Card className="min-w-0" title={t("hotel.folio.economics.title")}>
       <div className={KPI_GRID}>
         <KpiTile label={t("hotel.folio.economics.roomTotal")} value={fmt(roomTotal)} />
         <KpiTile label={t("hotel.folio.economics.extraTotal")} value={fmt(economics.extraTotal)} />

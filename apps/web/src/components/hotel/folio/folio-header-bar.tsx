@@ -24,18 +24,18 @@ export function FolioHeaderBar({ folio, reservation, roomCode, nights, guestCoun
   return (
     <div className="rounded-2xl border border-rw-line bg-gradient-to-br from-rw-surface to-rw-surfaceAlt p-4 sm:p-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">{t("hotel.folio.header.label")}</p>
-          <h2 className="font-display text-xl font-semibold tracking-tight text-rw-ink sm:text-2xl">
+          <h2 className="font-display text-xl font-semibold tracking-tight text-rw-ink [overflow-wrap:anywhere] sm:text-2xl">
             {folio.guestName || reservation?.guestName || t("hotel.folio.guest.default")}
           </h2>
-          <p className="mt-1 text-sm text-rw-soft">
+          <p className="mt-1 text-sm text-rw-soft [overflow-wrap:anywhere]">
             {t("hotel.folio.header.room")} <strong>{roomCode || "—"}</strong> · {t("hotel.folio.header.folio")}{" "}
-            <span className="font-mono text-xs break-all">{folio.id}</span>
+            <span className="font-mono text-xs">{folio.id}</span>
           </p>
         </div>
-        <div className="sm:text-right">
-          <p className="font-display text-2xl font-semibold text-rw-ink sm:text-3xl">
+        <div className="shrink-0 sm:text-right">
+          <p className="font-display text-2xl font-semibold tabular-nums text-rw-ink sm:text-3xl">
             {formatCurrency(folio.balance)}
           </p>
           <p className="text-xs text-rw-muted">{t("hotel.folio.header.balance")}</p>
