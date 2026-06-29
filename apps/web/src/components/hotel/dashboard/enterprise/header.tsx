@@ -5,6 +5,7 @@ import { Sparkles } from "lucide-react";
 import { useI18n } from "@/core/i18n/provider";
 import { useAuth } from "@/components/auth/auth-context";
 import { KPI_HEADER } from "./styles";
+import { PRODUCT_BRAND, displayPropertyName } from "./display-labels";
 
 type Metrics = {
   occupancyPct: number;
@@ -51,7 +52,7 @@ const LABEL_KEYS = [
 
 export function HotelEnterpriseHeader({ metrics, onAiOpen }: Props) {
   const { t } = useI18n();
-  const { user, tenant } = useAuth();
+  const { user } = useAuth();
 
   return (
     <header className="rounded-[18px] border border-rw-line/70 bg-gradient-to-r from-rw-surface via-rw-surfaceAlt/40 to-rw-surface p-5 shadow-sm">
@@ -61,7 +62,7 @@ export function HotelEnterpriseHeader({ metrics, onAiOpen }: Props) {
             {t("hotel.enterprise.welcome")}, <span className="font-semibold text-rw-ink">{user?.name ?? "—"}</span>
           </p>
           <h1 className="font-display text-2xl font-bold text-rw-ink lg:text-3xl">
-            {tenant?.name ?? t("hotel.dashboard.title")}
+            {PRODUCT_BRAND}
           </h1>
           <p className="text-sm text-rw-muted">{t("hotel.enterprise.controlCenter")}</p>
         </div>

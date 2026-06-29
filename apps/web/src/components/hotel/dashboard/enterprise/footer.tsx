@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Wifi } from "lucide-react";
 import { useI18n } from "@/core/i18n/provider";
 import { useAuth } from "@/components/auth/auth-context";
+import { displayPropertyName } from "./display-labels";
 
 type Props = {
   occupancyPct: number;
@@ -43,7 +44,7 @@ export function HotelEnterpriseFooter({ occupancyPct, availableRooms, inHouseCou
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
           <span>
             <strong className="text-rw-soft">{t("hotel.enterprise.footer.hotel")}:</strong>{" "}
-            {tenant?.name ?? "—"}
+            {displayPropertyName(tenant?.name)}
           </span>
           <span>{now}</span>
           <span>
