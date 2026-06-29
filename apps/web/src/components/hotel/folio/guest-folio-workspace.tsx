@@ -35,13 +35,17 @@ import {
   customerForFolio,
   filterCharges,
   groupBySection,
-  parsePaymentMethod,
   reservationForFolio,
-  sectionLabel,
+  folioPaymentMethodKey,
+  folioSectionKey,
+  folioTimelineTitleKey,
   splitTotals,
 } from "@/lib/hotel/folio-utils";
-import { cn } from "@/lib/utils";
+import { tf } from "@/core/i18n/interpolate";
+import { useI18n } from "@/core/i18n/provider";
+import { useI10n } from "@/core/i18n/formatters";
 import { FolioAiPanel, FolioAiToggle } from "@/components/hotel/folio/folio-ai-panel";
+import { cn } from "@/lib/utils";
 
 type Props = {
   folio: GuestFolio;
@@ -64,6 +68,8 @@ const DEFAULT_FILTERS: FolioChargeFilters = {
 };
 
 export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onToggleLock, lockBusy }: Props) {
+  const { t } = useI18n();
+  const { formatCurrency, formatDateTime } = useI10n();
   const { reservations, rooms, charges, ratePlans, recordFolioPayment, finalizeCheckout } = useHotel();
   const [filters, setFilters] = useState<FolioChargeFilters>(DEFAULT_FILTERS);
   const [tab, setTab] = useState<"conto" | "timeline" | "pagamenti" | "split">("conto");
@@ -130,9 +136,9 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       setPayOpen(false);
       setPayAmount("");
       setPayNote("");
-      setMsg("Pagamento registrato.");
+      setMsg(t("hotel.folio.msg.paymentOk"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Errore pagamento");
+      setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.paymentErr"));
     } finally {
       setBusy(false);
     }
@@ -141,10 +147,10 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
   const handleCheckout = async (quick = false) => {
     if (!reservation || locked) return;
     if (aiCheckoutBlocked) {
-      setMsg(`Checkout bloccato dall'AI: ${aiCheckoutReasons.join("; ")}`);
+      setMsg(tf(t, "hotel.folio.msg.checkoutBlocked", { reasons: aiCheckoutReasons.join("; ") }));
       return;
     }
-    if (!confirm(quick ? "Checkout rapido con saldo implicito?" : "Confermi checkout e chiusura folio?")) return;
+    if (!confirm(quick ? t("hotel.folio.msg.checkoutQuickConfirm") : t("hotel.folio.msg.checkoutConfirm"))) return;
     setBusy(true);
     try {
       await finalizeCheckout(reservation.id, 0, payMethod, {
@@ -152,9 +158,9 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
         allowResidual: false,
       });
       await onRefresh();
-      setMsg("Checkout completato.");
+      setMsg(t("hotel.folio.msg.checkoutOk"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Errore checkout");
+      setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.checkoutErr"));
     } finally {
       setBusy(false);
     }
@@ -168,7 +174,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
         await hotelFolioApi.patchCharge(chargeId, "split", { splitCode: split });
         await onRefresh();
       } catch (e) {
-        setMsg(e instanceof Error ? e.message : "Errore split");
+        setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.splitErr"));
       }
     },
     [locked, onRefresh],
@@ -185,7 +191,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Errore export PDF");
+      setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.exportPdfErr"));
     } finally {
       setBusy(false);
     }
@@ -212,9 +218,9 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       const detail = await hotelFolioApi.getDetail(folio.id);
       setAttachments(detail.attachments);
       setAuditLogs(detail.auditLogs);
-      setMsg("Allegato caricato.");
+      setMsg(t("hotel.folio.msg.attachmentOk"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Errore upload");
+      setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.uploadErr"));
     } finally {
       setBusy(false);
     }
@@ -237,13 +243,13 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       <FolioGuestReservationPanels customer={customer} reservation={reservation} ratePlans={ratePlans} />
       <FolioEconomicDashboard economics={economics} currency={folio.currency} />
 
-      <Card title="Azioni rapide">
+      <Card title={t("hotel.folio.actions.title")}>
         <div className="flex flex-wrap gap-2">
-          <ActionBtn disabled={locked || !reservation} onClick={() => setPayOpen(true)} icon={CreditCard} label="Registra pagamento" />
-          <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(false)} icon={CreditCard} label="Checkout" />
-          <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(true)} icon={RefreshCw} label="Checkout rapido" />
-          <ActionBtn disabled={lockBusy} onClick={() => void onToggleLock()} icon={locked ? Unlock : Lock} label={locked ? "Sblocca folio" : "Blocca folio"} />
-          <ActionBtn onClick={() => void handleExportPdf()} icon={Download} label="Export PDF" />
+          <ActionBtn disabled={locked || !reservation} onClick={() => setPayOpen(true)} icon={CreditCard} label={t("hotel.folio.actions.pay")} />
+          <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(false)} icon={CreditCard} label={t("hotel.folio.actions.checkout")} />
+          <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(true)} icon={RefreshCw} label={t("hotel.folio.actions.quickCheckout")} />
+          <ActionBtn disabled={lockBusy} onClick={() => void onToggleLock()} icon={locked ? Unlock : Lock} label={locked ? t("hotel.folio.actions.unlock") : t("hotel.folio.actions.lock")} />
+          <ActionBtn onClick={() => void handleExportPdf()} icon={Download} label={t("hotel.folio.actions.exportPdf")} />
           <ActionBtn
             onClick={async () => {
               try {
@@ -255,95 +261,95 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
                 a.click();
                 URL.revokeObjectURL(url);
               } catch (e) {
-                setMsg(e instanceof Error ? e.message : "Export Excel fallito");
+                setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.exportExcelErr"));
               }
             }}
             icon={Download}
-            label="Export Excel"
+            label={t("hotel.folio.actions.exportExcel")}
           />
           <ActionBtn
             onClick={async () => {
               const email = customer?.email || reservation?.email;
               if (!email) {
-                setMsg("Email ospite non disponibile");
+                setMsg(t("hotel.folio.msg.emailMissing"));
                 return;
               }
               try {
                 await hotelFolioApi.email(folio.id, email);
-                setMsg(`Folio inviato a ${email}`);
+                setMsg(tf(t, "hotel.folio.msg.emailSent", { email }));
               } catch (e) {
-                setMsg(e instanceof Error ? e.message : "Invio email fallito");
+                setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.emailErr"));
               }
             }}
             icon={Mail}
-            label="Invia PDF email"
+            label={t("hotel.folio.actions.emailPdf")}
           />
-          <ActionBtn onClick={() => window.print()} icon={Printer} label="Stampa folio" />
+          <ActionBtn onClick={() => window.print()} icon={Printer} label={t("hotel.folio.actions.print")} />
           <ActionBtn
             onClick={() => {
-              const body = encodeURIComponent(`Folio ${folio.id} — Saldo ${folio.balance.toFixed(2)} ${folio.currency}`);
-              window.location.href = `mailto:${customer?.email || reservation?.email || ""}?subject=Guest Folio&body=${body}`;
+              const body = encodeURIComponent(`Folio ${folio.id} — ${formatCurrency(folio.balance)}`);
+              window.location.href = `mailto:${customer?.email || reservation?.email || ""}?subject=${encodeURIComponent(t("hotel.folio.page.title"))}&body=${body}`;
             }}
             icon={Mail}
-            label="Invia email"
+            label={t("hotel.folio.actions.email")}
           />
           <Link href="/hotel/front-desk" className={BTN_GHOST}>
-            Front Desk
+            {t("hotel.folio.actions.frontDesk")}
           </Link>
           <Link href="/cassa" className={BTN_GHOST}>
-            Addebito ristorante
+            {t("hotel.folio.actions.restaurantCharge")}
           </Link>
         </div>
         {locked && (
           <p className="mt-2 flex items-center gap-2 text-xs text-amber-400">
-            <Lock className="h-3.5 w-3.5" /> Folio bloccato — modifiche disabilitate.
+            <Lock className="h-3.5 w-3.5" /> {t("hotel.folio.actions.locked")}
           </p>
         )}
         {msg && <p className="mt-2 text-xs text-rw-soft">{msg}</p>}
       </Card>
 
-      <Modal open={payOpen} onClose={() => setPayOpen(false)} title="Registra pagamento">
+      <Modal open={payOpen} onClose={() => setPayOpen(false)} title={t("hotel.folio.pay.title")}>
         <div className="grid gap-3 sm:grid-cols-1">
-          <input className={INPUT_CLASS} placeholder="Importo" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} type="number" min="0" step="0.01" />
+          <input className={INPUT_CLASS} placeholder={t("hotel.folio.pay.amount")} value={payAmount} onChange={(e) => setPayAmount(e.target.value)} type="number" min="0" step="0.01" />
           <select className={SELECT_CLASS} value={payMethod} onChange={(e) => setPayMethod(e.target.value as HotelManualPaymentMethod)}>
-            <option value="carta">Carta / POS</option>
-            <option value="contanti">Contanti</option>
-            <option value="bonifico">Bonifico</option>
-            <option value="altro">Voucher / Altro</option>
+            <option value="carta">{t("hotel.folio.pay.method.card")}</option>
+            <option value="contanti">{t("hotel.folio.pay.method.cash")}</option>
+            <option value="bonifico">{t("hotel.folio.pay.method.transfer")}</option>
+            <option value="altro">{t("hotel.folio.pay.method.other")}</option>
           </select>
-          <input className={INPUT_CLASS} placeholder="Note" value={payNote} onChange={(e) => setPayNote(e.target.value)} />
+          <input className={INPUT_CLASS} placeholder={t("hotel.folio.pay.note")} value={payNote} onChange={(e) => setPayNote(e.target.value)} />
         </div>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <button type="button" disabled={busy} onClick={handlePay} className={cn(BTN_PRIMARY, "w-full sm:w-auto")}>
-            Conferma
+            {t("ui.confirm")}
           </button>
           <button type="button" onClick={() => setPayOpen(false)} className={cn(BTN_OUTLINE, "w-full sm:w-auto")}>
-            Annulla
+            {t("ui.cancel")}
           </button>
         </div>
       </Modal>
 
       <TabBar
         tabs={[
-          { id: "conto", label: "Conto" },
-          { id: "timeline", label: "Timeline" },
-          { id: "pagamenti", label: "Pagamenti" },
-          { id: "split", label: "Split" },
+          { id: "conto", label: t("hotel.folio.tab.account") },
+          { id: "timeline", label: t("hotel.folio.tab.timeline") },
+          { id: "pagamenti", label: t("hotel.folio.tab.payments") },
+          { id: "split", label: t("hotel.folio.tab.split") },
         ]}
         active={tab}
         onChange={(id) => setTab(id as typeof tab)}
       />
 
-      <Card title="Ricerca e filtri">
+      <Card title={t("hotel.folio.filters.title")}>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <input className={INPUT_CLASS} placeholder="Descrizione, reparto…" value={filters.query} onChange={(e) => setFilters({ ...filters, query: e.target.value })} />
+          <input className={INPUT_CLASS} placeholder={t("hotel.folio.filters.query")} value={filters.query} onChange={(e) => setFilters({ ...filters, query: e.target.value })} />
           <input className={INPUT_CLASS} type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
           <input className={INPUT_CLASS} type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
           <select className={SELECT_CLASS} value={filters.section} onChange={(e) => setFilters({ ...filters, section: e.target.value as FolioChargeFilters["section"] })}>
-            <option value="all">Tutti i reparti</option>
+            <option value="all">{t("hotel.folio.filters.allSections")}</option>
             {FOLIO_SECTIONS.map((s) => (
               <option key={s} value={s}>
-                {sectionLabel(s)}
+                {t(folioSectionKey(s))}
               </option>
             ))}
           </select>
@@ -356,13 +362,13 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
             const rows = bySection.get(section) ?? [];
             if (rows.length === 0) return null;
             return (
-              <Card key={section} title={sectionLabel(section)} description={`${rows.length} movimenti`}>
+              <Card key={section} title={t(folioSectionKey(section))} description={tf(t, "hotel.folio.charges.movements", { n: rows.length })}>
                 <ChargeTable rows={rows} />
               </Card>
             );
           })}
           {filteredRows.filter((r) => r.source !== "payment").length === 0 && (
-            <p className="text-sm text-rw-muted">Nessun addebito nel folio selezionato.</p>
+            <p className="text-sm text-rw-muted">{t("hotel.folio.charges.empty")}</p>
           )}
         </div>
       )}
@@ -370,35 +376,35 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       {tab === "timeline" && <FolioTimelineView events={timeline} />}
 
       {tab === "pagamenti" && (
-        <Card title="Pagamenti">
+        <Card title={t("hotel.folio.payments.title")}>
           <DataTable
-      stickyHeader
+            stickyHeader
             columns={[
-              { key: "date", header: "Data", render: (r) => `${r.date} ${r.time}` },
-              { key: "method", header: "Metodo", render: (r) => parsePaymentMethod(r.description) },
-              { key: "desc", header: "Descrizione", render: (r) => r.description },
-              { key: "amount", header: "Importo", render: (r) => <span className="text-emerald-400">€ {r.amount.toFixed(2)}</span> },
+              { key: "date", header: t("hotel.folio.col.date"), render: (r) => formatDateTime(r.postedAt) },
+              { key: "method", header: t("hotel.folio.col.method"), render: (r) => t(folioPaymentMethodKey(r.description)) },
+              { key: "desc", header: t("hotel.folio.col.desc"), render: (r) => r.description },
+              { key: "amount", header: t("hotel.folio.col.total"), render: (r) => <span className="text-emerald-400">{formatCurrency(r.amount)}</span> },
             ]}
             data={payments}
             keyExtractor={(r) => r.id}
-            emptyMessage="Nessun pagamento registrato"
+            emptyMessage={t("hotel.folio.payments.empty")}
           />
           <div className="mt-4 grid gap-2 sm:grid-cols-4 text-sm">
-            <Stat label="Dovuto" value={economics.dueTotal} />
-            <Stat label="Pagato" value={economics.paidTotal} positive />
-            <Stat label="Saldo" value={economics.balance} />
-            <Stat label="Credito" value={economics.creditTotal} positive />
+            <Stat label={t("hotel.folio.payments.due")} value={economics.dueTotal} />
+            <Stat label={t("hotel.folio.payments.paid")} value={economics.paidTotal} positive />
+            <Stat label={t("hotel.folio.payments.balance")} value={economics.balance} />
+            <Stat label={t("hotel.folio.payments.credit")} value={economics.creditTotal} positive />
           </div>
         </Card>
       )}
 
       {tab === "split" && (
-        <Card title="Split Folio" description="Trascina gli addebiti tra Folio A–D. Le assegnazioni sono persistite sul backend.">
+        <Card title={t("hotel.folio.split.title")} description={t("hotel.folio.split.desc")}>
           <div className="mb-4 grid gap-2 sm:grid-cols-4">
             {splits.keys.map((id) => (
               <div key={id} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
-                <p className="text-xs text-rw-muted">Folio {id}</p>
-                <p className="font-display text-lg font-semibold text-rw-ink">€ {(splits.totals[id] ?? 0).toFixed(2)}</p>
+                <p className="text-xs text-rw-muted">{tf(t, "hotel.folio.split.label", { id })}</p>
+                <p className="font-display text-lg font-semibold text-rw-ink">{formatCurrency(splits.totals[id] ?? 0)}</p>
               </div>
             ))}
           </div>
@@ -410,26 +416,26 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
         </Card>
       )}
 
-      <Card title="Audit movimenti" description="Tracciamento operazioni folio con operatore e IP.">
+      <Card title={t("hotel.folio.audit.title")} description={t("hotel.folio.audit.desc")}>
         <DataTable
-      stickyHeader
+          stickyHeader
           columns={[
-            { key: "at", header: "Data", render: (r) => new Date(r.createdAt).toLocaleString("it-IT") },
-            { key: "action", header: "Azione", render: (r) => r.action },
-            { key: "user", header: "Operatore", render: (r) => r.userName || "—" },
-            { key: "detail", header: "Dettaglio", render: (r) => r.newValue || r.oldValue || "—" },
-            { key: "ip", header: "IP", render: (r) => r.ip || "—" },
+            { key: "at", header: t("hotel.folio.col.date"), render: (r) => formatDateTime(r.createdAt) },
+            { key: "action", header: t("hotel.folio.col.action"), render: (r) => r.action },
+            { key: "user", header: t("hotel.folio.col.operator"), render: (r) => r.userName || "—" },
+            { key: "detail", header: t("hotel.folio.col.detail"), render: (r) => r.newValue || r.oldValue || "—" },
+            { key: "ip", header: t("hotel.folio.col.ip"), render: (r) => r.ip || "—" },
           ]}
           data={auditLogs}
           keyExtractor={(r) => r.id}
-          emptyMessage="Nessun evento audit"
+          emptyMessage={t("hotel.folio.audit.empty")}
         />
       </Card>
 
-      <Card title="Allegati">
+      <Card title={t("hotel.folio.attachments.title")}>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs font-semibold text-rw-ink hover:border-rw-accent/40">
-            <Paperclip className="h-3.5 w-3.5" /> Carica documento
+          <label className={cn(BTN_OUTLINE, "cursor-pointer px-3 py-2 text-sm")}>
+            <Paperclip className="h-4 w-4" /> {t("hotel.folio.attachments.upload")}
             <input
               type="file"
               className="hidden"
@@ -442,7 +448,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
               }}
             />
           </label>
-          {attachments.length === 0 && <p className="text-sm text-rw-muted">Nessun allegato.</p>}
+          {attachments.length === 0 && <p className="text-sm text-rw-muted">{t("hotel.folio.attachments.empty")}</p>}
         </div>
         {attachments.length > 0 && (
           <ul className="mt-3 space-y-2">
@@ -471,14 +477,14 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
           onEmail={async () => {
             const email = customer?.email || reservation?.email;
             if (!email) {
-              setMsg("Email ospite non disponibile");
+              setMsg(t("hotel.folio.msg.emailMissing"));
               return;
             }
             try {
               await hotelFolioApi.email(folio.id, email);
-              setMsg(`Folio inviato a ${email}`);
+              setMsg(tf(t, "hotel.folio.msg.emailSent", { email }));
             } catch (e) {
-              setMsg(e instanceof Error ? e.message : "Invio email fallito");
+              setMsg(e instanceof Error ? e.message : t("hotel.folio.msg.emailErr"));
             }
           }}
           onToggleCollapse={() => setAiOpen(false)}
@@ -494,44 +500,52 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
 }
 
 function ChargeTable({ rows, compact }: { rows: FolioChargeRow[]; compact?: boolean }) {
+  const { t } = useI18n();
+  const { formatCurrency } = useI10n();
   return (
     <DataTable
       stickyHeader
       columns={[
-        { key: "date", header: "Data", render: (r) => r.date },
-        { key: "time", header: "Ora", render: (r) => r.time },
-        { key: "dept", header: "Reparto", render: (r) => r.department },
-        { key: "desc", header: "Descrizione", render: (r) => r.description },
+        { key: "date", header: t("hotel.folio.col.date"), render: (r) => r.date },
+        { key: "time", header: t("hotel.folio.col.time"), render: (r) => r.time },
+        { key: "dept", header: t("hotel.folio.col.dept"), render: (r) => r.department },
+        { key: "desc", header: t("hotel.folio.col.desc"), render: (r) => r.description },
         ...(compact
           ? []
           : [
-              { key: "qty", header: "Qtà", render: (r: FolioChargeRow) => r.qty },
-              { key: "unit", header: "Prezzo", render: (r: FolioChargeRow) => `€ ${r.unitPrice.toFixed(2)}` },
-              { key: "vat", header: "IVA", render: (r: FolioChargeRow) => `${r.vatPct}%` },
+              { key: "qty", header: t("hotel.folio.col.qty"), render: (r: FolioChargeRow) => r.qty },
+              { key: "unit", header: t("hotel.folio.col.unit"), render: (r: FolioChargeRow) => formatCurrency(r.unitPrice) },
+              { key: "vat", header: t("hotel.folio.col.vat"), render: (r: FolioChargeRow) => `${r.vatPct}%` },
             ]),
-        { key: "total", header: "Totale", render: (r) => <span className={r.amount < 0 ? "text-emerald-400" : ""}>€ {r.total.toFixed(2)}</span> },
-        { key: "status", header: "Stato", render: (r) => r.status },
+        { key: "total", header: t("hotel.folio.col.total"), render: (r) => <span className={r.amount < 0 ? "text-emerald-400" : ""}>{formatCurrency(r.total)}</span> },
+        { key: "status", header: t("hotel.folio.col.status"), render: (r) => r.status },
       ]}
       data={rows}
       keyExtractor={(r) => r.id}
-      emptyMessage="Nessuna riga"
+      emptyMessage={t("hotel.folio.col.empty")}
     />
   );
 }
 
 function FolioTimelineView({ events }: { events: FolioTimelineEvent[] }) {
+  const { t } = useI18n();
+  const { formatCurrency, formatDateTime } = useI10n();
   return (
-    <Card title="Timeline soggiorno">
+    <Card title={t("hotel.folio.timeline.title")}>
       <ul className="space-y-3">
         {events.map((ev) => (
           <li key={ev.id} className="flex gap-3 border-l-2 border-rw-accent/40 pl-4">
             <div>
-              <p className="text-sm font-semibold text-rw-ink">{ev.title}</p>
+              <p className="text-sm font-semibold text-rw-ink">
+                {ev.kind === "check_in" || ev.kind === "check_out" || ev.kind === "payment"
+                  ? t(folioTimelineTitleKey(ev.kind))
+                  : t(folioSectionKey(ev.title as FolioChargeRow["section"])) || ev.title}
+              </p>
               <p className="text-xs text-rw-soft">{ev.detail}</p>
-              <p className="text-[10px] text-rw-muted">{new Date(ev.at).toLocaleString("it-IT")}</p>
+              <p className="text-[10px] text-rw-muted">{formatDateTime(ev.at)}</p>
             </div>
             {ev.amount != null && (
-              <span className="ml-auto text-sm font-semibold text-rw-ink">€ {ev.amount.toFixed(2)}</span>
+              <span className="ml-auto text-sm font-semibold text-rw-ink">{formatCurrency(ev.amount)}</span>
             )}
           </li>
         ))}
@@ -549,6 +563,8 @@ function SplitDropZones({
   assignments: Record<string, FolioSplitId>;
   onAssign: (chargeId: string, split: FolioSplitId) => void;
 }) {
+  const { t } = useI18n();
+  const { formatCurrency } = useI10n();
   const discovered = new Set<string>(["A", "B", "C", "D", "COMPANY"]);
   for (const row of rows) discovered.add(assignments[row.id] ?? row.split);
   const splitKeys = [...discovered];
@@ -564,7 +580,7 @@ function SplitDropZones({
             if (id) onAssign(id, split);
           }}
         >
-          <p className="mb-2 text-xs font-semibold uppercase text-rw-muted">Folio {split}</p>
+          <p className="mb-2 text-xs font-semibold uppercase text-rw-muted">{tf(t, "hotel.folio.split.label", { id: split })}</p>
           <ul className="space-y-1">
             {rows
               .filter((r) => (assignments[r.id] ?? r.split) === split)
@@ -575,7 +591,7 @@ function SplitDropZones({
                   onDragStart={(e) => e.dataTransfer.setData("chargeId", r.id)}
                   className="cursor-grab rounded-lg border border-rw-line bg-rw-surface px-2 py-1 text-xs"
                 >
-                  {r.description} — € {r.amount.toFixed(2)}
+                  {r.description} — {formatCurrency(r.amount)}
                 </li>
               ))}
           </ul>
@@ -609,10 +625,11 @@ function ActionBtn({
 }
 
 function Stat({ label, value, positive }: { label: string; value: number; positive?: boolean }) {
+  const { formatCurrency } = useI10n();
   return (
     <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
       <p className="text-xs text-rw-muted">{label}</p>
-      <p className={cn("font-semibold", positive ? "text-emerald-400" : "text-rw-ink")}>€ {value.toFixed(2)}</p>
+      <p className={cn("font-semibold", positive ? "text-emerald-400" : "text-rw-ink")}>{formatCurrency(value)}</p>
     </div>
   );
 }

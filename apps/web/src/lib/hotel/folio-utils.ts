@@ -102,6 +102,55 @@ export function sectionLabel(section: FolioSection): string {
   return SECTION_LABELS[section];
 }
 
+export function folioSectionKey(section: FolioSection): string {
+  return `hotel.folio.section.${section}`;
+}
+
+export function folioPaymentStatusKey(
+  balance: number,
+  status: GuestFolio["status"],
+): { key: string; tone: "success" | "warn" | "danger" | "default" } {
+  if (status === "closed") return { key: "hotel.folio.payStatus.settled", tone: "success" };
+  if (balance <= 0.005) return { key: "hotel.folio.payStatus.credit", tone: "success" };
+  if (balance > 500) return { key: "hotel.folio.payStatus.due", tone: "danger" };
+  return { key: "hotel.folio.payStatus.partial", tone: "warn" };
+}
+
+export function folioStayStatusKey(status: HotelReservation["status"]): string {
+  return `hotel.folio.stayStatus.${status}`;
+}
+
+export function folioBoardKey(board: HotelReservation["boardType"]): string {
+  return `hotel.folio.board.${board}`;
+}
+
+export function folioPaymentMethodKey(description: string): string {
+  const d = description.toLowerCase();
+  if (d.includes("contanti") || d.includes("cash")) return "hotel.folio.paymentMethod.cash";
+  if (d.includes("carta") || d.includes("card") || d.includes("pos")) return "hotel.folio.paymentMethod.card";
+  if (d.includes("bonifico")) return "hotel.folio.paymentMethod.transfer";
+  if (d.includes("voucher")) return "hotel.folio.paymentMethod.voucher";
+  if (d.includes("city ledger") || d.includes("saldo interno") || d.includes("room_charge_settlement")) {
+    return "hotel.folio.paymentMethod.cityLedger";
+  }
+  if (d.includes("caparra") || d.includes("deposito")) return "hotel.folio.paymentMethod.deposit";
+  return "hotel.folio.paymentMethod.other";
+}
+
+export function folioTimelineTitleKey(kind: FolioTimelineEvent["kind"]): string {
+  const map: Record<FolioTimelineEvent["kind"], string> = {
+    check_in: "hotel.folio.timeline.checkIn",
+    check_out: "hotel.folio.timeline.checkOut",
+    payment: "hotel.folio.timeline.payment",
+    charge: "hotel.folio.col.desc",
+    consumption: "hotel.folio.col.desc",
+    note: "hotel.folio.col.detail",
+    room_change: "hotel.folio.col.action",
+  };
+  return map[kind];
+}
+
+
 function inferSectionFromDescription(description: string): FolioSection | null {
   const d = description.toLowerCase();
   if (d.includes("minibar")) return "MINIBAR";

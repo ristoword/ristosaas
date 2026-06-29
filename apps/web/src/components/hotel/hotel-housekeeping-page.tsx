@@ -11,6 +11,7 @@ import { useHotel } from "@/components/hotel/hotel-context";
 import { roomServiceApi, type RoomServiceItem, type RoomServiceOrder } from "@/lib/api-client";
 import { HousekeepingEnterpriseDashboard } from "@/components/hotel/housekeeping/housekeeping-enterprise-dashboard";
 import { useI18n } from "@/core/i18n/provider";
+import { useI10n } from "@/core/i18n/formatters";
 
 const taskTone = {
   todo: "warn",
@@ -20,13 +21,12 @@ const taskTone = {
 
 export function HotelHousekeepingPage() {
   const { housekeeping, rooms } = useHotel();
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
+  const { formatCurrency } = useI10n();
   const [rsOrders, setRsOrders] = useState<RoomServiceOrder[]>([]);
   const [rsLoading, setRsLoading] = useState(true);
 
-  const fmtLocale = locale === "nl" ? "nl-NL" : locale === "en" ? "en-GB" : "it-IT";
-  const euro = (n: number) =>
-    `€ ${n.toLocaleString(fmtLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const euro = (n: number) => formatCurrency(n);
 
   useEffect(() => {
     roomServiceApi.list({ category: "laundry" }).then((laundry) =>

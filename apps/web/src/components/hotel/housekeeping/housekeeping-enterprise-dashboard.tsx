@@ -20,6 +20,7 @@ import { KpiTile } from "@/components/shared/kpi-tile";
 import { Modal } from "@/components/shared/modal";
 import { TabBar } from "@/components/shared/tab-bar";
 import { BTN_OUTLINE, KPI_GRID } from "@/components/shared/ui-classes";
+import { tf } from "@/core/i18n/interpolate";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { useHousekeepingStream } from "@/components/hotel/housekeeping/use-housekeeping-stream";
 import { housekeepingApi, type HkDashboard, type HkRoomBoardItem } from "@/lib/api-client";
@@ -119,7 +120,7 @@ export function HousekeepingEnterpriseDashboard() {
   if (loading && !dashboard) {
     return (
       <div className="flex items-center gap-2 py-8 text-sm text-rw-muted">
-        <Loader2 className="h-5 w-5 animate-spin" /> Caricamento dashboard housekeeping…
+        <Loader2 className="h-5 w-5 animate-spin" /> {t("hotel.housekeeping.enterprise.loading")}
       </div>
     );
   }
@@ -128,34 +129,34 @@ export function HousekeepingEnterpriseDashboard() {
     <div className="space-y-6">
       {kpi && (
         <div className={KPI_GRID}>
-          <KpiTile label="Occupate" value={kpi.occupied} />
-          <KpiTile label="Libere" value={kpi.vacant} />
-          <KpiTile label="Arrivi oggi" value={kpi.arrivalsToday} tone="info" />
-          <KpiTile label="Partenze oggi" value={kpi.departuresToday} tone="warn" />
-          <KpiTile label="Sporche" value={kpi.dirty} tone="warn" />
-          <KpiTile label="Pulite" value={kpi.clean} tone="success" />
-          <KpiTile label="Ispezionate" value={kpi.inspected} />
-          <KpiTile label="Pronte" value={kpi.ready} tone="success" />
-          <KpiTile label="Fuori servizio" value={kpi.outOfOrder} tone="danger" />
-          <KpiTile label="Bloccate" value={kpi.blocked} />
-          <KpiTile label="Manutenzione" value={kpi.maintenance} tone="danger" />
-          <KpiTile label="Prioritarie" value={kpi.priority} tone="warn" />
-          <KpiTile label="Tempo medio" value={`${kpi.avgCleanMin}m`} />
-          <KpiTile label="HK attivi" value={kpi.activeHousekeepers} />
-          <KpiTile label="Task aperti" value={kpi.openTasks} tone="warn" />
-          <KpiTile label="Completati" value={kpi.completedTasks} tone="success" />
-          <KpiTile label="% Pronte" value={`${kpi.readyPct}%`} tone={kpi.readyPct >= 80 ? "success" : "warn"} highlight />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.occupied")} value={kpi.occupied} />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.vacant")} value={kpi.vacant} />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.arrivals")} value={kpi.arrivalsToday} tone="info" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.departures")} value={kpi.departuresToday} tone="warn" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.dirty")} value={kpi.dirty} tone="warn" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.clean")} value={kpi.clean} tone="success" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.inspected")} value={kpi.inspected} />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.ready")} value={kpi.ready} tone="success" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.outOfOrder")} value={kpi.outOfOrder} tone="danger" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.blocked")} value={kpi.blocked} />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.maintenance")} value={kpi.maintenance} tone="danger" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.priority")} value={kpi.priority} tone="warn" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.avgTime")} value={tf(t, "hotel.housekeeping.enterprise.kpi.avgTimeValue", { n: kpi.avgCleanMin })} />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.activeHk")} value={kpi.activeHousekeepers} />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.openTasks")} value={kpi.openTasks} tone="warn" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.completed")} value={kpi.completedTasks} tone="success" />
+          <KpiTile label={t("hotel.housekeeping.enterprise.kpi.readyPct")} value={`${kpi.readyPct}%`} tone={kpi.readyPct >= 80 ? "success" : "warn"} highlight />
         </div>
       )}
 
       <TabBar
         tabs={[
-          { id: "board", label: "Planning" },
-          { id: "tasks", label: "Task" },
-          { id: "calendar", label: "Calendario" },
-          { id: "maintenance", label: "Manutenzione" },
-          { id: "analytics", label: "Analytics" },
-          { id: "ai", label: "AI" },
+          { id: "board", label: t("hotel.housekeeping.enterprise.tab.board") },
+          { id: "tasks", label: t("hotel.housekeeping.enterprise.tab.tasks") },
+          { id: "calendar", label: t("hotel.housekeeping.enterprise.tab.calendar") },
+          { id: "maintenance", label: t("hotel.housekeeping.enterprise.tab.maintenance") },
+          { id: "analytics", label: t("hotel.housekeeping.enterprise.tab.analytics") },
+          { id: "ai", label: t("hotel.housekeeping.enterprise.tab.ai") },
         ]}
         active={tab}
         onChange={(id) => setTab(id as Tab)}
@@ -164,7 +165,7 @@ export function HousekeepingEnterpriseDashboard() {
       {tab === "board" && dashboard && (
         <div className="space-y-4">
           {floors.map((floor) => (
-            <Card key={floor} title={`Piano ${floor}`} description={`${dashboard.roomBoard.filter((r) => r.floor === floor).length} camere`}>
+            <Card key={floor} title={tf(t, "hotel.housekeeping.enterprise.floor.title", { floor })} description={tf(t, "hotel.housekeeping.enterprise.floor.rooms", { n: dashboard.roomBoard.filter((r) => r.floor === floor).length })}>
               <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                 {dashboard.roomBoard
                   .filter((r) => r.floor === floor)
@@ -180,14 +181,14 @@ export function HousekeepingEnterpriseDashboard() {
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-display text-lg font-bold">{room.code}</span>
-                        {room.vipReady && <span className="text-[9px] font-bold text-amber-300">VIP</span>}
+                        {room.vipReady && <span className="text-[9px] font-bold text-amber-300">{t("hotel.housekeeping.enterprise.room.vip")}</span>}
                         {room.maintenance && <Wrench className="h-3.5 w-3.5" />}
                       </div>
                       <p className="mt-1 text-[10px] font-semibold uppercase">{room.pmsCode}</p>
                       <p className="text-[10px] opacity-80">{room.roomType}</p>
                       {room.guestName && <p className="mt-1 truncate text-[10px]">{room.guestName}</p>}
-                      {room.departure && <p className="text-[10px] opacity-70">Out: {room.departure}</p>}
-                      <p className="mt-1 text-[10px]">~{room.estimatedCleanMin} min</p>
+                      {room.departure && <p className="text-[10px] opacity-70">{tf(t, "hotel.housekeeping.enterprise.room.out", { date: room.departure })}</p>}
+                      <p className="mt-1 text-[10px]">{tf(t, "hotel.housekeeping.enterprise.room.cleanMin", { n: room.estimatedCleanMin })}</p>
                     </button>
                   ))}
               </div>
@@ -197,15 +198,15 @@ export function HousekeepingEnterpriseDashboard() {
       )}
 
       {tab === "tasks" && (
-        <Card title="Coda task housekeeping" description="Gestione operativa pulizie">
+        <Card title={t("hotel.housekeeping.enterprise.tasks.title")} description={t("hotel.housekeeping.enterprise.tasks.desc")}>
           <DataTable
             stickyHeader
             columns={[
-              { key: "room", header: "Camera", render: (row) => row.roomId },
-              { key: "assigned", header: "Assegnato", render: (row) => row.assignedTo },
-              { key: "date", header: "Data", render: (row) => row.scheduledFor },
-              { key: "status", header: "Stato", render: (row) => <Chip label={row.status} tone={row.status === "done" ? "success" : row.status === "in_progress" ? "info" : "warn"} /> },
-              { key: "inspect", header: "Ispezione", render: (row) => row.inspected ? "OK" : "Pending" },
+              { key: "room", header: t("hotel.housekeeping.col.room"), render: (row) => row.roomId },
+              { key: "assigned", header: t("hotel.housekeeping.col.assigned"), render: (row) => row.assignedTo },
+              { key: "date", header: t("hotel.housekeeping.col.date"), render: (row) => row.scheduledFor },
+              { key: "status", header: t("hotel.housekeeping.col.status"), render: (row) => <Chip label={row.status} tone={row.status === "done" ? "success" : row.status === "in_progress" ? "info" : "warn"} /> },
+              { key: "inspect", header: t("hotel.housekeeping.col.inspection"), render: (row) => row.inspected ? t("hotel.housekeeping.enterprise.inspect.ok") : t("hotel.housekeeping.enterprise.inspect.pending") },
             ]}
             data={housekeeping}
             keyExtractor={(r) => r.id}
@@ -214,7 +215,7 @@ export function HousekeepingEnterpriseDashboard() {
       )}
 
       {tab === "calendar" && dashboard && (
-        <Card title="Calendario operativo — Oggi" description="Timeline arrivi/partenze e task">
+        <Card title={t("hotel.housekeeping.enterprise.calendar.title")} description={t("hotel.housekeeping.enterprise.calendar.desc")}>
           <ul className="space-y-2">
             {dashboard.roomBoard
               .filter((r) => r.arrival || r.departure || r.taskStatus)
@@ -222,8 +223,8 @@ export function HousekeepingEnterpriseDashboard() {
                 <li key={r.id} className="flex items-center gap-3 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm">
                   <Calendar className="h-4 w-4 text-rw-accent" />
                   <span className="font-semibold">{r.code}</span>
-                  {r.arrival && <span className="text-xs text-emerald-400">Arrivo {r.arrival}</span>}
-                  {r.departure && <span className="text-xs text-amber-400">Partenza {r.departure}</span>}
+                  {r.arrival && <span className="text-xs text-emerald-400">{tf(t, "hotel.housekeeping.enterprise.calendar.arrival", { date: r.arrival })}</span>}
+                  {r.departure && <span className="text-xs text-amber-400">{tf(t, "hotel.housekeeping.enterprise.calendar.departure", { date: r.departure })}</span>}
                   {r.taskStatus && <Chip label={r.taskStatus} tone="info" />}
                 </li>
               ))}
@@ -232,16 +233,16 @@ export function HousekeepingEnterpriseDashboard() {
       )}
 
       {tab === "maintenance" && (
-        <Card title="Ticket manutenzione" description="Guasti e interventi tecnici">
+        <Card title={t("hotel.housekeeping.enterprise.maintenance.title")} description={t("hotel.housekeeping.enterprise.maintenance.desc")}>
           {maintenance.length === 0 ? (
-            <p className="py-4 text-sm text-rw-muted">Nessun ticket aperto.</p>
+            <p className="py-4 text-sm text-rw-muted">{t("hotel.housekeeping.enterprise.maintenance.empty")}</p>
           ) : (
             <ul className="space-y-2">
               {maintenance.map((ticket) => (
                 <li key={ticket.id} className="flex items-center justify-between rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2">
                   <div>
                     <p className="text-sm font-semibold text-rw-ink">{ticket.title}</p>
-                    <p className="text-xs text-rw-muted">Camera {ticket.room.code} · {ticket.status}</p>
+                    <p className="text-xs text-rw-muted">{tf(t, "hotel.housekeeping.enterprise.maintenance.room", { code: ticket.room.code, status: ticket.status })}</p>
                   </div>
                   <button
                     type="button"
@@ -249,7 +250,7 @@ export function HousekeepingEnterpriseDashboard() {
                     onClick={() => void housekeepingApi.updateMaintenance(ticket.id, { status: "resolved" }).then(load)}
                     className="rounded-xl bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-400"
                   >
-                    Risolvi
+                    {t("hotel.housekeeping.enterprise.maintenance.resolve")}
                   </button>
                 </li>
               ))}
@@ -259,18 +260,18 @@ export function HousekeepingEnterpriseDashboard() {
       )}
 
       {tab === "analytics" && kpi && (
-        <Card title="Analytics housekeeping">
+        <Card title={t("hotel.housekeeping.enterprise.analytics.title")}>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <KpiTile label="Produttività" value={`${kpi.completedTasks} task`} />
-            <KpiTile label="Tempo medio pulizia" value={`${kpi.avgCleanMin} min`} />
-            <KpiTile label="Ritardi stimati" value={String(dashboard?.ai.delayRiskRooms.length ?? 0)} tone="warn" />
-            <KpiTile label="Qualità (% pronte)" value={`${kpi.readyPct}%`} tone="success" />
+            <KpiTile label={t("hotel.housekeeping.enterprise.analytics.productivity")} value={tf(t, "hotel.housekeeping.enterprise.analytics.productivityValue", { n: kpi.completedTasks })} />
+            <KpiTile label={t("hotel.housekeeping.enterprise.analytics.avgClean")} value={tf(t, "hotel.housekeeping.enterprise.analytics.avgCleanValue", { n: kpi.avgCleanMin })} />
+            <KpiTile label={t("hotel.housekeeping.enterprise.analytics.delays")} value={String(dashboard?.ai.delayRiskRooms.length ?? 0)} tone="warn" />
+            <KpiTile label={t("hotel.housekeeping.enterprise.analytics.quality")} value={`${kpi.readyPct}%`} tone="success" />
           </div>
         </Card>
       )}
 
       {tab === "ai" && dashboard?.ai && (
-        <Card title="AI Housekeeping Assistant">
+        <Card title={t("hotel.housekeeping.enterprise.ai.title")}>
           <p className="mb-3 text-sm text-rw-soft">{dashboard.ai.summary}</p>
           {dashboard.ai.suggestions.map((s) => (
             <div key={s.id} className="mb-2 rounded-xl border border-rw-accent/20 bg-rw-accent/5 px-3 py-2 text-sm">
@@ -278,12 +279,12 @@ export function HousekeepingEnterpriseDashboard() {
                 <Sparkles className="h-4 w-4 text-rw-accent" /> {s.title}
               </p>
               <p className="text-xs text-rw-muted">{s.detail}</p>
-              {s.roomCodes && <p className="mt-1 text-xs text-rw-soft">Camere: {s.roomCodes.join(", ")}</p>}
+              {s.roomCodes && <p className="mt-1 text-xs text-rw-soft">{tf(t, "hotel.housekeeping.enterprise.ai.rooms", { codes: s.roomCodes.join(", ") })}</p>}
             </div>
           ))}
           {dashboard.ai.optimalOrder.length > 0 && (
             <div className="mt-3 rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-xs">
-              <p className="font-semibold text-rw-ink">Ordine ottimale pulizie</p>
+              <p className="font-semibold text-rw-ink">{t("hotel.housekeeping.enterprise.ai.order")}</p>
               <p className="text-rw-muted">{dashboard.ai.optimalOrder.join(" → ")}</p>
             </div>
           )}
@@ -293,21 +294,21 @@ export function HousekeepingEnterpriseDashboard() {
       <Modal
         open={!!selectedRoom}
         onClose={() => setSelectedRoom(null)}
-        title={selectedRoom ? `Camera ${selectedRoom.code}` : ""}
-        subtitle={selectedRoom ? `${selectedRoom.pmsLabel} · Piano ${selectedRoom.floor}` : undefined}
+        title={selectedRoom ? tf(t, "hotel.housekeeping.enterprise.modal.room", { code: selectedRoom.code }) : ""}
+        subtitle={selectedRoom ? `${selectedRoom.pmsLabel} · ${tf(t, "hotel.housekeeping.enterprise.floor.title", { floor: selectedRoom.floor })}` : undefined}
       >
         {selectedRoom && (
           <>
-            {selectedRoom.guestName && <p className="mb-3 text-sm text-rw-soft">Ospite: {selectedRoom.guestName}</p>}
+            {selectedRoom.guestName && <p className="mb-3 text-sm text-rw-soft">{tf(t, "hotel.housekeeping.enterprise.modal.guest", { name: selectedRoom.guestName })}</p>}
             <div className="flex flex-wrap gap-2">
               {selectedRoom.taskId && selectedRoom.taskStatus === "todo" && (
-                <ActionBtn icon={Play} label="Inizia" onClick={() => void handleStartTask(selectedRoom)} disabled={busy} />
+                <ActionBtn icon={Play} label={t("hotel.housekeeping.enterprise.action.start")} onClick={() => void handleStartTask(selectedRoom)} disabled={busy} />
               )}
               {selectedRoom.taskId && selectedRoom.taskStatus === "in_progress" && (
-                <ActionBtn icon={Check} label="Completa" onClick={() => void handleCompleteTask(selectedRoom)} disabled={busy} />
+                <ActionBtn icon={Check} label={t("hotel.housekeeping.enterprise.action.complete")} onClick={() => void handleCompleteTask(selectedRoom)} disabled={busy} />
               )}
               {selectedRoom.taskId && (
-                <ActionBtn icon={ClipboardCheck} label="Ispezione" onClick={() => void handleInspect(selectedRoom, 2)} disabled={busy} />
+                <ActionBtn icon={ClipboardCheck} label={t("hotel.housekeeping.enterprise.action.inspect")} onClick={() => void handleInspect(selectedRoom, 2)} disabled={busy} />
               )}
               <ActionBtn icon={BedDouble} label="VC" onClick={() => void handleRoomStatus(selectedRoom, "VC")} disabled={busy} />
               <ActionBtn icon={AlertTriangle} label="OOO" onClick={() => void handleRoomStatus(selectedRoom, "OOO")} disabled={busy} />

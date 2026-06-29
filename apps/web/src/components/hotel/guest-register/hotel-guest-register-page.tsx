@@ -15,32 +15,30 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
-import { Chip } from "@/components/shared/chip";
-import {
-  hotelGuestRegisterApi,
-  type GuestRegisterDashboard,
-  type GuestRegisterEntry,
-} from "@/lib/api-client";
 import { KpiTile } from "@/components/shared/kpi-tile";
 import { StatusPill } from "@/components/shared/status-pill";
 import { ALERT_INFO, BTN_GHOST, INPUT_CLASS, KPI_GRID, SELECT_CLASS } from "@/components/shared/ui-classes";
+import { tf } from "@/core/i18n/interpolate";
+import { useI18n } from "@/core/i18n/provider";
+import { hotelGuestRegisterApi, type GuestRegisterDashboard, type GuestRegisterEntry } from "@/lib/api-client";
 import { todayIso } from "@/lib/date-utils";
 
-const TX_LABELS: Record<string, string> = {
-  pending: "Da inviare",
-  sent: "Inviato",
-  error: "Errore",
-  cancelled: "Annullato",
+const TX_KEYS: Record<string, string> = {
+  pending: "hotel.guestRegister.tx.pending",
+  sent: "hotel.guestRegister.tx.sent",
+  error: "hotel.guestRegister.tx.error",
+  cancelled: "hotel.guestRegister.tx.cancelled",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  draft: "Bozza",
-  incomplete: "Incompleta",
-  complete: "Completa",
-  checked_out: "Check-out",
+const STATUS_KEYS: Record<string, string> = {
+  draft: "hotel.guestRegister.status.draft",
+  incomplete: "hotel.guestRegister.status.incomplete",
+  complete: "hotel.guestRegister.status.complete",
+  checked_out: "hotel.guestRegister.status.checked_out",
 };
 
 export function HotelGuestRegisterPage() {
+  const { t } = useI18n();
   const [dashboard, setDashboard] = useState<GuestRegisterDashboard | null>(null);
   const [entries, setEntries] = useState<GuestRegisterEntry[]>([]);
   const [query, setQuery] = useState("");
@@ -64,11 +62,11 @@ export function HotelGuestRegisterPage() {
       setDashboard(dash);
       setEntries(search.items);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Errore caricamento");
+      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.loadErr"));
     } finally {
       setLoading(false);
     }
-  }, [query, txFilter]);
+  }, [query, txFilter, t]);
 
   useEffect(() => {
     void load();
@@ -84,10 +82,10 @@ export function HotelGuestRegisterPage() {
     setBusy(true);
     try {
       const r = await hotelGuestRegisterApi.sync(todayIso());
-      setMsg(`Sincronizzate ${r.synced} registrazioni.`);
+      setMsg(tf(t, "hotel.guestRegister.syncOk", { n: r.synced }));
       await load();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Sync fallita");
+      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.syncErr"));
     } finally {
       setBusy(false);
     }
@@ -95,25 +93,13 @@ export function HotelGuestRegisterPage() {
 
   return (
     <div className="space-y-6 pb-10">
-      <PageHeader
-        title="Registro Alloggiati"
-        subtitle="Scheda ospite enterprise — documenti, OCR, firme e trasmissione autorità."
-      >
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void handleSync()}
-          className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-semibold text-rw-ink hover:bg-rw-surfaceAlt disabled:opacity-50"
-        >
+      <PageHeader title={t("hotel.guestRegister.page.title")} subtitle={t("hotel.guestRegister.page.subtitle")}>
+        <button type="button" disabled={busy} onClick={() => void handleSync()} className={BTN_GHOST}>
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Sync prenotazioni
+          {t("hotel.guestRegister.sync")}
         </button>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-semibold text-rw-ink hover:bg-rw-surfaceAlt"
-        >
-          Aggiorna
+        <button type="button" onClick={() => void load()} className={BTN_GHOST}>
+          <RefreshCw className="h-4 w-4" /> {t("ui.update")}
         </button>
       </PageHeader>
 
@@ -121,21 +107,21 @@ export function HotelGuestRegisterPage() {
 
       {dashboard && (
         <div className={KPI_GRID}>
-          <KpiTile icon={Users} label="Arrivi oggi" value={dashboard.arrivalsToday} />
-          <KpiTile icon={ArrowRight} label="Partenze oggi" value={dashboard.departuresToday} />
-          <KpiTile icon={UserCheck} label="Ospiti presenti" value={dashboard.guestsPresent} />
-          <KpiTile icon={AlertTriangle} label="Da registrare" value={dashboard.toRegister} tone="warn" />
-          <KpiTile icon={AlertTriangle} label="Incomplete" value={dashboard.incomplete} tone="warn" />
-          <KpiTile icon={Send} label="Inviate" value={dashboard.sent} tone="success" />
-          <KpiTile icon={AlertTriangle} label="Errori trasmissione" value={dashboard.transmissionErrors} tone="danger" />
-          <KpiTile icon={Globe} label="Nazionalità" value={dashboard.nationalityBreakdown.length} />
+          <KpiTile icon={Users} label={t("hotel.guestRegister.kpi.arrivals")} value={dashboard.arrivalsToday} />
+          <KpiTile icon={ArrowRight} label={t("hotel.guestRegister.kpi.departures")} value={dashboard.departuresToday} />
+          <KpiTile icon={UserCheck} label={t("hotel.guestRegister.kpi.present")} value={dashboard.guestsPresent} />
+          <KpiTile icon={AlertTriangle} label={t("hotel.guestRegister.kpi.toRegister")} value={dashboard.toRegister} tone="warn" />
+          <KpiTile icon={AlertTriangle} label={t("hotel.guestRegister.kpi.incomplete")} value={dashboard.incomplete} tone="warn" />
+          <KpiTile icon={Send} label={t("hotel.guestRegister.kpi.sent")} value={dashboard.sent} tone="success" />
+          <KpiTile icon={AlertTriangle} label={t("hotel.guestRegister.kpi.txErrors")} value={dashboard.transmissionErrors} tone="danger" />
+          <KpiTile icon={Globe} label={t("hotel.guestRegister.kpi.nationalities")} value={dashboard.nationalityBreakdown.length} />
         </div>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card title="Nazionalità — ospiti in casa">
+        <Card title={t("hotel.guestRegister.nationality.title")}>
           {nationalityChart.length === 0 ? (
-            <p className="text-sm text-rw-muted">Nessun dato disponibile.</p>
+            <p className="text-sm text-rw-muted">{t("hotel.guestRegister.nationality.empty")}</p>
           ) : (
             <ul className="space-y-2">
               {nationalityChart.map((n) => (
@@ -153,17 +139,17 @@ export function HotelGuestRegisterPage() {
           )}
         </Card>
 
-        <Card title="Stato registrazioni">
+        <Card title={t("hotel.guestRegister.status.title")}>
           <div className="grid grid-cols-2 gap-2">
             {dashboard?.statusBreakdown.map((s) => (
               <div key={s.status} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
-                <p className="text-xs text-rw-muted">{STATUS_LABELS[s.status] ?? s.status}</p>
+                <p className="text-xs text-rw-muted">{t(STATUS_KEYS[s.status] ?? s.status)}</p>
                 <p className="font-display text-xl font-semibold text-rw-ink">{s.count}</p>
               </div>
             ))}
             {dashboard?.transmissionBreakdown.map((s) => (
               <div key={s.status} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 text-center">
-                <p className="text-xs text-rw-muted">{TX_LABELS[s.status] ?? s.status}</p>
+                <p className="text-xs text-rw-muted">{t(TX_KEYS[s.status] ?? s.status)}</p>
                 <p className="font-display text-xl font-semibold text-rw-ink">{s.count}</p>
               </div>
             ))}
@@ -171,23 +157,18 @@ export function HotelGuestRegisterPage() {
         </Card>
       </div>
 
-      <Card title="Ricerca registrazioni">
+      <Card title={t("hotel.guestRegister.search.title")}>
         <div className="mb-4 flex flex-wrap gap-2">
           <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-            <input
-              className={`${INPUT_CLASS} pl-8`}
-              placeholder="Nome, camera, documento…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
+            <input className={`${INPUT_CLASS} pl-8`} placeholder={t("hotel.guestRegister.search.placeholder")} value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
           <select className={SELECT_CLASS} value={txFilter} onChange={(e) => setTxFilter(e.target.value)}>
-            <option value="all">Tutti gli stati TX</option>
-            <option value="pending">Da inviare</option>
-            <option value="sent">Inviato</option>
-            <option value="error">Errore</option>
-            <option value="cancelled">Annullato</option>
+            <option value="all">{t("hotel.guestRegister.search.allTx")}</option>
+            <option value="pending">{t("hotel.guestRegister.tx.pending")}</option>
+            <option value="sent">{t("hotel.guestRegister.tx.sent")}</option>
+            <option value="error">{t("hotel.guestRegister.tx.error")}</option>
+            <option value="cancelled">{t("hotel.guestRegister.tx.cancelled")}</option>
           </select>
         </div>
 
@@ -206,21 +187,21 @@ export function HotelGuestRegisterPage() {
                   <div>
                     <p className="font-semibold text-rw-ink">{e.guestName || e.reservationId}</p>
                     <p className="text-xs text-rw-muted">
-                      Cam. {e.roomCode || "—"} · {e.arrivalDate} → {e.departureDate}
+                      {t("hotel.guestRegister.list.room")} {e.roomCode || "—"} · {e.arrivalDate} → {e.departureDate}
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-end gap-1">
                     <StatusPill tone={e.status === "complete" ? "success" : e.status === "incomplete" ? "warn" : "default"}>
-                      {STATUS_LABELS[e.status] ?? e.status}
+                      {t(STATUS_KEYS[e.status] ?? e.status)}
                     </StatusPill>
                     <StatusPill tone={e.transmissionStatus === "error" ? "danger" : e.transmissionStatus === "sent" ? "success" : "default"}>
-                      {TX_LABELS[e.transmissionStatus] ?? e.transmissionStatus}
+                      {t(TX_KEYS[e.transmissionStatus] ?? e.transmissionStatus)}
                     </StatusPill>
                   </div>
                 </Link>
               </li>
             ))}
-            {entries.length === 0 && <p className="py-6 text-center text-sm text-rw-muted">Nessuna registrazione trovata.</p>}
+            {entries.length === 0 && <p className="py-6 text-center text-sm text-rw-muted">{t("hotel.guestRegister.list.empty")}</p>}
           </ul>
         )}
       </Card>

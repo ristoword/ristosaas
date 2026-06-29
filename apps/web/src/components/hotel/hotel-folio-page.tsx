@@ -5,16 +5,20 @@ import { CreditCard, Loader2, RefreshCw, Search } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
+import { StatusPill } from "@/components/shared/status-pill";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { GuestFolioWorkspace } from "@/components/hotel/folio/guest-folio-workspace";
 import { useFolioStream } from "@/components/hotel/folio/use-folio-stream";
-import { customersApi, hotelFolioApi, roomServiceApi, type Customer, type FolioAttachmentEntry, type FolioAuditLogEntry, type GuestFolio } from "@/lib/api-client";
-import { paymentStatusLabel, reservationForFolio } from "@/lib/hotel/folio-utils";
-import { StatusPill } from "@/components/shared/status-pill";
-import { BTN_GHOST, INPUT_CLASS, SELECT_CLASS, ALERT_WARN } from "@/components/shared/ui-classes";
+import { customersApi, hotelFolioApi, roomServiceApi, type Customer, type GuestFolio } from "@/lib/api-client";
+import { folioPaymentStatusKey, reservationForFolio } from "@/lib/hotel/folio-utils";
+import { useI18n } from "@/core/i18n/provider";
+import { useI10n } from "@/core/i18n/formatters";
+import { ALERT_WARN, BTN_GHOST, INPUT_CLASS, SELECT_CLASS } from "@/components/shared/ui-classes";
 import { cn } from "@/lib/utils";
 
 export function HotelFolioPage() {
+  const { t } = useI18n();
+  const { formatCurrency } = useI10n();
   const { folios, charges, reservations, loading, failedSlices, refresh } = useHotel();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -74,35 +78,28 @@ export function HotelFolioPage() {
 
   return (
     <div className="space-y-6 pb-10 print:space-y-2">
-      <PageHeader
-        title="Guest Folio"
-        subtitle="Conto unico ospite PMS — hotel, ristorante, room service e pagamenti."
-      >
+      <PageHeader title={t("hotel.folio.page.title")} subtitle={t("hotel.folio.page.subtitle")}>
         <button type="button" onClick={() => refresh()} className={BTN_GHOST}>
-          <RefreshCw className="h-4 w-4" /> Aggiorna
+          <RefreshCw className="h-4 w-4" /> {t("ui.update")}
         </button>
-        <Chip label="Folio" value={folios.length} tone="accent" />
-        <Chip label="Movimenti" value={charges.length} tone="info" />
+        <Chip label={t("hotel.folio.chip.folio")} value={folios.length} tone="accent" />
+        <Chip label={t("hotel.folio.chip.movements")} value={charges.length} tone="info" />
         {pendingRoomService > 0 && (
-          <Chip label="Room service da addebitare" value={pendingRoomService} tone="warn" />
+          <Chip label={t("hotel.folio.chip.roomServicePending")} value={pendingRoomService} tone="warn" />
         )}
       </PageHeader>
 
-      {!integrationOk && (
-        <div className={ALERT_WARN}>
-          Alcuni dati folio non sono disponibili per il tuo ruolo. Contatta reception o supervisor.
-        </div>
-      )}
+      {!integrationOk && <div className={ALERT_WARN}>{t("hotel.folio.alert.partial")}</div>}
 
       <div className="grid gap-4 xl:grid-cols-12">
         <div className="xl:col-span-4 space-y-3">
-          <Card title="Folio attivi">
+          <Card title={t("hotel.folio.list.title")}>
             <div className="mb-3 flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
                 <input
                   className={cn(INPUT_CLASS, "pl-8")}
-                  placeholder="Cerca ospite, camera…"
+                  placeholder={t("hotel.folio.list.search")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
@@ -112,9 +109,9 @@ export function HotelFolioPage() {
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as "all" | "open" | "closed")}
               >
-                <option value="open">Aperti</option>
-                <option value="closed">Chiusi</option>
-                <option value="all">Tutti</option>
+                <option value="open">{t("hotel.folio.list.status.open")}</option>
+                <option value="closed">{t("hotel.folio.list.status.closed")}</option>
+                <option value="all">{t("hotel.folio.list.status.all")}</option>
               </select>
             </div>
             {loading && folios.length === 0 ? (
@@ -130,17 +127,18 @@ export function HotelFolioPage() {
                     reservation={reservationForFolio(f, reservations)}
                     selected={f.id === selectedId}
                     onSelect={() => setSelectedId(f.id)}
+                    formatCurrency={formatCurrency}
                   />
                 ))}
                 {filteredFolios.length === 0 && (
-                  <li className="py-6 text-center text-sm text-rw-muted">Nessun folio trovato</li>
+                  <li className="py-6 text-center text-sm text-rw-muted">{t("hotel.folio.list.empty")}</li>
                 )}
               </ul>
             )}
           </Card>
           <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4 text-xs text-rw-muted">
             <CreditCard className="mb-2 h-4 w-4 text-rw-accent" />
-            Aggiornamento in tempo reale via SSE. Addebiti da cassa, bar e room service confluiscono nel folio selezionato.
+            {t("hotel.folio.info.sse")}
           </div>
         </div>
 
@@ -155,8 +153,8 @@ export function HotelFolioPage() {
               lockBusy={lockBusy}
             />
           ) : (
-            <Card title="Seleziona un folio">
-              <p className="text-sm text-rw-muted">Scegli un ospite dalla lista per visualizzare il conto completo.</p>
+            <Card title={t("hotel.folio.select.title")}>
+              <p className="text-sm text-rw-muted">{t("hotel.folio.select.desc")}</p>
             </Card>
           )}
         </div>
@@ -170,13 +168,16 @@ function FolioListItem({
   reservation,
   selected,
   onSelect,
+  formatCurrency,
 }: {
   folio: GuestFolio;
   reservation: ReturnType<typeof reservationForFolio>;
   selected: boolean;
   onSelect: () => void;
+  formatCurrency: (n: number) => string;
 }) {
-  const pay = paymentStatusLabel(folio.balance, folio.status);
+  const { t } = useI18n();
+  const pay = folioPaymentStatusKey(folio.balance, folio.status);
   const guest = folio.guestName || reservation?.guestName || folio.customerId;
   const room = folio.roomCode || reservation?.roomId?.replace("hr_", "") || "—";
 
@@ -193,13 +194,17 @@ function FolioListItem({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="font-semibold text-rw-ink">{guest}</p>
-            <p className="text-xs text-rw-muted">Cam. {room}</p>
+            <p className="text-xs text-rw-muted">
+              {t("hotel.folio.list.room")} {room}
+            </p>
           </div>
-          <p className="font-display text-sm font-semibold text-rw-ink">€ {folio.balance.toFixed(2)}</p>
+          <p className="font-display text-sm font-semibold text-rw-ink">{formatCurrency(folio.balance)}</p>
         </div>
         <div className="mt-2 flex flex-wrap gap-1">
-          <StatusPill tone={folio.status === "open" ? "accent" : "default"}>{folio.status}</StatusPill>
-          <StatusPill tone={pay.tone === "default" ? "default" : pay.tone}>{pay.label}</StatusPill>
+          <StatusPill tone={folio.status === "open" ? "accent" : "default"}>
+            {t(`hotel.folio.status.${folio.status}`)}
+          </StatusPill>
+          <StatusPill tone={pay.tone === "default" ? "default" : pay.tone}>{t(pay.key)}</StatusPill>
         </div>
       </button>
     </li>

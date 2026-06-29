@@ -22,19 +22,17 @@ import {
   type GuestRegisterPerson,
 } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+import { tf } from "@/core/i18n/interpolate";
+import { useI10n } from "@/core/i18n/formatters";
+import { useI18n } from "@/core/i18n/provider";
 
 type Props = { entryId: string };
 
-const COUNTRIES: { code: GuestRegisterCountry; label: string }[] = [
-  { code: "IT", label: "Italia" },
-  { code: "NL", label: "Olanda" },
-  { code: "BE", label: "Belgio" },
-  { code: "DE", label: "Germania" },
-  { code: "FR", label: "Francia" },
-  { code: "ES", label: "Spagna" },
-];
+const COUNTRY_CODES = ["IT", "NL", "BE", "DE", "FR", "ES"] as const satisfies readonly GuestRegisterCountry[];
 
 export function GuestRegisterEntryPage({ entryId }: Props) {
+  const { t } = useI18n();
+  const { formatDateTime } = useI10n();
   const [detail, setDetail] = useState<GuestRegisterEntryDetail | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<GuestRegisterPerson>>({});
@@ -58,11 +56,11 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       setSelectedPersonId(primary?.id ?? null);
       if (primary) setForm(primary);
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Errore");
+      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.error"));
     } finally {
       setLoading(false);
     }
-  }, [entryId]);
+  }, [entryId, t]);
 
   useEffect(() => {
     void load();
@@ -83,9 +81,9 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       const { person } = await hotelGuestRegisterApi.updatePerson(selectedPersonId, form);
       setForm(person);
       await load();
-      setMsg("Scheda ospite salvata.");
+      setMsg(t("hotel.guestRegister.msg.saved"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Errore salvataggio");
+      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.saveErr"));
     } finally {
       setBusy(false);
     }
@@ -96,9 +94,9 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
     try {
       await hotelGuestRegisterApi.addPerson(entryId, { firstName: "", lastName: "", isPrimary: false });
       await load();
-      setMsg("Ospite aggiunto alla camera.");
+      setMsg(t("hotel.guestRegister.msg.guestAdded"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Errore");
+      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.error"));
     } finally {
       setBusy(false);
     }
@@ -123,9 +121,9 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
         });
       }
       await load();
-      setMsg("Documento caricato.");
+      setMsg(t("hotel.guestRegister.msg.docUploaded"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Upload fallito");
+      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.uploadErr"));
     } finally {
       setBusy(false);
     }
@@ -138,9 +136,9 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       const { person } = await hotelGuestRegisterApi.verifyOcr(selectedPersonId, true);
       setForm(person);
       await load();
-      setMsg("Dati OCR applicati — verifica e salva.");
+      setMsg(t("hotel.guestRegister.msg.ocrApplied"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "OCR verify fallito");
+      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.ocrErr"));
     } finally {
       setBusy(false);
     }
@@ -152,9 +150,9 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       await hotelGuestRegisterApi.updateEntry(entryId, { transmissionCountry: country });
       await hotelGuestRegisterApi.transmit(entryId, country);
       await load();
-      setMsg("Trasmissione inviata all'adapter autorità.");
+      setMsg(t("hotel.guestRegister.msg.transmitted"));
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Trasmissione fallita");
+      setMsg(e instanceof Error ? e.message : t("hotel.guestRegister.msg.transmitErr"));
     } finally {
       setBusy(false);
     }
@@ -170,7 +168,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
       }
       setCameraOn(true);
     } catch {
-      setMsg("Impossibile accedere alla webcam.");
+      setMsg(t("hotel.guestRegister.msg.cameraErr"));
     }
   };
 
@@ -208,7 +206,7 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
   }
 
   if (!detail) {
-    return <p className="p-6 text-rw-muted">Registrazione non trovata.</p>;
+    return <p className="p-6 text-rw-muted">{t("hotel.guestRegister.entry.notFound")}</p>;
   }
 
   const personAttachments = detail.attachments.filter((a) => a.personId === selectedPersonId);
@@ -216,17 +214,23 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
   return (
     <div className="space-y-6 pb-10">
       <PageHeader
-        title={detail.guestName || "Scheda ospite"}
-        subtitle={`Camera ${detail.roomCode || "—"} · ${detail.arrivalDate} → ${detail.departureDate} · ${detail.adults} adulti, ${detail.children} bambini`}
+        title={detail.guestName || t("hotel.guestRegister.entry.defaultTitle")}
+        subtitle={tf(t, "hotel.guestRegister.entry.subtitle", {
+          room: detail.roomCode || "—",
+          arrival: detail.arrivalDate,
+          departure: detail.departureDate,
+          adults: detail.adults,
+          children: detail.children,
+        })}
       >
         <Link href="/hotel/guest-register" className={BTN_GHOST}>
-          ← Registro
+          {t("hotel.guestRegister.entry.back")}
         </Link>
         <Link href="/hotel/folio" className={BTN_GHOST}>
-          Folio
+          {t("hotel.guestRegister.entry.folio")}
         </Link>
         <Link href="/hotel/front-desk" className={BTN_GHOST}>
-          Front Desk
+          {t("hotel.guestRegister.entry.frontDesk")}
         </Link>
       </PageHeader>
 
@@ -234,9 +238,9 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
 
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="lg:col-span-3 space-y-3">
-          <Card title="Ospiti in camera">
+          <Card title={t("hotel.guestRegister.entry.guests.title")}>
             <button type="button" disabled={busy} onClick={() => void addGuest()} className={cn(BTN_OUTLINE, "mb-3 w-full border-dashed py-2.5 text-sm text-rw-soft")}>
-              <UserPlus className="h-4 w-4" /> Aggiungi ospite
+              <UserPlus className="h-4 w-4" /> {t("hotel.guestRegister.entry.guests.add")}
             </button>
             <ul className="space-y-2">
               {detail.persons.map((p) => (
@@ -250,71 +254,71 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
                     )}
                   >
                     <p className="font-semibold text-rw-ink">{p.firstName} {p.lastName || "—"}</p>
-                    <p className="text-[10px] text-rw-muted">{p.isComplete ? "Completa" : "Incompleta"} · {p.nationality || "—"}</p>
+                    <p className="text-[10px] text-rw-muted">{p.isComplete ? t("hotel.guestRegister.entry.person.complete") : t("hotel.guestRegister.entry.person.incomplete")} · {p.nationality || "—"}</p>
                   </button>
                 </li>
               ))}
             </ul>
           </Card>
 
-          <Card title="Trasmissione autorità">
+          <Card title={t("hotel.guestRegister.entry.transmission.title")}>
             <select className={cn(SELECT_CLASS, "mb-2")} value={country} onChange={(e) => setCountry(e.target.value as GuestRegisterCountry)}>
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>{c.label}</option>
+              {COUNTRY_CODES.map((code) => (
+                <option key={code} value={code}>{t(`hotel.guestRegister.country.${code}`)}</option>
               ))}
             </select>
             <button type="button" disabled={busy} onClick={() => void transmit()} className={cn(BTN_PRIMARY, "w-full")}>
-              <Send className="h-4 w-4" /> Invia
+              <Send className="h-4 w-4" /> {t("hotel.guestRegister.entry.transmission.send")}
             </button>
-            <p className="mt-2 text-[10px] text-rw-muted">Stato: {detail.transmissionStatus}</p>
+            <p className="mt-2 text-[10px] text-rw-muted">{tf(t, "hotel.guestRegister.entry.transmission.status", { status: detail.transmissionStatus })}</p>
           </Card>
         </div>
 
         <div className="lg:col-span-9 space-y-4">
-          <Card title="Anagrafica ospite">
+          <Card title={t("hotel.guestRegister.entry.form.title")}>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <Field label="Nome" value={form.firstName ?? ""} onChange={(v) => setForm({ ...form, firstName: v })} />
-              <Field label="Cognome" value={form.lastName ?? ""} onChange={(v) => setForm({ ...form, lastName: v })} />
-              <Field label="Sesso" value={form.sex ?? "unknown"} onChange={(v) => setForm({ ...form, sex: v as GuestRegisterPerson["sex"] })} select options={["M", "F", "X", "unknown"]} />
-              <Field label="Data nascita" value={form.dateOfBirth?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, dateOfBirth: v || null })} type="date" />
-              <Field label="Luogo nascita" value={form.placeOfBirth ?? ""} onChange={(v) => setForm({ ...form, placeOfBirth: v })} />
-              <Field label="Stato nascita" value={form.stateOfBirth ?? ""} onChange={(v) => setForm({ ...form, stateOfBirth: v })} />
-              <Field label="Nazionalità" value={form.nationality ?? ""} onChange={(v) => setForm({ ...form, nationality: v })} />
-              <Field label="Residenza (paese)" value={form.residenceCountry ?? ""} onChange={(v) => setForm({ ...form, residenceCountry: v })} />
-              <Field label="Indirizzo" value={form.address ?? ""} onChange={(v) => setForm({ ...form, address: v })} />
-              <Field label="CAP" value={form.postalCode ?? ""} onChange={(v) => setForm({ ...form, postalCode: v })} />
-              <Field label="Città" value={form.city ?? ""} onChange={(v) => setForm({ ...form, city: v })} />
-              <Field label="Provincia" value={form.province ?? ""} onChange={(v) => setForm({ ...form, province: v })} />
-              <Field label="Codice fiscale" value={form.taxCode ?? ""} onChange={(v) => setForm({ ...form, taxCode: v })} />
-              <Field label="Telefono" value={form.phone ?? ""} onChange={(v) => setForm({ ...form, phone: v })} />
-              <Field label="Email" value={form.email ?? ""} onChange={(v) => setForm({ ...form, email: v })} />
-              <Field label="Tipo documento" value={form.documentType ?? ""} onChange={(v) => setForm({ ...form, documentType: (v || null) as GuestRegisterPerson["documentType"] })} select options={["passport", "identity_card", "driving_license", "visa", "other", ""]} />
-              <Field label="N. documento" value={form.documentNumber ?? ""} onChange={(v) => setForm({ ...form, documentNumber: v })} />
-              <Field label="Data rilascio" value={form.documentIssueDate?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, documentIssueDate: v || null })} type="date" />
-              <Field label="Scadenza" value={form.documentExpiryDate?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, documentExpiryDate: v || null })} type="date" />
-              <Field label="Autorità rilascio" value={form.documentIssuingAuthority ?? ""} onChange={(v) => setForm({ ...form, documentIssuingAuthority: v })} />
+              <Field label={t("hotel.guestRegister.field.firstName")} value={form.firstName ?? ""} onChange={(v) => setForm({ ...form, firstName: v })} />
+              <Field label={t("hotel.guestRegister.field.lastName")} value={form.lastName ?? ""} onChange={(v) => setForm({ ...form, lastName: v })} />
+              <Field label={t("hotel.guestRegister.field.sex")} value={form.sex ?? "unknown"} onChange={(v) => setForm({ ...form, sex: v as GuestRegisterPerson["sex"] })} select options={["M", "F", "X", "unknown"]} />
+              <Field label={t("hotel.guestRegister.field.dob")} value={form.dateOfBirth?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, dateOfBirth: v || null })} type="date" />
+              <Field label={t("hotel.guestRegister.field.birthPlace")} value={form.placeOfBirth ?? ""} onChange={(v) => setForm({ ...form, placeOfBirth: v })} />
+              <Field label={t("hotel.guestRegister.field.birthState")} value={form.stateOfBirth ?? ""} onChange={(v) => setForm({ ...form, stateOfBirth: v })} />
+              <Field label={t("hotel.guestRegister.field.nationality")} value={form.nationality ?? ""} onChange={(v) => setForm({ ...form, nationality: v })} />
+              <Field label={t("hotel.guestRegister.field.residence")} value={form.residenceCountry ?? ""} onChange={(v) => setForm({ ...form, residenceCountry: v })} />
+              <Field label={t("hotel.guestRegister.field.address")} value={form.address ?? ""} onChange={(v) => setForm({ ...form, address: v })} />
+              <Field label={t("hotel.guestRegister.field.postalCode")} value={form.postalCode ?? ""} onChange={(v) => setForm({ ...form, postalCode: v })} />
+              <Field label={t("hotel.guestRegister.field.city")} value={form.city ?? ""} onChange={(v) => setForm({ ...form, city: v })} />
+              <Field label={t("hotel.guestRegister.field.province")} value={form.province ?? ""} onChange={(v) => setForm({ ...form, province: v })} />
+              <Field label={t("hotel.guestRegister.field.taxCode")} value={form.taxCode ?? ""} onChange={(v) => setForm({ ...form, taxCode: v })} />
+              <Field label={t("hotel.guestRegister.field.phone")} value={form.phone ?? ""} onChange={(v) => setForm({ ...form, phone: v })} />
+              <Field label={t("hotel.guestRegister.field.email")} value={form.email ?? ""} onChange={(v) => setForm({ ...form, email: v })} />
+              <Field label={t("hotel.guestRegister.field.docType")} value={form.documentType ?? ""} onChange={(v) => setForm({ ...form, documentType: (v || null) as GuestRegisterPerson["documentType"] })} select options={["passport", "identity_card", "driving_license", "visa", "other", ""]} />
+              <Field label={t("hotel.guestRegister.field.docNumber")} value={form.documentNumber ?? ""} onChange={(v) => setForm({ ...form, documentNumber: v })} />
+              <Field label={t("hotel.guestRegister.field.docIssue")} value={form.documentIssueDate?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, documentIssueDate: v || null })} type="date" />
+              <Field label={t("hotel.guestRegister.field.docExpiry")} value={form.documentExpiryDate?.slice(0, 10) ?? ""} onChange={(v) => setForm({ ...form, documentExpiryDate: v || null })} type="date" />
+              <Field label={t("hotel.guestRegister.field.docAuthority")} value={form.documentIssuingAuthority ?? ""} onChange={(v) => setForm({ ...form, documentIssuingAuthority: v })} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button type="button" disabled={busy} onClick={() => void savePerson()} className={BTN_PRIMARY}>
-                <Save className="h-4 w-4" /> Salva
+                <Save className="h-4 w-4" /> {t("hotel.guestRegister.entry.save")}
               </button>
               {form.ocrStatus === "completed" && (
                 <button type="button" disabled={busy} onClick={() => void applyOcr()} className={BTN_OUTLINE}>
-                  Applica OCR
+                  {t("hotel.guestRegister.entry.applyOcr")}
                 </button>
               )}
             </div>
           </Card>
 
-          <Card title="Documenti e acquisizione">
+          <Card title={t("hotel.guestRegister.entry.documents.title")}>
             <div className="flex flex-wrap gap-2">
-              <UploadBtn label="Fronte doc." onFile={(f) => void uploadFile(f, "document_front")} />
-              <UploadBtn label="Retro doc." onFile={(f) => void uploadFile(f, "document_back")} />
-              <UploadBtn label="Passaporto" onFile={(f) => void uploadFile(f, "passport")} />
-              <UploadBtn label="Visto" onFile={(f) => void uploadFile(f, "visa")} />
-              <UploadBtn label="Patente" onFile={(f) => void uploadFile(f, "driving_license")} />
+              <UploadBtn label={t("hotel.guestRegister.entry.upload.front")} onFile={(f) => void uploadFile(f, "document_front")} />
+              <UploadBtn label={t("hotel.guestRegister.entry.upload.back")} onFile={(f) => void uploadFile(f, "document_back")} />
+              <UploadBtn label={t("hotel.guestRegister.entry.upload.passport")} onFile={(f) => void uploadFile(f, "passport")} />
+              <UploadBtn label={t("hotel.guestRegister.entry.upload.visa")} onFile={(f) => void uploadFile(f, "visa")} />
+              <UploadBtn label={t("hotel.guestRegister.entry.upload.license")} onFile={(f) => void uploadFile(f, "driving_license")} />
               <button type="button" onClick={() => void (cameraOn ? captureFromCamera() : startCamera())} className={BTN_GHOST}>
-                <Camera className="h-4 w-4" /> {cameraOn ? "Scatta" : "Webcam / smartphone"}
+                <Camera className="h-4 w-4" /> {cameraOn ? t("hotel.guestRegister.entry.camera.shoot") : t("hotel.guestRegister.entry.camera.webcam")}
               </button>
             </div>
             {cameraOn && (
@@ -328,43 +332,43 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
                 {personAttachments.map((a) => (
                   <li key={a.id} className="flex justify-between rounded-lg border border-rw-line px-3 py-2">
                     <span>{a.fileName} ({a.type})</span>
-                    <a href={hotelGuestRegisterApi.attachmentUrl(a.id)} target="_blank" rel="noreferrer" className="text-rw-accent text-xs font-semibold">Apri</a>
+                    <a href={hotelGuestRegisterApi.attachmentUrl(a.id)} target="_blank" rel="noreferrer" className="text-rw-accent text-xs font-semibold">{t("hotel.guestRegister.entry.open")}</a>
                   </li>
                 ))}
               </ul>
             )}
           </Card>
 
-          <Card title="Firma digitale">
-            <p className="mb-2 text-xs text-rw-muted">Firma su canvas — privacy, check-in, regolamento hotel.</p>
+          <Card title={t("hotel.guestRegister.entry.signature.title")}>
+            <p className="mb-2 text-xs text-rw-muted">{t("hotel.guestRegister.entry.signature.hint")}</p>
             <SignaturePad canvasRef={sigRef} />
             <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" disabled={busy} onClick={() => void saveSignature("signature_privacy")} className={BTN_GHOST}>
-                <PenLine className="h-4 w-4" /> Privacy
+                <PenLine className="h-4 w-4" /> {t("hotel.guestRegister.entry.sig.privacy")}
               </button>
               <button type="button" disabled={busy} onClick={() => void saveSignature("signature_checkin")} className={BTN_GHOST}>
-                Check-in
+                {t("hotel.guestRegister.entry.sig.checkin")}
               </button>
               <button type="button" disabled={busy} onClick={() => void saveSignature("signature_rules")} className={BTN_GHOST}>
-                Regolamento
+                {t("hotel.guestRegister.entry.sig.rules")}
               </button>
             </div>
           </Card>
 
-          <Card title="Audit e trasmissioni">
+          <Card title={t("hotel.guestRegister.entry.audit.title")}>
             <div className="grid gap-4 lg:grid-cols-2">
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase text-rw-muted">Audit</p>
+                <p className="mb-2 text-xs font-semibold uppercase text-rw-muted">{t("hotel.guestRegister.entry.audit.label")}</p>
                 <ul className="max-h-48 space-y-1 overflow-y-auto text-xs">
                   {detail.auditLogs.slice(0, 20).map((a) => (
                     <li key={a.id} className="border-b border-rw-line/40 py-1">
-                      {new Date(a.createdAt).toLocaleString("it-IT")} — {a.action} ({a.userName || "—"})
+                      {formatDateTime(a.createdAt)} — {a.action} ({a.userName || "—"})
                     </li>
                   ))}
                 </ul>
               </div>
               <div>
-                <p className="mb-2 text-xs font-semibold uppercase text-rw-muted">Trasmissioni</p>
+                <p className="mb-2 text-xs font-semibold uppercase text-rw-muted">{t("hotel.guestRegister.entry.transmissions.label")}</p>
                 <ul className="max-h-48 space-y-1 overflow-y-auto text-xs">
                   {detail.transmissions.map((t) => (
                     <li key={t.id} className="border-b border-rw-line/40 py-1">

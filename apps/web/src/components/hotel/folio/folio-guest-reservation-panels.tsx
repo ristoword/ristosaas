@@ -1,8 +1,11 @@
 "use client";
 
 import type { Customer, HotelReservation, RatePlan } from "@/lib/api-client";
-import { boardTypeLabel, ratePlanLabel } from "@/lib/hotel/folio-utils";
+import { folioBoardKey, folioStayStatusKey, ratePlanLabel } from "@/lib/hotel/folio-utils";
 import { Card } from "@/components/shared/card";
+import { tf } from "@/core/i18n/interpolate";
+import { useI18n } from "@/core/i18n/provider";
+import { useI10n } from "@/core/i18n/formatters";
 
 type Props = {
   customer: Customer | null;
@@ -11,48 +14,66 @@ type Props = {
 };
 
 export function FolioGuestReservationPanels({ customer, reservation, ratePlans }: Props) {
+  const { t } = useI18n();
+  const { formatCurrency } = useI10n();
+  const yes = t("hotel.folio.guestPanel.yes");
+  const no = t("hotel.folio.guestPanel.no");
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
-      <Card title="Informazioni ospite">
+      <Card title={t("hotel.folio.guestPanel.guest.title")}>
         <dl className="grid gap-2 text-sm">
-          <Row label="Nome completo" value={customer?.name || reservation?.guestName || "—"} />
-          <Row label="Documento" value={reservation?.documentCode || "—"} />
-          <Row label="Telefono" value={customer?.phone || reservation?.phone || "—"} />
-          <Row label="Email" value={customer?.email || reservation?.email || "—"} />
-          <Row label="VIP" value={customer?.type === "vip" ? "Sì" : "No"} highlight={customer?.type === "vip"} />
-          <Row label="Loyalty" value={customer ? `${customer.visits} visite · €${customer.totalSpent.toFixed(0)}` : "—"} />
-          <Row label="Note Reception" value={reservation?.receptionNotes || customer?.notes || customer?.preferences || "—"} />
-          <Row label="Allergie" value={customer?.allergies || "—"} />
+          <Row label={t("hotel.folio.guestPanel.fullName")} value={customer?.name || reservation?.guestName || "—"} />
+          <Row label={t("hotel.folio.guestPanel.document")} value={reservation?.documentCode || "—"} />
+          <Row label={t("hotel.folio.guestPanel.phone")} value={customer?.phone || reservation?.phone || "—"} />
+          <Row label={t("hotel.folio.guestPanel.email")} value={customer?.email || reservation?.email || "—"} />
+          <Row label={t("hotel.folio.guestPanel.vip")} value={customer?.type === "vip" ? yes : no} highlight={customer?.type === "vip"} />
+          <Row
+            label={t("hotel.folio.guestPanel.loyalty")}
+            value={
+              customer
+                ? tf(t, "hotel.folio.guestPanel.loyaltyValue", {
+                    visits: customer.visits,
+                    amount: formatCurrency(customer.totalSpent),
+                  })
+                : "—"
+            }
+          />
+          <Row label={t("hotel.folio.guestPanel.receptionNotes")} value={reservation?.receptionNotes || customer?.notes || customer?.preferences || "—"} />
+          <Row label={t("hotel.folio.guestPanel.allergies")} value={customer?.allergies || "—"} />
         </dl>
       </Card>
-      <Card title="Prenotazione">
+      <Card title={t("hotel.folio.guestPanel.reservation.title")}>
         {reservation ? (
           <dl className="grid gap-2 text-sm">
-            <Row label="N. prenotazione" value={reservation.id} mono />
-          <Row label="Nazionalità" value={reservation.nationality || "—"} />
-          <Row label="Indirizzo" value={reservation.address || "—"} />
-          <Row label="Azienda" value={reservation.company || "—"} />
-          <Row label="Canale" value={reservation.channel || "Direct"} />
-          <Row label="Tariffa" value={`€ ${reservation.rate.toFixed(2)} / notte`} />
-          <Row label="Piano tariffario" value={reservation.ratePlanName || ratePlanLabel(reservation, ratePlans)} />
-          <Row label="Pacchetto" value={reservation.packageName || "—"} />
-          <Row label="Pensione" value={boardTypeLabel(reservation.boardType)} />
-          <Row label="Adulti" value={String(reservation.guests)} />
-          <Row label="Bambini" value={String(reservation.children ?? 0)} />
-          <Row label="Culla" value={reservation.crib ? "Sì" : "No"} />
-          <Row label="Notti" value={String(reservation.nights)} />
-          <Row label="Early check-in" value={reservation.earlyCheckin ? "Sì" : "No"} />
-          <Row label="Late checkout" value={reservation.lateCheckout ? "Sì" : "No"} />
-          <Row
-            label="Caparra"
-            value={reservation.depositReceived != null ? `€ ${reservation.depositReceived.toFixed(2)}` : "—"}
-          />
-          <Row label="Note reception" value={reservation.receptionNotes || "—"} />
-            <Row label="Tipo camera" value={reservation.roomType} />
-            <Row label="Stato" value={reservation.status} />
+            <Row label={t("hotel.folio.guestPanel.bookingNo")} value={reservation.id} mono />
+            <Row label={t("hotel.folio.guestPanel.nationality")} value={reservation.nationality || "—"} />
+            <Row label={t("hotel.folio.guestPanel.address")} value={reservation.address || "—"} />
+            <Row label={t("hotel.folio.guestPanel.company")} value={reservation.company || "—"} />
+            <Row label={t("hotel.folio.guestPanel.channel")} value={reservation.channel || t("hotel.folio.guestPanel.channelDirect")} />
+            <Row
+              label={t("hotel.folio.guestPanel.rate")}
+              value={tf(t, "hotel.folio.guestPanel.ratePerNight", { amount: formatCurrency(reservation.rate) })}
+            />
+            <Row label={t("hotel.folio.guestPanel.ratePlan")} value={reservation.ratePlanName || ratePlanLabel(reservation, ratePlans)} />
+            <Row label={t("hotel.folio.guestPanel.package")} value={reservation.packageName || "—"} />
+            <Row label={t("hotel.folio.guestPanel.board")} value={t(folioBoardKey(reservation.boardType))} />
+            <Row label={t("hotel.folio.guestPanel.adults")} value={String(reservation.guests)} />
+            <Row label={t("hotel.folio.guestPanel.children")} value={String(reservation.children ?? 0)} />
+            <Row label={t("hotel.folio.guestPanel.crib")} value={reservation.crib ? yes : no} />
+            <Row label={t("hotel.folio.guestPanel.nights")} value={String(reservation.nights)} />
+            <Row label={t("hotel.folio.guestPanel.earlyCheckin")} value={reservation.earlyCheckin ? yes : no} />
+            <Row label={t("hotel.folio.guestPanel.lateCheckout")} value={reservation.lateCheckout ? yes : no} />
+            <Row
+              label={t("hotel.folio.guestPanel.deposit")}
+              value={reservation.depositReceived != null ? formatCurrency(reservation.depositReceived) : "—"}
+            />
+            <Row label={t("hotel.folio.guestPanel.receptionNotes")} value={reservation.receptionNotes || "—"} />
+            <Row label={t("hotel.folio.guestPanel.roomType")} value={reservation.roomType} />
+            <Row label={t("hotel.folio.guestPanel.status")} value={t(folioStayStatusKey(reservation.status))} />
           </dl>
         ) : (
-          <p className="text-sm text-rw-muted">Nessuna prenotazione collegata al folio.</p>
+          <p className="text-sm text-rw-muted">{t("hotel.folio.guestPanel.reservation.empty")}</p>
         )}
       </Card>
     </div>

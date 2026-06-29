@@ -1,4 +1,5 @@
 import type { Locale, TranslationDictionary } from "@/core/i18n/types";
+import { hotelModulesIt, hotelModulesEn, hotelModulesNl, hotelModulesPt } from "@/core/i18n/hotel-modules-i18n";
 
 const it: TranslationDictionary = {
   /* ── App shell ───────────────────────────────────── */
@@ -1343,6 +1344,8 @@ const it: TranslationDictionary = {
   "hotel.housekeeping.col.inspection": "Ispezione",
   "hotel.housekeeping.inspection.ok": "OK",
   "hotel.housekeeping.inspection.pending": "Da verificare",
+
+  ...hotelModulesIt,
 
   /* ── Owner page ─────────────────────────────────── */
   "owner.title": "Area Owner",
@@ -3271,6 +3274,8 @@ const en: TranslationDictionary = {
   "hotel.housekeeping.inspection.ok": "OK",
   "hotel.housekeeping.inspection.pending": "To verify",
 
+  ...hotelModulesEn,
+
   /* ── Owner page ─────────────────────────────────── */
   "owner.title": "Owner Area",
   "owner.subtitle": "Full management of your property: license, staff, KPIs and settings.",
@@ -5198,6 +5203,8 @@ const nl: TranslationDictionary = {
   "hotel.housekeeping.inspection.ok": "OK",
   "hotel.housekeeping.inspection.pending": "Te verifiëren",
 
+  ...hotelModulesNl,
+
   /* ── Owner page ─────────────────────────────────── */
   "owner.title": "Eigenaarsgebied",
   "owner.subtitle": "Volledig beheer van uw vestiging: licentie, personeel, KPI's en instellingen.",
@@ -7124,6 +7131,8 @@ const pt: TranslationDictionary = {
   "hotel.housekeeping.col.inspection": "Inspeção",
   "hotel.housekeeping.inspection.ok": "OK",
   "hotel.housekeeping.inspection.pending": "A verificar",
+
+  ...hotelModulesPt,
 
   /* ── Owner page ─────────────────────────────────── */
   "owner.title": "Área do Proprietário",
