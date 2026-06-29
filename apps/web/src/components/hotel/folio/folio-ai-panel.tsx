@@ -242,8 +242,8 @@ export function FolioAiPanel({
   }
 
   return (
-    <aside className="flex h-full w-full min-w-[20rem] max-w-full flex-col overflow-hidden rounded-t-2xl border border-rw-line bg-rw-surface shadow-2xl max-[1511px]:max-h-[85dvh] min-[1512px]:rounded-2xl min-[1512px]:shadow-xl min-[1512px]:lg:sticky min-[1512px]:lg:top-4 min-[1512px]:lg:h-[calc(100vh-6rem)]">
-      <div className="flex items-center justify-between border-b border-rw-line px-4 py-3">
+    <aside className="flex h-full min-h-0 w-full min-w-[20rem] max-w-full flex-col overflow-hidden rounded-t-2xl border border-rw-line bg-rw-surface shadow-2xl min-[1512px]:rounded-2xl min-[1512px]:shadow-xl">
+      <div className="flex shrink-0 items-center justify-between border-b border-rw-line px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-rw-accent" />
           <div>
@@ -263,17 +263,24 @@ export function FolioAiPanel({
         </div>
       </div>
 
-      <TabBar
-        tabs={[
-          { id: "overview", label: t("hotel.folio.ai.tab.overview") },
-          { id: "chat", label: t("hotel.folio.ai.tab.chat") },
-          { id: "checkout", label: t("hotel.folio.ai.tab.checkout") },
-        ]}
-        active={section}
-        onChange={(id) => setSection(id as typeof section)}
-      />
+      <div className="shrink-0 px-3 py-2">
+        <TabBar
+          tabs={[
+            { id: "overview", label: t("hotel.folio.ai.tab.overview") },
+            { id: "chat", label: t("hotel.folio.ai.tab.chat") },
+            { id: "checkout", label: t("hotel.folio.ai.tab.checkout") },
+          ]}
+          active={section}
+          onChange={(id) => setSection(id as typeof section)}
+        />
+      </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div
+        className={cn(
+          "min-h-0 flex-1 px-3 py-3",
+          section === "chat" ? "flex flex-col overflow-hidden" : "overflow-y-auto overscroll-y-contain",
+        )}
+      >
         {loading && !analysis && (
           <div className="flex flex-col items-center gap-2 py-8 text-rw-muted">
             <Loader2 className="h-8 w-8 animate-spin opacity-50" />
@@ -284,7 +291,7 @@ export function FolioAiPanel({
         {error && <p className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</p>}
 
         {analysis && section === "overview" && (
-          <div className="space-y-3">
+          <div className="space-y-3 pb-1">
             <SummaryCard title={t("hotel.folio.ai.staySummary")} text={localizeStayOverview(folio, reservation, t)} />
             {analysis.guestSummary.vip && (
               <StatusPill tone="warn">{t("hotel.folio.guestPanel.vip")}</StatusPill>
@@ -380,8 +387,8 @@ export function FolioAiPanel({
         )}
 
         {section === "chat" && (
-          <div className="flex h-full flex-col">
-            <div ref={listRef} className="flex-1 space-y-2 overflow-y-auto pb-2">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div ref={listRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto pb-2">
               {messages.length === 0 && (
                 <div className="py-6 text-center text-rw-muted">
                   <Bot className="mx-auto mb-2 h-8 w-8 opacity-30" />
@@ -421,7 +428,7 @@ export function FolioAiPanel({
         )}
 
         {analysis && section === "checkout" && (
-          <div className="space-y-3">
+          <div className="space-y-3 pb-1">
             {analysis.checkoutBlocked && (
               <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs text-red-400">
                 <p className="font-semibold">{t("hotel.folio.ai.checkout.blocked")}</p>
@@ -457,7 +464,7 @@ export function FolioAiPanel({
         )}
       </div>
 
-      <div className="border-t border-rw-line px-3 py-3">
+      <div className="shrink-0 border-t border-rw-line bg-rw-surface px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center gap-2">
           <VoiceButton onResult={handleVoice} compact className="shrink-0" />
           <input
@@ -514,7 +521,7 @@ function SummaryCard({ title, text, warn }: { title: string; text: string; warn?
   return (
     <div className={cn("rounded-xl border px-3 py-2 text-xs", warn ? "border-amber-500/30 bg-amber-500/5" : "border-rw-line bg-rw-surfaceAlt")}>
       <p className="font-semibold text-rw-ink">{title}</p>
-      <p className="text-rw-muted">{text}</p>
+      <p className="text-rw-muted [overflow-wrap:anywhere]">{text}</p>
     </div>
   );
 }
@@ -527,8 +534,8 @@ function AnomalyChip({ severity, title, detail }: { severity: string; title: str
         severity === "critical" ? "border-red-500/30 bg-red-500/5" : severity === "warning" ? "border-amber-500/30 bg-amber-500/5" : "border-rw-line bg-rw-surfaceAlt",
       )}
     >
-      <p className="font-semibold text-rw-ink">{title}</p>
-      <p className="text-rw-muted">{detail}</p>
+      <p className="font-semibold text-rw-ink [overflow-wrap:anywhere]">{title}</p>
+      <p className="text-rw-muted [overflow-wrap:anywhere]">{detail}</p>
     </div>
   );
 }

@@ -229,7 +229,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
 
   return (
     <div className={FOLIO_WORKSPACE_GRID}>
-      <div className="w-full min-w-0 space-y-6">
+      <div className={cn("w-full min-w-0 space-y-6", aiOpen && "max-[1511px]:pb-[min(85dvh,42rem)]")}>
       <div className="flex justify-end">
         <FolioAiToggle onClick={() => setAiOpen((v) => !v)} collapsed={!aiOpen} />
       </div>
@@ -470,8 +470,9 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
         <div
           className={cn(
             "w-full min-w-[20rem] max-w-full",
-            "max-[1511px]:fixed max-[1511px]:inset-x-0 max-[1511px]:bottom-0 max-[1511px]:z-40 max-[1511px]:max-h-[85dvh]",
-            "min-[1512px]:sticky min-[1512px]:top-4 min-[1512px]:self-start",
+            "max-[1511px]:fixed max-[1511px]:inset-x-0 max-[1511px]:bottom-0 max-[1511px]:z-40",
+            "max-[1511px]:flex max-[1511px]:h-[min(85dvh,calc(100dvh-env(safe-area-inset-bottom,0px)))] max-[1511px]:max-h-[85dvh]",
+            "min-[1512px]:sticky min-[1512px]:top-4 min-[1512px]:self-start min-[1512px]:h-[calc(100dvh-6rem)] min-[1512px]:max-h-[calc(100dvh-6rem)]",
           )}
         >
         <FolioAiPanel
