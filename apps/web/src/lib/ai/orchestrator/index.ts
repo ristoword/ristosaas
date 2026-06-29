@@ -31,6 +31,7 @@ export async function runOrchestrator(options: OrchestratorRunOptions): Promise<
     locale: request.locale,
     useAi: request.enrich !== false,
     signal,
+    tenantId,
   });
 
   const modules = await executeModules(plan.modules, ctx, { enrich: false });
@@ -94,6 +95,7 @@ async function runOrchestratorStreamInner(
     locale: request.locale,
     useAi: request.enrich !== false,
     signal,
+    tenantId,
   });
 
   emit({ type: "status", message: `Orchestratore: consulto ${plan.modules.join(", ")}…` });

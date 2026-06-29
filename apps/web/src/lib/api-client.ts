@@ -77,6 +77,7 @@ export type AdminPlatformConfig = {
 };
 
 export type AiConfigCenterPayload = import("@/lib/ai/config-center/service").AiConfigCenterPayload;
+export type AiEnterpriseControlPayload = import("@/lib/ai/control-center/types").AiEnterpriseControlPayload;
 export type AdminSystemSnapshot = {
   appVersion: string;
   processUptimeSec: number;
@@ -2125,6 +2126,31 @@ export const api = {
           "/admin/ai-config/rag",
           { action },
         ),
+    },
+    aiControl: {
+      get: (params?: { tenantId?: string; q?: string }) => {
+        const qs = new URLSearchParams();
+        if (params?.tenantId) qs.set("tenantId", params.tenantId);
+        if (params?.q) qs.set("q", params.q);
+        const suffix = qs.toString() ? `?${qs}` : "";
+        return get<AiEnterpriseControlPayload>(`/admin/ai-control${suffix}`);
+      },
+      createAgent: (body: Record<string, unknown>) => post<{ agent: unknown }>("/admin/ai-control/agents", body),
+      updateAgent: (body: Record<string, unknown>) => patch<{ agent: unknown }>("/admin/ai-control/agents", body),
+      deleteAgent: (id: string) => del<{ success: boolean }>(`/admin/ai-control/agents?id=${encodeURIComponent(id)}`),
+      createPrompt: (body: Record<string, unknown>) => post<{ template: unknown }>("/admin/ai-control/prompts", body),
+      updatePrompt: (id: string, body: Record<string, unknown>) =>
+        patch<{ template: unknown }>(`/admin/ai-control/prompts/${id}`, body),
+      importPrompts: (body: { templates: unknown[] }) => post<{ imported: number }>("/admin/ai-control/prompts/import", body),
+      exportPromptsUrl: (tenantId?: string) =>
+        `/api/admin/ai-control/prompts/import${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`,
+      deleteEmbedding: (id: string) => del<{ success: boolean }>(`/admin/ai-control/embeddings?id=${encodeURIComponent(id)}`),
+      reindexDocument: (documentId: string) =>
+        post<{ success?: boolean }>(`/admin/ai-control/embeddings?documentId=${encodeURIComponent(documentId)}`, {}),
+      marketplaceAction: (body: { action: "install" | "uninstall"; marketplaceId: string; tenantId: string }) =>
+        post<{ install: unknown }>("/admin/ai-control/marketplace", body),
+      audit: (tenantId?: string) =>
+        get<{ items: unknown[] }>(`/admin/ai-control/audit${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ""}`),
     },
   },
   kitchen: kitchenApi,

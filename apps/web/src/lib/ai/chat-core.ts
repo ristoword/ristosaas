@@ -1,16 +1,23 @@
 import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository";
-import { retrieveKnowledgeContext } from "@/lib/ai/rag/retrieval";
 import { moduleToKnowledgeModules } from "@/lib/ai/rag/module-map";
 import { RISTO_TOOLS } from "@/lib/ai/risto-tools";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
 import type { SseEmitter } from "@/lib/ai/sse";
-import { isRagRuntimeEnabled, isToolCallingRuntimeEnabled } from "@/lib/ai/platform-config.runtime";
+import { resolveAgentWithPrompts } from "@/lib/ai/runtime/agent-resolver";
+import { retrieveAgentRagContext } from "@/lib/ai/runtime/rag-context";
+import { retrieveWebSearchContext } from "@/lib/ai/runtime/web-search";
+import { resolveProviderApiKey, supportsToolCalling } from "@/lib/ai/runtime/llm-provider";
+import type { RagContextResult, ResolvedAgentRuntime, WebSearchContextResult } from "@/lib/ai/runtime/types";
+import type { ResolvedPrompts } from "@/lib/ai/runtime/prompt-resolver";
 
 export type AiRole = "user" | "assistant";
 export type AiMessage = { role: AiRole; content: string };
 
+/** @deprecated Use agent runtime from DB — kept for backward-compatible fallbacks. */
 export const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+/** @deprecated Use agent runtime from DB. */
 export const MAX_TOKENS = Number(process.env.OPENAI_MAX_TOKENS || 1200);
+/** @deprecated Use agent runtime from DB. */
 export const TEMPERATURE = Number(process.env.OPENAI_TEMPERATURE || 0.4);
 
 export const RISTO_ROLES = ["owner", "supervisor", "cucina", "sala", "bar", "pizzeria", "magazzino", "cassa", "super_admin"] as const;
@@ -24,7 +31,8 @@ export type OpenAiMessage = {
   tool_call_id?: string;
 };
 
-export function systemPromptForContext(context: string, isRisto: boolean, locale = "it") {
+/** Legacy fallback prompts — used only when Prompt Manager and AiAgent have no systemPrompt. */
+export function legacySystemPromptForContext(context: string, isRisto: boolean, locale = "it") {
   const langName = LANG_NAMES[locale] || LANG_NAMES.it;
   const langRule = `Rispondi SEMPRE in ${langName}.`;
 
@@ -54,6 +62,9 @@ Se non sei sicuro dei parametri, chiedi conferma prima di eseguire.`
 
   return `${ristoIdentity}\n${byContext[context] || byContext.default}`;
 }
+
+/** @deprecated Alias for legacy fallback. */
+export const systemPromptForContext = legacySystemPromptForContext;
 
 function kitchenSnapshotToPrompt(snapshot: Awaited<ReturnType<typeof aiKitchenRepository.snapshot>>) {
   const topDishes = snapshot.topDishes
@@ -96,6 +107,36 @@ function kitchenSnapshotToPrompt(snapshot: Awaited<ReturnType<typeof aiKitchenRe
   ].join("\n");
 }
 
+function composeSystemPrompt(params: {
+  runtime: ResolvedAgentRuntime;
+  prompts: ResolvedPrompts;
+  context: string;
+  isRisto: boolean;
+  locale: string;
+  rag: RagContextResult;
+  webSearch: WebSearchContextResult;
+  kitchenBlock?: string;
+}) {
+  const { runtime, prompts, context, isRisto, locale, rag, webSearch, kitchenBlock } = params;
+  const langName = LANG_NAMES[locale] || LANG_NAMES.it;
+
+  let base =
+    prompts.systemPrompt.trim() ||
+    legacySystemPromptForContext(context, isRisto, locale);
+
+  if (prompts.userPrompt.trim()) {
+    base = `${base}\n\nIstruzioni operative agente:\n${prompts.userPrompt.trim()}`;
+  }
+
+  base = `${base}\n\nAgente: ${runtime.agentName} (${runtime.agentSlug}) · Modulo: ${runtime.module} · Lingua: ${langName}.`;
+
+  if (kitchenBlock) base = `${base}\n\n${kitchenBlock}`;
+  if (webSearch.context) base = `${base}\n\n${webSearch.context}`;
+  if (rag.context) base = `${base}\n\n${rag.context}`;
+
+  return base;
+}
+
 export type BuildChatContextParams = {
   tenantId: string;
   context: string;
@@ -113,6 +154,12 @@ export type BuiltChatContext = {
   openaiBodyBase: Record<string, unknown>;
   canUseFunctions: boolean;
   isRisto: boolean;
+  runtime: ResolvedAgentRuntime;
+  prompts: ResolvedPrompts;
+  rag: RagContextResult;
+  webSearch: WebSearchContextResult;
+  startedAt: number;
+  providerApiKey: string;
 };
 
 export async function buildChatContext(params: BuildChatContextParams): Promise<BuiltChatContext> {
@@ -128,6 +175,10 @@ export async function buildChatContext(params: BuildChatContextParams): Promise<
     emit,
   } = params;
 
+  const startedAt = Date.now();
+  const { runtime, prompts } = await resolveAgentWithPrompts(tenantId, context);
+  const providerApiKey = resolveProviderApiKey(runtime.provider) ?? apiKey;
+
   const safeHistory = history.filter(
     (item) =>
       item &&
@@ -137,34 +188,51 @@ export async function buildChatContext(params: BuildChatContextParams): Promise<
   );
 
   const isRisto = context === "risto" || Boolean(enableTools);
-  const toolsAllowed = await isToolCallingRuntimeEnabled();
   const canUseFunctions =
-    toolsAllowed && isRisto && (RISTO_ROLES as readonly string[]).includes(userRole);
+    runtime.toolCallingEnabled &&
+    supportsToolCalling(runtime.provider) &&
+    isRisto &&
+    (RISTO_ROLES as readonly string[]).includes(userRole);
 
   emit?.({ type: "status", message: pickStatusMessage(context, 0) });
 
-  let systemPrompt = systemPromptForContext(context, isRisto, locale);
-
-  if (context === "cucina" || (isRisto && ["cucina", "risto"].includes(context))) {
+  let kitchenBlock: string | undefined;
+  const kitchenModules = ["cucina", "kitchen", "risto"];
+  if (kitchenModules.includes(context) || (isRisto && kitchenModules.includes(runtime.module))) {
     emit?.({ type: "status", message: pickStatusMessage("cucina", 1) });
     try {
       const snapshot = await aiKitchenRepository.snapshot(tenantId, 14);
-      systemPrompt = `${systemPrompt}\n\n${kitchenSnapshotToPrompt(snapshot)}`;
+      kitchenBlock = kitchenSnapshotToPrompt(snapshot);
     } catch { /* non-blocking */ }
   }
 
   emit?.({ type: "status", message: pickStatusMessage(context, 1) });
-  try {
-    if (await isRagRuntimeEnabled()) {
-      const ragContext = await retrieveKnowledgeContext(message, apiKey, {
-        tenantId,
-        modules: moduleToKnowledgeModules(context),
-      });
-      if (ragContext) systemPrompt = `${systemPrompt}\n\n${ragContext}`;
-    }
-  } catch { /* non-blocking */ }
+  const rag = await retrieveAgentRagContext({
+    query: message,
+    apiKey: providerApiKey,
+    tenantId,
+    module: runtime.module,
+    ragEnabled: runtime.ragEnabled,
+    vectorEnabled: runtime.vectorEnabled,
+  });
+
+  const webSearch = await retrieveWebSearchContext({
+    query: message,
+    webSearchEnabled: runtime.webSearchEnabled,
+  });
 
   emit?.({ type: "status", message: pickStatusMessage(context, 2) });
+
+  const systemPrompt = composeSystemPrompt({
+    runtime,
+    prompts,
+    context,
+    isRisto,
+    locale,
+    rag,
+    webSearch,
+    kitchenBlock,
+  });
 
   const messages: OpenAiMessage[] = [
     { role: "system", content: systemPrompt },
@@ -173,9 +241,9 @@ export async function buildChatContext(params: BuildChatContextParams): Promise<
   ];
 
   const openaiBodyBase: Record<string, unknown> = {
-    model: DEFAULT_MODEL,
-    temperature: TEMPERATURE,
-    max_tokens: MAX_TOKENS,
+    model: runtime.model,
+    temperature: runtime.temperature,
+    max_tokens: runtime.maxTokens,
     messages,
   };
 
@@ -184,7 +252,18 @@ export async function buildChatContext(params: BuildChatContextParams): Promise<
     openaiBodyBase.tool_choice = "auto";
   }
 
-  return { messages, openaiBodyBase, canUseFunctions, isRisto };
+  return {
+    messages,
+    openaiBodyBase,
+    canUseFunctions,
+    isRisto,
+    runtime,
+    prompts,
+    rag,
+    webSearch,
+    startedAt,
+    providerApiKey,
+  };
 }
 
 export { RISTO_TOOLS };

@@ -29,6 +29,7 @@ export async function generateAiDecisions(
 
   const engineOptions = {
     tenantId,
+    userId: createdBy,
     periodDays,
     locale: request.locale ?? "it",
     enrich,

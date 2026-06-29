@@ -24,7 +24,8 @@ const PUBLIC = [
   "/api/auth/login",
   "/api/auth/refresh",
 ];
-const SUPER_ADMIN_ONLY = ["/super-admin", "/dev-access", "/email-settings", "/ai-configuration-center"];
+const SUPER_ADMIN_ONLY = ["/super-admin", "/dev-access", "/email-settings"];
+const ENTERPRISE_AI_CONTROL = ["/ai-configuration-center"];
 
 type Gates = { maintenanceMode: boolean; tenantBlocked: boolean };
 let gatesCache: { key: string; value: Gates; exp: number } = {
@@ -238,6 +239,16 @@ export async function middleware(req: NextRequest) {
   if (SUPER_ADMIN_ONLY.some((p) => pathname.startsWith(p)) && user.role !== "super_admin") {
     const dashboardUrl = req.nextUrl.clone();
     dashboardUrl.pathname = user.role === "partner" ? "/partner" : "/dashboard";
+    return redirectWithRequestId(dashboardUrl, requestId);
+  }
+
+  if (
+    ENTERPRISE_AI_CONTROL.some((p) => pathname.startsWith(p)) &&
+    user.role !== "super_admin" &&
+    user.role !== "partner"
+  ) {
+    const dashboardUrl = req.nextUrl.clone();
+    dashboardUrl.pathname = "/dashboard";
     return redirectWithRequestId(dashboardUrl, requestId);
   }
 

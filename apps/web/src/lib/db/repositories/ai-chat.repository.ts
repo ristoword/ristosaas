@@ -1,4 +1,20 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+
+export type AiChatLogMetadata = {
+  agentId?: string | null;
+  agentSlug?: string;
+  model?: string;
+  provider?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  costEur?: number;
+  durationMs?: number;
+  ragUsed?: boolean;
+  ragDocumentsCount?: number;
+  webSearchUsed?: boolean;
+  webSearchResultsCount?: number;
+};
 
 export const aiChatRepository = {
   async log(params: {
@@ -8,6 +24,7 @@ export const aiChatRepository = {
     userMessage: string;
     assistantMessage?: string | null;
     errorMessage?: string | null;
+    metadata?: AiChatLogMetadata;
   }) {
     return prisma.aiChatLog.create({
       data: {
@@ -17,6 +34,7 @@ export const aiChatRepository = {
         userMessage: params.userMessage,
         assistantMessage: params.assistantMessage ?? null,
         errorMessage: params.errorMessage ?? null,
+        metadata: (params.metadata ?? {}) as Prisma.InputJsonValue,
       },
     });
   },

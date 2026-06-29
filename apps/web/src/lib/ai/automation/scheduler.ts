@@ -4,6 +4,7 @@ import { automationEngine } from "@/lib/ai/automation/automation-engine";
 import { automationConfigStore } from "@/lib/ai/automation/config-store";
 import type { AutomationEngineResult } from "@/lib/ai/automation/types";
 import { isAutomationEnabled } from "@/lib/ai/automation/types";
+import { isSchedulerRuntimeEnabled } from "@/lib/ai/platform-config.runtime";
 
 export type SchedulerRunResult = {
   tenants: number;
@@ -20,6 +21,10 @@ export const automationScheduler = {
       return { tenants: 0, totalRuns: 0, completed: 0, failed: 0, skipped: 0, byTenant: [] };
     }
 
+    if (!(await isSchedulerRuntimeEnabled())) {
+      return { tenants: 0, totalRuns: 0, completed: 0, failed: 0, skipped: 0, byTenant: [] };
+    }
+
     const tenants = options?.tenantIds?.length
       ? options.tenantIds.map((id) => ({ id }))
       : await prisma.tenant.findMany({ select: { id: true }, orderBy: { createdAt: "asc" } });
@@ -31,6 +36,14 @@ export const automationScheduler = {
     let skipped = 0;
 
     for (const tenant of tenants) {
+      const schedulerAgents = await prisma.aiAgent.count({
+        where: { tenantId: tenant.id, active: true, schedulerEnabled: true },
+      });
+      if (schedulerAgents === 0) {
+        skipped++;
+        continue;
+      }
+
       await automationConfigStore.list(tenant.id);
       const result = await automationEngine.run({
         tenantId: tenant.id,
@@ -64,6 +77,17 @@ export const automationScheduler = {
   },
 
   async runForTenant(tenantId: string, triggeredBy = "scheduler"): Promise<AutomationEngineResult> {
+    if (!(await isSchedulerRuntimeEnabled())) {
+      return { tenantId, runsStarted: 0, runsCompleted: 0, runsFailed: 0, runsSkipped: 0, runs: [] };
+    }
+
+    const schedulerAgents = await prisma.aiAgent.count({
+      where: { tenantId, active: true, schedulerEnabled: true },
+    });
+    if (schedulerAgents === 0) {
+      return { tenantId, runsStarted: 0, runsCompleted: 0, runsFailed: 0, runsSkipped: 0, runs: [] };
+    }
+
     return automationEngine.run({ tenantId, triggeredBy });
   },
 };

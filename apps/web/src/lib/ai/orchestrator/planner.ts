@@ -1,7 +1,7 @@
-import { DEFAULT_MODEL, TEMPERATURE } from "@/lib/ai/chat-core";
-import { callOpenAIChatCompletion } from "@/lib/ai/openai-stream";
+import { callLlmChatCompletion, resolveProviderApiKey } from "@/lib/ai/runtime/llm-provider";
 import { MODULE_KEYWORDS } from "@/lib/ai/orchestrator/router";
 import { modulesFromScores, routeQuery } from "@/lib/ai/orchestrator/router";
+import { resolveAgentRuntime } from "@/lib/ai/runtime/agent-resolver";
 import type { OrchestratorModuleId, OrchestratorPlan } from "@/lib/ai/orchestrator/types";
 import { ORCHESTRATOR_MODULE_IDS } from "@/lib/ai/orchestrator/types";
 
@@ -33,14 +33,20 @@ function parseAiPlanModules(raw: unknown): OrchestratorModuleId[] {
 
 export async function planOrchestration(
   query: string,
-  options?: { contextHint?: string; locale?: string; useAi?: boolean; signal?: AbortSignal },
+  options?: { contextHint?: string; locale?: string; useAi?: boolean; signal?: AbortSignal; tenantId?: string },
 ): Promise<OrchestratorPlan> {
   const rulePlan = ruleBasedPlan(query, options?.contextHint);
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!options?.useAi || !apiKey) {
+  if (!options?.useAi || !options.tenantId) {
     return rulePlan;
   }
+
+  const routerContext = options.contextHint ?? rulePlan.modules[0] ?? "dashboard";
+  const runtime = await resolveAgentRuntime(options.tenantId, routerContext);
+  if (!runtime.active) return rulePlan;
+
+  const apiKey = resolveProviderApiKey(runtime.provider);
+  if (!apiKey) return rulePlan;
 
   try {
     const moduleList = ORCHESTRATOR_MODULE_IDS.join(", ");
@@ -48,17 +54,18 @@ export async function planOrchestration(
       (id) => `${id}: ${MODULE_KEYWORDS[id].slice(0, 4).join(", ")}`,
     ).join("\n");
 
-    const { content } = await callOpenAIChatCompletion(
+    const { content } = await callLlmChatCompletion(
+      runtime.provider,
       apiKey,
       {
-        model: DEFAULT_MODEL,
-        temperature: Math.min(TEMPERATURE, 0.2),
+        model: runtime.model,
+        temperature: Math.min(runtime.temperature, 0.2),
         max_tokens: 400,
         response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
-            content: `Sei il planner dell'orchestratore RistoSimply. Seleziona i moduli rilevanti per la domanda.
+            content: `Sei il planner dell'orchestratore RistoSimply (${runtime.agentName}). Seleziona i moduli rilevanti per la domanda.
 Moduli disponibili: ${moduleList}
 Rispondi SOLO JSON: {"modules":["modulo1","modulo2"],"reasoning":"breve spiegazione"}
 Max 5 moduli. Usa solo ID dalla lista.`,

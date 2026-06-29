@@ -1,6 +1,8 @@
-import { retrieveKnowledgeContext } from "@/lib/ai/rag/retrieval";
+import { resolveAgentWithPrompts } from "@/lib/ai/runtime/agent-resolver";
+import { retrieveAgentRagContext } from "@/lib/ai/runtime/rag-context";
+import { retrieveWebSearchContext } from "@/lib/ai/runtime/web-search";
+import { resolveProviderApiKey } from "@/lib/ai/runtime/llm-provider";
 import type { OrchestratorContext, OrchestratorRequest } from "@/lib/ai/orchestrator/types";
-import { moduleToKnowledgeModules } from "@/lib/ai/rag/module-map";
 
 export async function buildOrchestratorContext(params: {
   tenantId: string;
@@ -13,16 +15,35 @@ export async function buildOrchestratorContext(params: {
     ? Math.min(60, Math.max(1, Math.floor(periodDaysRaw)))
     : 14;
 
+  const routerContext = params.request.contextHint ?? "dashboard";
+  const { runtime } = await resolveAgentWithPrompts(params.tenantId, routerContext);
+
   let ragContext: string | null = null;
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (apiKey && params.request.query.trim()) {
-    const modules = params.request.contextHint
-      ? moduleToKnowledgeModules(params.request.contextHint)
-      : undefined;
-    ragContext = await retrieveKnowledgeContext(params.request.query, apiKey, {
-      tenantId: params.tenantId,
-      modules,
+  let ragDocumentCount = 0;
+  let webSearchContext: string | null = null;
+  let webSearchResultCount = 0;
+
+  const apiKey = resolveProviderApiKey(runtime.provider);
+  if (params.request.query.trim()) {
+    if (apiKey) {
+      const rag = await retrieveAgentRagContext({
+        query: params.request.query,
+        apiKey,
+        tenantId: params.tenantId,
+        module: runtime.module,
+        ragEnabled: runtime.ragEnabled,
+        vectorEnabled: runtime.vectorEnabled,
+      });
+      ragContext = rag.context;
+      ragDocumentCount = rag.documentCount;
+    }
+
+    const webSearch = await retrieveWebSearchContext({
+      query: params.request.query,
+      webSearchEnabled: runtime.webSearchEnabled,
     });
+    webSearchContext = webSearch.context;
+    webSearchResultCount = webSearch.resultCount;
   }
 
   return {
@@ -31,7 +52,12 @@ export async function buildOrchestratorContext(params: {
     locale,
     periodDays,
     ragContext,
+    ragDocumentCount,
+    webSearchContext,
+    webSearchResultCount,
     query: params.request.query.trim(),
+    agentSlug: runtime.agentSlug,
+    routerContext,
   };
 }
 
@@ -42,9 +68,8 @@ export function formatContextForPrompt(ctx: OrchestratorContext): string {
     `Lingua risposta: ${ctx.locale}`,
   ];
 
-  if (ctx.ragContext) {
-    parts.push(ctx.ragContext);
-  }
+  if (ctx.webSearchContext) parts.push(ctx.webSearchContext);
+  if (ctx.ragContext) parts.push(ctx.ragContext);
 
   return parts.join("\n\n");
 }

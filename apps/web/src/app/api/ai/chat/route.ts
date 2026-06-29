@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { err, ok, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
-import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 import { executeRistoTool } from "@/lib/ai/risto-tools";
 import { type AiMessage } from "@/lib/ai/chat-core";
-import { callOpenAIChatCompletion } from "@/lib/ai/openai-stream";
+import { callLlmChatCompletion, resolveProviderApiKey } from "@/lib/ai/runtime/llm-provider";
 import { runAiChatStream } from "@/lib/ai/chat-stream";
 import { prepareBuiltChatContext, recordMemoryExchange } from "@/lib/ai/memory/context-manager";
 import { createSseResponse } from "@/lib/ai/sse";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
 import { isAiFeatureEnabled, isStreamingRuntimeEnabled } from "@/lib/ai/platform-config.runtime";
+import { buildTelemetry, logAiRequest, usageFromOpenAi } from "@/lib/ai/runtime/telemetry";
+import type { OpenAiUsage } from "@/lib/ai/runtime/types";
 
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req);
@@ -65,16 +66,18 @@ export async function POST(req: NextRequest) {
   const context = (payload.context || "default").trim().toLowerCase();
   const locale = (payload.locale || "it").trim().toLowerCase();
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    await aiChatRepository.log({
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey && !payload.stream) {
+    /* allow prepareBuiltChatContext to resolve provider-specific key */
+  } else if (!apiKey && payload.stream) {
+    await logAiRequest({
       tenantId,
       userId: user.id,
       context,
       userMessage: message,
-      errorMessage: "OPENAI_API_KEY non configurata",
+      errorMessage: "Nessuna API key AI configurata",
     });
-    return err("OPENAI_API_KEY non configurata", 500);
+    return err("Nessuna API key AI configurata", 500);
   }
 
   const history = Array.isArray(payload.history) ? payload.history.slice(-8) : [];
@@ -87,7 +90,7 @@ export async function POST(req: NextRequest) {
     enableTools: payload.enableTools,
     locale,
     userRole: user.role || "",
-    apiKey,
+    apiKey: apiKey ?? "",
   };
 
   if (payload.stream) {
@@ -102,7 +105,18 @@ export async function POST(req: NextRequest) {
 
   try {
     const built = await prepareBuiltChatContext({ ...chatParams });
-    let response = await callOpenAIChatCompletion(apiKey, built.openaiBodyBase);
+
+    if (!built.runtime.active) {
+      return err("Agente AI disattivato per questo tenant", 503);
+    }
+
+    if (!built.providerApiKey) {
+      return err("Provider AI non configurato per questo agente", 500);
+    }
+
+    let totalUsage: OpenAiUsage | null = null;
+    let response = await callLlmChatCompletion(built.runtime.provider, built.providerApiKey, built.openaiBodyBase);
+    totalUsage = response.usage;
     let toolsUsed: string[] = [];
 
     if (built.canUseFunctions && response.toolCalls.length > 0) {
@@ -132,10 +146,33 @@ export async function POST(req: NextRequest) {
       delete followUp.tools;
       delete followUp.tool_choice;
 
-      response = await callOpenAIChatCompletion(apiKey, followUp);
+      response = await callLlmChatCompletion(built.runtime.provider, built.providerApiKey, followUp);
+      if (response.usage) {
+        totalUsage = {
+          promptTokens: (totalUsage?.promptTokens ?? 0) + response.usage.promptTokens,
+          completionTokens: (totalUsage?.completionTokens ?? 0) + response.usage.completionTokens,
+          totalTokens: (totalUsage?.totalTokens ?? 0) + response.usage.totalTokens,
+        };
+      }
       if (!response.content) {
         const content = actionResults.join("\n\n");
-        await aiChatRepository.log({ tenantId, userId: user.id, context, userMessage: message, assistantMessage: content });
+        const tokens = usageFromOpenAi(totalUsage, message, content);
+        await logAiRequest({
+          tenantId,
+          userId: user.id,
+          context,
+          userMessage: message,
+          assistantMessage: content,
+          telemetry: buildTelemetry({
+            runtime: built.runtime,
+            ...tokens,
+            durationMs: Date.now() - built.startedAt,
+            ragUsed: built.rag.used,
+            ragDocumentsCount: built.rag.documentCount,
+            webSearchUsed: built.webSearch.used,
+            webSearchResultsCount: built.webSearch.resultCount,
+          }),
+        });
         await recordMemoryExchange({
           tenantId,
           userId: user.id,
@@ -145,6 +182,7 @@ export async function POST(req: NextRequest) {
           assistantMessage: content,
           toolsUsed,
           locale,
+          memoryEnabled: built.runtime.memoryEnabled,
         });
         return ok({ reply: content, actions: actionResults });
       }
@@ -152,11 +190,43 @@ export async function POST(req: NextRequest) {
 
     const content = response.content?.trim();
     if (!content) {
-      await aiChatRepository.log({ tenantId, userId: user.id, context, userMessage: message, errorMessage: "Risposta AI vuota" });
+      const tokens = usageFromOpenAi(totalUsage, message, "");
+      await logAiRequest({
+        tenantId,
+        userId: user.id,
+        context,
+        userMessage: message,
+        errorMessage: "Risposta AI vuota",
+        telemetry: buildTelemetry({
+          runtime: built.runtime,
+          ...tokens,
+          durationMs: Date.now() - built.startedAt,
+          ragUsed: built.rag.used,
+          ragDocumentsCount: built.rag.documentCount,
+          webSearchUsed: built.webSearch.used,
+          webSearchResultsCount: built.webSearch.resultCount,
+        }),
+      });
       return err("Risposta AI vuota", 502);
     }
 
-    await aiChatRepository.log({ tenantId, userId: user.id, context, userMessage: message, assistantMessage: content });
+    const tokens = usageFromOpenAi(totalUsage, message, content);
+    await logAiRequest({
+      tenantId,
+      userId: user.id,
+      context,
+      userMessage: message,
+      assistantMessage: content,
+      telemetry: buildTelemetry({
+        runtime: built.runtime,
+        ...tokens,
+        durationMs: Date.now() - built.startedAt,
+        ragUsed: built.rag.used,
+        ragDocumentsCount: built.rag.documentCount,
+        webSearchUsed: built.webSearch.used,
+        webSearchResultsCount: built.webSearch.resultCount,
+      }),
+    });
     await recordMemoryExchange({
       tenantId,
       userId: user.id,
@@ -166,11 +236,18 @@ export async function POST(req: NextRequest) {
       assistantMessage: content,
       toolsUsed,
       locale,
+      memoryEnabled: built.runtime.memoryEnabled,
     });
     return ok({ reply: content });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Errore sconosciuto";
-    await aiChatRepository.log({ tenantId, userId: user.id, context, userMessage: message, errorMessage: msg });
+    await logAiRequest({
+      tenantId,
+      userId: user.id,
+      context,
+      userMessage: message,
+      errorMessage: msg,
+    });
     return err(msg, 502);
   }
 }

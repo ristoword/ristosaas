@@ -10,6 +10,7 @@ import type { AiDecisionDomain, AiDecisionEnvelope } from "@/lib/ai/decisions/ty
 
 type EngineOptions = {
   tenantId: string;
+  userId?: string;
   periodDays: number;
   locale?: string;
   enrich: boolean;
@@ -35,6 +36,7 @@ async function wrapDecision(
       locale: options.locale,
       signal: options.signal,
       tenantId: options.tenantId,
+      userId: options.userId,
     });
   }
 

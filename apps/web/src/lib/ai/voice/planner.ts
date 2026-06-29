@@ -1,8 +1,8 @@
-import { DEFAULT_MODEL, TEMPERATURE } from "@/lib/ai/chat-core";
-import { callOpenAIChatCompletion } from "@/lib/ai/openai-stream";
+import { callLlmChatCompletion, resolveProviderApiKey } from "@/lib/ai/runtime/llm-provider";
 import { modulesFromScores, routeQuery } from "@/lib/ai/orchestrator/router";
 import type { OrchestratorModuleId } from "@/lib/ai/orchestrator/types";
 import { ORCHESTRATOR_STREAM_CONTEXT } from "@/lib/ai/module-ids";
+import { resolveAgentRuntime } from "@/lib/ai/runtime/agent-resolver";
 import type { VoicePlan } from "@/lib/ai/voice/types";
 
 const TOOL_KEYWORDS = [
@@ -61,20 +61,32 @@ function ruleBasedVoicePlan(transcript: string, contextHint?: string): VoicePlan
 
 export async function planVoiceTurn(
   transcript: string,
-  options?: { contextHint?: string; locale?: string; useAi?: boolean; signal?: AbortSignal },
+  options?: {
+    contextHint?: string;
+    locale?: string;
+    useAi?: boolean;
+    signal?: AbortSignal;
+    tenantId?: string;
+  },
 ): Promise<VoicePlan> {
   const rulePlan = ruleBasedVoicePlan(transcript, options?.contextHint);
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!options?.useAi || !options.tenantId) return rulePlan;
 
-  if (!options?.useAi || !apiKey) return rulePlan;
+  const routerContext = options.contextHint ?? rulePlan.primaryContext ?? rulePlan.modules[0] ?? "dashboard";
+  const runtime = await resolveAgentRuntime(options.tenantId, routerContext);
+  if (!runtime.active) return rulePlan;
+
+  const apiKey = resolveProviderApiKey(runtime.provider);
+  if (!apiKey) return rulePlan;
 
   try {
-    const { content } = await callOpenAIChatCompletion(
+    const { content } = await callLlmChatCompletion(
+      runtime.provider,
       apiKey,
       {
-        model: DEFAULT_MODEL,
-        temperature: Math.min(TEMPERATURE, 0.2),
-        max_tokens: 300,
+        model: runtime.model,
+        temperature: Math.min(runtime.temperature, 0.2),
+        max_tokens: Math.min(runtime.maxTokens, 300),
         response_format: { type: "json_object" },
         messages: [
           {

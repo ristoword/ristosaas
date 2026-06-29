@@ -64,6 +64,7 @@ export const PUBLIC_API_EXACT = ["/api/health"] as const;
  * nell'audit tra middleware e handler hardcoded.
  */
 export const API_ROLE_RULES: readonly ApiRule[] = [
+  { prefix: "/api/admin/ai-control", roles: ["super_admin", "partner"] },
   { prefix: "/api/admin", roles: ["super_admin"] },
   { prefix: "/api/billing", roles: ["owner", "super_admin"] },
   { prefix: "/api/reports", roles: ["owner", "super_admin", "supervisor", "cassa", "hotel_manager", "reception"] },

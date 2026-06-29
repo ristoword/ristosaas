@@ -7,14 +7,19 @@ import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { actorFromRequest, writeFolioAudit } from "@/lib/hotel/folio-service";
 import { buildFolioAiPromptContext, explainCharge } from "@/lib/hotel/folio-ai-service";
 import { enrichCharge } from "@/lib/hotel/folio-utils";
-import { DEFAULT_MODEL, MAX_TOKENS, TEMPERATURE, type AiMessage } from "@/lib/ai/chat-core";
-import { callOpenAIChatCompletion, streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
-import { recordMemoryExchange, augmentSystemPrompt } from "@/lib/ai/memory/context-manager";
+import { legacySystemPromptForContext, type AiMessage } from "@/lib/ai/chat-core";
+import { callLlmChatCompletion, resolveProviderApiKey, streamLlmChatCompletion } from "@/lib/ai/runtime/llm-provider";
+import { augmentSystemPrompt, recordMemoryExchange } from "@/lib/ai/memory/context-manager";
 import { createSseResponse, type SseEmitter } from "@/lib/ai/sse";
+import { resolveAgentWithPrompts } from "@/lib/ai/runtime/agent-resolver";
+import { retrieveAgentRagContext } from "@/lib/ai/runtime/rag-context";
+import { retrieveWebSearchContext } from "@/lib/ai/runtime/web-search";
+import { buildTelemetry, logAiRequest, usageFromOpenAi } from "@/lib/ai/runtime/telemetry";
 import { prisma } from "@/lib/db/prisma";
 import { body } from "@/lib/api/helpers";
 
 const ROLES = ["hotel_manager", "reception", "owner", "super_admin", "supervisor", "cassa"] as const;
+const FOLIO_CONTEXT = "folio";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -57,6 +62,66 @@ async function loadFolioContext(tenantId: string, folioId: string) {
   };
 }
 
+async function buildFolioSystemPrompt(params: {
+  tenantId: string;
+  userId: string;
+  message: string;
+  locale: string;
+  folioContext: string;
+  apiKey: string;
+}) {
+  const startedAt = Date.now();
+  const { runtime, prompts } = await resolveAgentWithPrompts(params.tenantId, FOLIO_CONTEXT);
+  const providerApiKey = resolveProviderApiKey(runtime.provider) ?? params.apiKey;
+
+  const [rag, webSearch] = await Promise.all([
+    retrieveAgentRagContext({
+      query: params.message,
+      apiKey: providerApiKey,
+      tenantId: params.tenantId,
+      module: runtime.module,
+      ragEnabled: runtime.ragEnabled,
+      vectorEnabled: runtime.vectorEnabled,
+    }),
+    retrieveWebSearchContext({
+      query: params.message,
+      webSearchEnabled: runtime.webSearchEnabled,
+    }),
+  ]);
+
+  let systemPrompt =
+    prompts.systemPrompt.trim() ||
+    legacySystemPromptForContext(FOLIO_CONTEXT, false, params.locale);
+
+  if (prompts.userPrompt.trim()) {
+    systemPrompt = `${systemPrompt}\n\n${prompts.userPrompt.trim()}`;
+  }
+
+  systemPrompt = `${systemPrompt}\n\nDati Guest Folio (tempo reale):\n${params.folioContext}`;
+
+  if (webSearch.context) {
+    systemPrompt = `${systemPrompt}\n\n${webSearch.context}`;
+  }
+
+  if (rag.context) {
+    systemPrompt = `${systemPrompt}\n\n${rag.context}`;
+  }
+
+  if (runtime.memoryEnabled) {
+    systemPrompt = await augmentSystemPrompt(systemPrompt, {
+      tenantId: params.tenantId,
+      userId: params.userId,
+      query: params.message,
+      context: FOLIO_CONTEXT,
+      channel: "chat",
+      locale: params.locale,
+      memoryEnabled: runtime.memoryEnabled,
+    });
+  }
+
+  return { systemPrompt, runtime, rag, webSearch, startedAt, providerApiKey };
+}
+
 async function runFolioChatStream(
   params: {
     tenantId: string;
@@ -83,22 +148,29 @@ async function runFolioChatStream(
     locale: params.locale,
   });
 
-  let systemPrompt = `Sei l'AI Concierge e Financial Assistant di RistoSimply per il Guest Folio.
-Assist Reception, Front Office e Amministrazione analizzando il conto ospite in tempo reale.
-Rispondi in modo professionale, sintetico e basato SOLO sui dati del folio forniti.
-Per pagamenti, checkout, email e PDF: proponi azioni ma NON eseguirle — serve sempre conferma umana.
-Puoi: spiegare addebiti, trovare movimenti, verificare anomalie, suggerire upsell, assistere al checkout.
-
-${folioContext}`;
-
-  systemPrompt = await augmentSystemPrompt(systemPrompt, {
+  const { systemPrompt, runtime, rag, webSearch, startedAt, providerApiKey } = await buildFolioSystemPrompt({
     tenantId: params.tenantId,
     userId: params.userId,
-    query: params.message,
-    context: "folio",
-    channel: "chat",
+    message: params.message,
     locale: params.locale,
+    folioContext,
+    apiKey: params.apiKey,
   });
+
+  if (!providerApiKey) {
+    emit({ type: "error", message: "Provider AI non configurato" });
+    return;
+  }
+
+  if (!runtime.active) {
+    emit({ type: "error", message: "Agente Guest Folio disattivato" });
+    return;
+  }
+
+  if (!runtime.streamingEnabled) {
+    emit({ type: "error", message: "Streaming disattivato per questo agente" });
+    return;
+  }
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -108,12 +180,13 @@ ${folioContext}`;
 
   emit({ type: "status", message: "Analisi folio in corso…" });
 
-  const { content } = await streamOpenAIChatCompletion(
-    params.apiKey,
+  const { content, usage } = await streamLlmChatCompletion(
+    runtime.provider,
+    providerApiKey,
     {
-      model: DEFAULT_MODEL,
-      temperature: TEMPERATURE,
-      max_tokens: MAX_TOKENS,
+      model: runtime.model,
+      temperature: runtime.temperature,
+      max_tokens: runtime.maxTokens,
       messages,
     },
     (token) => emit({ type: "token", content: token }),
@@ -130,15 +203,36 @@ ${folioContext}`;
     actor: { userId: params.userId },
   });
 
-  await recordMemoryExchange({
+  const tokens = usageFromOpenAi(usage, params.message, reply);
+  await logAiRequest({
     tenantId: params.tenantId,
     userId: params.userId,
-    channel: "chat",
-    context: "folio",
+    context: FOLIO_CONTEXT,
     userMessage: params.message,
     assistantMessage: reply,
-    locale: params.locale,
+    telemetry: buildTelemetry({
+      runtime,
+      ...tokens,
+      durationMs: Date.now() - startedAt,
+      ragUsed: rag.used,
+      ragDocumentsCount: rag.documentCount,
+      webSearchUsed: webSearch.used,
+      webSearchResultsCount: webSearch.resultCount,
+    }),
   });
+
+  if (runtime.memoryEnabled) {
+    await recordMemoryExchange({
+      tenantId: params.tenantId,
+      userId: params.userId,
+      channel: "chat",
+      context: FOLIO_CONTEXT,
+      userMessage: params.message,
+      assistantMessage: reply,
+      locale: params.locale,
+      memoryEnabled: runtime.memoryEnabled,
+    });
+  }
 
   emit({ type: "done", reply });
 }
@@ -197,19 +291,34 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     locale,
   });
 
-  const { content } = await callOpenAIChatCompletion(apiKey, {
-    model: DEFAULT_MODEL,
-    temperature: TEMPERATURE,
-    max_tokens: MAX_TOKENS,
-    messages: [
-      {
-        role: "system",
-        content: `Assistente Guest Folio RistoSimply. Usa SOLO i dati forniti.\n\n${folioContext}`,
-      },
-      ...history,
-      { role: "user", content: message },
-    ],
+  const { systemPrompt, runtime, rag, webSearch, startedAt, providerApiKey } = await buildFolioSystemPrompt({
+    tenantId,
+    userId: guard.user.id,
+    message,
+    locale,
+    folioContext,
+    apiKey,
   });
+
+  if (!runtime.active) return err("Agente Guest Folio disattivato", 503);
+  if (!providerApiKey) return err("Provider AI non configurato", 500);
+
+  const { content, usage } = await callLlmChatCompletion(
+    runtime.provider,
+    providerApiKey,
+    {
+      model: runtime.model,
+      temperature: runtime.temperature,
+      max_tokens: runtime.maxTokens,
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...history,
+        { role: "user", content: message },
+      ],
+    },
+  );
+
+  const reply = content?.trim() || "";
 
   await writeFolioAudit({
     tenantId,
@@ -219,7 +328,38 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     actor: actorFromRequest(guard.user, req.headers),
   });
 
-  return Response.json({ reply: content?.trim() || "" });
+  const tokens = usageFromOpenAi(usage, message, reply);
+  await logAiRequest({
+    tenantId,
+    userId: guard.user.id,
+    context: FOLIO_CONTEXT,
+    userMessage: message,
+    assistantMessage: reply,
+    telemetry: buildTelemetry({
+      runtime,
+      ...tokens,
+      durationMs: Date.now() - startedAt,
+      ragUsed: rag.used,
+      ragDocumentsCount: rag.documentCount,
+      webSearchUsed: webSearch.used,
+      webSearchResultsCount: webSearch.resultCount,
+    }),
+  });
+
+  if (runtime.memoryEnabled && reply) {
+    await recordMemoryExchange({
+      tenantId,
+      userId: guard.user.id,
+      channel: "chat",
+      context: FOLIO_CONTEXT,
+      userMessage: message,
+      assistantMessage: reply,
+      locale,
+      memoryEnabled: runtime.memoryEnabled,
+    });
+  }
+
+  return Response.json({ reply });
 }
 
 export async function GET(req: NextRequest, ctx: Ctx) {

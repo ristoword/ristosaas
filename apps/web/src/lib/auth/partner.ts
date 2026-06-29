@@ -21,6 +21,7 @@ export function isPartnerReadOnlyRequest(method: string, pathname: string): bool
   if (SAFE_METHODS.has(method.toUpperCase())) return true;
   if (pathname.startsWith("/api/partner/audit") || pathname.startsWith("/api/partner/ai/")) return true;
   if (pathname.startsWith("/api/ai/")) return true;
+  if (pathname.startsWith("/api/admin/ai-control")) return method === "GET" || method === "HEAD";
   if (pathname.includes("/ai/")) return true;
   if (pathname.endsWith("/export") && method === "POST") return true;
   if (PARTNER_MUTATION_SUFFIXES.some((s) => pathname.endsWith(s))) return true;

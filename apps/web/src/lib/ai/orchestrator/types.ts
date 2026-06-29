@@ -56,7 +56,12 @@ export type OrchestratorContext = {
   locale: string;
   periodDays: number;
   ragContext: string | null;
+  ragDocumentCount?: number;
+  webSearchContext?: string | null;
+  webSearchResultCount?: number;
   query: string;
+  agentSlug?: string;
+  routerContext?: string;
 };
 
 export type OrchestratorResponse = {

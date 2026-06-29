@@ -1,10 +1,11 @@
-import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 import { executeRistoTool } from "@/lib/ai/risto-tools";
-import { callOpenAIChatCompletion, streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
 import { prepareBuiltChatContext, recordMemoryExchange } from "@/lib/ai/memory/context-manager";
-import type { AiMessage } from "@/lib/ai/chat-core";
+import type { AiMessage, BuiltChatContext } from "@/lib/ai/chat-core";
 import type { SseEmitter } from "@/lib/ai/sse";
+import { callLlmChatCompletion, streamLlmChatCompletion } from "@/lib/ai/runtime/llm-provider";
+import { buildTelemetry, logAiRequest, usageFromOpenAi } from "@/lib/ai/runtime/telemetry";
+import type { OpenAiUsage } from "@/lib/ai/runtime/types";
 
 export type StreamChatParams = {
   tenantId: string;
@@ -18,19 +19,85 @@ export type StreamChatParams = {
   apiKey: string;
 };
 
+async function persistChatResult(params: {
+  built: BuiltChatContext;
+  tenantId: string;
+  userId: string;
+  context: string;
+  message: string;
+  assistantMessage?: string | null;
+  errorMessage?: string | null;
+  locale?: string;
+  toolsUsed?: string[];
+  usage?: OpenAiUsage | null;
+}) {
+  const { built, usage, ...rest } = params;
+  const tokens = usageFromOpenAi(usage, params.message, params.assistantMessage ?? "");
+  const telemetry = buildTelemetry({
+    runtime: built.runtime,
+    tokensIn: tokens.tokensIn,
+    tokensOut: tokens.tokensOut,
+    durationMs: Date.now() - built.startedAt,
+    ragUsed: built.rag.used,
+    ragDocumentsCount: built.rag.documentCount,
+    webSearchUsed: built.webSearch.used,
+    webSearchResultsCount: built.webSearch.resultCount,
+  });
+
+  await logAiRequest({
+    tenantId: rest.tenantId,
+    userId: rest.userId,
+    context: rest.context,
+    userMessage: rest.message,
+    assistantMessage: rest.assistantMessage,
+    errorMessage: rest.errorMessage,
+    telemetry,
+  });
+
+  if (rest.assistantMessage && !rest.errorMessage) {
+    await recordMemoryExchange({
+      tenantId: rest.tenantId,
+      userId: rest.userId,
+      channel: "chat",
+      context: rest.context,
+      userMessage: rest.message,
+      assistantMessage: rest.assistantMessage,
+      toolsUsed: rest.toolsUsed,
+      locale: rest.locale,
+      memoryEnabled: built.runtime.memoryEnabled,
+    });
+  }
+}
+
 export async function runAiChatStream(
   params: StreamChatParams,
   emit: SseEmitter,
   signal: AbortSignal,
 ): Promise<void> {
-  const { tenantId, userId, context, message, apiKey } = params;
+  const { tenantId, userId, context, message } = params;
 
   try {
     const built = await prepareBuiltChatContext({ ...params, emit });
+    const llmKey = built.providerApiKey;
+
+    if (!llmKey) {
+      emit({ type: "error", message: "API key provider non configurata" });
+      return;
+    }
+
+    if (!built.runtime.active) {
+      emit({ type: "error", message: "Agente AI disattivato per questo tenant" });
+      return;
+    }
+
+    if (!built.runtime.streamingEnabled) {
+      emit({ type: "error", message: "Streaming disattivato per questo agente" });
+      return;
+    }
 
     if (built.canUseFunctions) {
       emit({ type: "status", message: pickStatusMessage("risto", 2) });
-      const first = await callOpenAIChatCompletion(apiKey, built.openaiBodyBase, signal);
+      const first = await callLlmChatCompletion(built.runtime.provider, llmKey, built.openaiBodyBase, signal);
 
       if (first.toolCalls.length > 0) {
         emit({ type: "status", message: "Eseguo le azioni richieste…" });
@@ -64,9 +131,11 @@ export async function runAiChatStream(
         delete followUp.tool_choice;
 
         let fullReply = "";
+        let usage = first.usage;
         try {
-          const streamed = await streamOpenAIChatCompletion(
-            apiKey,
+          const streamed = await streamLlmChatCompletion(
+            built.runtime.provider,
+            llmKey,
             followUp,
             (token) => {
               fullReply += token;
@@ -75,28 +144,23 @@ export async function runAiChatStream(
             signal,
           );
           fullReply = streamed.content.trim() || actionResults.join("\n\n");
+          usage = streamed.usage ?? usage;
         } catch (streamErr) {
           if (signal.aborted) throw streamErr;
           fullReply = actionResults.join("\n\n");
           emit({ type: "token", content: fullReply });
         }
 
-        await aiChatRepository.log({
+        await persistChatResult({
+          built,
           tenantId,
           userId,
           context,
-          userMessage: message,
+          message,
           assistantMessage: fullReply,
-        });
-        await recordMemoryExchange({
-          tenantId,
-          userId,
-          channel: "chat",
-          context,
-          userMessage: message,
-          assistantMessage: fullReply,
-          toolsUsed,
           locale: params.locale,
+          toolsUsed,
+          usage,
         });
         emit({ type: "done", reply: fullReply, actions: actionResults });
         return;
@@ -104,21 +168,15 @@ export async function runAiChatStream(
 
       if (first.content) {
         emit({ type: "token", content: first.content });
-        await aiChatRepository.log({
+        await persistChatResult({
+          built,
           tenantId,
           userId,
           context,
-          userMessage: message,
-          assistantMessage: first.content,
-        });
-        await recordMemoryExchange({
-          tenantId,
-          userId,
-          channel: "chat",
-          context,
-          userMessage: message,
+          message,
           assistantMessage: first.content,
           locale: params.locale,
+          usage: first.usage,
         });
         emit({ type: "done", reply: first.content });
         return;
@@ -127,8 +185,9 @@ export async function runAiChatStream(
 
     emit({ type: "status", message: pickStatusMessage(context, 3) });
     let fullReply = "";
-    const streamed = await streamOpenAIChatCompletion(
-      apiKey,
+    const streamed = await streamLlmChatCompletion(
+      built.runtime.provider,
+      llmKey,
       built.openaiBodyBase,
       (token) => {
         fullReply += token;
@@ -140,31 +199,27 @@ export async function runAiChatStream(
 
     if (!fullReply) {
       emit({ type: "error", message: "Risposta AI vuota" });
-      await aiChatRepository.log({
+      await persistChatResult({
+        built,
         tenantId,
         userId,
         context,
-        userMessage: message,
+        message,
         errorMessage: "Risposta AI vuota",
+        usage: streamed.usage,
       });
       return;
     }
 
-    await aiChatRepository.log({
+    await persistChatResult({
+      built,
       tenantId,
       userId,
       context,
-      userMessage: message,
-      assistantMessage: fullReply,
-    });
-    await recordMemoryExchange({
-      tenantId,
-      userId,
-      channel: "chat",
-      context,
-      userMessage: message,
+      message,
       assistantMessage: fullReply,
       locale: params.locale,
+      usage: streamed.usage,
     });
     emit({ type: "done", reply: fullReply });
   } catch (e) {
@@ -173,7 +228,7 @@ export async function runAiChatStream(
       return;
     }
     const msg = e instanceof Error ? e.message : "Errore sconosciuto";
-    await aiChatRepository.log({
+    await logAiRequest({
       tenantId,
       userId,
       context,

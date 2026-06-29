@@ -137,6 +137,53 @@ describe("orchestrator integration (mocked)", () => {
 
   it("runOrchestrator returns unified rule-based reply", async () => {
     vi.resetModules();
+    vi.doMock("@/lib/ai/runtime/agent-resolver", () => ({
+      resolveAgentRuntime: vi.fn(async () => ({
+        agentId: "agent-1",
+        agentSlug: "kitchen-ai",
+        agentName: "Kitchen AI",
+        tenantId: "tenant-test",
+        module: "kitchen",
+        provider: "openai",
+        model: "gpt-4o-mini",
+        prompt: "",
+        systemPrompt: "",
+        temperature: 0.4,
+        maxTokens: 1200,
+        memoryEnabled: false,
+        ragEnabled: false,
+        vectorEnabled: false,
+        toolCallingEnabled: false,
+        streamingEnabled: true,
+        webSearchEnabled: false,
+        schedulerEnabled: false,
+        active: true,
+      })),
+      resolveAgentWithPrompts: vi.fn(async () => ({
+        runtime: {
+          agentId: "agent-1",
+          agentSlug: "kitchen-ai",
+          agentName: "Kitchen AI",
+          tenantId: "tenant-test",
+          module: "kitchen",
+          provider: "openai",
+          model: "gpt-4o-mini",
+          prompt: "",
+          systemPrompt: "",
+          temperature: 0.4,
+          maxTokens: 1200,
+          memoryEnabled: false,
+          ragEnabled: false,
+          vectorEnabled: false,
+          toolCallingEnabled: false,
+          streamingEnabled: true,
+          webSearchEnabled: false,
+          schedulerEnabled: false,
+          active: true,
+        },
+        prompts: { systemPrompt: "", userPrompt: "", templateId: null, templateVersion: null },
+      })),
+    }));
     vi.doMock("@/lib/ai/module-ai.service", () => ({
       runModuleAi: vi.fn(async (slug: string) => ({
         module: slug,

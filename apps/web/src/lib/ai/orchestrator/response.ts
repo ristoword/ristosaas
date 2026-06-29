@@ -1,10 +1,12 @@
-import { DEFAULT_MODEL, MAX_TOKENS, TEMPERATURE } from "@/lib/ai/chat-core";
-import { callOpenAIChatCompletion, streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
+import { legacySystemPromptForContext } from "@/lib/ai/chat-core";
 import { augmentSystemPrompt } from "@/lib/ai/memory/context-manager";
 import { getModuleDefinition } from "@/lib/ai/modules/config";
 import type { SseEmitter } from "@/lib/ai/sse";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
 import { formatContextForPrompt } from "@/lib/ai/orchestrator/context";
+import { resolveAgentWithPrompts } from "@/lib/ai/runtime/agent-resolver";
+import { callLlmChatCompletion, resolveProviderApiKey, streamLlmChatCompletion } from "@/lib/ai/runtime/llm-provider";
+import { buildTelemetry, logAiRequest, usageFromOpenAi } from "@/lib/ai/runtime/telemetry";
 import type {
   OrchestratorContext,
   OrchestratorModuleResult,
@@ -46,11 +48,17 @@ export function unifyRuleBasedResponse(
     .join("\n");
 }
 
+async function resolveOrchestratorAgent(tenantId: string, plan: OrchestratorPlan, ctx: OrchestratorContext) {
+  const primaryModule = ctx.routerContext ?? plan.modules[0] ?? "dashboard";
+  return resolveAgentWithPrompts(tenantId, primaryModule);
+}
+
 function buildSynthesisPrompt(
   query: string,
   plan: OrchestratorPlan,
   modules: OrchestratorModuleResult[],
   ctx: OrchestratorContext,
+  agentSystemPrompt: string,
 ): { system: string; user: string } {
   const lang = ctx.locale.startsWith("en") ? "English" : "italiano";
   const moduleData = modules
@@ -63,7 +71,12 @@ function buildSynthesisPrompt(
     }))
     .slice(0, 5);
 
-  const systemBase = `Sei l'orchestratore centrale AI di RistoSimply.
+  const systemBase = agentSystemPrompt.trim() ||
+    legacySystemPromptForContext(ctx.routerContext ?? "orchestrator", false, ctx.locale);
+
+  const system = `${systemBase}
+
+Sei l'orchestratore centrale AI di RistoSimply.
 Unifica i dati di più moduli in UNA risposta coerente per il team operativo.
 
 Regole:
@@ -74,7 +87,7 @@ Regole:
 - Se moduli hanno dati contrastanti, segnala e preferisci i dati rule-based.`;
 
   return {
-    system: systemBase,
+    system,
     user: [
       formatContextForPrompt(ctx),
       `Domanda utente: ${query}`,
@@ -89,25 +102,31 @@ async function buildSynthesisMessages(
   plan: OrchestratorPlan,
   modules: OrchestratorModuleResult[],
   ctx: OrchestratorContext,
-): Promise<Array<{ role: "system" | "user"; content: string }>> {
-  const { system, user } = buildSynthesisPrompt(query, plan, modules, ctx);
+) {
+  const { runtime, prompts } = await resolveOrchestratorAgent(ctx.tenantId, plan, ctx);
+  const { system, user } = buildSynthesisPrompt(query, plan, modules, ctx, prompts.systemPrompt);
   let systemWithMemory = system;
 
-  if (ctx.userId) {
+  if (ctx.userId && runtime.memoryEnabled) {
     systemWithMemory = await augmentSystemPrompt(system, {
       tenantId: ctx.tenantId,
       userId: ctx.userId,
       query,
-      context: "orchestrator",
+      context: ctx.routerContext ?? "orchestrator",
       channel: "orchestrator",
       locale: ctx.locale,
+      memoryEnabled: runtime.memoryEnabled,
     });
   }
 
-  return [
-    { role: "system", content: systemWithMemory },
-    { role: "user", content: user },
-  ];
+  return {
+    messages: [
+      { role: "system" as const, content: systemWithMemory },
+      { role: "user" as const, content: user },
+    ],
+    runtime,
+    startedAt: Date.now(),
+  };
 }
 
 export async function unifyAiResponse(
@@ -117,24 +136,49 @@ export async function unifyAiResponse(
   ctx: OrchestratorContext,
   signal?: AbortSignal,
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const { messages, runtime, startedAt } = await buildSynthesisMessages(query, plan, modules, ctx);
+
+  if (!runtime.active) {
+    return unifyRuleBasedResponse(query, plan, modules, ctx);
+  }
+
+  const apiKey = resolveProviderApiKey(runtime.provider);
   if (!apiKey) {
     return unifyRuleBasedResponse(query, plan, modules, ctx);
   }
 
-  const messages = await buildSynthesisMessages(query, plan, modules, ctx);
-
   try {
-    const { content } = await callOpenAIChatCompletion(
+    const { content, usage } = await callLlmChatCompletion(
+      runtime.provider,
       apiKey,
       {
-        model: DEFAULT_MODEL,
-        temperature: TEMPERATURE,
-        max_tokens: Math.min(MAX_TOKENS, 1400),
+        model: runtime.model,
+        temperature: runtime.temperature,
+        max_tokens: Math.min(runtime.maxTokens, 1400),
         messages,
       },
       signal,
     );
+
+    if (ctx.userId) {
+      const tokens = usageFromOpenAi(usage, query, content ?? "");
+      await logAiRequest({
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        context: ctx.routerContext ?? "orchestrator",
+        userMessage: query,
+        assistantMessage: content,
+        telemetry: buildTelemetry({
+          runtime,
+          ...tokens,
+          durationMs: Date.now() - startedAt,
+          ragUsed: Boolean(ctx.ragContext),
+          ragDocumentsCount: ctx.ragDocumentCount ?? 0,
+          webSearchUsed: Boolean(ctx.webSearchContext),
+          webSearchResultsCount: ctx.webSearchResultCount ?? 0,
+        }),
+      });
+    }
 
     return content?.trim() || unifyRuleBasedResponse(query, plan, modules, ctx);
   } catch {
@@ -150,40 +194,68 @@ export async function streamUnifiedResponse(
   emit: SseEmitter,
   signal?: AbortSignal,
 ): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-
   emit({
     type: "meta",
     data: {
       plan,
       modules: modules.map((m) => ({ module: m.module, source: m.source, error: m.error })),
       ragUsed: Boolean(ctx.ragContext),
+      webSearchUsed: Boolean(ctx.webSearchContext),
+      agentSlug: ctx.agentSlug,
     },
   });
 
   emit({ type: "status", message: pickStatusMessage("briefing", 0) });
   emit({ type: "status", message: pickStatusMessage("briefing", 2) });
 
+  const { messages, runtime, startedAt } = await buildSynthesisMessages(query, plan, modules, ctx);
+
+  if (!runtime.active || !runtime.streamingEnabled) {
+    const fallback = unifyRuleBasedResponse(query, plan, modules, ctx);
+    emit({ type: "token", content: fallback });
+    return fallback;
+  }
+
+  const apiKey = resolveProviderApiKey(runtime.provider);
   if (!apiKey) {
     const fallback = unifyRuleBasedResponse(query, plan, modules, ctx);
     emit({ type: "token", content: fallback });
     return fallback;
   }
 
-  const messages = await buildSynthesisMessages(query, plan, modules, ctx);
-
   try {
-    const { content } = await streamOpenAIChatCompletion(
+    const { content, usage } = await streamLlmChatCompletion(
+      runtime.provider,
       apiKey,
       {
-        model: DEFAULT_MODEL,
-        temperature: TEMPERATURE,
-        max_tokens: Math.min(MAX_TOKENS, 1400),
+        model: runtime.model,
+        temperature: runtime.temperature,
+        max_tokens: Math.min(runtime.maxTokens, 1400),
         messages,
       },
       (token) => emit({ type: "token", content: token }),
       signal,
     );
+
+    if (ctx.userId) {
+      const tokens = usageFromOpenAi(usage, query, content);
+      await logAiRequest({
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+        context: ctx.routerContext ?? "orchestrator",
+        userMessage: query,
+        assistantMessage: content,
+        telemetry: buildTelemetry({
+          runtime,
+          ...tokens,
+          durationMs: Date.now() - startedAt,
+          ragUsed: Boolean(ctx.ragContext),
+          ragDocumentsCount: ctx.ragDocumentCount ?? 0,
+          webSearchUsed: Boolean(ctx.webSearchContext),
+          webSearchResultsCount: ctx.webSearchResultCount ?? 0,
+        }),
+      });
+    }
 
     return content.trim() || unifyRuleBasedResponse(query, plan, modules, ctx);
   } catch {

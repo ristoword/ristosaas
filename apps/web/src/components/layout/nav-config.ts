@@ -115,12 +115,12 @@ export const navSections: NavSection[] = [
       },
       {
         id: "ai-configuration-center",
-        label: "AI Configuration Center",
-        hint: "Controllo infrastruttura AI, toggle, RAG, health — Super Admin.",
+        label: "AI Enterprise Control Center",
+        hint: "Agenti, prompt, RAG, costi, analytics e infrastruttura AI.",
         href: "/ai-configuration-center",
         icon: Settings2,
         ready: true,
-        visibleFor: ["super_admin"],
+        visibleFor: ["super_admin", "partner"],
       },
       {
         id: "ai-assistente",

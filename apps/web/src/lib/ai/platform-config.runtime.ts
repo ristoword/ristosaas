@@ -76,7 +76,7 @@ export async function isAiFeatureEnabled(key: AiFeatureKey): Promise<boolean> {
 /** Sync check using cached config — for hot paths after first load. */
 let syncCache: AiPlatformToggles | null = null;
 let syncCacheAt = 0;
-const SYNC_CACHE_MS = 3000;
+const SYNC_CACHE_MS = 0;
 
 async function cachedConfig(): Promise<AiPlatformToggles> {
   const now = Date.now();
@@ -173,6 +173,24 @@ export function isMultiAgentEnabledSync(): boolean {
 
 /** Warm cache on module load in server context. */
 void cachedConfig().catch(() => undefined);
+
+export async function isSchedulerRuntimeEnabled(): Promise<boolean> {
+  return isAiFeatureEnabled("scheduler");
+}
+
+export async function isWebSearchRuntimeEnabled(): Promise<boolean> {
+  if (!isWebSearchAvailable()) return false;
+  return isAiFeatureEnabled("webSearch");
+}
+
+export function isSchedulerEnabledSync(): boolean {
+  return syncToggle("scheduler", process.env.AI_SCHEDULER_ENABLED);
+}
+
+export function isWebSearchEnabledSync(): boolean {
+  if (!isWebSearchAvailable()) return false;
+  return syncToggle("webSearch", process.env.AI_WEB_SEARCH_ENABLED);
+}
 
 export function isWebSearchAvailable(): boolean {
   return Boolean(process.env.TAVILY_API_KEY?.trim() || process.env.SERPER_API_KEY?.trim());

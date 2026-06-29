@@ -25,6 +25,8 @@ const TOGGLE_KEYS: (keyof AiPlatformTogglePatch)[] = [
   "memoryEnabled",
   "ragEnabled",
   "vectorDbEnabled",
+  "embeddingEnabled",
+  "indexingEnabled",
   "toolCallingEnabled",
   "voiceAiEnabled",
   "automationsEnabled",

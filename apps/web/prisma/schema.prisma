@@ -403,6 +403,10 @@ model Tenant {
   aiKnowledgeIndexJobs AiKnowledgeIndexJob[]
   aiKnowledgeAuditLogs AiKnowledgeAuditLog[]
   aiVectorChunks AiVectorChunk[]
+  aiAgents AiAgent[]
+  aiPromptTemplates AiPromptTemplate[]
+  aiControlAuditLogs AiControlAuditLog[]
+  aiTenantMarketplaceAgents AiTenantMarketplaceAgent[]
   recipes     Recipe[]
   menuItems   MenuItem[]
   dailyDishes DailyDish[]
@@ -1375,6 +1379,7 @@ model AiChatLog {
   userMessage      String
   assistantMessage String?
   errorMessage     String?
+  metadata         Json     @default("{}")
   createdAt        DateTime @default(now())
   tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -2432,4 +2437,130 @@ model StaffReward {
   tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, staffName, createdAt])
+}
+
+/// Enterprise AI agent configuration (multi-tenant, persistent).
+model AiAgent {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  slug                String
+  name                String
+  description         String   @default("")
+  module              String
+  provider            String   @default("openai")
+  model               String   @default("gpt-4o-mini")
+  prompt              String   @default("") @db.Text
+  systemPrompt        String   @default("") @db.Text
+  temperature         Float    @default(0.4)
+  maxTokens           Int      @default(1200)
+  memoryEnabled       Boolean  @default(true)
+  ragEnabled          Boolean  @default(true)
+  vectorEnabled       Boolean  @default(true)
+  toolCallingEnabled  Boolean  @default(true)
+  streamingEnabled    Boolean  @default(true)
+  webSearchEnabled    Boolean  @default(false)
+  schedulerEnabled    Boolean  @default(false)
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, module, active])
+}
+
+/// Prompt templates with versioning (Prompt Manager).
+model AiPromptTemplate {
+  id          String              @id @default(cuid())
+  tenantId    String?
+  key         String
+  name        String
+  module      String              @default("general")
+  description String              @default("")
+  content     String              @db.Text
+  systemPrompt String             @default("") @db.Text
+  version     Int                 @default(1)
+  tags        Json                @default("[]")
+  active      Boolean             @default(true)
+  createdBy   String?
+  updatedBy   String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  tenant      Tenant?             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  versions    AiPromptVersion[]
+
+  @@unique([tenantId, key])
+  @@index([tenantId, module])
+}
+
+model AiPromptVersion {
+  id           String           @id @default(cuid())
+  templateId   String
+  version      Int
+  content      String           @db.Text
+  systemPrompt String           @default("") @db.Text
+  changeNote   String?
+  createdBy    String?
+  createdAt    DateTime         @default(now())
+  template     AiPromptTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, version])
+  @@index([templateId, createdAt])
+}
+
+/// Audit trail for AI Enterprise Control Center mutations.
+model AiControlAuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  actorId     String
+  actorRole   String
+  actorEmail  String?
+  agentId     String?
+  operation   String
+  entityType  String
+  entityId    String?
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([operation, createdAt])
+  @@index([entityType, entityId])
+}
+
+/// Marketplace agent catalog (platform-wide).
+model AiMarketplaceAgent {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  description  String   @db.Text
+  module       String
+  category     String   @default("general")
+  provider     String   @default("openai")
+  model        String   @default("gpt-4o-mini")
+  systemPrompt String   @default("") @db.Text
+  prompt       String   @default("") @db.Text
+  priceLabel   String   @default("included")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  installs     AiTenantMarketplaceAgent[]
+}
+
+/// Per-tenant marketplace installations.
+model AiTenantMarketplaceAgent {
+  id           String             @id @default(cuid())
+  tenantId     String
+  marketplaceId String
+  installedBy  String?
+  active       Boolean            @default(true)
+  installedAt  DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  tenant       Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  marketplace  AiMarketplaceAgent @relation(fields: [marketplaceId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, marketplaceId])
+  @@index([tenantId, active])
 }

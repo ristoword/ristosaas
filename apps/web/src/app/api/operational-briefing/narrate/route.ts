@@ -7,8 +7,12 @@ import {
   operationalBriefingRepository,
 } from "@/lib/db/repositories/operational-briefing.repository";
 import { createSseResponse } from "@/lib/ai/sse";
-import { streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
+import { resolveAgentWithPrompts } from "@/lib/ai/runtime/agent-resolver";
+import { callLlmChatCompletion, resolveProviderApiKey, streamLlmChatCompletion } from "@/lib/ai/runtime/llm-provider";
+import { buildTelemetry, logAiRequest, usageFromOpenAi } from "@/lib/ai/runtime/telemetry";
+
+const BRIEFING_CONTEXT = "dashboard";
 
 const BRIEFING_ROLES = [
   "owner", "supervisor", "sala", "cucina", "bar", "pizzeria", "cassa", "magazzino",
@@ -32,8 +36,7 @@ export async function POST(req: NextRequest) {
   const briefing = await operationalBriefingRepository.build(tenantId, guard.user.id);
   const fallbackNarrative = buildBriefingNarrative(briefing);
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey || payload.enhance === false) {
+  if (payload.enhance === false) {
     const result = { briefing, narrative: fallbackNarrative, source: "template" as const };
     if (payload.stream) {
       return createSseResponse(async (emit) => {
@@ -45,15 +48,53 @@ export async function POST(req: NextRequest) {
     return ok(result);
   }
 
-  const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
-  const systemContent = `Sei Risto, l'assistente vocale di RistoSimply. Devi leggere ad alta voce un briefing operativo del giorno.
+  const startedAt = Date.now();
+  const { runtime, prompts } = await resolveAgentWithPrompts(tenantId, BRIEFING_CONTEXT);
+  const providerApiKey = resolveProviderApiKey(runtime.provider);
+
+  if (!providerApiKey || !runtime.active) {
+    const result = { briefing, narrative: fallbackNarrative, source: "template" as const };
+    if (payload.stream) {
+      return createSseResponse(async (emit) => {
+        emit({ type: "meta", data: { briefing, source: "template" } });
+        emit({ type: "token", content: fallbackNarrative });
+        emit({ type: "done", narrative: fallbackNarrative, source: "template", briefing });
+      }, req.signal);
+    }
+    return ok(result);
+  }
+
+  let systemContent =
+    prompts.systemPrompt.trim() ||
+    `Sei Risto, l'assistente vocale di RistoSimply. Devi leggere ad alta voce un briefing operativo del giorno.
 Rispondi in ${langName}, in tono professionale ma amichevole, come un briefing mattutino al team.
 Struttura: saluto → prenotazioni e coperti → staff presente → comande attive e da preparare → magazzino e ordini in attesa → cose da fare → hotel (se presente) → chiusura breve.
 Usa SOLO i dati JSON forniti. Non inventare numeri. Massimo 250 parole. Scrivi testo fluido da leggere ad alta voce, senza elenchi puntati né markdown.`;
 
+  if (prompts.userPrompt.trim()) {
+    systemContent = `${systemContent}\n\n${prompts.userPrompt.trim()}`;
+  }
+
   const userContent = `Dati operativi di oggi:\n${JSON.stringify(briefing, null, 2)}`;
+  const llmBody = {
+    model: runtime.model,
+    temperature: Math.min(runtime.temperature, 0.5),
+    max_tokens: Math.min(runtime.maxTokens, 900),
+    messages: [
+      { role: "system", content: systemContent },
+      { role: "user", content: userContent },
+    ],
+  };
 
   if (payload.stream) {
+    if (!runtime.streamingEnabled) {
+      return createSseResponse(async (emit) => {
+        emit({ type: "meta", data: { briefing, source: "template" } });
+        emit({ type: "token", content: fallbackNarrative });
+        emit({ type: "done", narrative: fallbackNarrative, source: "template", briefing });
+      }, req.signal);
+    }
+
     return createSseResponse(async (emit, signal) => {
       emit({ type: "meta", data: { briefing } });
       emit({ type: "status", message: pickStatusMessage("briefing", 0) });
@@ -62,17 +103,10 @@ Usa SOLO i dati JSON forniti. Non inventare numeri. Massimo 250 parole. Scrivi t
 
       try {
         let narrative = "";
-        const result = await streamOpenAIChatCompletion(
-          apiKey,
-          {
-            model,
-            temperature: 0.5,
-            max_tokens: 900,
-            messages: [
-              { role: "system", content: systemContent },
-              { role: "user", content: userContent },
-            ],
-          },
+        const result = await streamLlmChatCompletion(
+          runtime.provider,
+          providerApiKey,
+          llmBody,
           (token) => {
             narrative += token;
             emit({ type: "token", content: token });
@@ -80,6 +114,23 @@ Usa SOLO i dati JSON forniti. Non inventare numeri. Massimo 250 parole. Scrivi t
           signal,
         );
         narrative = result.content.trim() || fallbackNarrative;
+
+        const tokens = usageFromOpenAi(result.usage, userContent, narrative);
+        await logAiRequest({
+          tenantId,
+          userId: guard.user.id,
+          context: BRIEFING_CONTEXT,
+          userMessage: "Briefing narrato",
+          assistantMessage: narrative,
+          telemetry: buildTelemetry({
+            runtime,
+            ...tokens,
+            durationMs: Date.now() - startedAt,
+            ragUsed: false,
+            ragDocumentsCount: 0,
+          }),
+        });
+
         emit({ type: "done", narrative, source: "ai", briefing });
       } catch {
         emit({ type: "token", content: fallbackNarrative });
@@ -89,32 +140,32 @@ Usa SOLO i dati JSON forniti. Non inventare numeri. Massimo 250 parole. Scrivi t
   }
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.5,
-        max_tokens: 900,
-        messages: [
-          { role: "system", content: systemContent },
-          { role: "user", content: userContent },
-        ],
+    const { content, usage } = await callLlmChatCompletion(
+      runtime.provider,
+      providerApiKey,
+      llmBody,
+      AbortSignal.timeout(25_000),
+    );
+
+    const narrative = content?.trim() || fallbackNarrative;
+
+    const tokens = usageFromOpenAi(usage, userContent, narrative);
+    await logAiRequest({
+      tenantId,
+      userId: guard.user.id,
+      context: BRIEFING_CONTEXT,
+      userMessage: "Briefing narrato",
+      assistantMessage: narrative,
+      telemetry: buildTelemetry({
+        runtime,
+        ...tokens,
+        durationMs: Date.now() - startedAt,
+        ragUsed: false,
+        ragDocumentsCount: 0,
       }),
-      signal: AbortSignal.timeout(25_000),
     });
 
-    if (!response.ok) {
-      return ok({ briefing, narrative: fallbackNarrative, source: "template" });
-    }
-
-    const json = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const narrative = json.choices?.[0]?.message?.content?.trim() || fallbackNarrative;
-
-    return ok({ briefing, narrative, source: "ai" });
+    return ok({ briefing, narrative, source: narrative === fallbackNarrative ? "template" : "ai" });
   } catch {
     return ok({ briefing, narrative: fallbackNarrative, source: "template" });
   }

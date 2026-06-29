@@ -18,6 +18,7 @@ export type MemoryContextInput = {
   context: string;
   channel?: MemoryChannel;
   locale?: string;
+  memoryEnabled?: boolean;
 };
 
 export type LoadedMemoryContext = {
@@ -45,6 +46,7 @@ function isMemoryEnabled(): boolean {
 }
 
 export async function loadMemoryContext(input: MemoryContextInput): Promise<LoadedMemoryContext | null> {
+  if (input.memoryEnabled === false) return null;
   if (!isMemoryEnabled()) return null;
 
   try {
@@ -107,7 +109,8 @@ export async function loadMemoryContext(input: MemoryContextInput): Promise<Load
   }
 }
 
-export async function recordMemoryExchange(input: RecordMemoryInput): Promise<void> {
+export async function recordMemoryExchange(input: RecordMemoryInput & { memoryEnabled?: boolean }): Promise<void> {
+  if (input.memoryEnabled === false) return;
   if (!isMemoryEnabled()) return;
 
   try {
@@ -163,7 +166,8 @@ export async function augmentBuiltChatContext(
   built: BuiltChatContext,
   input: MemoryContextInput,
 ): Promise<BuiltChatContext> {
-  const memory = await loadMemoryContext(input);
+  const memoryEnabled = input.memoryEnabled ?? built.runtime.memoryEnabled;
+  const memory = await loadMemoryContext({ ...input, memoryEnabled });
   if (!memory?.promptBlock) return built;
 
   const messages = [...built.messages];
@@ -213,6 +217,7 @@ export async function prepareBuiltChatContext(
     context: params.context,
     channel: params.channel ?? "chat",
     locale: params.locale,
+    memoryEnabled: built.runtime.memoryEnabled,
   });
 }
 

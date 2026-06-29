@@ -1,7 +1,20 @@
-import { DEFAULT_MODEL, TEMPERATURE } from "@/lib/ai/chat-core";
-import { callOpenAIChatCompletion } from "@/lib/ai/openai-stream";
+import { callLlmChatCompletion, resolveProviderApiKey } from "@/lib/ai/runtime/llm-provider";
 import type { AiDecisionDomain, AiDecisionLayer } from "@/lib/ai/decisions/types";
 import { parseStructuredAiLayer } from "@/lib/ai/decisions/types";
+import { resolveAgentWithPrompts } from "@/lib/ai/runtime/agent-resolver";
+import { buildTelemetry, logAiRequest, usageFromOpenAi } from "@/lib/ai/runtime/telemetry";
+
+const DOMAIN_CONTEXT: Record<AiDecisionDomain, string> = {
+  reorder: "magazzino",
+  inventory_depletion: "magazzino",
+  food_cost: "foodcost",
+  pricing: "dashboard",
+  staff_shifts: "staff",
+  hotel_occupancy: "hotel",
+  cantina_promo: "cantina",
+  crm_vip: "crm",
+  supervisor_anomaly: "supervisor",
+};
 
 const DOMAIN_PROMPTS: Record<AiDecisionDomain, string> = {
   reorder:
@@ -24,7 +37,7 @@ const DOMAIN_PROMPTS: Record<AiDecisionDomain, string> = {
     "Individua anomalie operative (margini, storni, scorte, incassi) rispetto ai pattern rule-based e segnala priorità.",
 };
 
-function buildSystemPrompt(domain: AiDecisionDomain, locale: string) {
+function buildDecisionOverlay(domain: AiDecisionDomain, locale: string) {
   const lang = locale.startsWith("en") ? "English" : "italiano";
   return `Sei il motore decisionale AI di RistoSimply (dominio: ${domain}).
 La logica rule-based fornita è il FALLBACK DI SICUREZZA — non contraddirla senza motivazione forte.
@@ -54,12 +67,27 @@ export async function enrichRuleWithAi(params: {
   locale?: string;
   signal?: AbortSignal;
   tenantId?: string;
+  userId?: string;
 }): Promise<AiDecisionLayer | null> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) return null;
-
   const locale = params.locale ?? "it";
-  let systemPrompt = buildSystemPrompt(params.domain, locale);
+  const context = DOMAIN_CONTEXT[params.domain];
+  const startedAt = Date.now();
+
+  let runtime: Awaited<ReturnType<typeof resolveAgentWithPrompts>>["runtime"] | null = null;
+  let systemPrompt = buildDecisionOverlay(params.domain, locale);
+
+  if (params.tenantId) {
+    const resolved = await resolveAgentWithPrompts(params.tenantId, context);
+    runtime = resolved.runtime;
+    if (!runtime.active) return null;
+
+    if (resolved.prompts.systemPrompt.trim()) {
+      systemPrompt = `${resolved.prompts.systemPrompt.trim()}\n\n${systemPrompt}`;
+    }
+    if (resolved.prompts.userPrompt.trim()) {
+      systemPrompt = `${systemPrompt}\n\n${resolved.prompts.userPrompt.trim()}`;
+    }
+  }
 
   if (params.tenantId && process.env.AI_LEARNING_ENABLED !== "false") {
     try {
@@ -81,12 +109,20 @@ export async function enrichRuleWithAi(params: {
     0,
   ).slice(0, 14000);
 
-  const { content } = await callOpenAIChatCompletion(
+  const model = runtime?.model ?? process.env.OPENAI_MODEL ?? "gpt-4o-mini";
+  const temperature = runtime ? Math.min(runtime.temperature, 0.35) : 0.35;
+  const maxTokens = runtime ? Math.min(runtime.maxTokens, 1200) : 1200;
+  const provider = runtime?.provider ?? "openai";
+  const apiKey = resolveProviderApiKey(provider);
+  if (!apiKey) return null;
+
+  const { content, usage } = await callLlmChatCompletion(
+    provider,
     apiKey,
     {
-      model: DEFAULT_MODEL,
-      temperature: Math.min(TEMPERATURE, 0.35),
-      max_tokens: 1200,
+      model,
+      temperature,
+      max_tokens: maxTokens,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
@@ -98,12 +134,33 @@ export async function enrichRuleWithAi(params: {
 
   if (!content) return null;
 
+  let layer: AiDecisionLayer | null = null;
   try {
     const parsed = JSON.parse(content) as unknown;
-    return parseStructuredAiLayer(parsed, false);
+    layer = parseStructuredAiLayer(parsed, false);
   } catch {
     return null;
   }
+
+  if (runtime && params.tenantId && params.userId) {
+    const tokens = usageFromOpenAi(usage, userContent, content);
+    await logAiRequest({
+      tenantId: params.tenantId,
+      userId: params.userId,
+      context: `decision:${params.domain}`,
+      userMessage: `Decisione ${params.domain}`,
+      assistantMessage: content.slice(0, 4000),
+      telemetry: buildTelemetry({
+        runtime,
+        ...tokens,
+        durationMs: Date.now() - startedAt,
+        ragUsed: false,
+        ragDocumentsCount: 0,
+      }),
+    });
+  }
+
+  return layer;
 }
 
 /** Fallback layer quando OpenAI non è disponibile — espone la regola con metadati. */

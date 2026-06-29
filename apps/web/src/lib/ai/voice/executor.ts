@@ -1,17 +1,14 @@
-import { aiChatRepository } from "@/lib/db/repositories/ai-chat.repository";
 import {
-  DEFAULT_MODEL,
-  MAX_TOKENS,
-  TEMPERATURE,
-  systemPromptForContext,
+  legacySystemPromptForContext,
   type OpenAiMessage,
   RISTO_ROLES,
 } from "@/lib/ai/chat-core";
 import { runModuleAi } from "@/lib/ai/module-ai.service";
-import { retrieveKnowledgeContext } from "@/lib/ai/rag/retrieval";
-import { moduleToKnowledgeModules } from "@/lib/ai/rag/module-map";
+import { retrieveAgentRagContext } from "@/lib/ai/runtime/rag-context";
+import { resolveAgentWithPrompts } from "@/lib/ai/runtime/agent-resolver";
+import { buildTelemetry, logAiRequest, usageFromOpenAi } from "@/lib/ai/runtime/telemetry";
 import { executeRistoTool, RISTO_TOOLS } from "@/lib/ai/risto-tools";
-import { callOpenAIChatCompletion, streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
+import { callLlmChatCompletion, resolveProviderApiKey, streamLlmChatCompletion, supportsToolCalling } from "@/lib/ai/runtime/llm-provider";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
 import { augmentSystemPrompt, recordMemoryExchange } from "@/lib/ai/memory/context-manager";
 import type { SseEmitter } from "@/lib/ai/sse";
@@ -64,9 +61,10 @@ function buildVoiceSystemPrompt(params: {
   locale: string;
   moduleData: Array<{ module: OrchestratorModuleId; snapshot: unknown }>;
   ragContext: string | null;
+  agentSystemPrompt: string;
 }): string {
-  const { plan, locale, moduleData, ragContext } = params;
-  const base = systemPromptForContext(plan.primaryContext, plan.enableTools, locale);
+  const { plan, locale, moduleData, ragContext, agentSystemPrompt } = params;
+  const base = agentSystemPrompt.trim() || legacySystemPromptForContext(plan.primaryContext, plan.enableTools, locale);
 
   const moduleBlock = moduleData
     .map(
@@ -97,8 +95,15 @@ async function buildVoiceMessages(params: {
   history: OpenAiMessage[];
   apiKey: string;
   emit?: SseEmitter;
-}): Promise<{ messages: OpenAiMessage[]; canUseTools: boolean }> {
-  const { plan, locale, apiKey, emit, userRole } = params;
+}): Promise<{
+  messages: OpenAiMessage[];
+  canUseTools: boolean;
+  runtime: Awaited<ReturnType<typeof resolveAgentWithPrompts>>["runtime"];
+  ragDocumentCount: number;
+  startedAt: number;
+  providerApiKey: string;
+}> {
+  const { plan, locale, emit, userRole } = params;
 
   emit?.({ type: "status", message: "Consulto moduli AI…" });
   const moduleData = await fetchModuleSnapshots(
@@ -109,18 +114,34 @@ async function buildVoiceMessages(params: {
   );
 
   emit?.({ type: "status", message: pickStatusMessage(plan.primaryContext, 1) });
+  const { runtime, prompts } = await resolveAgentWithPrompts(params.tenantId, plan.primaryContext);
+  const providerApiKey = resolveProviderApiKey(runtime.provider) ?? params.apiKey;
+
   let ragContext: string | null = null;
+  let ragDocumentCount = 0;
   try {
-    ragContext = await retrieveKnowledgeContext(params.transcript, apiKey, {
+    const rag = await retrieveAgentRagContext({
+      query: params.transcript,
+      apiKey: providerApiKey,
       tenantId: params.tenantId,
-      modules: plan.modules.flatMap((m) => moduleToKnowledgeModules(m)),
+      module: runtime.module,
+      ragEnabled: runtime.ragEnabled,
+      vectorEnabled: runtime.vectorEnabled,
     });
+    ragContext = rag.context;
+    ragDocumentCount = rag.documentCount;
   } catch {
     /* non-blocking */
   }
 
   const systemPrompt = await augmentSystemPrompt(
-    buildVoiceSystemPrompt({ plan, locale, moduleData, ragContext }),
+    buildVoiceSystemPrompt({
+      plan,
+      locale,
+      moduleData,
+      ragContext,
+      agentSystemPrompt: prompts.systemPrompt,
+    }),
     {
       tenantId: params.tenantId,
       userId: params.userId,
@@ -128,9 +149,14 @@ async function buildVoiceMessages(params: {
       context: plan.primaryContext,
       channel: "voice",
       locale,
+      memoryEnabled: runtime.memoryEnabled,
     },
   );
-  const canUseTools = plan.enableTools && (RISTO_ROLES as readonly string[]).includes(userRole);
+  const canUseTools =
+    runtime.toolCallingEnabled &&
+    supportsToolCalling(runtime.provider) &&
+    plan.enableTools &&
+    (RISTO_ROLES as readonly string[]).includes(userRole);
 
   const messages: OpenAiMessage[] = [
     { role: "system", content: systemPrompt },
@@ -147,7 +173,7 @@ async function buildVoiceMessages(params: {
     },
   });
 
-  return { messages, canUseTools };
+  return { messages, canUseTools, runtime, ragDocumentCount, startedAt: Date.now(), providerApiKey };
 }
 
 export async function executeVoiceTurn(params: {
@@ -167,7 +193,12 @@ export async function executeVoiceTurn(params: {
 
   conversation.addUserMessage(params.transcript);
 
-  const plan = await planVoiceTurn(params.transcript, { locale, useAi: Boolean(apiKey), signal: params.signal });
+  const plan = await planVoiceTurn(params.transcript, {
+    locale,
+    useAi: Boolean(apiKey),
+    signal: params.signal,
+    tenantId: params.tenantId,
+  });
 
   if (!apiKey) {
     const fallback = buildFallbackReply(params.transcript, plan);
@@ -183,7 +214,7 @@ export async function executeVoiceTurn(params: {
   }
 
   const history = conversation.toAiHistory().slice(0, -1);
-  const { messages, canUseTools } = await buildVoiceMessages({
+  const built = await buildVoiceMessages({
     tenantId: params.tenantId,
     userId: params.userId,
     userRole: params.userRole,
@@ -193,11 +224,13 @@ export async function executeVoiceTurn(params: {
     history,
     apiKey,
   });
+  const { messages, canUseTools, runtime, ragDocumentCount, startedAt, providerApiKey } = built;
+  const llmKey = providerApiKey;
 
   const openaiBodyBase: Record<string, unknown> = {
-    model: DEFAULT_MODEL,
-    temperature: TEMPERATURE,
-    max_tokens: MAX_TOKENS,
+    model: runtime.model,
+    temperature: runtime.temperature,
+    max_tokens: runtime.maxTokens,
     messages,
   };
 
@@ -209,9 +242,11 @@ export async function executeVoiceTurn(params: {
   let fullReply = "";
   const actions: string[] = [];
   const toolsUsed: string[] = [];
+  let totalUsage: { tokensIn: number; tokensOut: number } | null = null;
 
   if (canUseTools) {
-    const first = await callOpenAIChatCompletion(apiKey, openaiBodyBase, params.signal);
+    const first = await callLlmChatCompletion(runtime.provider, llmKey, openaiBodyBase, params.signal);
+    totalUsage = usageFromOpenAi(first.usage, params.transcript, first.content ?? "");
     if (first.toolCalls.length > 0) {
       messages.push({
         role: "assistant",
@@ -236,26 +271,41 @@ export async function executeVoiceTurn(params: {
       delete (followUp as Record<string, unknown>).tools;
       delete (followUp as Record<string, unknown>).tool_choice;
 
-      const streamed = await callOpenAIChatCompletion(apiKey, followUp, params.signal);
+      const streamed = await callLlmChatCompletion(runtime.provider, llmKey, followUp, params.signal);
       fullReply = streamed.content?.trim() || actions.join("\n\n");
+      if (streamed.usage && totalUsage) {
+        totalUsage = {
+          tokensIn: totalUsage.tokensIn + streamed.usage.promptTokens,
+          tokensOut: totalUsage.tokensOut + streamed.usage.completionTokens,
+        };
+      }
     } else {
       fullReply = first.content?.trim() ?? "";
     }
   }
 
   if (!fullReply) {
-    const streamed = await callOpenAIChatCompletion(apiKey, openaiBodyBase, params.signal);
+    const streamed = await callLlmChatCompletion(runtime.provider, llmKey, openaiBodyBase, params.signal);
     fullReply = streamed.content?.trim() ?? buildFallbackReply(params.transcript, plan);
+    totalUsage = usageFromOpenAi(streamed.usage, params.transcript, fullReply);
   }
 
   conversation.addAssistantMessage(fullReply, { actions, modulesUsed: plan.modules });
 
-  await aiChatRepository.log({
+  const tokens = totalUsage ?? usageFromOpenAi(null, params.transcript, fullReply);
+  await logAiRequest({
     tenantId: params.tenantId,
     userId: params.userId,
     context: `voice:${plan.primaryContext}`,
     userMessage: params.transcript,
     assistantMessage: fullReply,
+    telemetry: buildTelemetry({
+      runtime,
+      ...tokens,
+      durationMs: Date.now() - startedAt,
+      ragUsed: ragDocumentCount > 0,
+      ragDocumentsCount: ragDocumentCount,
+    }),
   });
 
   await recordMemoryExchange({
@@ -268,6 +318,7 @@ export async function executeVoiceTurn(params: {
     toolsUsed,
     metadata: { modulesUsed: plan.modules },
     locale,
+    memoryEnabled: runtime.memoryEnabled,
   });
 
   return {
@@ -312,6 +363,7 @@ export function runVoiceTurnStream(
       locale,
       useAi: Boolean(apiKey),
       signal,
+      tenantId: params.tenantId,
     });
 
     if (!apiKey) {
@@ -323,7 +375,7 @@ export function runVoiceTurnStream(
     }
 
     const history = conversation.toAiHistory().slice(0, -1);
-    const { messages, canUseTools } = await buildVoiceMessages({
+    const built = await buildVoiceMessages({
       tenantId: params.tenantId,
       userId: params.userId,
       userRole: params.userRole,
@@ -334,11 +386,13 @@ export function runVoiceTurnStream(
       apiKey,
       emit,
     });
+    const { messages, canUseTools, runtime, ragDocumentCount, startedAt, providerApiKey } = built;
+  const llmKey = providerApiKey;
 
     const openaiBodyBase: Record<string, unknown> = {
-      model: DEFAULT_MODEL,
-      temperature: TEMPERATURE,
-      max_tokens: MAX_TOKENS,
+      model: runtime.model,
+      temperature: runtime.temperature,
+      max_tokens: runtime.maxTokens,
       messages,
     };
 
@@ -350,10 +404,12 @@ export function runVoiceTurnStream(
     const actions: string[] = [];
     const toolsUsed: string[] = [];
     let fullReply = "";
+    let usageAcc: { tokensIn: number; tokensOut: number } | null = null;
 
     if (canUseTools) {
       emit({ type: "status", message: "Eseguo azioni richieste…" });
-      const first = await callOpenAIChatCompletion(apiKey, openaiBodyBase, signal);
+      const first = await callLlmChatCompletion(runtime.provider, llmKey, openaiBodyBase, signal);
+      usageAcc = usageFromOpenAi(first.usage, params.transcript, first.content ?? "");
 
       if (first.toolCalls.length > 0) {
         messages.push({
@@ -380,8 +436,7 @@ export function runVoiceTurnStream(
         delete (followUp as Record<string, unknown>).tool_choice;
 
         emit({ type: "status", message: pickStatusMessage(plan.primaryContext, 3) });
-        const streamed = await streamOpenAIChatCompletion(
-          apiKey,
+        const streamed = await streamLlmChatCompletion(runtime.provider, llmKey,
           followUp,
           (token) => {
             fullReply += token;
@@ -390,6 +445,12 @@ export function runVoiceTurnStream(
           signal,
         );
         fullReply = streamed.content.trim() || actions.join("\n\n");
+        if (streamed.usage && usageAcc) {
+          usageAcc = {
+            tokensIn: usageAcc.tokensIn + streamed.usage.promptTokens,
+            tokensOut: usageAcc.tokensOut + streamed.usage.completionTokens,
+          };
+        }
         if (!streamed.content.trim() && actions.length) {
           emit({ type: "token", content: fullReply });
         }
@@ -401,8 +462,7 @@ export function runVoiceTurnStream(
 
     if (!fullReply) {
       emit({ type: "status", message: pickStatusMessage(plan.primaryContext, 3) });
-      const streamed = await streamOpenAIChatCompletion(
-        apiKey,
+      const streamed = await streamLlmChatCompletion(runtime.provider, llmKey,
         openaiBodyBase,
         (token) => {
           fullReply += token;
@@ -411,17 +471,26 @@ export function runVoiceTurnStream(
         signal,
       );
       fullReply = streamed.content.trim() || buildFallbackReply(params.transcript, plan);
+      usageAcc = usageFromOpenAi(streamed.usage, params.transcript, fullReply);
       if (!streamed.content.trim()) emit({ type: "token", content: fullReply });
     }
 
     conversation.addAssistantMessage(fullReply, { actions, modulesUsed: plan.modules });
 
-    await aiChatRepository.log({
+    const tokens = usageAcc ?? usageFromOpenAi(null, params.transcript, fullReply);
+    await logAiRequest({
       tenantId: params.tenantId,
       userId: params.userId,
       context: `voice:${plan.primaryContext}`,
       userMessage: params.transcript,
       assistantMessage: fullReply,
+      telemetry: buildTelemetry({
+        runtime,
+        ...tokens,
+        durationMs: Date.now() - startedAt,
+        ragUsed: ragDocumentCount > 0,
+        ragDocumentsCount: ragDocumentCount,
+      }),
     });
 
     await recordMemoryExchange({
@@ -434,6 +503,7 @@ export function runVoiceTurnStream(
       toolsUsed,
       metadata: { modulesUsed: plan.modules },
       locale,
+      memoryEnabled: runtime.memoryEnabled,
     });
 
     emit({

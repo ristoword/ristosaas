@@ -4,8 +4,11 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
+import { callLlmChatCompletion, resolveProviderApiKey } from "@/lib/ai/runtime/llm-provider";
+import { resolveAgentWithPrompts } from "@/lib/ai/runtime/agent-resolver";
+import { buildTelemetry, logAiRequest, usageFromOpenAi } from "@/lib/ai/runtime/telemetry";
 
-const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const PARSE_ORDER_CONTEXT = "sala";
 
 type ParsedItem = {
   name: string;
@@ -21,6 +24,24 @@ type ParsedOrder = {
   items: ParsedItem[];
   raw: string;
 };
+
+const PARSER_OVERLAY = `Sei un parser di ordini ristorante. Il cameriere detta l'ordine a voce e tu devi estrarre i piatti strutturati.
+
+REGOLE:
+- La parola "SEGUE" o "seconda portata" / "terza portata" indica il cambio di portata (course). Se non specificato, la prima portata è 1.
+- Le bevande sono sempre nell'ultima portata separata (course = il numero più alto).
+- Ogni piatto ha: name, qty (default 1), course, category, area.
+- area: "cucina" per cibo, "bar" per bevande/vini, "pizzeria" per pizze.
+- category: Antipasti, Primi, Secondi, Pizze, Contorni, Dolci, Bevande, Cantina, ecc.
+- Prova a matchare ogni piatto dettato con il catalogo del ristorante fornito sotto (match fuzzy per nome).
+- Se trovi un match, riporta matchedId e matchedPrice. Se non trovi match esatto, metti matchedId=null.
+
+Rispondi SOLO con JSON valido, nessun testo prima o dopo:
+{
+  "items": [
+    { "name": "...", "qty": 1, "course": 1, "category": "...", "area": "cucina|bar|pizzeria", "matchedId": "...|null", "matchedPrice": 0.00 }
+  ]
+}`;
 
 /**
  * POST /api/ai/parse-order
@@ -54,8 +75,12 @@ export async function POST(req: NextRequest) {
   const transcript = payload.transcript?.trim();
   if (!transcript) return err("transcript obbligatorio", 400);
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return err("OPENAI_API_KEY non configurata", 500);
+  const startedAt = Date.now();
+  const { runtime, prompts } = await resolveAgentWithPrompts(tenantId, PARSE_ORDER_CONTEXT);
+  if (!runtime.active) return err("Agente AI disattivato", 503);
+
+  const providerApiKey = resolveProviderApiKey(runtime.provider);
+  if (!providerApiKey) return err("Provider AI non configurato", 500);
 
   const [menuItems, dailyDishes, wines] = await Promise.all([
     prisma.menuItem.findMany({
@@ -83,57 +108,35 @@ export async function POST(req: NextRequest) {
     catalogLines.push(`WINE|${w.id}|${w.name}${w.vintageYear ? ` ${w.vintageYear}` : ""}|Cantina|bar|${Number(w.sellingPrice).toFixed(2)}`);
   }
 
-  const systemPrompt = `Sei un parser di ordini ristorante. Il cameriere detta l'ordine a voce e tu devi estrarre i piatti strutturati.
+  let systemPrompt = prompts.systemPrompt.trim();
+  if (prompts.userPrompt.trim()) {
+    systemPrompt = systemPrompt
+      ? `${systemPrompt}\n\n${prompts.userPrompt.trim()}`
+      : prompts.userPrompt.trim();
+  }
 
-REGOLE:
-- La parola "SEGUE" o "seconda portata" / "terza portata" indica il cambio di portata (course). Se non specificato, la prima portata è 1.
-- Le bevande sono sempre nell'ultima portata separata (course = il numero più alto).
-- Ogni piatto ha: name, qty (default 1), course, category, area.
-- area: "cucina" per cibo, "bar" per bevande/vini, "pizzeria" per pizze.
-- category: Antipasti, Primi, Secondi, Pizze, Contorni, Dolci, Bevande, Cantina, ecc.
-- Prova a matchare ogni piatto dettato con il catalogo del ristorante fornito sotto (match fuzzy per nome).
-- Se trovi un match, riporta matchedId e matchedPrice. Se non trovi match esatto, metti matchedId=null.
+  systemPrompt = `${systemPrompt ? `${systemPrompt}\n\n` : ""}${PARSER_OVERLAY}
 
 CATALOGO RISTORANTE (formato: TIPO|ID|NOME|CATEGORIA|AREA|PREZZO):
-${catalogLines.length > 0 ? catalogLines.join("\n") : "(catalogo vuoto)"}
-
-Rispondi SOLO con JSON valido, nessun testo prima o dopo:
-{
-  "items": [
-    { "name": "...", "qty": 1, "course": 1, "category": "...", "area": "cucina|bar|pizzeria", "matchedId": "...|null", "matchedPrice": 0.00 }
-  ]
-}`;
+${catalogLines.length > 0 ? catalogLines.join("\n") : "(catalogo vuoto)"}`;
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: DEFAULT_MODEL,
-        temperature: 0.1,
-        max_tokens: 2000,
+    const { content, usage } = await callLlmChatCompletion(
+      runtime.provider,
+      providerApiKey,
+      {
+        model: runtime.model,
+        temperature: Math.min(runtime.temperature, 0.1),
+        max_tokens: Math.min(runtime.maxTokens, 2000),
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: transcript },
         ],
-      }),
-      signal: AbortSignal.timeout(25_000),
-    });
+      },
+      AbortSignal.timeout(25_000),
+    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return err(`OpenAI error: ${errorText}`, 502);
-    }
-
-    const data = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
-
+    const raw = content?.trim() ?? "";
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return err("AI non ha restituito JSON valido", 502);
 
@@ -148,6 +151,24 @@ Rispondi SOLO con JSON valido, nessun testo prima o dopo:
       matchedMenuItemId: it.matchedId ? String(it.matchedId) : null,
       matchedPrice: it.matchedPrice != null ? Number(it.matchedPrice) : null,
     }));
+
+    if (user?.id) {
+      const tokens = usageFromOpenAi(usage, transcript, raw);
+      await logAiRequest({
+        tenantId,
+        userId: user.id,
+        context: "parse-order",
+        userMessage: transcript,
+        assistantMessage: raw.slice(0, 4000),
+        telemetry: buildTelemetry({
+          runtime,
+          ...tokens,
+          durationMs: Date.now() - startedAt,
+          ragUsed: false,
+          ragDocumentsCount: 0,
+        }),
+      });
+    }
 
     return ok({ items, raw: transcript } satisfies ParsedOrder);
   } catch (e) {

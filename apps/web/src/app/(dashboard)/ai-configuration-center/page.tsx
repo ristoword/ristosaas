@@ -1,5 +1,5 @@
-import { AiConfigurationCenterPage } from "@/components/ai-configuration-center/ai-configuration-center-page";
+import { AiEnterpriseControlCenterPage } from "@/components/ai-configuration-center/ai-enterprise-control-center-page";
 
 export default function Page() {
-  return <AiConfigurationCenterPage />;
+  return <AiEnterpriseControlCenterPage />;
 }

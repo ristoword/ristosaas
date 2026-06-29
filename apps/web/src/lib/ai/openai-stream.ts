@@ -1,9 +1,22 @@
+import type { OpenAiUsage } from "@/lib/ai/runtime/types";
+
 type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
 
 export type StreamCompletionResult = {
   content: string;
   toolCalls: ToolCall[];
+  usage: OpenAiUsage | null;
 };
+
+function parseUsage(raw: unknown): OpenAiUsage | null {
+  const u = raw as { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
+  if (!u) return null;
+  return {
+    promptTokens: u.prompt_tokens ?? 0,
+    completionTokens: u.completion_tokens ?? 0,
+    totalTokens: u.total_tokens ?? (u.prompt_tokens ?? 0) + (u.completion_tokens ?? 0),
+  };
+}
 
 /** Stream OpenAI chat completion tokens; returns full text + any tool calls accumulated. */
 export async function streamOpenAIChatCompletion(
@@ -18,7 +31,7 @@ export async function streamOpenAIChatCompletion(
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ ...body, stream: true }),
+    body: JSON.stringify({ ...body, stream: true, stream_options: { include_usage: true } }),
     signal,
   });
 
@@ -36,6 +49,7 @@ export async function streamOpenAIChatCompletion(
   let buffer = "";
   let content = "";
   const toolCalls: ToolCall[] = [];
+  let usage: OpenAiUsage | null = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -52,6 +66,7 @@ export async function streamOpenAIChatCompletion(
       if (payload === "[DONE]") continue;
 
       let parsed: {
+        usage?: unknown;
         choices?: Array<{
           delta?: {
             content?: string | null;
@@ -71,6 +86,8 @@ export async function streamOpenAIChatCompletion(
         continue;
       }
 
+      if (parsed.usage) usage = parseUsage(parsed.usage);
+
       const delta = parsed.choices?.[0]?.delta;
       if (!delta) continue;
 
@@ -83,16 +100,11 @@ export async function streamOpenAIChatCompletion(
         for (const tc of delta.tool_calls) {
           const idx = tc.index ?? 0;
           if (!toolCalls[idx]) {
-            toolCalls[idx] = {
-              id: tc.id ?? "",
-              type: "function",
-              function: { name: tc.function?.name ?? "", arguments: tc.function?.arguments ?? "" },
-            };
-          } else {
-            if (tc.id) toolCalls[idx].id = tc.id;
-            if (tc.function?.name) toolCalls[idx].function.name += tc.function.name;
-            if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
+            toolCalls[idx] = { id: tc.id ?? "", type: "function", function: { name: "", arguments: "" } };
           }
+          if (tc.id) toolCalls[idx].id = tc.id;
+          if (tc.function?.name) toolCalls[idx].function.name = tc.function.name;
+          if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
         }
       }
     }
@@ -103,7 +115,7 @@ export async function streamOpenAIChatCompletion(
     }
   }
 
-  return { content, toolCalls: toolCalls.filter(Boolean) };
+  return { content, toolCalls: toolCalls.filter(Boolean), usage };
 }
 
 /** Non-streaming completion (tool round-trip). */
@@ -114,6 +126,7 @@ export async function callOpenAIChatCompletion(
 ): Promise<{
   content: string | null;
   toolCalls: ToolCall[];
+  usage: OpenAiUsage | null;
 }> {
   let response: Response | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -141,6 +154,7 @@ export async function callOpenAIChatCompletion(
   }
 
   const data = (await response.json()) as {
+    usage?: unknown;
     choices?: Array<{ message?: { content?: string | null; tool_calls?: ToolCall[] } }>;
   };
 
@@ -148,6 +162,7 @@ export async function callOpenAIChatCompletion(
   return {
     content: message?.content?.trim() ?? null,
     toolCalls: message?.tool_calls ?? [],
+    usage: parseUsage(data.usage),
   };
 }
 
