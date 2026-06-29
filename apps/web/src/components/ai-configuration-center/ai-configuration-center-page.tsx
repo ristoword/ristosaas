@@ -106,6 +106,8 @@ const TOGGLES: { key: string; label: string; hint?: string }[] = [
   { key: "memoryEnabled", label: "Memory" },
   { key: "ragEnabled", label: "RAG" },
   { key: "vectorDbEnabled", label: "Vector Database" },
+  { key: "embeddingEnabled", label: "Embedding" },
+  { key: "indexingEnabled", label: "Indicizzazione automatica" },
   { key: "toolCallingEnabled", label: "Tool Calling" },
   { key: "voiceAiEnabled", label: "Voice AI" },
   { key: "automationsEnabled", label: "Automazioni AI" },

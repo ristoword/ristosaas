@@ -7,6 +7,8 @@ export type AiPlatformToggles = {
   memoryEnabled: boolean;
   ragEnabled: boolean;
   vectorDbEnabled: boolean;
+  embeddingEnabled: boolean;
+  indexingEnabled: boolean;
   toolCallingEnabled: boolean;
   voiceAiEnabled: boolean;
   automationsEnabled: boolean;
@@ -16,6 +18,13 @@ export type AiPlatformToggles = {
   multiAgentEnabled: boolean;
   vectorProvider: string;
   memoryRetentionDays: number;
+  ragChunkSize: number;
+  ragChunkOverlap: number;
+  ragSearchThreshold: number;
+  ragQueryCount: number;
+  ragCacheHits: number;
+  ragAvgSearchMs: number | null;
+  ragAvgEmbedMs: number | null;
   ragLastSyncAt: string | null;
   ragLastError: string | null;
   memoryLastCleanupAt: string | null;
@@ -30,6 +39,8 @@ export type AiPlatformTogglePatch = Partial<
     | "memoryEnabled"
     | "ragEnabled"
     | "vectorDbEnabled"
+    | "embeddingEnabled"
+    | "indexingEnabled"
     | "toolCallingEnabled"
     | "voiceAiEnabled"
     | "automationsEnabled"
@@ -39,6 +50,9 @@ export type AiPlatformTogglePatch = Partial<
     | "multiAgentEnabled"
     | "vectorProvider"
     | "memoryRetentionDays"
+    | "ragChunkSize"
+    | "ragChunkOverlap"
+    | "ragSearchThreshold"
   >
 >;
 
@@ -54,6 +68,8 @@ function rowToToggles(row: {
   memoryEnabled: boolean;
   ragEnabled: boolean;
   vectorDbEnabled: boolean;
+  embeddingEnabled: boolean;
+  indexingEnabled: boolean;
   toolCallingEnabled: boolean;
   voiceAiEnabled: boolean;
   automationsEnabled: boolean;
@@ -63,6 +79,13 @@ function rowToToggles(row: {
   multiAgentEnabled: boolean;
   vectorProvider: string;
   memoryRetentionDays: number;
+  ragChunkSize: number;
+  ragChunkOverlap: number;
+  ragSearchThreshold: number;
+  ragQueryCount: bigint;
+  ragCacheHits: bigint;
+  ragAvgSearchMs: number | null;
+  ragAvgEmbedMs: number | null;
   ragLastSyncAt: Date | null;
   ragLastError: string | null;
   memoryLastCleanupAt: Date | null;
@@ -74,6 +97,8 @@ function rowToToggles(row: {
     memoryEnabled: row.memoryEnabled,
     ragEnabled: row.ragEnabled,
     vectorDbEnabled: row.vectorDbEnabled,
+    embeddingEnabled: row.embeddingEnabled,
+    indexingEnabled: row.indexingEnabled,
     toolCallingEnabled: row.toolCallingEnabled,
     voiceAiEnabled: row.voiceAiEnabled,
     automationsEnabled: row.automationsEnabled,
@@ -83,6 +108,13 @@ function rowToToggles(row: {
     multiAgentEnabled: row.multiAgentEnabled,
     vectorProvider: row.vectorProvider,
     memoryRetentionDays: row.memoryRetentionDays,
+    ragChunkSize: row.ragChunkSize,
+    ragChunkOverlap: row.ragChunkOverlap,
+    ragSearchThreshold: row.ragSearchThreshold,
+    ragQueryCount: Number(row.ragQueryCount),
+    ragCacheHits: Number(row.ragCacheHits),
+    ragAvgSearchMs: row.ragAvgSearchMs,
+    ragAvgEmbedMs: row.ragAvgEmbedMs,
     ragLastSyncAt: row.ragLastSyncAt?.toISOString() ?? null,
     ragLastError: row.ragLastError,
     memoryLastCleanupAt: row.memoryLastCleanupAt?.toISOString() ?? null,

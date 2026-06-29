@@ -399,6 +399,10 @@ model Tenant {
   aiAutomationConfigs AiAutomationConfig[]
   aiAutomationRuns AiAutomationRun[]
   aiAutomationAuditLogs AiAutomationAuditLog[]
+  aiKnowledgeDocuments AiKnowledgeDocument[]
+  aiKnowledgeIndexJobs AiKnowledgeIndexJob[]
+  aiKnowledgeAuditLogs AiKnowledgeAuditLog[]
+  aiVectorChunks AiVectorChunk[]
   recipes     Recipe[]
   menuItems   MenuItem[]
   dailyDishes DailyDish[]
@@ -473,12 +477,36 @@ model PlatformConfig {
 }
 
 /// Singleton platform-wide AI infrastructure toggles (super_admin only).
+enum AiKnowledgeDocumentStatus {
+  pending
+  indexing
+  indexed
+  error
+  deleted
+}
+
+enum AiKnowledgeSourceKind {
+  upload
+  entity_sync
+  manual_platform
+}
+
+enum AiKnowledgeIndexJobStatus {
+  queued
+  running
+  completed
+  failed
+  cancelled
+}
+
 model AiPlatformConfig {
   id                 String    @id @default("default")
   aiMasterEnabled    Boolean   @default(true)
   memoryEnabled      Boolean   @default(true)
   ragEnabled         Boolean   @default(true)
   vectorDbEnabled    Boolean   @default(true)
+  embeddingEnabled   Boolean   @default(true)
+  indexingEnabled    Boolean   @default(true)
   toolCallingEnabled Boolean   @default(true)
   voiceAiEnabled     Boolean   @default(true)
   automationsEnabled Boolean   @default(true)
@@ -488,6 +516,13 @@ model AiPlatformConfig {
   multiAgentEnabled  Boolean   @default(false)
   vectorProvider     String    @default("pgvector")
   memoryRetentionDays Int      @default(90)
+  ragChunkSize       Int       @default(800)
+  ragChunkOverlap    Int       @default(120)
+  ragSearchThreshold Float     @default(0.32)
+  ragQueryCount      BigInt    @default(0)
+  ragCacheHits       BigInt    @default(0)
+  ragAvgSearchMs     Float?
+  ragAvgEmbedMs      Float?
   ragLastSyncAt      DateTime?
   ragLastError       String?   @db.Text
   memoryLastCleanupAt DateTime?
@@ -1395,21 +1430,133 @@ model AiMemoryVector {
   @@index([tenantId, userId])
 }
 
-/// Platform knowledge for AI RAG (pgvector). Not tenant-scoped — shared manual chunks.
+/// Platform + tenant knowledge chunks for AI RAG (pgvector).
 model AiVectorChunk {
-  id             String                      @id @default(cuid())
-  source         String                      @default("manual")
-  chunkKey       String
-  sectionId      String
-  content        String                      @db.Text
-  embeddingModel String
-  contentHash    String
-  embedding      Unsupported("vector(1536)")
-  createdAt      DateTime                    @default(now())
-  updatedAt      DateTime                    @updatedAt
+  id              String                      @id @default(cuid())
+  source          String                      @default("manual")
+  chunkKey        String
+  sectionId       String
+  content         String                      @db.Text
+  embeddingModel  String
+  contentHash     String
+  embedding       Unsupported("vector(1536)")
+  tenantId        String?
+  documentId      String?
+  module          String?
+  category        String?
+  language        String                      @default("it")
+  authorId        String?
+  authorName      String?
+  documentVersion Int                         @default(1)
+  chunkIndex      Int                         @default(0)
+  metadata        Json                        @default("{}")
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  tenant          Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document        AiKnowledgeDocument?        @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([source, chunkKey])
   @@index([source])
+  @@index([tenantId, module])
+  @@index([tenantId, documentId])
+  @@index([documentId])
+}
+
+/// Tenant-scoped knowledge document (upload, entity sync, attachments).
+model AiKnowledgeDocument {
+  id              String                    @id @default(cuid())
+  tenantId        String?
+  title           String
+  module          String
+  category        String                    @default("general")
+  mimeType        String                    @default("text/plain")
+  language        String                    @default("it")
+  sourceKind      AiKnowledgeSourceKind     @default(upload)
+  sourceEntity    String?
+  sourceEntityId  String?
+  authorId        String?
+  authorName      String?
+  version         Int                       @default(1)
+  contentHash     String
+  contentText     String?                   @db.Text
+  contentBase64   String?                   @db.Text
+  fileName        String?
+  fileSizeBytes   Int?
+  status          AiKnowledgeDocumentStatus @default(pending)
+  chunkCount      Int                       @default(0)
+  lastIndexedAt   DateTime?
+  lastError       String?                   @db.Text
+  metadata        Json                      @default("{}")
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  tenant          Tenant?                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  chunks          AiVectorChunk[]
+  versions        AiKnowledgeDocumentVersion[]
+  indexJobs       AiKnowledgeIndexJob[]
+
+  @@index([tenantId, module, status])
+  @@index([tenantId, category])
+  @@index([tenantId, sourceEntity, sourceEntityId])
+  @@index([status, updatedAt])
+}
+
+model AiKnowledgeDocumentVersion {
+  id           String              @id @default(cuid())
+  documentId   String
+  version      Int
+  contentHash  String
+  contentText  String?             @db.Text
+  authorId     String?
+  authorName   String?
+  changeNote   String?
+  createdAt    DateTime            @default(now())
+  document     AiKnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, version])
+  @@index([documentId, createdAt])
+}
+
+model AiKnowledgeIndexJob {
+  id             String                    @id @default(cuid())
+  tenantId       String?
+  documentId     String?
+  jobType        String
+  status         AiKnowledgeIndexJobStatus @default(queued)
+  progressPct    Int                       @default(0)
+  chunksTotal    Int                       @default(0)
+  chunksDone     Int                       @default(0)
+  embeddingsDone Int                       @default(0)
+  errorMessage   String?                   @db.Text
+  startedAt      DateTime?
+  completedAt    DateTime?
+  createdBy      String?
+  metadata       Json                      @default("{}")
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+  tenant         Tenant?                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  document       AiKnowledgeDocument?      @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, createdAt])
+  @@index([status, createdAt])
+}
+
+model AiKnowledgeAuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  actorId    String
+  actorRole  String
+  actorEmail String?
+  action     String
+  documentId String?
+  jobId      String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+  tenant     Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+  @@index([documentId])
 }
 
 model AiProposal {

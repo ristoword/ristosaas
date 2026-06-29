@@ -33,10 +33,13 @@ async function pgVectorEnabled(): Promise<boolean> {
   if (globalForVector.pgVectorReady === true) return true;
   if (globalForVector.pgVectorReady === false) return false;
   try {
-    const rows = await prisma.$queryRaw<Array<{ extname: string }>>`
-      SELECT extname FROM pg_extension WHERE extname = 'vector'
+    const rows = await prisma.$queryRaw<Array<{ extname: string; extversion: string | null }>>`
+      SELECT extname, extversion FROM pg_extension WHERE extname = 'vector'
     `;
     globalForVector.pgVectorReady = rows.length > 0;
+    if (rows[0]?.extversion) {
+      (globalForVector as { pgVectorVersion?: string }).pgVectorVersion = rows[0].extversion;
+    }
     return globalForVector.pgVectorReady;
   } catch {
     globalForVector.pgVectorReady = false;
@@ -47,7 +50,7 @@ async function pgVectorEnabled(): Promise<boolean> {
 async function tableReady(): Promise<boolean> {
   try {
     const rows = await prisma.$queryRaw<Array<{ reg: string | null }>>`
-      SELECT to_regclass('public."AiVectorChunk"') AS reg
+      SELECT to_regclass('public."AiVectorChunk"')::text AS reg
     `;
     return Boolean(rows[0]?.reg);
   } catch {
@@ -177,12 +180,22 @@ export const aiVectorRepository = {
     totalBytes: number;
     lastUpdated: string | null;
     avgSearchMs: number | null;
+    pgvectorVersion: string | null;
+    hnswIndexed: boolean;
   }> {
     if (!(await this.isAvailable())) {
-      return { chunkCount: 0, sourceCount: 0, totalBytes: 0, lastUpdated: null, avgSearchMs: null };
+      return {
+        chunkCount: 0,
+        sourceCount: 0,
+        totalBytes: 0,
+        lastUpdated: null,
+        avgSearchMs: null,
+        pgvectorVersion: null,
+        hnswIndexed: false,
+      };
     }
 
-    const [countRow, sizeRow, lastRow] = await Promise.all([
+    const [countRow, sizeRow, lastRow, hnswRow] = await Promise.all([
       prisma.$queryRaw<Array<{ cnt: bigint; sources: bigint }>>`
         SELECT COUNT(*)::bigint AS cnt, COUNT(DISTINCT source)::bigint AS sources
         FROM "AiVectorChunk"
@@ -193,7 +206,13 @@ export const aiVectorRepository = {
       prisma.$queryRaw<Array<{ updated: Date | null }>>`
         SELECT MAX("updatedAt") AS updated FROM "AiVectorChunk"
       `,
+      prisma.$queryRaw<Array<{ cnt: bigint }>>`
+        SELECT COUNT(*)::bigint AS cnt FROM pg_indexes
+        WHERE indexname IN ('AiVectorChunk_embedding_hnsw_idx', 'AiMemoryVector_embedding_hnsw_idx')
+      `,
     ]);
+
+    const pgVersion = (globalForVector as { pgVectorVersion?: string }).pgVectorVersion ?? null;
 
     return {
       chunkCount: Number(countRow[0]?.cnt ?? 0),
@@ -201,6 +220,8 @@ export const aiVectorRepository = {
       totalBytes: Number(sizeRow[0]?.bytes ?? 0),
       lastUpdated: lastRow[0]?.updated?.toISOString() ?? null,
       avgSearchMs: globalForVector.lastSearchMs ?? null,
+      pgvectorVersion: pgVersion,
+      hnswIndexed: Number(hnswRow[0]?.cnt ?? 0) >= 2,
     };
   },
 

@@ -16,7 +16,7 @@ async function pgVectorReady(): Promise<boolean> {
       SELECT extname FROM pg_extension WHERE extname = 'vector'
     `;
     const table = await prisma.$queryRaw<Array<{ reg: string | null }>>`
-      SELECT to_regclass('public."AiMemoryVector"') AS reg
+      SELECT to_regclass('public."AiMemoryVector"')::text AS reg
     `;
     return rows.length > 0 && Boolean(table[0]?.reg);
   } catch {

@@ -8,7 +8,8 @@ import {
   RISTO_ROLES,
 } from "@/lib/ai/chat-core";
 import { runModuleAi } from "@/lib/ai/module-ai.service";
-import { retrieveManualContext } from "@/lib/ai/rag";
+import { retrieveKnowledgeContext } from "@/lib/ai/rag/retrieval";
+import { moduleToKnowledgeModules } from "@/lib/ai/rag/module-map";
 import { executeRistoTool, RISTO_TOOLS } from "@/lib/ai/risto-tools";
 import { callOpenAIChatCompletion, streamOpenAIChatCompletion } from "@/lib/ai/openai-stream";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
@@ -110,7 +111,10 @@ async function buildVoiceMessages(params: {
   emit?.({ type: "status", message: pickStatusMessage(plan.primaryContext, 1) });
   let ragContext: string | null = null;
   try {
-    ragContext = await retrieveManualContext(params.transcript, apiKey);
+    ragContext = await retrieveKnowledgeContext(params.transcript, apiKey, {
+      tenantId: params.tenantId,
+      modules: plan.modules.flatMap((m) => moduleToKnowledgeModules(m)),
+    });
   } catch {
     /* non-blocking */
   }

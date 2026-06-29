@@ -312,12 +312,15 @@ export async function buildAiConfigCenter(readOnly = false): Promise<AiConfigCen
     diskUsageBytes: vectorStats.totalBytes,
     lastUpdated: vectorStats.lastUpdated,
     avgSearchMs: vectorStats.avgSearchMs,
-    providerVersion: activeProvider === "pgvector" && vectorAvailable ? `pgvector ${EMBEDDING_DIM}d` : null,
+    providerVersion:
+      activeProvider === "pgvector" && vectorAvailable
+        ? `pgvector ${vectorStats.pgvectorVersion ?? "?"} · ${EMBEDDING_DIM}d${vectorStats.hnswIndexed ? " · HNSW" : ""}`
+        : null,
     healthCheck: vectorHealth,
     detail:
       activeProvider === "pgvector"
         ? vectorAvailable
-          ? `PostgreSQL + pgvector (${getEmbeddingModel() || DEFAULT_EMBEDDING_MODEL})`
+          ? `PostgreSQL + pgvector ${vectorStats.pgvectorVersion ?? ""} (${getEmbeddingModel() || DEFAULT_EMBEDDING_MODEL})${vectorStats.hnswIndexed ? " — indici HNSW attivi" : " — indici HNSW mancanti"}`
           : "Estensione pgvector non installata"
         : `Provider ${activeProvider} non configurato — solo pgvector è attivo in questa installazione`,
   };

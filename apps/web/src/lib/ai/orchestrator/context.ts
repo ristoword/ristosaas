@@ -1,5 +1,6 @@
-import { retrieveManualContext } from "@/lib/ai/rag";
+import { retrieveKnowledgeContext } from "@/lib/ai/rag/retrieval";
 import type { OrchestratorContext, OrchestratorRequest } from "@/lib/ai/orchestrator/types";
+import { moduleToKnowledgeModules } from "@/lib/ai/rag/module-map";
 
 export async function buildOrchestratorContext(params: {
   tenantId: string;
@@ -15,7 +16,13 @@ export async function buildOrchestratorContext(params: {
   let ragContext: string | null = null;
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (apiKey && params.request.query.trim()) {
-    ragContext = await retrieveManualContext(params.request.query, apiKey);
+    const modules = params.request.contextHint
+      ? moduleToKnowledgeModules(params.request.contextHint)
+      : undefined;
+    ragContext = await retrieveKnowledgeContext(params.request.query, apiKey, {
+      tenantId: params.tenantId,
+      modules,
+    });
   }
 
   return {

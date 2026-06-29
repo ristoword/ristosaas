@@ -1,5 +1,6 @@
 import { aiKitchenRepository } from "@/lib/db/repositories/ai-kitchen.repository";
-import { retrieveManualContext } from "@/lib/ai/rag";
+import { retrieveKnowledgeContext } from "@/lib/ai/rag/retrieval";
+import { moduleToKnowledgeModules } from "@/lib/ai/rag/module-map";
 import { RISTO_TOOLS } from "@/lib/ai/risto-tools";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
 import type { SseEmitter } from "@/lib/ai/sse";
@@ -155,7 +156,10 @@ export async function buildChatContext(params: BuildChatContextParams): Promise<
   emit?.({ type: "status", message: pickStatusMessage(context, 1) });
   try {
     if (await isRagRuntimeEnabled()) {
-      const ragContext = await retrieveManualContext(message, apiKey);
+      const ragContext = await retrieveKnowledgeContext(message, apiKey, {
+        tenantId,
+        modules: moduleToKnowledgeModules(context),
+      });
       if (ragContext) systemPrompt = `${systemPrompt}\n\n${ragContext}`;
     }
   } catch { /* non-blocking */ }
