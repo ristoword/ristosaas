@@ -3,6 +3,7 @@ import { fireAndForget } from "@/lib/api/helpers";
 import { sendTenantMail } from "@/lib/email/send-tenant-mail";
 import type { AutomationModule } from "@/lib/ai/automation/types";
 import type { WorkflowDefinition } from "@/lib/ai/automation/types";
+import { AUTOMATION_NAV_HREF } from "@/lib/ai/module-ids";
 
 const ROLE_TARGETS: Record<string, string[]> = {
   supervisor: ["supervisor", "owner"],
@@ -14,19 +15,7 @@ const ROLE_TARGETS: Record<string, string[]> = {
   hotel_manager: ["hotel_manager", "reception"],
 };
 
-const MODULE_HREF: Partial<Record<AutomationModule, string>> = {
-  magazzino: "/magazzino",
-  food_cost: "/cucina",
-  cantina: "/cantina",
-  hotel: "/hotel",
-  haccp: "/haccp",
-  staff: "/staff",
-  supervisor: "/supervisor",
-  hardware: "/impostazioni/hardware",
-  licenze: "/impostazioni",
-  cassa: "/cassa",
-  dashboard: "/dashboard",
-};
+const MODULE_HREF: Partial<Record<AutomationModule, string>> = AUTOMATION_NAV_HREF;
 
 export type NotificationChannel = "dashboard" | "email" | "push" | "chat";
 

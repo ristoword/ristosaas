@@ -1,4 +1,11 @@
+import { resolveNavAiModule } from "@/lib/ai/module-ids";
+
 /** Mappa id navigazione → chiave modulo AI / automazione (solo UI). */
+export function resolveAiModule(navId: string): string {
+  return resolveNavAiModule(navId);
+}
+
+/** @deprecated Use resolveAiModule — kept for static importers during migration. */
 export const NAV_TO_AI_MODULE: Record<string, string> = {
   cucina: "food_cost",
   pizzeria: "food_cost",
@@ -21,7 +28,3 @@ export const NAV_TO_AI_MODULE: Record<string, string> = {
   "ai-assistente": "dashboard",
   "ai-command-center": "supervisor",
 };
-
-export function resolveAiModule(navId: string): string {
-  return NAV_TO_AI_MODULE[navId] ?? navId;
-}

@@ -1,6 +1,9 @@
 import type { UserRole } from "@/lib/auth/types";
 import { moduleSnapshots } from "@/lib/ai/modules/snapshots";
 import type { ModuleDefinition, ModuleId } from "@/lib/ai/modules/types";
+import { ORCHESTRATOR_STREAM_CONTEXT, resolveModuleId } from "@/lib/ai/module-ids";
+
+export { MODULE_ALIASES } from "@/lib/ai/module-ids";
 
 const R = {
   sala: ["sala", "cassa", "supervisor", "owner", "super_admin"] as const,
@@ -29,11 +32,6 @@ const R = {
   qr: ["sala", "cassa", "reception", "supervisor", "owner", "super_admin"] as const,
   licenses: ["owner", "super_admin"] as const,
 } satisfies Record<string, readonly UserRole[]>;
-
-export const MODULE_ALIASES: Record<string, ModuleId> = {
-  cucina: "kitchen",
-  magazzino: "inventory",
-};
 
 export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
   sala: {
@@ -190,30 +188,16 @@ export const MODULE_REGISTRY: Record<ModuleId, ModuleDefinition> = {
 
 /** Maps module id to stream-status context key. */
 export const MODULE_STATUS_KEYS: Partial<Record<ModuleId, string>> = {
-  kitchen: "cucina",
-  inventory: "magazzino",
-  foodcost: "cucina",
-  cantina: "cantina",
+  ...ORCHESTRATOR_STREAM_CONTEXT,
   crm: "customers",
-  hotel: "hotel",
-  reception: "hotel",
-  housekeeping: "hotel",
-  prenotazioni: "prenotazioni",
   "room-service": "hotel",
-  bar: "bar",
-  pizzeria: "pizzeria",
   cassa: "cassa",
   dashboard: "briefing",
-  supervisor: "supervisor",
-  staff: "staff",
-  turni: "staff",
   owner: "supervisor",
 };
 
 export function normalizeModuleId(raw: string): ModuleId | null {
-  const slug = raw.trim().toLowerCase();
-  const resolved = (MODULE_ALIASES[slug] ?? slug) as ModuleId;
-  return MODULE_REGISTRY[resolved] ? resolved : null;
+  return resolveModuleId(raw);
 }
 
 export function getModuleDefinition(moduleId: ModuleId): ModuleDefinition {

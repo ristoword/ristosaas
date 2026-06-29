@@ -2,6 +2,7 @@ import { DEFAULT_MODEL, TEMPERATURE } from "@/lib/ai/chat-core";
 import { callOpenAIChatCompletion } from "@/lib/ai/openai-stream";
 import { modulesFromScores, routeQuery } from "@/lib/ai/orchestrator/router";
 import type { OrchestratorModuleId } from "@/lib/ai/orchestrator/types";
+import { ORCHESTRATOR_STREAM_CONTEXT } from "@/lib/ai/module-ids";
 import type { VoicePlan } from "@/lib/ai/voice/types";
 
 const TOOL_KEYWORDS = [
@@ -25,28 +26,6 @@ const TOOL_KEYWORDS = [
   "voglio",
 ] as const;
 
-const MODULE_TO_CONTEXT: Record<OrchestratorModuleId, string> = {
-  sala: "sala",
-  kitchen: "cucina",
-  foodcost: "cucina",
-  inventory: "magazzino",
-  cantina: "cantina",
-  bar: "bar",
-  pizzeria: "pizzeria",
-  crm: "prenotazioni",
-  hotel: "hotel",
-  reception: "hotel",
-  housekeeping: "hotel",
-  prenotazioni: "prenotazioni",
-  catering: "sala",
-  dashboard: "risto",
-  supervisor: "supervisor",
-  staff: "supervisor",
-  turni: "supervisor",
-  haccp: "cucina",
-  hardware: "supervisor",
-};
-
 function applyVoiceBoosts(transcript: string, modules: OrchestratorModuleId[]): OrchestratorModuleId[] {
   const lower = transcript.toLowerCase();
   const boosted = [...modules];
@@ -69,7 +48,7 @@ function ruleBasedVoicePlan(transcript: string, contextHint?: string): VoicePlan
   const modules = applyVoiceBoosts(transcript, modulesFromScores(scores));
   const lower = transcript.toLowerCase();
   const enableTools = TOOL_KEYWORDS.some((kw) => lower.includes(kw));
-  const primaryContext = MODULE_TO_CONTEXT[modules[0] ?? "dashboard"] ?? "risto";
+  const primaryContext = ORCHESTRATOR_STREAM_CONTEXT[modules[0] ?? "dashboard"] ?? "risto";
 
   return {
     modules,
@@ -138,4 +117,4 @@ export async function planVoiceTurn(
   }
 }
 
-export { ruleBasedVoicePlan, MODULE_TO_CONTEXT, TOOL_KEYWORDS };
+export { ruleBasedVoicePlan, ORCHESTRATOR_STREAM_CONTEXT as MODULE_TO_CONTEXT, TOOL_KEYWORDS };

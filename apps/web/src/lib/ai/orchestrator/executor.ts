@@ -1,3 +1,4 @@
+import { orchestratorToModuleId, ORCHESTRATOR_TO_MODULE } from "@/lib/ai/module-ids";
 import { runModuleAi } from "@/lib/ai/module-ai.service";
 import type { ModuleAiResponse } from "@/lib/ai/modules/types";
 import type {
@@ -12,28 +13,6 @@ export type ModuleRunner = (
   req: { enrich?: boolean; locale?: string; periodDays?: number },
 ) => Promise<ModuleAiResponse | null>;
 
-const MODULE_SLUG: Record<OrchestratorModuleId, string> = {
-  sala: "sala",
-  kitchen: "kitchen",
-  foodcost: "foodcost",
-  inventory: "inventory",
-  cantina: "cantina",
-  bar: "bar",
-  pizzeria: "pizzeria",
-  crm: "crm",
-  hotel: "hotel",
-  reception: "reception",
-  housekeeping: "housekeeping",
-  prenotazioni: "prenotazioni",
-  catering: "catering",
-  dashboard: "dashboard",
-  supervisor: "supervisor",
-  staff: "staff",
-  turni: "turni",
-  haccp: "haccp",
-  hardware: "hardware",
-};
-
 export async function executeModules(
   modules: OrchestratorModuleId[],
   ctx: OrchestratorContext,
@@ -43,7 +22,7 @@ export async function executeModules(
 
   const results = await Promise.all(
     modules.map(async (module): Promise<OrchestratorModuleResult> => {
-      const slug = MODULE_SLUG[module];
+      const slug = orchestratorToModuleId(module);
       try {
         const response = await runner(
           slug,
@@ -85,4 +64,4 @@ export async function executeModules(
   return results;
 }
 
-export { MODULE_SLUG };
+export { ORCHESTRATOR_TO_MODULE as MODULE_SLUG };

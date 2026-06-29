@@ -1,4 +1,4 @@
-import { MODULE_ALIASES } from "@/lib/ai/modules/config";
+import { resolveOrchestratorModuleId } from "@/lib/ai/module-ids";
 import type { OrchestratorModuleId } from "@/lib/ai/orchestrator/types";
 import { ORCHESTRATOR_MODULE_IDS } from "@/lib/ai/orchestrator/types";
 
@@ -23,33 +23,6 @@ export const MODULE_KEYWORDS: Record<OrchestratorModuleId, readonly string[]> = 
   turni: ["turni", "turno", "pianificaz", "orario", "shift", "timbratur"],
   haccp: ["haccp", "temperatur", "igiene", "conform", "frigo", "abbattitore"],
   hardware: ["hardware", "stampant", "kds", "dispositiv", "keycard", "router stamp"],
-};
-
-const HINT_TO_MODULE: Record<string, OrchestratorModuleId> = {
-  sala: "sala",
-  cucina: "kitchen",
-  kitchen: "kitchen",
-  foodcost: "foodcost",
-  "food-cost": "foodcost",
-  magazzino: "inventory",
-  inventory: "inventory",
-  cantina: "cantina",
-  bar: "bar",
-  pizzeria: "pizzeria",
-  crm: "crm",
-  customers: "crm",
-  hotel: "hotel",
-  reception: "reception",
-  housekeeping: "housekeeping",
-  prenotazioni: "prenotazioni",
-  catering: "catering",
-  dashboard: "dashboard",
-  briefing: "dashboard",
-  supervisor: "supervisor",
-  staff: "staff",
-  turni: "turni",
-  haccp: "haccp",
-  hardware: "hardware",
 };
 
 export type RouteScore = {
@@ -86,7 +59,7 @@ export function routeQuery(
 
   if (options?.contextHint) {
     const hint = options.contextHint.trim().toLowerCase();
-    const hinted = HINT_TO_MODULE[hint] ?? (MODULE_ALIASES[hint] as OrchestratorModuleId | undefined);
+    const hinted = resolveOrchestratorModuleId(hint);
     if (hinted && ORCHESTRATOR_MODULE_IDS.includes(hinted)) {
       const existing = scores.find((s) => s.module === hinted);
       if (existing) {
