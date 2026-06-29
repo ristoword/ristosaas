@@ -20,7 +20,7 @@ export function Sidebar({ mobileOpen, onNavigate }: SidebarProps) {
   const { user } = useAuth();
   const { locale, setLocale, t } = useI18n();
 
-  const sections = getVisibleNavSections(user?.role, t);
+  const sections = getVisibleNavSections(user?.role, t, user?.partnerCode);
 
   return (
     <>

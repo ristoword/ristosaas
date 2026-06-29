@@ -1,4 +1,4 @@
-import type { UserRole } from "@/lib/auth/types";
+import type { PublicUser, UserRole } from "@/lib/auth/types";
 
 export const PARTNER_ROLE = "partner" as const satisfies UserRole;
 
@@ -9,6 +9,12 @@ const PARTNER_MUTATION_SUFFIXES = ["/ai/chat", "/ai/analyze", "/ai/report", "/ex
 
 export function isPartnerRole(role: string | undefined | null): role is typeof PARTNER_ROLE {
   return role === PARTNER_ROLE;
+}
+
+/** Ruolo partner o utente con partnerCode (es. owner socio partner). */
+export function hasPartnerEnterpriseAccess(user: Pick<PublicUser, "role" | "partnerCode">): boolean {
+  if (user.role === "partner" || user.role === "super_admin") return true;
+  return Boolean(user.partnerCode?.trim());
 }
 
 export function isPartnerReadOnlyRequest(method: string, pathname: string): boolean {

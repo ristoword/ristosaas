@@ -9,6 +9,7 @@ import type { LicenseStatus, TenantProfile } from "@/lib/auth/types";
 export async function GET(req: NextRequest) {
   const user = getRequestUser(req);
   if (!user) return err("User not found", 401);
+  const dbUser = await authUsersRepository.findById(user.id);
   const validSession = await authUsersRepository.isSessionVersionValid(user.id, user.sessionVersion ?? 0);
   if (!validSession) return err("Session expired. Please login again.", 401);
 
@@ -48,5 +49,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return ok({ ...user, tenant: tenantProfile });
+  return ok({
+    ...user,
+    partnerCode: dbUser?.partnerCode ?? null,
+    tenant: tenantProfile,
+  });
 }

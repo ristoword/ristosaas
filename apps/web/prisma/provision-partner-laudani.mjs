@@ -1,12 +1,11 @@
 /**
- * Provisioning one-shot: socio partner Costantino Laudani + credenziali dashboard partner.
+ * Provisioning: socio partner Costantino Laudani collegato all'account Baia Verde.
  * Usage:
- *   SEED_PARTNER_LAUDANI_PASSWORD='...' DATABASE_URL=... node prisma/provision-partner-laudani.mjs
+ *   DATABASE_URL=... node prisma/provision-partner-laudani.mjs
  */
 import { PrismaClient } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
-import { randomBytes, scryptSync } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 function loadEnvFile(filePath) {
@@ -37,47 +36,40 @@ loadEnvFile(path.resolve(currentDir, "../.env.local"));
 const prisma = new PrismaClient();
 
 const PARTNER_CODE = "laudani";
-const TENANT_ID = process.env.NEXT_PUBLIC_TENANT_ID || "tenant_demo";
-const PASSWORD = process.env.SEED_PARTNER_LAUDANI_PASSWORD || "LaudaniPartner2026!";
-
-function hashPassword(plainTextPassword) {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(plainTextPassword, salt, 64).toString("hex");
-  return `scrypt$${salt}$${hash}`;
-}
+const BAIA_VERDE_SLUG = "baia-verde";
+const OWNER_USERNAME = "baiaverde_admin";
+const OWNER_EMAIL = "costantinolaudani1@gmail.com";
 
 async function main() {
-  if (PASSWORD.length < 12) {
-    throw new Error("SEED_PARTNER_LAUDANI_PASSWORD deve avere almeno 12 caratteri.");
-  }
-
-  await prisma.tenant.upsert({
-    where: { id: TENANT_ID },
-    update: {},
-    create: {
-      id: TENANT_ID,
-      name: "RistoSimply Demo",
-      slug: TENANT_ID,
-      plan: "all_included",
+  const tenant = await prisma.tenant.findFirst({
+    where: {
+      OR: [
+        { slug: BAIA_VERDE_SLUG },
+        { name: { contains: "Baia Verde", mode: "insensitive" } },
+      ],
     },
   });
+
+  if (!tenant) {
+    throw new Error(`Tenant "${BAIA_VERDE_SLUG}" non trovato.`);
+  }
 
   const partner = await prisma.partner.upsert({
     where: { code: PARTNER_CODE },
     update: {
       name: "Costantino Laudani",
       country: "Italia",
-      email: "costantino.laudani@ristosimply.com",
-      notes: "Socio partner",
+      email: OWNER_EMAIL,
+      notes: "Socio partner — Baia Verde",
       active: true,
     },
     create: {
       code: PARTNER_CODE,
       name: "Costantino Laudani",
       country: "Italia",
-      email: "costantino.laudani@ristosimply.com",
+      email: OWNER_EMAIL,
       phone: "",
-      notes: "Socio partner",
+      notes: "Socio partner — Baia Verde",
       commissionType: "fixed",
       licensePrice: 79,
       commissionEuros: 29,
@@ -89,41 +81,38 @@ async function main() {
     },
   });
 
-  const user = await prisma.user.upsert({
-    where: { username: "claudani" },
-    update: {
-      name: "Costantino Laudani",
-      email: "costantino.laudani@ristosimply.com",
-      role: "partner",
-      partnerCode: PARTNER_CODE,
-      tenantId: TENANT_ID,
-      passwordHash: hashPassword(PASSWORD),
-      mustChangePassword: true,
-      failedLoginAttempts: 0,
-      lockedUntil: null,
-    },
-    create: {
-      id: "usr_partner_laudani",
-      tenantId: TENANT_ID,
-      username: "claudani",
-      name: "Costantino Laudani",
-      email: "costantino.laudani@ristosimply.com",
-      role: "partner",
-      partnerCode: PARTNER_CODE,
-      passwordHash: hashPassword(PASSWORD),
-      mustChangePassword: true,
-      failedLoginAttempts: 0,
-      lockedUntil: null,
+  const owner = await prisma.user.findFirst({
+    where: {
+      tenantId: tenant.id,
+      OR: [
+        { username: OWNER_USERNAME },
+        { email: OWNER_EMAIL },
+        { name: { contains: "Laudani", mode: "insensitive" } },
+      ],
     },
   });
 
-  console.log("✔ Partner creato:", partner.code, partner.name);
-  console.log("✔ Utente partner:", user.username, user.email);
+  if (!owner) {
+    throw new Error(`Utente owner Baia Verde non trovato (atteso ${OWNER_USERNAME} / ${OWNER_EMAIL}).`);
+  }
+
+  const linked = await prisma.user.update({
+    where: { id: owner.id },
+    data: { partnerCode: PARTNER_CODE },
+  });
+
+  const duplicate = await prisma.user.findUnique({ where: { username: "claudani" } });
+  if (duplicate && duplicate.id !== owner.id) {
+    await prisma.user.delete({ where: { id: duplicate.id } });
+    console.log("✔ Rimosso account duplicato claudani");
+  }
+
+  console.log("✔ Partner:", partner.code, partner.name, partner.email);
+  console.log("✔ Account collegato:", linked.username, linked.email, `(tenant ${tenant.name})`);
   console.log("");
-  console.log("Credenziali accesso dashboard partner (/partner):");
-  console.log("  Username:", user.username);
-  console.log("  Password:", PASSWORD);
-  console.log("  (cambio password obbligatorio al primo accesso)");
+  console.log("Accesso dashboard partner (/partner) con le credenziali owner Baia Verde.");
+  console.log("  Username:", linked.username);
+  console.log("  Email:", linked.email);
 }
 
 main()

@@ -46,6 +46,7 @@ export type User = {
   role: UserRole;
   email: string;
   username?: string;
+  partnerCode?: string | null;
   mustChangePassword?: boolean;
   tenantId?: string;
   tenant?: TenantSummary | null;

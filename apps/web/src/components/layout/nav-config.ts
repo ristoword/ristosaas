@@ -738,9 +738,10 @@ export const navSections: NavSection[] = [
 export function getVisibleNavSections(
   userRole?: UserRole | null,
   t?: (key: string) => string,
+  partnerCode?: string | null,
 ) {
   const isSuperAdmin = userRole === "super_admin";
-  const isPartner = userRole === "partner";
+  const isPartner = userRole === "partner" || Boolean(partnerCode?.trim());
 
   function canSeeItem(item: NavItem): boolean {
     if (!hasVerticalEnabled(item.vertical)) return false;

@@ -4,6 +4,7 @@ import { err } from "@/lib/api/helpers";
 import { canAccessWithRole, getApiRequiredRoles } from "@/lib/auth/rbac";
 import { getRequestUser } from "@/lib/auth/session";
 import type { PublicUser, UserRole } from "@/lib/auth/types";
+import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository";
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 import { setTenantIdContext } from "@/lib/db/repositories/tenant-context";
 
@@ -58,4 +59,22 @@ export async function requireApiUser(req: NextRequest, requiredRoles?: readonly 
   }
 
   return { error: null, user };
+}
+
+/** Partner dashboard: ruolo partner, super_admin, o utente con partnerCode (socio partner). */
+export async function requirePartnerEnterpriseUser(req: NextRequest) {
+  const guard = await requireApiUser(req);
+  if (guard.error) return guard;
+  const user = guard.user!;
+  if (user.role === "partner" || user.role === "super_admin") return guard;
+
+  const dbUser = await authUsersRepository.findById(user.id);
+  if (dbUser?.partnerCode) {
+    return {
+      error: null,
+      user: { ...user, partnerCode: dbUser.partnerCode },
+    };
+  }
+
+  return { error: err("Forbidden", 403), user: null as PublicUser | null };
 }
