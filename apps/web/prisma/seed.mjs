@@ -114,6 +114,16 @@ async function upsertUsers() {
     { id: "usr_reception", username: "reception", password: "reception123", name: "Reception", email: "reception@ristosaas.local", role: "reception", mustChangePassword: false },
     { id: "usr_housekeeping", username: "housekeeping", password: "house123", name: "Housekeeping", email: "housekeeping@ristosaas.local", role: "housekeeping", mustChangePassword: false },
     { id: "usr_partner", username: "partner", password: "partner123", name: "Partner Enterprise", email: "partner@ristosaas.local", role: "partner", mustChangePassword: false },
+    {
+      id: "usr_partner_laudani",
+      username: "claudani",
+      password: process.env.SEED_PARTNER_LAUDANI_PASSWORD || "LaudaniPartner2026!",
+      name: "Costantino Laudani",
+      email: "costantino.laudani@ristosimply.com",
+      role: "partner",
+      partnerCode: "laudani",
+      mustChangePassword: true,
+    },
   ];
   await Promise.all(
     users.map((user) =>
@@ -127,6 +137,7 @@ async function upsertUsers() {
           role: user.role,
           passwordHash: hashPassword(user.password),
           mustChangePassword: user.mustChangePassword,
+          partnerCode: user.partnerCode ?? null,
           failedLoginAttempts: 0,
           lockedUntil: null,
         },
@@ -139,6 +150,7 @@ async function upsertUsers() {
           role: user.role,
           passwordHash: hashPassword(user.password),
           mustChangePassword: user.mustChangePassword,
+          partnerCode: user.partnerCode ?? null,
           failedLoginAttempts: 0,
           lockedUntil: null,
         },
@@ -1232,12 +1244,34 @@ async function upsertPartners() {
       notes: "Partner ufficiale Brasile",
       active: true,
     },
+    {
+      code: "laudani",
+      name: "Costantino Laudani",
+      country: "Italia",
+      commissionType: "fixed",
+      licensePrice: 79,
+      commissionEuros: 29,
+      commissionPct: 0,
+      allInclusivePrice: 279,
+      allInclusiveCommission: 59,
+      allInclusivePct: null,
+      email: "costantino.laudani@ristosimply.com",
+      phone: "",
+      notes: "Socio partner",
+      active: true,
+    },
   ];
 
   for (const p of partners) {
     await prisma.partner.upsert({
       where: { code: p.code },
-      update: { name: p.name, country: p.country },
+      update: {
+        name: p.name,
+        country: p.country,
+        email: p.email,
+        notes: p.notes,
+        active: p.active,
+      },
       create: p,
     });
   }
