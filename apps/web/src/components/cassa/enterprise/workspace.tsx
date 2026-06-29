@@ -69,7 +69,7 @@ export function CassaEnterpriseWorkspace({ servedOrders, menuItems, onCloseTable
 
   return (
     <div className="relative pb-36">
-      <div className="grid min-h-[calc(100vh-18rem)] gap-3 xl:grid-cols-[minmax(14rem,16rem)_minmax(0,1.2fr)_minmax(14rem,1fr)_minmax(5.5rem,7.5rem)]">
+      <div className="grid min-h-[calc(100vh-18rem)] gap-3 xl:grid-cols-[minmax(14rem,16rem)_minmax(0,1fr)_minmax(18rem,32%)_minmax(5.5rem,7.5rem)]">
         <CassaTableGrid
           grouped={grouped}
           selectedTable={selectedTable}
