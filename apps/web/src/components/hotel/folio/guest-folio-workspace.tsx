@@ -14,6 +14,9 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
+import { Modal } from "@/components/shared/modal";
+import { TabBar } from "@/components/shared/tab-bar";
+import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, SELECT_CLASS } from "@/components/shared/ui-classes";
 import { FolioHeaderBar } from "@/components/hotel/folio/folio-header-bar";
 import { FolioGuestReservationPanels } from "@/components/hotel/folio/folio-guest-reservation-panels";
 import { FolioEconomicDashboard } from "@/components/hotel/folio/folio-economic-dashboard";
@@ -218,8 +221,8 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
   };
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div className="min-w-0 flex-1 space-y-4">
+    <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
+      <div className="min-w-0 flex-1 space-y-6">
       <div className="flex justify-end">
         <FolioAiToggle onClick={() => setAiOpen((v) => !v)} collapsed={!aiOpen} />
       </div>
@@ -284,10 +287,10 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
             icon={Mail}
             label="Invia email"
           />
-          <Link href="/hotel/front-desk" className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs font-semibold text-rw-ink">
+          <Link href="/hotel/front-desk" className={BTN_GHOST}>
             Front Desk
           </Link>
-          <Link href="/cassa" className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs font-semibold text-rw-ink">
+          <Link href="/cassa" className={BTN_GHOST}>
             Addebito ristorante
           </Link>
         </div>
@@ -299,51 +302,44 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
         {msg && <p className="mt-2 text-xs text-rw-soft">{msg}</p>}
       </Card>
 
-      {payOpen && (
-        <Card title="Registra pagamento">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <input className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink" placeholder="Importo" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} type="number" min="0" step="0.01" />
-            <select className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink" value={payMethod} onChange={(e) => setPayMethod(e.target.value as HotelManualPaymentMethod)}>
-              <option value="carta">Carta / POS</option>
-              <option value="contanti">Contanti</option>
-              <option value="bonifico">Bonifico</option>
-              <option value="altro">Voucher / Altro</option>
-            </select>
-            <input className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink" placeholder="Note" value={payNote} onChange={(e) => setPayNote(e.target.value)} />
-          </div>
-          <div className="mt-3 flex gap-2">
-            <button type="button" disabled={busy} onClick={handlePay} className="rounded-xl bg-rw-accent px-4 py-2 text-sm font-semibold text-white hover:bg-rw-accent/90 disabled:opacity-50">
-              Conferma
-            </button>
-            <button type="button" onClick={() => setPayOpen(false)} className="rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-soft">
-              Annulla
-            </button>
-          </div>
-        </Card>
-      )}
-
-      <div className="flex flex-wrap gap-2 border-b border-rw-line pb-2">
-        {(["conto", "timeline", "pagamenti", "split"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={cn(
-              "rounded-xl px-3 py-1.5 text-sm font-semibold capitalize",
-              tab === t ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-ink",
-            )}
-          >
-            {t}
+      <Modal open={payOpen} onClose={() => setPayOpen(false)} title="Registra pagamento">
+        <div className="grid gap-3 sm:grid-cols-1">
+          <input className={INPUT_CLASS} placeholder="Importo" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} type="number" min="0" step="0.01" />
+          <select className={SELECT_CLASS} value={payMethod} onChange={(e) => setPayMethod(e.target.value as HotelManualPaymentMethod)}>
+            <option value="carta">Carta / POS</option>
+            <option value="contanti">Contanti</option>
+            <option value="bonifico">Bonifico</option>
+            <option value="altro">Voucher / Altro</option>
+          </select>
+          <input className={INPUT_CLASS} placeholder="Note" value={payNote} onChange={(e) => setPayNote(e.target.value)} />
+        </div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <button type="button" disabled={busy} onClick={handlePay} className={cn(BTN_PRIMARY, "w-full sm:w-auto")}>
+            Conferma
           </button>
-        ))}
-      </div>
+          <button type="button" onClick={() => setPayOpen(false)} className={cn(BTN_OUTLINE, "w-full sm:w-auto")}>
+            Annulla
+          </button>
+        </div>
+      </Modal>
+
+      <TabBar
+        tabs={[
+          { id: "conto", label: "Conto" },
+          { id: "timeline", label: "Timeline" },
+          { id: "pagamenti", label: "Pagamenti" },
+          { id: "split", label: "Split" },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as typeof tab)}
+      />
 
       <Card title="Ricerca e filtri">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          <input className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink" placeholder="Descrizione, reparto…" value={filters.query} onChange={(e) => setFilters({ ...filters, query: e.target.value })} />
-          <input className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink" type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
-          <input className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink" type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
-          <select className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm text-rw-ink" value={filters.section} onChange={(e) => setFilters({ ...filters, section: e.target.value as FolioChargeFilters["section"] })}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <input className={INPUT_CLASS} placeholder="Descrizione, reparto…" value={filters.query} onChange={(e) => setFilters({ ...filters, query: e.target.value })} />
+          <input className={INPUT_CLASS} type="date" value={filters.dateFrom} onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })} />
+          <input className={INPUT_CLASS} type="date" value={filters.dateTo} onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })} />
+          <select className={SELECT_CLASS} value={filters.section} onChange={(e) => setFilters({ ...filters, section: e.target.value as FolioChargeFilters["section"] })}>
             <option value="all">Tutti i reparti</option>
             {FOLIO_SECTIONS.map((s) => (
               <option key={s} value={s}>
@@ -376,6 +372,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       {tab === "pagamenti" && (
         <Card title="Pagamenti">
           <DataTable
+      stickyHeader
             columns={[
               { key: "date", header: "Data", render: (r) => `${r.date} ${r.time}` },
               { key: "method", header: "Metodo", render: (r) => parsePaymentMethod(r.description) },
@@ -415,6 +412,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
 
       <Card title="Audit movimenti" description="Tracciamento operazioni folio con operatore e IP.">
         <DataTable
+      stickyHeader
           columns={[
             { key: "at", header: "Data", render: (r) => new Date(r.createdAt).toLocaleString("it-IT") },
             { key: "action", header: "Azione", render: (r) => r.action },
@@ -462,6 +460,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       </div>
 
       {aiOpen && (
+        <div className="w-full shrink-0 xl:w-[min(100%,24rem)] 2xl:w-[26rem] max-xl:fixed max-xl:inset-x-0 max-xl:bottom-0 max-xl:z-40 max-xl:max-h-[85dvh]">
         <FolioAiPanel
           folio={folio}
           reservation={reservation}
@@ -488,6 +487,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
             setAiCheckoutReasons(a.checkoutBlockReasons);
           }}
         />
+        </div>
       )}
     </div>
   );
@@ -496,6 +496,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
 function ChargeTable({ rows, compact }: { rows: FolioChargeRow[]; compact?: boolean }) {
   return (
     <DataTable
+      stickyHeader
       columns={[
         { key: "date", header: "Data", render: (r) => r.date },
         { key: "time", header: "Ora", render: (r) => r.time },
@@ -600,9 +601,9 @@ function ActionBtn({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs font-semibold text-rw-ink transition hover:border-rw-accent/40 disabled:opacity-40"
+      className={cn(BTN_OUTLINE, "px-3 py-2 text-sm")}
     >
-      <Icon className="h-3.5 w-3.5" /> {label}
+      <Icon className="h-4 w-4" /> {label}
     </button>
   );
 }

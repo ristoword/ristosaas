@@ -10,6 +10,8 @@ import { GuestFolioWorkspace } from "@/components/hotel/folio/guest-folio-worksp
 import { useFolioStream } from "@/components/hotel/folio/use-folio-stream";
 import { customersApi, hotelFolioApi, roomServiceApi, type Customer, type FolioAttachmentEntry, type FolioAuditLogEntry, type GuestFolio } from "@/lib/api-client";
 import { paymentStatusLabel, reservationForFolio } from "@/lib/hotel/folio-utils";
+import { StatusPill } from "@/components/shared/status-pill";
+import { BTN_GHOST, INPUT_CLASS, SELECT_CLASS, ALERT_WARN } from "@/components/shared/ui-classes";
 import { cn } from "@/lib/utils";
 
 export function HotelFolioPage() {
@@ -76,11 +78,7 @@ export function HotelFolioPage() {
         title="Guest Folio"
         subtitle="Conto unico ospite PMS — hotel, ristorante, room service e pagamenti."
       >
-        <button
-          type="button"
-          onClick={() => refresh()}
-          className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-sm font-semibold text-rw-ink hover:bg-rw-surfaceAlt"
-        >
+        <button type="button" onClick={() => refresh()} className={BTN_GHOST}>
           <RefreshCw className="h-4 w-4" /> Aggiorna
         </button>
         <Chip label="Folio" value={folios.length} tone="accent" />
@@ -91,7 +89,7 @@ export function HotelFolioPage() {
       </PageHeader>
 
       {!integrationOk && (
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+        <div className={ALERT_WARN}>
           Alcuni dati folio non sono disponibili per il tuo ruolo. Contatta reception o supervisor.
         </div>
       )}
@@ -103,14 +101,14 @@ export function HotelFolioPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
                 <input
-                  className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2 pl-8 pr-3 text-sm"
+                  className={cn(INPUT_CLASS, "pl-8")}
                   placeholder="Cerca ospite, camera…"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
               <select
-                className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-2 text-sm"
+                className={cn(SELECT_CLASS, "w-auto shrink-0")}
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as "all" | "open" | "closed")}
               >
@@ -200,20 +198,8 @@ function FolioListItem({
           <p className="font-display text-sm font-semibold text-rw-ink">€ {folio.balance.toFixed(2)}</p>
         </div>
         <div className="mt-2 flex flex-wrap gap-1">
-          <span className="rounded-full bg-rw-surface px-2 py-0.5 text-[10px] font-semibold uppercase text-rw-muted">
-            {folio.status}
-          </span>
-          <span
-            className={cn(
-              "rounded-full px-2 py-0.5 text-[10px] font-semibold",
-              pay.tone === "success" && "bg-emerald-500/15 text-emerald-400",
-              pay.tone === "warn" && "bg-amber-500/15 text-amber-400",
-              pay.tone === "danger" && "bg-red-500/15 text-red-400",
-              pay.tone === "default" && "bg-rw-surface text-rw-muted",
-            )}
-          >
-            {pay.label}
-          </span>
+          <StatusPill tone={folio.status === "open" ? "accent" : "default"}>{folio.status}</StatusPill>
+          <StatusPill tone={pay.tone === "default" ? "default" : pay.tone}>{pay.label}</StatusPill>
         </div>
       </button>
     </li>

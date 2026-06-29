@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
+import { ALERT_INFO, BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, SELECT_CLASS } from "@/components/shared/ui-classes";
 import {
   hotelGuestRegisterApi,
   type GuestRegisterAttachmentType,
@@ -218,23 +219,23 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
         title={detail.guestName || "Scheda ospite"}
         subtitle={`Camera ${detail.roomCode || "—"} · ${detail.arrivalDate} → ${detail.departureDate} · ${detail.adults} adulti, ${detail.children} bambini`}
       >
-        <Link href="/hotel/guest-register" className="rounded-xl border border-rw-line px-3 py-2 text-sm font-semibold text-rw-ink hover:bg-rw-surfaceAlt">
+        <Link href="/hotel/guest-register" className={BTN_GHOST}>
           ← Registro
         </Link>
-        <Link href={`/hotel/folio`} className="rounded-xl border border-rw-line px-3 py-2 text-sm font-semibold text-rw-ink hover:bg-rw-surfaceAlt">
+        <Link href="/hotel/folio" className={BTN_GHOST}>
           Folio
         </Link>
-        <Link href="/hotel/front-desk" className="rounded-xl border border-rw-line px-3 py-2 text-sm font-semibold text-rw-ink hover:bg-rw-surfaceAlt">
+        <Link href="/hotel/front-desk" className={BTN_GHOST}>
           Front Desk
         </Link>
       </PageHeader>
 
-      {msg && <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2 text-sm text-rw-soft">{msg}</div>}
+      {msg && <div className={ALERT_INFO}>{msg}</div>}
 
       <div className="grid gap-4 lg:grid-cols-12">
         <div className="lg:col-span-3 space-y-3">
           <Card title="Ospiti in camera">
-            <button type="button" disabled={busy} onClick={() => void addGuest()} className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-rw-line py-2 text-xs font-semibold text-rw-soft hover:border-rw-accent/40">
+            <button type="button" disabled={busy} onClick={() => void addGuest()} className={cn(BTN_OUTLINE, "mb-3 w-full border-dashed py-2.5 text-sm text-rw-soft")}>
               <UserPlus className="h-4 w-4" /> Aggiungi ospite
             </button>
             <ul className="space-y-2">
@@ -257,12 +258,12 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
           </Card>
 
           <Card title="Trasmissione autorità">
-            <select className="mb-2 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm" value={country} onChange={(e) => setCountry(e.target.value as GuestRegisterCountry)}>
+            <select className={cn(SELECT_CLASS, "mb-2")} value={country} onChange={(e) => setCountry(e.target.value as GuestRegisterCountry)}>
               {COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>{c.label}</option>
               ))}
             </select>
-            <button type="button" disabled={busy} onClick={() => void transmit()} className="flex w-full items-center justify-center gap-2 rounded-xl bg-rw-accent py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" disabled={busy} onClick={() => void transmit()} className={cn(BTN_PRIMARY, "w-full")}>
               <Send className="h-4 w-4" /> Invia
             </button>
             <p className="mt-2 text-[10px] text-rw-muted">Stato: {detail.transmissionStatus}</p>
@@ -294,11 +295,11 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
               <Field label="Autorità rilascio" value={form.documentIssuingAuthority ?? ""} onChange={(v) => setForm({ ...form, documentIssuingAuthority: v })} />
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button type="button" disabled={busy} onClick={() => void savePerson()} className="inline-flex items-center gap-2 rounded-xl bg-rw-accent px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              <button type="button" disabled={busy} onClick={() => void savePerson()} className={BTN_PRIMARY}>
                 <Save className="h-4 w-4" /> Salva
               </button>
               {form.ocrStatus === "completed" && (
-                <button type="button" disabled={busy} onClick={() => void applyOcr()} className="rounded-xl border border-rw-line px-4 py-2 text-sm font-semibold text-rw-ink">
+                <button type="button" disabled={busy} onClick={() => void applyOcr()} className={BTN_OUTLINE}>
                   Applica OCR
                 </button>
               )}
@@ -312,8 +313,8 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
               <UploadBtn label="Passaporto" onFile={(f) => void uploadFile(f, "passport")} />
               <UploadBtn label="Visto" onFile={(f) => void uploadFile(f, "visa")} />
               <UploadBtn label="Patente" onFile={(f) => void uploadFile(f, "driving_license")} />
-              <button type="button" onClick={() => void (cameraOn ? captureFromCamera() : startCamera())} className="inline-flex items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-xs font-semibold text-rw-ink">
-                <Camera className="h-3.5 w-3.5" /> {cameraOn ? "Scatta" : "Webcam / smartphone"}
+              <button type="button" onClick={() => void (cameraOn ? captureFromCamera() : startCamera())} className={BTN_GHOST}>
+                <Camera className="h-4 w-4" /> {cameraOn ? "Scatta" : "Webcam / smartphone"}
               </button>
             </div>
             {cameraOn && (
@@ -338,13 +339,13 @@ export function GuestRegisterEntryPage({ entryId }: Props) {
             <p className="mb-2 text-xs text-rw-muted">Firma su canvas — privacy, check-in, regolamento hotel.</p>
             <SignaturePad canvasRef={sigRef} />
             <div className="mt-2 flex flex-wrap gap-2">
-              <button type="button" disabled={busy} onClick={() => void saveSignature("signature_privacy")} className="inline-flex items-center gap-1 rounded-xl border border-rw-line px-3 py-1.5 text-xs font-semibold">
-                <PenLine className="h-3.5 w-3.5" /> Privacy
+              <button type="button" disabled={busy} onClick={() => void saveSignature("signature_privacy")} className={BTN_GHOST}>
+                <PenLine className="h-4 w-4" /> Privacy
               </button>
-              <button type="button" disabled={busy} onClick={() => void saveSignature("signature_checkin")} className="inline-flex items-center gap-1 rounded-xl border border-rw-line px-3 py-1.5 text-xs font-semibold">
+              <button type="button" disabled={busy} onClick={() => void saveSignature("signature_checkin")} className={BTN_GHOST}>
                 Check-in
               </button>
-              <button type="button" disabled={busy} onClick={() => void saveSignature("signature_rules")} className="inline-flex items-center gap-1 rounded-xl border border-rw-line px-3 py-1.5 text-xs font-semibold">
+              <button type="button" disabled={busy} onClick={() => void saveSignature("signature_rules")} className={BTN_GHOST}>
                 Regolamento
               </button>
             </div>
@@ -399,13 +400,13 @@ function Field({
     <label className="block text-xs">
       <span className="text-rw-muted">{label}</span>
       {select ? (
-        <select className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-2 py-1.5 text-sm text-rw-ink" value={value} onChange={(e) => onChange(e.target.value)}>
+        <select className={cn(SELECT_CLASS, "mt-1")} value={value} onChange={(e) => onChange(e.target.value)}>
           {options?.map((o) => (
             <option key={o} value={o}>{o || "—"}</option>
           ))}
         </select>
       ) : (
-        <input type={type} className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-2 py-1.5 text-sm text-rw-ink" value={value} onChange={(e) => onChange(e.target.value)} />
+        <input type={type} className={cn(INPUT_CLASS, "mt-1")} value={value} onChange={(e) => onChange(e.target.value)} />
       )}
     </label>
   );
@@ -413,7 +414,7 @@ function Field({
 
 function UploadBtn({ label, onFile }: { label: string; onFile: (f: File) => void }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-xs font-semibold text-rw-ink hover:border-rw-accent/40">
+    <label className={cn(BTN_GHOST, "cursor-pointer text-sm")}>
       <FileUp className="h-3.5 w-3.5" /> {label}
       <input type="file" className="hidden" accept="image/*,.pdf" onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); e.target.value = ""; }} />
     </label>

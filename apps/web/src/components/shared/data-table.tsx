@@ -12,13 +12,14 @@ type DataTableProps<T> = {
   data: T[];
   keyExtractor: (row: T) => string;
   emptyMessage?: string;
+  stickyHeader?: boolean;
 };
 
-export function DataTable<T>({ columns, data, keyExtractor, emptyMessage = "Nessun dato" }: DataTableProps<T>) {
+export function DataTable<T>({ columns, data, keyExtractor, emptyMessage = "Nessun dato", stickyHeader }: DataTableProps<T>) {
   return (
     <div className="overflow-x-auto rounded-xl border border-rw-line">
-      <table className="w-full text-sm">
-        <thead>
+      <table className="w-full min-w-[32rem] text-sm">
+        <thead className={stickyHeader ? "sticky top-0 z-10" : undefined}>
           <tr className="border-b border-rw-line bg-rw-surfaceAlt">
             {columns.map((col) => (
               <th key={col.key} className={cn("px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted", col.className)}>

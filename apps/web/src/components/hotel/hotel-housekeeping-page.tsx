@@ -52,7 +52,7 @@ export function HotelHousekeepingPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <PageHeader title={t("hotel.housekeeping.title")} subtitle={t("hotel.housekeeping.subtitle")}>
         <Chip label={t("hotel.housekeeping.chip.open")} value={housekeeping.filter((item) => item.status !== "done").length} tone="warn" />
         {rsActive.length > 0 && (
@@ -111,6 +111,7 @@ export function HotelHousekeepingPage() {
 
       <Card title={t("hotel.housekeeping.queue.title")} description={t("hotel.housekeeping.queue.desc")}>
         <DataTable
+          stickyHeader
           columns={[
             {
               key: "roomId",

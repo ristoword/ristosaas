@@ -21,8 +21,10 @@ import {
   type GuestRegisterDashboard,
   type GuestRegisterEntry,
 } from "@/lib/api-client";
+import { KpiTile } from "@/components/shared/kpi-tile";
+import { StatusPill } from "@/components/shared/status-pill";
+import { ALERT_INFO, BTN_GHOST, INPUT_CLASS, KPI_GRID, SELECT_CLASS } from "@/components/shared/ui-classes";
 import { todayIso } from "@/lib/date-utils";
-import { cn } from "@/lib/utils";
 
 const TX_LABELS: Record<string, string> = {
   pending: "Da inviare",
@@ -115,20 +117,18 @@ export function HotelGuestRegisterPage() {
         </button>
       </PageHeader>
 
-      {msg && (
-        <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2 text-sm text-rw-soft">{msg}</div>
-      )}
+      {msg && <div className={ALERT_INFO}>{msg}</div>}
 
       {dashboard && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Kpi icon={Users} label="Arrivi oggi" value={dashboard.arrivalsToday} />
-          <Kpi icon={ArrowRight} label="Partenze oggi" value={dashboard.departuresToday} />
-          <Kpi icon={UserCheck} label="Ospiti presenti" value={dashboard.guestsPresent} />
-          <Kpi icon={AlertTriangle} label="Da registrare" value={dashboard.toRegister} tone="warn" />
-          <Kpi icon={AlertTriangle} label="Incomplete" value={dashboard.incomplete} tone="warn" />
-          <Kpi icon={Send} label="Inviate" value={dashboard.sent} tone="success" />
-          <Kpi icon={AlertTriangle} label="Errori trasmissione" value={dashboard.transmissionErrors} tone="danger" />
-          <Kpi icon={Globe} label="Nazionalità" value={dashboard.nationalityBreakdown.length} />
+        <div className={KPI_GRID}>
+          <KpiTile icon={Users} label="Arrivi oggi" value={dashboard.arrivalsToday} />
+          <KpiTile icon={ArrowRight} label="Partenze oggi" value={dashboard.departuresToday} />
+          <KpiTile icon={UserCheck} label="Ospiti presenti" value={dashboard.guestsPresent} />
+          <KpiTile icon={AlertTriangle} label="Da registrare" value={dashboard.toRegister} tone="warn" />
+          <KpiTile icon={AlertTriangle} label="Incomplete" value={dashboard.incomplete} tone="warn" />
+          <KpiTile icon={Send} label="Inviate" value={dashboard.sent} tone="success" />
+          <KpiTile icon={AlertTriangle} label="Errori trasmissione" value={dashboard.transmissionErrors} tone="danger" />
+          <KpiTile icon={Globe} label="Nazionalità" value={dashboard.nationalityBreakdown.length} />
         </div>
       )}
 
@@ -176,17 +176,13 @@ export function HotelGuestRegisterPage() {
           <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
             <input
-              className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2 pl-8 pr-3 text-sm"
+              className={`${INPUT_CLASS} pl-8`}
               placeholder="Nome, camera, documento…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <select
-            className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-sm"
-            value={txFilter}
-            onChange={(e) => setTxFilter(e.target.value)}
-          >
+          <select className={SELECT_CLASS} value={txFilter} onChange={(e) => setTxFilter(e.target.value)}>
             <option value="all">Tutti gli stati TX</option>
             <option value="pending">Da inviare</option>
             <option value="sent">Inviato</option>
@@ -214,8 +210,12 @@ export function HotelGuestRegisterPage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap justify-end gap-1">
-                    <Badge label={STATUS_LABELS[e.status] ?? e.status} />
-                    <Badge label={TX_LABELS[e.transmissionStatus] ?? e.transmissionStatus} warn={e.transmissionStatus === "error"} />
+                    <StatusPill tone={e.status === "complete" ? "success" : e.status === "incomplete" ? "warn" : "default"}>
+                      {STATUS_LABELS[e.status] ?? e.status}
+                    </StatusPill>
+                    <StatusPill tone={e.transmissionStatus === "error" ? "danger" : e.transmissionStatus === "sent" ? "success" : "default"}>
+                      {TX_LABELS[e.transmissionStatus] ?? e.transmissionStatus}
+                    </StatusPill>
                   </div>
                 </Link>
               </li>
@@ -225,33 +225,5 @@ export function HotelGuestRegisterPage() {
         )}
       </Card>
     </div>
-  );
-}
-
-function Kpi({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: number;
-  tone?: "warn" | "success" | "danger";
-}) {
-  return (
-    <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
-      <Icon className={cn("mb-2 h-5 w-5", tone === "warn" && "text-amber-400", tone === "success" && "text-emerald-400", tone === "danger" && "text-red-400", !tone && "text-rw-accent")} />
-      <p className="text-xs text-rw-muted">{label}</p>
-      <p className="font-display text-2xl font-semibold text-rw-ink">{value}</p>
-    </div>
-  );
-}
-
-function Badge({ label, warn }: { label: string; warn?: boolean }) {
-  return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase", warn ? "bg-red-500/15 text-red-400" : "bg-rw-surface text-rw-muted")}>
-      {label}
-    </span>
   );
 }

@@ -16,6 +16,10 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
+import { KpiTile } from "@/components/shared/kpi-tile";
+import { Modal } from "@/components/shared/modal";
+import { TabBar } from "@/components/shared/tab-bar";
+import { BTN_OUTLINE, KPI_GRID } from "@/components/shared/ui-classes";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { useHousekeepingStream } from "@/components/hotel/housekeeping/use-housekeeping-stream";
 import { housekeepingApi, type HkDashboard, type HkRoomBoardItem } from "@/lib/api-client";
@@ -121,51 +125,41 @@ export function HousekeepingEnterpriseDashboard() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {kpi && (
-        <div className="grid gap-2 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-          <KpiCard label="Occupate" value={kpi.occupied} />
-          <KpiCard label="Libere" value={kpi.vacant} />
-          <KpiCard label="Arrivi oggi" value={kpi.arrivalsToday} tone="info" />
-          <KpiCard label="Partenze oggi" value={kpi.departuresToday} tone="warn" />
-          <KpiCard label="Sporche" value={kpi.dirty} tone="warn" />
-          <KpiCard label="Pulite" value={kpi.clean} tone="success" />
-          <KpiCard label="Ispezionate" value={kpi.inspected} />
-          <KpiCard label="Pronte" value={kpi.ready} tone="success" />
-          <KpiCard label="Fuori servizio" value={kpi.outOfOrder} tone="danger" />
-          <KpiCard label="Bloccate" value={kpi.blocked} />
-          <KpiCard label="Manutenzione" value={kpi.maintenance} tone="danger" />
-          <KpiCard label="Prioritarie" value={kpi.priority} tone="warn" />
-          <KpiCard label="Tempo medio" value={`${kpi.avgCleanMin}m`} />
-          <KpiCard label="HK attivi" value={kpi.activeHousekeepers} />
-          <KpiCard label="Task aperti" value={kpi.openTasks} tone="warn" />
-          <KpiCard label="Completati" value={kpi.completedTasks} tone="success" />
-          <KpiCard label="% Pronte" value={`${kpi.readyPct}%`} tone={kpi.readyPct >= 80 ? "success" : "warn"} highlight />
+        <div className={KPI_GRID}>
+          <KpiTile label="Occupate" value={kpi.occupied} />
+          <KpiTile label="Libere" value={kpi.vacant} />
+          <KpiTile label="Arrivi oggi" value={kpi.arrivalsToday} tone="info" />
+          <KpiTile label="Partenze oggi" value={kpi.departuresToday} tone="warn" />
+          <KpiTile label="Sporche" value={kpi.dirty} tone="warn" />
+          <KpiTile label="Pulite" value={kpi.clean} tone="success" />
+          <KpiTile label="Ispezionate" value={kpi.inspected} />
+          <KpiTile label="Pronte" value={kpi.ready} tone="success" />
+          <KpiTile label="Fuori servizio" value={kpi.outOfOrder} tone="danger" />
+          <KpiTile label="Bloccate" value={kpi.blocked} />
+          <KpiTile label="Manutenzione" value={kpi.maintenance} tone="danger" />
+          <KpiTile label="Prioritarie" value={kpi.priority} tone="warn" />
+          <KpiTile label="Tempo medio" value={`${kpi.avgCleanMin}m`} />
+          <KpiTile label="HK attivi" value={kpi.activeHousekeepers} />
+          <KpiTile label="Task aperti" value={kpi.openTasks} tone="warn" />
+          <KpiTile label="Completati" value={kpi.completedTasks} tone="success" />
+          <KpiTile label="% Pronte" value={`${kpi.readyPct}%`} tone={kpi.readyPct >= 80 ? "success" : "warn"} highlight />
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 border-b border-rw-line pb-2">
-        {([
-          ["board", "Planning"],
-          ["tasks", "Task"],
-          ["calendar", "Calendario"],
-          ["maintenance", "Manutenzione"],
-          ["analytics", "Analytics"],
-          ["ai", "AI"],
-        ] as const).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={cn(
-              "rounded-xl px-3 py-1.5 text-xs font-semibold",
-              tab === id ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-ink",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={[
+          { id: "board", label: "Planning" },
+          { id: "tasks", label: "Task" },
+          { id: "calendar", label: "Calendario" },
+          { id: "maintenance", label: "Manutenzione" },
+          { id: "analytics", label: "Analytics" },
+          { id: "ai", label: "AI" },
+        ]}
+        active={tab}
+        onChange={(id) => setTab(id as Tab)}
+      />
 
       {tab === "board" && dashboard && (
         <div className="space-y-4">
@@ -205,6 +199,7 @@ export function HousekeepingEnterpriseDashboard() {
       {tab === "tasks" && (
         <Card title="Coda task housekeeping" description="Gestione operativa pulizie">
           <DataTable
+            stickyHeader
             columns={[
               { key: "room", header: "Camera", render: (row) => row.roomId },
               { key: "assigned", header: "Assegnato", render: (row) => row.assignedTo },
@@ -252,7 +247,7 @@ export function HousekeepingEnterpriseDashboard() {
                     type="button"
                     disabled={busy}
                     onClick={() => void housekeepingApi.updateMaintenance(ticket.id, { status: "resolved" }).then(load)}
-                    className="rounded-lg bg-emerald-500/15 px-2 py-1 text-xs font-semibold text-emerald-400"
+                    className="rounded-xl bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-400"
                   >
                     Risolvi
                   </button>
@@ -266,10 +261,10 @@ export function HousekeepingEnterpriseDashboard() {
       {tab === "analytics" && kpi && (
         <Card title="Analytics housekeeping">
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <StatBlock label="Produttività" value={`${kpi.completedTasks} task`} />
-            <StatBlock label="Tempo medio pulizia" value={`${kpi.avgCleanMin} min`} />
-            <StatBlock label="Ritardi stimati" value={String(dashboard?.ai.delayRiskRooms.length ?? 0)} />
-            <StatBlock label="Qualità (% pronte)" value={`${kpi.readyPct}%`} />
+            <KpiTile label="Produttività" value={`${kpi.completedTasks} task`} />
+            <KpiTile label="Tempo medio pulizia" value={`${kpi.avgCleanMin} min`} />
+            <KpiTile label="Ritardi stimati" value={String(dashboard?.ai.delayRiskRooms.length ?? 0)} tone="warn" />
+            <KpiTile label="Qualità (% pronte)" value={`${kpi.readyPct}%`} tone="success" />
           </div>
         </Card>
       )}
@@ -295,16 +290,16 @@ export function HousekeepingEnterpriseDashboard() {
         </Card>
       )}
 
-      {selectedRoom && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-4 sm:items-center">
-          <div className="w-full max-w-md rounded-2xl border border-rw-line bg-rw-surface p-4 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="font-display text-lg font-semibold">Camera {selectedRoom.code}</h3>
-              <button type="button" onClick={() => setSelectedRoom(null)} className="text-rw-muted">✕</button>
-            </div>
-            <p className="text-sm text-rw-muted">{selectedRoom.pmsLabel} · Piano {selectedRoom.floor}</p>
-            {selectedRoom.guestName && <p className="text-sm">Ospite: {selectedRoom.guestName}</p>}
-            <div className="mt-4 flex flex-wrap gap-2">
+      <Modal
+        open={!!selectedRoom}
+        onClose={() => setSelectedRoom(null)}
+        title={selectedRoom ? `Camera ${selectedRoom.code}` : ""}
+        subtitle={selectedRoom ? `${selectedRoom.pmsLabel} · Piano ${selectedRoom.floor}` : undefined}
+      >
+        {selectedRoom && (
+          <>
+            {selectedRoom.guestName && <p className="mb-3 text-sm text-rw-soft">Ospite: {selectedRoom.guestName}</p>}
+            <div className="flex flex-wrap gap-2">
               {selectedRoom.taskId && selectedRoom.taskStatus === "todo" && (
                 <ActionBtn icon={Play} label="Inizia" onClick={() => void handleStartTask(selectedRoom)} disabled={busy} />
               )}
@@ -317,35 +312,17 @@ export function HousekeepingEnterpriseDashboard() {
               <ActionBtn icon={BedDouble} label="VC" onClick={() => void handleRoomStatus(selectedRoom, "VC")} disabled={busy} />
               <ActionBtn icon={AlertTriangle} label="OOO" onClick={() => void handleRoomStatus(selectedRoom, "OOO")} disabled={busy} />
             </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function KpiCard({ label, value, tone, highlight }: { label: string; value: string | number; tone?: "success" | "warn" | "danger" | "info"; highlight?: boolean }) {
-  return (
-    <div className={cn("rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2", highlight && "ring-1 ring-rw-accent/30")}>
-      <p className="text-[10px] text-rw-muted">{label}</p>
-      <p className={cn("font-display text-lg font-semibold", tone === "success" && "text-emerald-400", tone === "warn" && "text-amber-400", tone === "danger" && "text-red-400", tone === "info" && "text-blue-400", !tone && "text-rw-ink")}>{value}</p>
-    </div>
-  );
-}
-
-function StatBlock({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3">
-      <p className="text-xs text-rw-muted">{label}</p>
-      <p className="font-semibold text-rw-ink">{value}</p>
+          </>
+        )}
+      </Modal>
     </div>
   );
 }
 
 function ActionBtn({ label, icon: Icon, onClick, disabled }: { label: string; icon: React.ComponentType<{ className?: string }>; onClick?: () => void; disabled?: boolean }) {
   return (
-    <button type="button" disabled={disabled} onClick={onClick} className="inline-flex items-center gap-1.5 rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs font-semibold text-rw-ink hover:border-rw-accent/40 disabled:opacity-40">
-      <Icon className="h-3.5 w-3.5" /> {label}
+    <button type="button" disabled={disabled} onClick={onClick} className={cn(BTN_OUTLINE, "px-3 py-2 text-sm")}>
+      <Icon className="h-4 w-4" /> {label}
     </button>
   );
 }

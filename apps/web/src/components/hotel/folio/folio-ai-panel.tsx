@@ -15,6 +15,10 @@ import {
   TrendingUp,
   XCircle,
 } from "lucide-react";
+import { TabBar } from "@/components/shared/tab-bar";
+import { KpiTile } from "@/components/shared/kpi-tile";
+import { StatusPill } from "@/components/shared/status-pill";
+import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, KPI_GRID } from "@/components/shared/ui-classes";
 import { cn } from "@/lib/utils";
 import { consumeAiStream } from "@/lib/ai/consume-ai-stream";
 import { VoiceButton } from "@/components/ai/ai-voice";
@@ -215,7 +219,7 @@ export function FolioAiPanel({
   }
 
   return (
-    <aside className="flex h-full w-full min-w-[320px] max-w-[400px] flex-col border-l border-rw-line bg-rw-surface shadow-xl lg:sticky lg:top-4 lg:h-[calc(100vh-6rem)] lg:rounded-2xl lg:border">
+    <aside className="flex h-full w-full flex-col overflow-hidden rounded-t-2xl border border-rw-line bg-rw-surface shadow-2xl max-xl:max-h-[85dvh] xl:min-w-[320px] xl:max-w-[400px] xl:rounded-2xl xl:shadow-xl lg:sticky lg:top-4 lg:h-[calc(100vh-6rem)]">
       <div className="flex items-center justify-between border-b border-rw-line px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-rw-accent" />
@@ -236,21 +240,15 @@ export function FolioAiPanel({
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-rw-line px-2 py-2">
-        {(["overview", "chat", "checkout"] as const).map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSection(s)}
-            className={cn(
-              "flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold capitalize",
-              section === s ? "bg-rw-accent/15 text-rw-accent" : "text-rw-muted hover:text-rw-ink",
-            )}
-          >
-            {s === "overview" ? "Panoramica" : s === "chat" ? "Chat" : "Checkout"}
-          </button>
-        ))}
-      </div>
+      <TabBar
+        tabs={[
+          { id: "overview", label: "Panoramica" },
+          { id: "chat", label: "Chat" },
+          { id: "checkout", label: "Checkout" },
+        ]}
+        active={section}
+        onChange={(id) => setSection(id as typeof section)}
+      />
 
       <div className="flex-1 overflow-y-auto px-3 py-3">
         {loading && !analysis && (
@@ -266,17 +264,17 @@ export function FolioAiPanel({
           <div className="space-y-3">
             <SummaryCard title="Riepilogo soggiorno" text={analysis.guestSummary.stayOverview} />
             {analysis.guestSummary.vip && (
-              <span className="inline-block rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-400">VIP</span>
+              <StatusPill tone="warn">VIP</StatusPill>
             )}
             {analysis.guestSummary.allergies.length > 0 && (
               <SummaryCard title="Allergie" text={analysis.guestSummary.allergies.join(", ")} warn />
             )}
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <MiniStat label="Spesa" value={`€ ${analysis.guestSummary.spending.total.toFixed(0)}`} />
-              <MiniStat label="Saldo" value={`€ ${analysis.guestSummary.spending.balance.toFixed(2)}`} highlight={analysis.guestSummary.spending.balance > 0} />
-              <MiniStat label="Pagato" value={`€ ${analysis.guestSummary.spending.paid.toFixed(0)}`} />
-              <MiniStat label="Ritorno" value={`${Math.round(analysis.customerInsights.returnProbability * 100)}%`} />
+            <div className={cn(KPI_GRID, "grid-cols-2 sm:grid-cols-2")}>
+              <KpiTile label="Spesa" value={`€ ${analysis.guestSummary.spending.total.toFixed(0)}`} className="min-h-0 p-3 [&_p:last-child]:text-xl" />
+              <KpiTile label="Saldo" value={`€ ${analysis.guestSummary.spending.balance.toFixed(2)}`} tone="warn" highlight={analysis.guestSummary.spending.balance > 0} className="min-h-0 p-3 [&_p:last-child]:text-xl" />
+              <KpiTile label="Pagato" value={`€ ${analysis.guestSummary.spending.paid.toFixed(0)}`} tone="success" className="min-h-0 p-3 [&_p:last-child]:text-xl" />
+              <KpiTile label="Ritorno" value={`${Math.round(analysis.customerInsights.returnProbability * 100)}%`} className="min-h-0 p-3 [&_p:last-child]:text-xl" />
             </div>
 
             {analysis.anomalies.length > 0 && (
@@ -334,11 +332,7 @@ export function FolioAiPanel({
               </div>
             )}
 
-            <button
-              type="button"
-              onClick={() => void handleReport()}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-rw-line px-3 py-2 text-xs font-semibold text-rw-ink hover:border-rw-accent/40"
-            >
+            <button type="button" onClick={() => void handleReport()} className={cn(BTN_OUTLINE, "w-full text-xs")}>
               <Download className="h-3.5 w-3.5" /> Report AI PDF
             </button>
           </div>
@@ -433,7 +427,7 @@ export function FolioAiPanel({
             }}
             placeholder="Chiedi all'AI…"
             disabled={streaming}
-            className="flex-1 rounded-xl border border-rw-line bg-rw-bg px-3 py-2 text-xs text-rw-ink placeholder:text-rw-muted focus:outline-none focus:ring-1 focus:ring-rw-accent disabled:opacity-60"
+            className={cn(INPUT_CLASS, "flex-1 text-xs")}
           />
           {streaming ? (
             <button
@@ -448,7 +442,7 @@ export function FolioAiPanel({
               type="button"
               disabled={!input.trim()}
               onClick={() => void sendChat(input)}
-              className="flex h-9 w-9 items-center justify-center rounded-xl bg-rw-accent text-white disabled:opacity-40"
+              className={cn(BTN_PRIMARY, "h-9 w-9 shrink-0 p-0")}
             >
               <Send className="h-3.5 w-3.5" />
             </button>
@@ -464,13 +458,9 @@ export function FolioAiPanel({
 
 export function FolioAiToggle({ onClick, collapsed }: { onClick: () => void; collapsed?: boolean }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-xl border border-rw-accent/30 bg-rw-accent/10 px-3 py-2 text-xs font-semibold text-rw-accent transition hover:bg-rw-accent/20"
-    >
-      {collapsed ? <ChevronLeft className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-      <Sparkles className="h-3.5 w-3.5" /> AI Concierge
+    <button type="button" onClick={onClick} className={cn(BTN_GHOST, "border-rw-accent/30 bg-rw-accent/10 text-rw-accent hover:bg-rw-accent/20")}>
+      {collapsed ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+      <Sparkles className="h-4 w-4" /> AI Concierge
     </button>
   );
 }
@@ -480,15 +470,6 @@ function SummaryCard({ title, text, warn }: { title: string; text: string; warn?
     <div className={cn("rounded-xl border px-3 py-2 text-xs", warn ? "border-amber-500/30 bg-amber-500/5" : "border-rw-line bg-rw-surfaceAlt")}>
       <p className="font-semibold text-rw-ink">{title}</p>
       <p className="text-rw-muted">{text}</p>
-    </div>
-  );
-}
-
-function MiniStat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
-  return (
-    <div className="rounded-lg border border-rw-line bg-rw-surfaceAlt p-2">
-      <p className="text-[10px] text-rw-muted">{label}</p>
-      <p className={cn("font-semibold", highlight ? "text-amber-400" : "text-rw-ink")}>{value}</p>
     </div>
   );
 }
