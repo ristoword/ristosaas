@@ -48,7 +48,7 @@ export function HotelQuickActions() {
       <h2 className="mb-3 font-display text-sm font-bold uppercase tracking-widest text-[#D4AF37]/90">
         {t("hotel.enterprise.quickActions")}
       </h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4">
         {ACTIONS.map((action) => {
           const Icon = action.icon;
           return (

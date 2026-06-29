@@ -45,7 +45,14 @@ export function CassaActionSidebar({ onAction, onPrintBill }: Props) {
   const { t } = useI18n();
 
   return (
-    <aside className={cn(CARD_BASE, "flex h-full min-h-0 w-full flex-col gap-2 p-2 xl:w-[7.5rem]")}>
+    <aside
+      className={cn(
+        CARD_BASE,
+        "flex min-h-0 w-full gap-2 p-2",
+        "flex-row flex-wrap overflow-x-auto xl:flex-col xl:flex-nowrap xl:overflow-visible xl:p-2",
+        "xl:h-full xl:w-[7.5rem]",
+      )}
+    >
       {ACTIONS.map((action) => (
         <button
           key={action.id}
@@ -54,7 +61,11 @@ export function CassaActionSidebar({ onAction, onPrintBill }: Props) {
             if (action.id === "receipt") onPrintBill();
             else onAction(action.flashKey);
           }}
-          className={`${TOUCH_BTN_SM} w-full border border-rw-line/60 bg-rw-surfaceAlt/90 text-rw-ink hover:border-[#D4AF37]/40 hover:text-[#E8C547]`}
+          className={cn(
+            TOUCH_BTN_SM,
+            "min-w-[5.5rem] flex-1 border border-rw-line/60 bg-rw-surfaceAlt/90 text-rw-ink hover:border-[#D4AF37]/40 hover:text-[#E8C547]",
+            "sm:min-w-[6.5rem] xl:w-full xl:flex-none",
+          )}
         >
           <span className="text-[#D4AF37]">{action.icon}</span>
           <span className="text-center text-[10px] font-bold uppercase leading-tight">{t(action.labelKey)}</span>

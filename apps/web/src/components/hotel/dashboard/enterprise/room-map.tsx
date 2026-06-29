@@ -225,7 +225,7 @@ export function HotelRoomMap({ rooms, floors: _floors }: Props) {
   }, [refresh]);
 
   return (
-    <section className={`${CARD} flex h-full min-h-[480px] flex-col p-5`}>
+    <section className={`${CARD} flex min-h-[320px] flex-col p-4 sm:min-h-[400px] sm:p-5 lg:min-h-[480px]`}>
       {/* Header mappa */}
       <div className="mb-4 shrink-0 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -296,7 +296,7 @@ export function HotelRoomMap({ rooms, floors: _floors }: Props) {
 
       {/* Griglia camere */}
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-2 justify-items-center gap-2 sm:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5">
           {filteredSlots.map((slot) => (
             <RoomTile key={slot.slotCode} slot={slot} today={today} />
           ))}
@@ -328,7 +328,7 @@ function RoomTile({ slot, today }: { slot: SlotData; today: string }) {
   const inner = (
     <div
       className={cn(
-        "group relative flex h-20 w-20 flex-col items-center justify-center rounded-[12px] border p-2 shadow-sm transition duration-200",
+        "group relative flex aspect-square w-full max-w-[5rem] flex-col items-center justify-center rounded-[12px] border p-1.5 shadow-sm transition duration-200 sm:max-w-[5.25rem] sm:p-2",
         STATE_STYLES[displayState],
         !isEmpty && "hover:scale-[1.03] active:scale-[0.98]",
         isEmpty && "cursor-default opacity-60",

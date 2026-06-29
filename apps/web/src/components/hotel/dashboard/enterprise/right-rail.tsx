@@ -60,7 +60,7 @@ export function HotelRightRail({
   ];
 
   return (
-    <aside className="flex w-full shrink-0 flex-col gap-4 xl:w-[320px]">
+    <aside className="flex w-full shrink-0 flex-col gap-4 lg:w-[280px] xl:w-[320px]">
       <section className={`${CARD} p-5 text-center`}>
         <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#D4AF37]/30 to-[#D4AF37]/5 ring-2 ring-[#D4AF37]/40">
           <Sparkles className="h-10 w-10 text-[#E8C547]" />

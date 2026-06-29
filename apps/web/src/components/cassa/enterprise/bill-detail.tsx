@@ -106,8 +106,8 @@ export function CassaBillDetail({
         <CassaBillEmptyState />
       ) : (
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto rounded-xl border border-rw-line/60">
-            <table className="w-full text-base">
+          <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto rounded-xl border border-rw-line/60">
+            <table className="w-full min-w-[28rem] text-base">
               <thead className="sticky top-0 z-10 bg-rw-surfaceAlt">
                 <tr className="border-b border-rw-line">
                   <th className="px-3 py-3 text-left text-xs font-bold uppercase text-rw-muted">
@@ -191,10 +191,10 @@ export function CassaBillDetail({
             </div>
           </div>
 
-          <div className="mt-3 shrink-0 rounded-2xl border-2 border-[#D4AF37]/40 bg-gradient-to-r from-[#D4AF37]/15 to-transparent px-5 py-4">
-            <div className="flex items-center justify-between">
-              <span className="font-display text-xl font-bold uppercase text-rw-muted">{t("ui.total")}</span>
-              <span className="font-display text-4xl font-bold tabular-nums text-[#E8C547]">
+          <div className="mt-3 shrink-0 rounded-2xl border-2 border-[#D4AF37]/40 bg-gradient-to-r from-[#D4AF37]/15 to-transparent px-4 py-3 sm:px-5 sm:py-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-display text-lg font-bold uppercase text-rw-muted sm:text-xl">{t("ui.total")}</span>
+              <span className="font-display text-3xl font-bold tabular-nums text-[#E8C547] sm:text-4xl">
                 € {total.toFixed(2)}
               </span>
             </div>
@@ -283,7 +283,7 @@ export function CassaBillDetail({
             </button>
           </div>
 
-          <div className="mt-2 hidden shrink-0 flex-wrap gap-2 lg:flex">
+          <div className="mt-2 flex shrink-0 flex-wrap gap-2">
             <button
               type="button"
               onClick={() => onFlash(t("cassa.simulateClose.flash"))}

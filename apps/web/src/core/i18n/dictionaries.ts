@@ -693,6 +693,8 @@ const it: TranslationDictionary = {
   "cassa.enterprise.drawer": "Cassetto",
   "cassa.enterprise.connection": "Connessione",
   "cassa.enterprise.quickMenu": "Menù rapido",
+  "cassa.enterprise.actionsShort": "Azioni",
+  "cassa.enterprise.panelNav": "Sezioni cassa",
   "cassa.enterprise.newBill": "Nuovo conto",
   "cassa.enterprise.newBill.flash": "Crea un nuovo conto dalla sala o dall'asporto.",
   "cassa.enterprise.openBills": "Conti aperti",

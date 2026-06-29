@@ -13,7 +13,7 @@ type Props = {
 
 export function CassaEnterpriseTabs({ tabs, active, onChange }: Props) {
   return (
-    <nav className="flex flex-wrap gap-2" role="tablist">
+    <nav className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" role="tablist">
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -23,7 +23,7 @@ export function CassaEnterpriseTabs({ tabs, active, onChange }: Props) {
           onClick={() => onChange(tab.id)}
           className={cn(
             GOLD_BTN,
-            "min-w-[140px] flex-1 sm:flex-none uppercase tracking-wide",
+            "min-w-0 flex-1 uppercase tracking-wide sm:min-w-[8rem] sm:flex-none lg:min-w-[140px]",
             active === tab.id ? GOLD_BTN_ACTIVE : "text-rw-soft hover:text-[#E8C547]",
           )}
         >

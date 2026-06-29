@@ -96,7 +96,7 @@ export function AiInfrastructurePanel({ data, config, canMutate }: Props) {
                   type="button"
                   disabled={config.ragBusy || !t.ragEnabled}
                   onClick={() => config.ragAction(action === "reindex_all" ? "reindex_all" : action)}
-                  className="rounded-lg border border-rw-line bg-rw-surface px-2.5 py-1.5 text-xs text-rw-ink hover:bg-rw-surfaceAlt disabled:opacity-50"
+                  className="inline-flex min-h-[44px] items-center rounded-lg border border-rw-line bg-rw-surface px-3 py-2 text-xs text-rw-ink hover:bg-rw-surfaceAlt disabled:opacity-50"
                 >
                   {action === "sync" && "Avvia indicizzazione"}
                   {action === "reindex_all" && "Reindicizza tutto"}

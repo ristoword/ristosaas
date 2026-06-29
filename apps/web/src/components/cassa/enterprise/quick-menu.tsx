@@ -58,32 +58,34 @@ export function CassaQuickMenu({ menuItems, onProductTap }: Props) {
         </h2>
       </header>
 
-      <div className="mb-3 flex shrink-0 flex-wrap gap-2">
-        {CATEGORY_TABS.map((cat) => {
-          const isActive = activeCat === cat;
-          return (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setActiveCat(cat)}
-              className={cn(
-                "inline-flex h-[42px] items-center rounded-[12px] px-[18px] text-base font-semibold transition-all duration-150",
-                isActive
-                  ? "bg-[#D4AF37] text-black shadow-sm"
-                  : "bg-[#1E2430] text-white hover:bg-[#252d3d]",
-              )}
-            >
-              {cat}
-            </button>
-          );
-        })}
+      <div className="mb-3 -mx-1 shrink-0 overflow-x-auto px-1 pb-1">
+        <div className="flex min-w-max gap-2">
+          {CATEGORY_TABS.map((cat) => {
+            const isActive = activeCat === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setActiveCat(cat)}
+                className={cn(
+                  "inline-flex min-h-[44px] shrink-0 items-center rounded-[12px] px-4 text-sm font-semibold transition-all duration-150 sm:px-[18px] sm:text-base",
+                  isActive
+                    ? "bg-[#D4AF37] text-black shadow-sm"
+                    : "bg-[#1E2430] text-white hover:bg-[#252d3d]",
+                )}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
         {filtered.length === 0 ? (
           <p className="py-12 text-center text-sm text-rw-muted">{t("cassa.menu.notFound")}</p>
         ) : (
-          <div className="grid grid-cols-2 justify-items-start gap-2 md:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 justify-items-center gap-2 sm:grid-cols-3 md:grid-cols-[repeat(auto-fill,minmax(7.375rem,1fr))] xl:grid-cols-4">
             {filtered.map((item) => (
               <ProductCard key={item.id} item={item} onAdd={onProductTap} />
             ))}

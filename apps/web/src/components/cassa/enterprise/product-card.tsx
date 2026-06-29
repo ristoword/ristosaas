@@ -41,7 +41,7 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
         }
       }}
       className={cn(
-        "flex h-[180px] w-[118px] shrink-0 cursor-pointer flex-col gap-2 rounded-2xl border border-white/[0.08] bg-[#141A24] p-3 shadow-sm transition-transform duration-150 hover:scale-[1.03] active:scale-[0.98]",
+        "mx-auto flex h-[180px] w-full max-w-[118px] cursor-pointer flex-col gap-2 rounded-2xl border border-white/[0.08] bg-[#141A24] p-3 shadow-sm transition-transform duration-150 hover:scale-[1.03] active:scale-[0.98]",
         !item.active && "opacity-75",
       )}
     >

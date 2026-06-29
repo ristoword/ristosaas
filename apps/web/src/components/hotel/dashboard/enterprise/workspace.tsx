@@ -6,7 +6,7 @@ import { useHotel } from "@/components/hotel/hotel-context";
 import { AiChat } from "@/components/ai/ai-chat";
 import { useI18n } from "@/core/i18n/provider";
 import { todayIso } from "@/lib/date-utils";
-import { GRID_GAP, PAGE_PAD } from "./styles";
+import { FAB_CLEARANCE, GRID_GAP } from "./styles";
 import { useHotelDashboardMetrics } from "./use-hotel-dashboard-metrics";
 import { HOTEL_AI_SUGGESTIONS } from "./ai-suggestions";
 import { HotelEnterpriseHeader } from "./header";
@@ -27,20 +27,20 @@ export function HotelEnterpriseWorkspace() {
   const metrics = useHotelDashboardMetrics(rooms, reservations, housekeeping, charges, today);
 
   return (
-    <div className={`${PAGE_PAD} pb-28`}>
-      <div className={`flex flex-col ${GRID_GAP} xl:flex-row`}>
+    <div className={`space-y-4 md:space-y-5 ${FAB_CLEARANCE}`}>
+      <div className={`flex flex-col ${GRID_GAP} lg:flex-row`}>
         <div className={`flex min-w-0 flex-1 flex-col ${GRID_GAP}`}>
           <HotelEnterpriseHeader metrics={metrics} onAiOpen={() => setAiOpen(true)} />
           <HotelQuickActions />
 
-          <div className={`grid ${GRID_GAP} xl:grid-cols-12`}>
-            <div className="xl:col-span-3">
+          <div className={`grid ${GRID_GAP} lg:grid-cols-12`}>
+            <div className="min-w-0 lg:col-span-4 xl:col-span-3">
               <HotelStatusCard counts={metrics.roomStatusCounts} />
             </div>
-            <div className="xl:col-span-6">
+            <div className="min-w-0 lg:col-span-8 xl:col-span-6">
               <HotelRoomMap rooms={rooms} floors={metrics.floors} />
             </div>
-            <div className="xl:col-span-3">
+            <div className="min-w-0 lg:col-span-12 xl:col-span-3">
               <HotelArrivalsDepartures
                 arrivals={metrics.arrivalsToday}
                 departures={metrics.departuresToday}
@@ -79,7 +79,7 @@ export function HotelEnterpriseWorkspace() {
         type="button"
         onClick={() => setAiOpen(true)}
         aria-label={t("hotel.enterprise.aiConcierge")}
-        className="fixed bottom-6 right-6 z-40 flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#D4AF37]/60 bg-gradient-to-br from-[#D4AF37]/35 to-[#D4AF37]/10 text-[#E8C547] shadow-[0_8px_32px_rgba(212,175,55,0.35)] transition duration-[180ms] hover:scale-105 xl:hidden"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#D4AF37]/60 bg-gradient-to-br from-[#D4AF37]/35 to-[#D4AF37]/10 text-[#E8C547] shadow-[0_8px_32px_rgba(212,175,55,0.35)] transition duration-[180ms] hover:scale-105 sm:h-16 sm:w-16 sm:right-6 lg:hidden"
       >
         <Sparkles className="h-7 w-7" />
       </button>

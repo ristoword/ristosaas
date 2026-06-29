@@ -62,7 +62,7 @@ export function CassaTableGrid({
           {t("cassa.tables.empty")}
         </p>
       ) : (
-        <div className="grid flex-1 auto-rows-fr grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid flex-1 auto-rows-fr grid-cols-2 gap-2 overflow-y-auto sm:grid-cols-3 lg:grid-cols-4">
           {entries.map(([table, ords]) => {
             const status = tableStatus(ords);
             const covers = ords.reduce((s, o) => s + (o.covers ?? 0), 0) || (ords[0]?.covers ?? 0);

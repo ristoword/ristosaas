@@ -60,7 +60,7 @@ export function HotelAnalyticsRow({
   ];
 
   return (
-    <div className="grid gap-5 xl:grid-cols-3">
+    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3 xl:gap-5">
       <section className={`${CARD} p-5`}>
         <h2 className="mb-3 font-display text-lg font-bold text-rw-ink">{t("hotel.enterprise.reservations")}</h2>
         <ul className="space-y-2">
@@ -85,7 +85,7 @@ export function HotelAnalyticsRow({
                 type="button"
                 onClick={() => setOccRange(r)}
                 className={cn(
-                  "rounded-md px-2 py-1 text-xs font-bold transition duration-[180ms]",
+                  "min-h-[36px] rounded-md px-2.5 py-1.5 text-xs font-bold transition duration-[180ms] sm:min-h-[44px]",
                   occRange === r ? "bg-[#D4AF37]/25 text-[#E8C547]" : "text-rw-muted hover:text-rw-soft",
                 )}
               >

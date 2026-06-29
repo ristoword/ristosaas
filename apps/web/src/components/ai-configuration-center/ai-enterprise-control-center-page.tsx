@@ -54,7 +54,7 @@ export function AiEnterpriseControlCenterPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[90rem] space-y-6 px-3 py-4 sm:px-4 md:px-6">
+    <div className="space-y-6">
       <PageHeader title={t("aiControlCenter.title")} subtitle={t("aiControlCenter.subtitle")}>
         <button
           type="button"
@@ -89,7 +89,7 @@ export function AiEnterpriseControlCenterPage() {
               type="button"
               onClick={() => setTab(item.id)}
               className={cn(
-                "rounded-lg px-3 py-2 text-xs font-medium sm:text-sm",
+                "inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-xs font-medium sm:text-sm",
                 tab === item.id ? "bg-rw-accent text-white" : "text-rw-muted hover:bg-rw-surface hover:text-rw-ink",
               )}
             >

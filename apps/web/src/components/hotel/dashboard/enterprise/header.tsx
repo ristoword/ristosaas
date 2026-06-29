@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { useI18n } from "@/core/i18n/provider";
 import { useAuth } from "@/components/auth/auth-context";
+import { KPI_GRID } from "@/components/shared/ui-classes";
 import { KPI_HEADER } from "./styles";
 import { PRODUCT_BRAND, displayPropertyName } from "./display-labels";
 
@@ -55,9 +56,9 @@ export function HotelEnterpriseHeader({ metrics, onAiOpen }: Props) {
   const { user } = useAuth();
 
   return (
-    <header className="rounded-[18px] border border-rw-line/70 bg-gradient-to-r from-rw-surface via-rw-surfaceAlt/40 to-rw-surface p-5 shadow-sm">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
+    <header className="rounded-[18px] border border-rw-line/70 bg-gradient-to-r from-rw-surface via-rw-surfaceAlt/40 to-rw-surface p-4 shadow-sm sm:p-5">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm text-rw-muted">
             {t("hotel.enterprise.welcome")}, <span className="font-semibold text-rw-ink">{user?.name ?? "—"}</span>
           </p>
@@ -69,20 +70,20 @@ export function HotelEnterpriseHeader({ metrics, onAiOpen }: Props) {
         <button
           type="button"
           onClick={onAiOpen}
-          className="inline-flex min-h-[52px] items-center gap-2 rounded-2xl border-2 border-[#D4AF37]/50 bg-gradient-to-b from-[#D4AF37]/25 to-[#D4AF37]/5 px-5 text-sm font-bold uppercase tracking-wide text-[#E8C547] shadow-[0_0_20px_rgba(212,175,55,0.12)] transition duration-[180ms] hover:scale-[1.02] hover:border-[#D4AF37]"
+          className="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl border-2 border-[#D4AF37]/50 bg-gradient-to-b from-[#D4AF37]/25 to-[#D4AF37]/5 px-5 text-sm font-bold uppercase tracking-wide text-[#E8C547] shadow-[0_0_20px_rgba(212,175,55,0.12)] transition duration-[180ms] hover:scale-[1.02] hover:border-[#D4AF37] sm:w-auto lg:hidden"
         >
           <Sparkles className="h-5 w-5" />
           {t("hotel.enterprise.aiConcierge")}
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-9">
+      <div className={KPI_GRID}>
         {KPI_LINKS.map((item, idx) => (
           <Link key={item.key} href={item.href} className={`${KPI_HEADER} group`}>
             <span className="text-[10px] font-bold uppercase tracking-wider text-rw-muted group-hover:text-[#D4AF37]/80">
               {t(LABEL_KEYS[idx])}
             </span>
-            <span className="font-display text-2xl font-bold tabular-nums text-rw-ink group-hover:text-[#E8C547]">
+            <span className="font-display text-xl font-bold tabular-nums text-rw-ink group-hover:text-[#E8C547] sm:text-2xl">
               {item.format(metrics)}
             </span>
           </Link>
