@@ -38,6 +38,7 @@ import {
   splitTotals,
 } from "@/lib/hotel/folio-utils";
 import { cn } from "@/lib/utils";
+import { FolioAiPanel, FolioAiToggle } from "@/components/hotel/folio/folio-ai-panel";
 
 type Props = {
   folio: GuestFolio;
@@ -72,6 +73,9 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
   const [payNote, setPayNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(true);
+  const [aiCheckoutBlocked, setAiCheckoutBlocked] = useState(false);
+  const [aiCheckoutReasons, setAiCheckoutReasons] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -133,6 +137,10 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
 
   const handleCheckout = async (quick = false) => {
     if (!reservation || locked) return;
+    if (aiCheckoutBlocked) {
+      setMsg(`Checkout bloccato dall'AI: ${aiCheckoutReasons.join("; ")}`);
+      return;
+    }
     if (!confirm(quick ? "Checkout rapido con saldo implicito?" : "Confermi checkout e chiusura folio?")) return;
     setBusy(true);
     try {
@@ -210,7 +218,11 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div className="min-w-0 flex-1 space-y-4">
+      <div className="flex justify-end">
+        <FolioAiToggle onClick={() => setAiOpen((v) => !v)} collapsed={!aiOpen} />
+      </div>
       <FolioHeaderBar
         folio={folio}
         reservation={reservation}
@@ -447,6 +459,36 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
           </ul>
         )}
       </Card>
+      </div>
+
+      {aiOpen && (
+        <FolioAiPanel
+          folio={folio}
+          reservation={reservation}
+          customer={customer}
+          onOpenPayment={() => setPayOpen(true)}
+          onCheckout={() => void handleCheckout(false)}
+          onExportPdf={() => void handleExportPdf()}
+          onEmail={async () => {
+            const email = customer?.email || reservation?.email;
+            if (!email) {
+              setMsg("Email ospite non disponibile");
+              return;
+            }
+            try {
+              await hotelFolioApi.email(folio.id, email);
+              setMsg(`Folio inviato a ${email}`);
+            } catch (e) {
+              setMsg(e instanceof Error ? e.message : "Invio email fallito");
+            }
+          }}
+          onToggleCollapse={() => setAiOpen(false)}
+          onAnalysis={(a) => {
+            setAiCheckoutBlocked(a.checkoutBlocked);
+            setAiCheckoutReasons(a.checkoutBlockReasons);
+          }}
+        />
+      )}
     </div>
   );
 }

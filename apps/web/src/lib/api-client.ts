@@ -1211,6 +1211,83 @@ export const hotelApi = {
     get<RatePlan[]>(roomType ? `/hotel/rate-plans?roomType=${encodeURIComponent(roomType)}` : "/hotel/rate-plans"),
 };
 
+export type HousekeepingPmsCode =
+  | "VC" | "VD" | "OC" | "OD" | "INSPECTED" | "CLEAN" | "DIRTY" | "PICKUP" | "TOUCHED"
+  | "OOO" | "OOS" | "MAINTENANCE" | "BLOCKED" | "VIP_READY" | "DND" | "LATE_CO" | "EARLY_ARR";
+
+export type HkRoomBoardItem = {
+  id: string;
+  code: string;
+  floor: number;
+  roomType: string;
+  capacity: number;
+  status: HotelRoom["status"];
+  pmsCode: HousekeepingPmsCode;
+  pmsLabel: string;
+  colorClass: string;
+  occupied: boolean;
+  guestName: string | null;
+  arrival: string | null;
+  departure: string | null;
+  priority: number;
+  estimatedCleanMin: number;
+  doNotDisturb: boolean;
+  vipReady: boolean;
+  isBlocked: boolean;
+  maintenance: boolean;
+  taskId: string | null;
+  taskStatus: string | null;
+};
+
+export type HkDashboard = {
+  kpi: {
+    occupied: number;
+    vacant: number;
+    arrivalsToday: number;
+    departuresToday: number;
+    dirty: number;
+    clean: number;
+    inspected: number;
+    ready: number;
+    outOfOrder: number;
+    blocked: number;
+    maintenance: number;
+    priority: number;
+    avgCleanMin: number;
+    activeHousekeepers: number;
+    openTasks: number;
+    completedTasks: number;
+    readyPct: number;
+  };
+  roomBoard: HkRoomBoardItem[];
+  ai: {
+    suggestions: Array<{ id: string; type: string; title: string; detail: string; roomCodes?: string[]; priority: string }>;
+    optimalOrder: string[];
+    delayRiskRooms: string[];
+    inspectQueue: string[];
+    summary: string;
+  };
+  generatedAt: string;
+};
+
+export const housekeepingApi = {
+  dashboard: () => get<HkDashboard>("/hotel/housekeeping/dashboard"),
+  createTask: (payload: { roomId: string; taskType?: string; priority?: string; assignedToUserId?: string }) =>
+    post<{ task: unknown }>("/hotel/housekeeping/tasks", payload),
+  updateTask: (taskId: string, payload: Record<string, unknown>) =>
+    patch<{ task: unknown }>(`/hotel/housekeeping/tasks/${taskId}`, payload),
+  updateRoom: (roomId: string, payload: { hkPmsCode?: HousekeepingPmsCode; doNotDisturb?: boolean; vipReady?: boolean; hkPriority?: number }) =>
+    patch<{ room: unknown }>(`/hotel/housekeeping/rooms/${roomId}`, payload),
+  listMaintenance: () => get<{ tickets: unknown[] }>("/hotel/housekeeping/maintenance"),
+  createMaintenance: (payload: { roomId: string; title: string; description?: string; priority?: string }) =>
+    post<{ ticket: unknown }>("/hotel/housekeeping/maintenance", payload),
+  updateMaintenance: (id: string, payload: Record<string, unknown>) =>
+    patch<{ ticket: unknown }>(`/hotel/housekeeping/maintenance/${id}`, payload),
+  analytics: (days = 7) => get<Record<string, unknown>>(`/hotel/housekeeping/analytics?days=${days}`),
+  audit: (limit = 50) => get<{ logs: unknown[] }>(`/hotel/housekeeping/audit?limit=${limit}`),
+  checklists: () => get<{ templates: unknown[] }>("/hotel/housekeeping/checklists"),
+};
+
 export const integrationApi = {
   listFolios: () => get<GuestFolio[]>("/integration/folios"),
   listCharges: () => get<FolioCharge[]>("/integration/charges"),
@@ -1269,6 +1346,93 @@ export const hotelFolioApi = {
   listCompanies: () => get<{ companies: Array<{ id: string; name: string; vatNumber: string | null; creditLimit: number }> }>("/hotel/folio/companies"),
   assignCompany: (folioId: string, companyId: string, billingMode?: string) =>
     post(`/hotel/folio/${folioId}/billing`, { companyId, billingMode }),
+};
+
+export type FolioAiSeverity = "critical" | "warning" | "info";
+
+export type FolioAiAnomaly = {
+  id: string;
+  severity: FolioAiSeverity;
+  category: string;
+  title: string;
+  detail: string;
+  suggestion?: string;
+  chargeIds?: string[];
+};
+
+export type FolioAiAnalysis = {
+  folioId: string;
+  generatedAt: string;
+  anomalies: FolioAiAnomaly[];
+  revenueSuggestions: Array<{ id: string; service: string; reason: string; estimatedValue?: number; priority: string }>;
+  guestSummary: {
+    stayOverview: string;
+    spending: { total: number; room: number; extras: number; paid: number; balance: number };
+    preferences: string[];
+    history: string;
+    vip: boolean;
+    allergies: string[];
+    specialRequests: string[];
+    issues: string[];
+  };
+  paymentAssistant: {
+    balance: number;
+    credit: number;
+    paidTotal: number;
+    dueTotal: number;
+    paymentCount: number;
+    suggestedActions: string[];
+    splitSummary: Record<string, number>;
+  };
+  checkoutChecklist: Array<{ id: string; label: string; status: "ok" | "warn" | "fail"; detail: string }>;
+  fraudAlerts: Array<{ id: string; type: string; severity: FolioAiSeverity; detail: string }>;
+  customerInsights: {
+    avgSpend: number;
+    visitFrequency: string;
+    preferences: string[];
+    servicesUsed: string[];
+    customerValue: string;
+    returnProbability: number;
+  };
+  forecast: {
+    projectedFinalSpend: number;
+    estimatedRevenue: number;
+    upsellProbability: number;
+    notes: string[];
+  };
+  timeline: Array<{ id: string; at: string; kind: string; title: string; detail: string; amount?: number; aiSummary?: string }>;
+  checkoutBlocked: boolean;
+  checkoutBlockReasons: string[];
+  proposedActions: FolioAiProposedAction[];
+};
+
+export type FolioAiProposedAction = {
+  id: string;
+  type: "payment" | "note" | "checkout" | "email" | "pdf" | "charge";
+  label: string;
+  description: string;
+  payload?: Record<string, unknown>;
+  requiresConfirmation: true;
+};
+
+export const hotelFolioAiApi = {
+  analyze: (folioId: string, locale = "it") =>
+    get<FolioAiAnalysis>(`/hotel/folio/${folioId}/ai/analyze?locale=${encodeURIComponent(locale)}`),
+  chat: (folioId: string, message: string, history?: Array<{ role: "user" | "assistant"; content: string }>, locale = "it") =>
+    post<{ reply: string }>(`/hotel/folio/${folioId}/ai/chat`, { message, history, locale }),
+  explainCharge: (folioId: string, chargeId: string) =>
+    get<{ explanation: { narrative: string; origin: string; department: string; operator: string; date: string; time: string; vatPct: number; total: number } }>(
+      `/hotel/folio/${folioId}/ai/chat?chargeId=${encodeURIComponent(chargeId)}`,
+    ),
+  confirmAction: (folioId: string, actionId: string, actionType: string) =>
+    post<{ acknowledged: boolean; message: string }>(`/hotel/folio/${folioId}/ai/actions`, {
+      actionId,
+      actionType,
+      confirmed: true,
+    }),
+  getReport: (folioId: string) => get<Record<string, unknown>>(`/hotel/folio/${folioId}/ai/report`),
+  downloadReport: (folioId: string, format: "pdf" | "json" = "pdf") =>
+    fetchBlob(`/hotel/folio/${folioId}/ai/report?format=${format}`),
 };
 
 export type GuestRegisterEntryStatus = "draft" | "incomplete" | "complete" | "checked_out";

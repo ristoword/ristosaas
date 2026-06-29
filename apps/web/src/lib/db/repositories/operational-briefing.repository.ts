@@ -252,7 +252,7 @@ export const operationalBriefingRepository = {
         select: { checkInDate: true, checkOutDate: true },
       }),
       prisma.housekeepingTask.findMany({
-        where: { tenantId, status: { in: ["da_pulire", "in_corso"] } },
+        where: { tenantId, status: { in: ["todo", "in_progress"] } },
       }),
     ]);
 

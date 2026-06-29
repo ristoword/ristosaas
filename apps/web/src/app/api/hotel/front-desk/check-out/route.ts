@@ -8,6 +8,7 @@ import { actorFromRequest } from "@/lib/hotel/folio-service";
 import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
+import { emitHousekeepingEvent } from "@/lib/hotel/housekeeping-event-bus";
 
 const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
 
@@ -320,7 +321,7 @@ export async function POST(req: NextRequest) {
 
       const updatedRoom = await tx.hotelRoom.update({
         where: { id: roomId },
-        data: { status: "da_pulire" },
+        data: { status: "da_pulire", hkPmsCode: "VD" },
       });
 
       const task = await tx.housekeepingTask.create({
@@ -329,6 +330,11 @@ export async function POST(req: NextRequest) {
           roomId,
           status: "todo",
           scheduledFor: now,
+          taskType: "departure",
+          priority: reservation.lateCheckout ? "high" : "normal",
+          guestName: reservation.guestName,
+          departureDate: now,
+          estimatedMin: 30,
         },
         select: {
           id: true,
@@ -411,6 +417,8 @@ export async function POST(req: NextRequest) {
       reservationId,
       actorFromRequest(guard.user, req.headers),
     );
+
+    emitHousekeepingEvent(tenantId, { reason: "checkout", roomId: result.room.id, taskId: result.housekeepingTask.id });
 
     return ok(result);
   } catch (e) {

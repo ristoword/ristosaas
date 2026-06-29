@@ -136,6 +136,60 @@ enum HotelRoomStatus {
   manutenzione
 }
 
+enum HousekeepingPmsCode {
+  VC
+  VD
+  OC
+  OD
+  INSPECTED
+  CLEAN
+  DIRTY
+  PICKUP
+  TOUCHED
+  OOO
+  OOS
+  MAINTENANCE
+  BLOCKED
+  VIP_READY
+  DND
+  LATE_CO
+  EARLY_ARR
+}
+
+enum HousekeepingTaskType {
+  departure
+  stayover
+  deep_clean
+  turndown
+  vip
+  daily
+  checkout
+}
+
+enum HousekeepingPriority {
+  low
+  normal
+  high
+  critical
+  vip
+}
+
+enum MaintenanceTicketStatus {
+  open
+  assigned
+  in_progress
+  waiting_parts
+  resolved
+  closed
+}
+
+enum MaintenancePriority {
+  low
+  normal
+  high
+  urgent
+}
+
 enum BoardType {
   room_only
   bed_breakfast
@@ -322,6 +376,10 @@ model Tenant {
   folioMergeLogs FolioMergeLog[]
   folioEmailLogs FolioEmailLog[]
   housekeepingTasks HousekeepingTask[]
+  housekeepingChecklistTemplates HousekeepingChecklistTemplate[]
+  housekeepingInspections HousekeepingInspection[]
+  maintenanceTickets MaintenanceTicket[]
+  housekeepingAuditLogs HousekeepingAuditLog[]
   keycards    HotelKeycard[]
   warehouseItems WarehouseItem[]
   warehouseMovements WarehouseMovement[]
@@ -583,11 +641,21 @@ model HotelRoom {
   ratePlanCode         String?
   /// Tariffa pubblicabile per notte (listino camera); usata in prenotazioni / booking interno.
   defaultNightlyRate   Decimal         @db.Decimal(10, 2) @default(0)
+  hkPmsCode            HousekeepingPmsCode?
+  doNotDisturb         Boolean         @default(false)
+  vipReady             Boolean         @default(false)
+  isBlocked            Boolean         @default(false)
+  hkPriority           Int             @default(0)
+  estimatedCleanMin    Int             @default(30)
+  hkNotes              String?
+  updatedAt            DateTime        @updatedAt @default(now())
   tenant               Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   reservations HotelReservation[]
   tasks        HousekeepingTask[]
   keycards     HotelKeycard[]
   guestRegisterEntries GuestRegisterEntry[]
+  maintenanceTickets MaintenanceTicket[]
+  housekeepingInspections HousekeepingInspection[]
 
   @@unique([tenantId, code])
 }
@@ -663,14 +731,119 @@ model Stay {
 }
 
 model HousekeepingTask {
-  id               String   @id @default(cuid())
+  id               String               @id @default(cuid())
   tenantId         String
   roomId           String
   assignedToUserId String?
   status           String
   scheduledFor     DateTime
-  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  room             HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  taskType         HousekeepingTaskType @default(departure)
+  priority         HousekeepingPriority @default(normal)
+  estimatedMin     Int                  @default(30)
+  actualMin        Int?
+  notes            String?
+  voiceNoteUrl     String?
+  signatureData    String?
+  photosJson       String?
+  checklistJson    String?
+  guestName        String?
+  arrivalDate      DateTime?
+  departureDate    DateTime?
+  inspectionLevel  Int                  @default(0)
+  inspectedAt      DateTime?
+  inspectedByUserId String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room             HotelRoom            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  inspections      HousekeepingInspection[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, scheduledFor])
+  @@index([roomId, scheduledFor])
+}
+
+model HousekeepingChecklistTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  roomType    String
+  taskType    HousekeepingTaskType
+  itemsJson   String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, roomType, taskType])
+}
+
+model HousekeepingInspection {
+  id              String   @id @default(cuid())
+  tenantId        String
+  taskId          String
+  roomId          String
+  level           Int
+  approved        Boolean  @default(false)
+  supervisorId    String?
+  signatureData   String?
+  photosJson      String?
+  comments        String?
+  createdAt       DateTime @default(now())
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  task            HousekeepingTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  room            HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, roomId])
+  @@index([taskId, level])
+}
+
+model MaintenanceTicket {
+  id              String                  @id @default(cuid())
+  tenantId        String
+  roomId          String
+  title           String
+  description     String
+  status          MaintenanceTicketStatus @default(open)
+  priority        MaintenancePriority     @default(normal)
+  assignedToUserId String?
+  materials       String?
+  cost            Decimal?                @db.Decimal(10, 2)
+  estimatedMin    Int?
+  actualMin       Int?
+  photosJson      String?
+  resolvedAt      DateTime?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room            HotelRoom               @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([roomId])
+}
+
+model HousekeepingAuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  roomId    String?
+  taskId    String?
+  action    String
+  field     String?
+  oldValue  String?
+  newValue  String?
+  userId    String?
+  userName  String?
+  userRole  String?
+  ip        String?
+  userAgent String?
+  device    String?
+  createdAt DateTime @default(now())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([roomId])
 }
 
 model GuestFolio {

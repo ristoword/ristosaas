@@ -175,16 +175,21 @@ export const moduleSnapshots = {
   housekeeping: async ({ tenantId }: ModuleSnapshotOptions) => {
     const tasks = await prisma.housekeepingTask.findMany({
       where: { tenantId, status: { not: "done" } },
-      include: { room: { select: { code: true } } },
+      include: { room: { select: { code: true, hkPmsCode: true, status: true } } },
       take: 40,
+    });
+    const dirtyRooms = await prisma.hotelRoom.count({
+      where: { tenantId, OR: [{ status: "da_pulire" }, { hkPmsCode: { in: ["VD", "DIRTY", "OD"] } }] },
     });
     return {
       pendingCount: tasks.length,
+      dirtyRooms,
       tasks: tasks.map((t) => ({
         roomCode: t.room?.code,
+        pmsCode: t.room?.hkPmsCode,
         status: t.status,
-        assignedToUserId: t.assignedToUserId,
-        scheduledFor: t.scheduledFor.toISOString(),
+        priority: t.priority,
+        taskType: t.taskType,
       })),
     };
   },

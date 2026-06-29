@@ -9,6 +9,7 @@ import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { roomServiceApi, type RoomServiceItem, type RoomServiceOrder } from "@/lib/api-client";
+import { HousekeepingEnterpriseDashboard } from "@/components/hotel/housekeeping/housekeeping-enterprise-dashboard";
 import { useI18n } from "@/core/i18n/provider";
 
 const taskTone = {
@@ -58,6 +59,8 @@ export function HotelHousekeepingPage() {
           <Chip label={`${t("hotel.housekeeping.chip.laundry")} (${rsActive.length})`} tone="info" />
         )}
       </PageHeader>
+
+      <HousekeepingEnterpriseDashboard />
 
       {(rsActive.length > 0 || rsLoading) && (
         <Card title={t("hotel.housekeeping.laundry_card.title")} description={t("hotel.housekeeping.laundry_card.desc")}>

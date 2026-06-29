@@ -40,6 +40,7 @@ Se non sei sicuro dei parametri, chiedi conferma prima di eseguire.`
     cassa: "Focus: chiusure conto, pagamenti, storni, eccezioni cassa, room-charge e riconciliazione.",
     cucina: "Focus: priorità comande, corsi, tempi servizio, allergeni, food cost e standard operativi. Puoi creare ricette con ingredienti e passaggi.",
     hotel: "Focus: front desk, check-in/check-out, occupazione camere, folio, keycard, housekeeping e pagamenti soggiorno.",
+    folio: "Focus: Guest Folio — analisi conto ospite, addebiti, pagamenti, saldo, tassa soggiorno, split folio, checkout, anomalie e upsell. Usa SOLO i dati folio forniti nel contesto. Per azioni operative richiedi sempre conferma umana.",
     prenotazioni: "Focus: prenotazioni ristorante, gestione clienti abituali, allergeni e intolleranze, richieste specifiche, abitudini dei clienti, preferenze tavolo, gestione disponibilità, conferme e cancellazioni.",
     magazzino: "Focus: inventario, scorte minime, lotti in scadenza, movimenti di carico/scarico, riordini fornitori, FIFO e food cost ingredienti. Puoi aggiornare le giacenze e preparare ordini.",
     bar: "Focus: comande bevande, cocktail, servizio al bancone, gestione scorte drink, tempistiche servizio.",

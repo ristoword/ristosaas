@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import type { HousekeepingTask } from "@/modules/hotel/domain/types";
 
-const HOTEL_ROLES = ["hotel_manager", "reception", "housekeeping", "owner", "super_admin"] as const;
+const HOTEL_ROLES = ["hotel_manager", "reception", "housekeeping", "supervisor", "owner", "super_admin"] as const;
 
 export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, HOTEL_ROLES);
@@ -22,6 +22,11 @@ export async function GET(req: NextRequest) {
       status: true,
       scheduledFor: true,
       assignedToUserId: true,
+      inspectionLevel: true,
+      priority: true,
+      taskType: true,
+      estimatedMin: true,
+      actualMin: true,
     },
   });
 
@@ -42,8 +47,17 @@ export async function GET(req: NextRequest) {
       : "Non assegnato",
     status: item.status === "in_progress" ? "in_progress" : item.status === "done" ? "done" : "todo",
     scheduledFor: item.scheduledFor.toISOString().slice(0, 10),
-    inspected: false,
+    inspected: (item.inspectionLevel ?? 0) > 0,
   }));
+
+  if (req.nextUrl.searchParams.get("format") === "extended") {
+    const extended = await prisma.housekeepingTask.findMany({
+      where: { tenantId },
+      orderBy: [{ scheduledFor: "asc" }],
+      include: { room: { select: { code: true, floor: true, hkPmsCode: true } } },
+    });
+    return ok({ tasks, extended });
+  }
 
   return ok(tasks);
 }
