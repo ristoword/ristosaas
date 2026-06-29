@@ -16,7 +16,7 @@ import { Card } from "@/components/shared/card";
 import { DataTable } from "@/components/shared/data-table";
 import { Modal } from "@/components/shared/modal";
 import { TabBar } from "@/components/shared/tab-bar";
-import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, FOLIO_WORKSPACE_GRID, INPUT_CLASS, SELECT_CLASS, STAT_GRID } from "@/components/shared/ui-classes";
+import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, folioWorkspaceGrid, INPUT_CLASS, SELECT_CLASS, STAT_GRID } from "@/components/shared/ui-classes";
 import { FolioHeaderBar } from "@/components/hotel/folio/folio-header-bar";
 import { FolioGuestReservationPanels } from "@/components/hotel/folio/folio-guest-reservation-panels";
 import { FolioEconomicDashboard } from "@/components/hotel/folio/folio-economic-dashboard";
@@ -228,8 +228,8 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
   };
 
   return (
-    <div className={FOLIO_WORKSPACE_GRID}>
-      <div className={cn("w-full min-w-0 space-y-6", aiOpen && "max-[1511px]:pb-[min(85dvh,42rem)]")}>
+    <div className={folioWorkspaceGrid(aiOpen)}>
+      <section className="[grid-area:summary] min-w-0 space-y-6">
       <div className="flex justify-end">
         <FolioAiToggle onClick={() => setAiOpen((v) => !v)} collapsed={!aiOpen} />
       </div>
@@ -243,7 +243,40 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
 
       <FolioGuestReservationPanels customer={customer} reservation={reservation} ratePlans={ratePlans} />
       <FolioEconomicDashboard economics={economics} currency={folio.currency} />
+      </section>
 
+      {aiOpen && (
+        <section className="[grid-area:ai] min-w-0 min-[1600px]:sticky min-[1600px]:top-4 min-[1600px]:self-start">
+        <FolioAiPanel
+          folio={folio}
+          reservation={reservation}
+          customer={customer}
+          onOpenPayment={() => setPayOpen(true)}
+          onCheckout={() => void handleCheckout(false)}
+          onExportPdf={() => void handleExportPdf()}
+          onEmail={async () => {
+            const email = customer?.email || reservation?.email;
+            if (!email) {
+              setMsg(t("hotel.folio.msg.emailMissing"));
+              return;
+            }
+            try {
+              await hotelFolioApi.email(folio.id, email);
+              setMsg(tf(t, "hotel.folio.msg.emailSent", { email }));
+            } catch (e) {
+              setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.emailErr"), t));
+            }
+          }}
+          onToggleCollapse={() => setAiOpen(false)}
+          onAnalysis={(a) => {
+            setAiCheckoutBlocked(a.checkoutBlocked);
+            setAiCheckoutReasons(a.checkoutBlockReasons);
+          }}
+        />
+        </section>
+      )}
+
+      <section className="[grid-area:ledger] min-w-0 space-y-6">
       <Card title={t("hotel.folio.actions.title")}>
         <div className="flex flex-wrap gap-2">
           <ActionBtn disabled={locked || !reservation} onClick={() => setPayOpen(true)} icon={CreditCard} label={t("hotel.folio.actions.pay")} />
@@ -464,45 +497,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
           </ul>
         )}
       </Card>
-      </div>
-
-      {aiOpen && (
-        <div
-          className={cn(
-            "w-full min-w-[20rem] max-w-full",
-            "max-[1511px]:fixed max-[1511px]:inset-x-0 max-[1511px]:bottom-0 max-[1511px]:z-40",
-            "max-[1511px]:flex max-[1511px]:h-[min(85dvh,calc(100dvh-env(safe-area-inset-bottom,0px)))] max-[1511px]:max-h-[85dvh]",
-            "min-[1512px]:sticky min-[1512px]:top-4 min-[1512px]:self-start min-[1512px]:h-[calc(100dvh-6rem)] min-[1512px]:max-h-[calc(100dvh-6rem)]",
-          )}
-        >
-        <FolioAiPanel
-          folio={folio}
-          reservation={reservation}
-          customer={customer}
-          onOpenPayment={() => setPayOpen(true)}
-          onCheckout={() => void handleCheckout(false)}
-          onExportPdf={() => void handleExportPdf()}
-          onEmail={async () => {
-            const email = customer?.email || reservation?.email;
-            if (!email) {
-              setMsg(t("hotel.folio.msg.emailMissing"));
-              return;
-            }
-            try {
-              await hotelFolioApi.email(folio.id, email);
-              setMsg(tf(t, "hotel.folio.msg.emailSent", { email }));
-            } catch (e) {
-              setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.emailErr"), t));
-            }
-          }}
-          onToggleCollapse={() => setAiOpen(false)}
-          onAnalysis={(a) => {
-            setAiCheckoutBlocked(a.checkoutBlocked);
-            setAiCheckoutReasons(a.checkoutBlockReasons);
-          }}
-        />
-        </div>
-      )}
+      </section>
     </div>
   );
 }

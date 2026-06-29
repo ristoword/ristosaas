@@ -18,7 +18,7 @@ import {
 import { TabBar } from "@/components/shared/tab-bar";
 import { KpiTile } from "@/components/shared/kpi-tile";
 import { StatusPill } from "@/components/shared/status-pill";
-import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS, KPI_GRID_COMPACT } from "@/components/shared/ui-classes";
+import { BTN_GHOST, BTN_OUTLINE, BTN_PRIMARY, INPUT_CLASS } from "@/components/shared/ui-classes";
 import { cn } from "@/lib/utils";
 import { consumeAiStream } from "@/lib/ai/consume-ai-stream";
 import { VoiceButton } from "@/components/ai/ai-voice";
@@ -228,21 +228,16 @@ export function FolioAiPanel({
   };
 
   if (collapsed) {
-    return (
-      <button
-        type="button"
-        onClick={onToggleCollapse}
-        className="fixed right-0 top-1/2 z-40 flex -translate-y-1/2 flex-col items-center gap-1 rounded-l-xl border border-r-0 border-rw-accent/30 bg-rw-accent/10 px-2 py-4 text-rw-accent shadow-lg hover:bg-rw-accent/20"
-        title={t("hotel.folio.ai.open")}
-      >
-        <Sparkles className="h-5 w-5" />
-        <span className="text-[10px] font-semibold [writing-mode:vertical-rl]">{t("hotel.folio.ai.label")}</span>
-      </button>
-    );
+    return null;
   }
 
   return (
-    <aside className="flex h-full min-h-0 w-full min-w-[20rem] max-w-full flex-col overflow-hidden rounded-t-2xl border border-rw-line bg-rw-surface shadow-2xl min-[1512px]:rounded-2xl min-[1512px]:shadow-xl">
+    <aside
+      className={cn(
+        "w-full min-w-[20rem] rounded-2xl border border-rw-line bg-rw-surface shadow-lg",
+        "min-[1600px]:flex min-[1600px]:max-h-[calc(100dvh-6rem)] min-[1600px]:flex-col min-[1600px]:overflow-hidden",
+      )}
+    >
       <div className="flex shrink-0 items-center justify-between border-b border-rw-line px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-rw-accent" />
@@ -277,8 +272,9 @@ export function FolioAiPanel({
 
       <div
         className={cn(
-          "min-h-0 flex-1 px-3 py-3",
-          section === "chat" ? "flex flex-col overflow-hidden" : "overflow-y-auto overscroll-y-contain",
+          "px-3 py-3",
+          section === "chat" && "min-[1600px]:flex min-[1600px]:min-h-0 min-[1600px]:flex-1 min-[1600px]:flex-col min-[1600px]:overflow-hidden",
+          section !== "chat" && "min-[1600px]:min-h-0 min-[1600px]:flex-1 min-[1600px]:overflow-y-auto min-[1600px]:overscroll-y-contain",
         )}
       >
         {loading && !analysis && (
@@ -308,11 +304,11 @@ export function FolioAiPanel({
             )}
             <SummaryCard title={t("hotel.folio.guestPanel.loyalty")} text={localizeGuestHistory(customer, t, formatCurrency)} />
 
-            <div className={KPI_GRID_COMPACT}>
-              <KpiTile label={t("hotel.folio.ai.kpi.spending")} value={formatCurrency(analysis.guestSummary.spending.total)} className="min-h-0 min-w-[8.5rem] p-3 [&_p:last-child]:text-xl" />
-              <KpiTile label={t("hotel.folio.ai.kpi.balance")} value={formatCurrency(analysis.guestSummary.spending.balance)} tone="warn" highlight={analysis.guestSummary.spending.balance > 0} className="min-h-0 min-w-[8.5rem] p-3 [&_p:last-child]:text-xl" />
-              <KpiTile label={t("hotel.folio.ai.kpi.paid")} value={formatCurrency(analysis.guestSummary.spending.paid)} tone="success" className="min-h-0 min-w-[8.5rem] p-3 [&_p:last-child]:text-xl" />
-              <KpiTile label={t("hotel.folio.ai.kpi.return")} value={`${Math.round(analysis.customerInsights.returnProbability * 100)}%`} className="min-h-0 min-w-[8.5rem] p-3 [&_p:last-child]:text-xl" />
+            <div className="grid grid-cols-2 gap-3">
+              <KpiTile label={t("hotel.folio.ai.kpi.spending")} value={formatCurrency(analysis.guestSummary.spending.total)} className="min-h-0 min-w-0 p-3 [&_p:last-child]:text-lg" />
+              <KpiTile label={t("hotel.folio.ai.kpi.balance")} value={formatCurrency(analysis.guestSummary.spending.balance)} tone="warn" highlight={analysis.guestSummary.spending.balance > 0} className="min-h-0 min-w-0 p-3 [&_p:last-child]:text-lg" />
+              <KpiTile label={t("hotel.folio.ai.kpi.paid")} value={formatCurrency(analysis.guestSummary.spending.paid)} tone="success" className="min-h-0 min-w-0 p-3 [&_p:last-child]:text-lg" />
+              <KpiTile label={t("hotel.folio.ai.kpi.return")} value={`${Math.round(analysis.customerInsights.returnProbability * 100)}%`} className="min-h-0 min-w-0 p-3 [&_p:last-child]:text-lg" />
             </div>
 
             {analysis.anomalies.length > 0 && (
@@ -464,7 +460,7 @@ export function FolioAiPanel({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-rw-line bg-rw-surface px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-rw-line bg-rw-surface px-3 py-3">
         <div className="flex items-center gap-2">
           <VoiceButton onResult={handleVoice} compact className="shrink-0" />
           <input

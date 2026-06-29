@@ -77,7 +77,7 @@ export function HotelFolioPage() {
   const integrationOk = !failedSlices.includes("folios") && !failedSlices.includes("charges");
 
   return (
-    <div className="space-y-6 overflow-x-clip pb-10 print:space-y-2">
+    <div className="space-y-6 pb-10 print:space-y-2">
       <PageHeader title={t("hotel.folio.page.title")} subtitle={t("hotel.folio.page.subtitle")}>
         <button type="button" onClick={() => refresh()} className={BTN_GHOST}>
           <RefreshCw className="h-4 w-4" /> {t("ui.update")}

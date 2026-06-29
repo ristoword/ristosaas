@@ -36,13 +36,19 @@ export const KPI_GRID_COMPACT =
 export const PANEL_GRID_2 =
   "grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]";
 
-/** Lista folio + area workspace. */
+/** Lista folio + area workspace (2 colonne da lg). */
 export const FOLIO_PAGE_GRID =
   "grid items-start gap-4 [grid-template-columns:minmax(0,1fr)] lg:[grid-template-columns:minmax(17.5rem,20rem)_minmax(0,1fr)]";
 
-/** Contenuto folio + AI Concierge (stack sotto 1512px, affiancati sopra). */
-export const FOLIO_WORKSPACE_GRID =
-  "grid items-start gap-6 [grid-template-columns:minmax(0,1fr)] min-[1512px]:[grid-template-columns:minmax(28rem,1fr)_minmax(20rem,24rem)]";
+/**
+ * Workspace folio con CSS grid areas:
+ * mobile — summary → AI → ledger (document flow, scroll pagina)
+ * desktop (≥1600px) — summary | AI / ledger | AI (colonna destra sticky)
+ */
+export const folioWorkspaceGrid = (aiOpen: boolean) =>
+  aiOpen
+    ? "grid gap-6 [grid-template-areas:'summary'_'ai'_'ledger'] min-[1600px]:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)] min-[1600px]:[grid-template-areas:'summary_ai'_'ledger_ai']"
+    : "grid gap-6 [grid-template-areas:'summary'_'ledger']";
 
 /** Riga statistiche (pagamenti, split). */
 export const STAT_GRID =
