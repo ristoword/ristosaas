@@ -12,6 +12,8 @@ import {
   isMultiAgentAvailable,
   isWebSearchAvailable,
 } from "@/lib/ai/platform-config.runtime";
+import { ORCHESTRATOR_MODULE_IDS } from "@/lib/ai/orchestrator/types";
+import { getSseConnectionStats } from "@/lib/ai/sse";
 import { prisma } from "@/lib/db/prisma";
 
 export type HealthStatus = "green" | "yellow" | "red";
@@ -204,9 +206,12 @@ export async function buildAiConfigCenter(readOnly = false): Promise<AiConfigCen
     memoryTurnCount,
     chatLogsToday,
     chatErrorsToday,
+    toolErrorsToday,
     automationRuns,
     automationActive,
+    automationDurations,
     lastMemoryTurn,
+    orchestratorTurnsToday,
     adminLogs,
     automationLogs,
   ] = await Promise.all([
@@ -219,13 +224,30 @@ export async function buildAiConfigCenter(readOnly = false): Promise<AiConfigCen
     prisma.aiMemoryTurn.count().catch(() => 0),
     prisma.aiChatLog.count({ where: { createdAt: { gte: todayStart } } }).catch(() => 0),
     prisma.aiChatLog.count({ where: { createdAt: { gte: todayStart }, errorMessage: { not: null } } }).catch(() => 0),
+    prisma.aiChatLog.count({
+      where: {
+        createdAt: { gte: todayStart },
+        errorMessage: { not: null },
+        context: { in: ["risto", "cucina", "magazzino", "cantina"] },
+      },
+    }).catch(() => 0),
     prisma.aiAutomationRun.groupBy({
       by: ["status"],
       _count: { _all: true },
       where: { startedAt: { gte: todayStart } },
     }).catch(() => []),
     prisma.aiAutomationRun.count({ where: { status: { in: ["pending", "running"] } } }).catch(() => 0),
+    prisma.aiAutomationRun.findMany({
+      where: { startedAt: { gte: todayStart }, finishedAt: { not: null } },
+      select: { startedAt: true, finishedAt: true },
+      take: 200,
+    }).catch(() => []),
     prisma.aiMemoryTurn.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true } }).catch(() => null),
+    prisma.aiMemoryTurn.findMany({
+      where: { channel: "orchestrator", createdAt: { gte: todayStart } },
+      select: { metadata: true, createdAt: true },
+      take: 100,
+    }).catch(() => []),
     prisma.adminAuditLog.findMany({
       where: { action: { startsWith: "ai." } },
       orderBy: { createdAt: "desc" },
@@ -330,6 +352,7 @@ export async function buildAiConfigCenter(readOnly = false): Promise<AiConfigCen
   }
   tools.usedToday = toolCalls;
   tools.lastCallAt = lastToolAt;
+  tools.errorsToday = toolErrorsToday;
 
   const memoryBytes = await prisma.$queryRaw<Array<{ bytes: bigint }>>`
     SELECT COALESCE(SUM(octet_length(content)), 0)::bigint AS bytes FROM "AiMemoryVector"
@@ -348,15 +371,41 @@ export async function buildAiConfigCenter(readOnly = false): Promise<AiConfigCen
   };
 
   purgeExpiredVoiceSessions();
-  const voiceSessions = (globalThis as unknown as { voiceSessions?: Map<string, unknown> }).voiceSessions;
+  const voiceSessions = (globalThis as unknown as { voiceSessions?: Map<string, { turns: Array<{ ts: number }> }> }).voiceSessions;
+  const sseStats = getSseConnectionStats();
+
+  let voiceAvgMs: number | null = null;
+  const voiceLatencies: number[] = [];
+  if (voiceSessions) {
+    for (const session of voiceSessions.values()) {
+      const turns = session.turns ?? [];
+      for (let i = 1; i < turns.length; i += 2) {
+        const delta = turns[i].ts - turns[i - 1].ts;
+        if (delta > 0 && delta < 120_000) voiceLatencies.push(delta);
+      }
+    }
+  }
+  if (voiceLatencies.length > 0) {
+    voiceAvgMs = Math.round(voiceLatencies.reduce((a, b) => a + b, 0) / voiceLatencies.length);
+  }
+
+  const automationAvgMs =
+    automationDurations.length > 0
+      ? Math.round(
+          automationDurations.reduce(
+            (sum, r) => sum + (r.finishedAt!.getTime() - r.startedAt.getTime()),
+            0,
+          ) / automationDurations.length,
+        )
+      : null;
 
   const streaming: StreamingSection = {
     status: online && toggles.streamingEnabled ? "green" : !toggles.streamingEnabled ? "yellow" : "red",
-    activeConnections: voiceSessions?.size ?? 0,
-    avgResponseMs: null,
+    activeConnections: sseStats.activeConnections,
+    avgResponseMs: automationAvgMs,
     throughputToday: chatLogsToday,
     errorsToday: chatErrorsToday,
-    lastHeartbeat: new Date().toISOString(),
+    lastHeartbeat: sseStats.lastHeartbeat,
   };
 
   const voice: VoiceSection = {
@@ -365,7 +414,7 @@ export async function buildAiConfigCenter(readOnly = false): Promise<AiConfigCen
     microphone: "browser",
     stt: "OpenAI Whisper",
     tts: "OpenAI TTS",
-    avgResponseMs: null,
+    avgResponseMs: voiceAvgMs,
     enabledLocales: ["it", "en"],
     activeSessions: voiceSessions?.size ?? 0,
   };
@@ -377,46 +426,82 @@ export async function buildAiConfigCenter(readOnly = false): Promise<AiConfigCen
     select: { startedAt: true, finishedAt: true, status: true },
   }).catch(() => null);
 
+  const schedulerActive = toggles.schedulerEnabled && Boolean(process.env.AI_SCHEDULER_TOKEN?.trim());
   const automation: AutomationSection = {
-    schedulerActive: toggles.schedulerEnabled && Boolean(process.env.AI_SCHEDULER_TOKEN?.trim()),
+    schedulerActive,
     activeJobs: automationActive,
     completedJobs: completed,
     failedJobs: failed,
     lastJobAt: lastRun?.finishedAt?.toISOString() ?? lastRun?.startedAt.toISOString() ?? null,
-    nextScheduledAt: null,
+    nextScheduledAt: schedulerActive
+      ? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      : null,
   };
 
   const webSearchAvailable = isWebSearchAvailable();
+  const webSearchErrors = adminLogs.filter(
+    (l) => l.action.includes("web") && l.action.includes("error"),
+  ).length;
   const webSearch: WebSearchSection | null = {
     available: webSearchAvailable,
     provider: process.env.TAVILY_API_KEY ? "Tavily" : process.env.SERPER_API_KEY ? "Serper" : null,
     status: webSearchAvailable && toggles.webSearchEnabled ? "green" : !webSearchAvailable ? "yellow" : "yellow",
     searchesToday: 0,
     avgMs: null,
-    errorsToday: 0,
+    errorsToday: webSearchErrors,
   };
 
   const multiAvailable = isMultiAgentAvailable();
+  const modulesUsedToday = new Set<string>();
+  const orchestratorTimestamps: number[] = [];
+  for (const turn of orchestratorTurnsToday) {
+    orchestratorTimestamps.push(turn.createdAt.getTime());
+    const meta = (turn.metadata ?? {}) as Record<string, unknown>;
+    const modules = Array.isArray(meta.modules) ? meta.modules : [];
+    for (const m of modules) {
+      if (typeof m === "string") modulesUsedToday.add(m);
+    }
+  }
+  let coordinationMs: number | null = null;
+  if (orchestratorTimestamps.length >= 2) {
+    orchestratorTimestamps.sort((a, b) => a - b);
+    const gaps: number[] = [];
+    for (let i = 1; i < orchestratorTimestamps.length; i++) {
+      gaps.push(orchestratorTimestamps[i] - orchestratorTimestamps[i - 1]);
+    }
+    coordinationMs = Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length);
+  }
+
+  const agentCount = ORCHESTRATOR_MODULE_IDS.length;
+  const activeAgents = modulesUsedToday.size;
   const multiAgent: MultiAgentSection | null = {
     available: multiAvailable,
-    agentCount: multiAvailable ? 3 : 0,
-    activeAgents: multiAvailable ? 2 : 0,
-    inactiveAgents: multiAvailable ? 1 : 0,
+    agentCount: multiAvailable ? agentCount : 0,
+    activeAgents: multiAvailable ? activeAgents : 0,
+    inactiveAgents: multiAvailable ? Math.max(0, agentCount - activeAgents) : 0,
     routing: multiAvailable ? "orchestrator" : "n/a",
-    coordinationMs: null,
+    coordinationMs,
     orchestrationStatus: multiAvailable && toggles.multiAgentEnabled ? "green" : "yellow",
   };
 
   const health = await buildHealthCenter(toggles, online, vectorAvailable, memoryAvailable);
 
   const logs: AiSystemLogEntry[] = [
-    ...adminLogs.map((l) => ({
-      id: l.id,
-      level: l.action.includes("error") ? ("error" as const) : ("event" as const),
-      message: l.action,
-      module: "admin",
-      at: l.createdAt.toISOString(),
-    })),
+    ...adminLogs.map((l) => {
+      const meta = (l.metadata ?? {}) as Record<string, unknown>;
+      const setting = typeof meta.setting === "string" ? meta.setting : null;
+      const message =
+        l.action === "ai.config.toggle" && setting
+          ? `Toggle ${setting}: ${String(meta.previousValue)} → ${String(meta.newValue)}`
+          : l.action;
+      return {
+        id: l.id,
+        level: l.action.includes("error") ? ("error" as const) : l.action.includes("rag") ? ("event" as const) : ("info" as const),
+        message,
+        module: l.action.startsWith("ai.config") ? "config" : "admin",
+        at: l.createdAt.toISOString(),
+      };
+    }),
     ...automationLogs.map((l) => ({
       id: l.id,
       level: l.event.includes("error") || l.event.includes("fail") ? ("error" as const) : ("info" as const),

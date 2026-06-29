@@ -3,6 +3,7 @@ import { retrieveManualContext } from "@/lib/ai/rag";
 import { RISTO_TOOLS } from "@/lib/ai/risto-tools";
 import { pickStatusMessage } from "@/lib/ai/stream-status";
 import type { SseEmitter } from "@/lib/ai/sse";
+import { isRagRuntimeEnabled, isToolCallingRuntimeEnabled } from "@/lib/ai/platform-config.runtime";
 
 export type AiRole = "user" | "assistant";
 export type AiMessage = { role: AiRole; content: string };
@@ -135,7 +136,9 @@ export async function buildChatContext(params: BuildChatContextParams): Promise<
   );
 
   const isRisto = context === "risto" || Boolean(enableTools);
-  const canUseFunctions = isRisto && (RISTO_ROLES as readonly string[]).includes(userRole);
+  const toolsAllowed = await isToolCallingRuntimeEnabled();
+  const canUseFunctions =
+    toolsAllowed && isRisto && (RISTO_ROLES as readonly string[]).includes(userRole);
 
   emit?.({ type: "status", message: pickStatusMessage(context, 0) });
 
@@ -151,8 +154,10 @@ export async function buildChatContext(params: BuildChatContextParams): Promise<
 
   emit?.({ type: "status", message: pickStatusMessage(context, 1) });
   try {
-    const ragContext = await retrieveManualContext(message, apiKey);
-    if (ragContext) systemPrompt = `${systemPrompt}\n\n${ragContext}`;
+    if (await isRagRuntimeEnabled()) {
+      const ragContext = await retrieveManualContext(message, apiKey);
+      if (ragContext) systemPrompt = `${systemPrompt}\n\n${ragContext}`;
+    }
   } catch { /* non-blocking */ }
 
   emit?.({ type: "status", message: pickStatusMessage(context, 2) });

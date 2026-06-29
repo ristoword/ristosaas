@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
-import { body, ok } from "@/lib/api/helpers";
+import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { createVoiceSession } from "@/lib/ai/voice/memory";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { isVoiceRuntimeEnabled, isAiFeatureEnabled } from "@/lib/ai/platform-config.runtime";
 
 const VOICE_ROLES = [
   "owner",
@@ -22,6 +23,10 @@ const VOICE_ROLES = [
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, VOICE_ROLES);
   if (guard.error) return guard.error;
+
+  if (!(await isAiFeatureEnabled("master")) || !(await isVoiceRuntimeEnabled())) {
+    return err("Voice AI disattivato dalla piattaforma", 503);
+  }
 
   const payload = await body<{ locale?: string }>(req);
   const tenantId = guard.user.tenantId || getTenantId();

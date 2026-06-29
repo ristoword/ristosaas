@@ -5,6 +5,7 @@ import {
   embedTexts,
   getEmbeddingModel,
 } from "@/lib/ai/embeddings";
+import { isRagRuntimeEnabled, isAiFeatureEnabled } from "@/lib/ai/platform-config.runtime";
 
 export { embedTexts, cosineSimilarity } from "@/lib/ai/embeddings";
 
@@ -124,6 +125,7 @@ export async function retrieveManualContext(
 ): Promise<string | null> {
   const trimmed = query.trim();
   if (!trimmed) return null;
+  if (!(await isRagRuntimeEnabled())) return null;
 
   const topK = options?.topK ?? Number(process.env.RAG_TOP_K || DEFAULT_TOP_K);
   const minScore = options?.minScore ?? Number(process.env.RAG_MIN_SCORE || DEFAULT_MIN_SCORE);
@@ -131,8 +133,9 @@ export async function retrieveManualContext(
   try {
     const [queryEmbedding] = await embedTexts(apiKey, [trimmed]);
     const model = getEmbeddingModel();
+    const vectorDbOn = await isAiFeatureEnabled("vectorDb");
 
-    if (await aiVectorRepository.isAvailable()) {
+    if (vectorDbOn && (await aiVectorRepository.isAvailable())) {
       const chunks = buildManualChunks();
       await aiVectorRepository.ensureManualSynced(chunks, model, (texts) => embedTexts(apiKey, texts));
 

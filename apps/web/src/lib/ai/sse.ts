@@ -7,6 +7,23 @@ export type AiStreamEvent =
 
 export type SseEmitter = (event: AiStreamEvent) => void;
 
+const globalForSse = globalThis as unknown as {
+  sseActiveConnections?: number;
+  sseLastHeartbeat?: number;
+};
+
+export function getSseConnectionStats(): { activeConnections: number; lastHeartbeat: string } {
+  return {
+    activeConnections: globalForSse.sseActiveConnections ?? 0,
+    lastHeartbeat: new Date(globalForSse.sseLastHeartbeat ?? Date.now()).toISOString(),
+  };
+}
+
+function trackSseConnection(delta: number) {
+  globalForSse.sseActiveConnections = Math.max(0, (globalForSse.sseActiveConnections ?? 0) + delta);
+  globalForSse.sseLastHeartbeat = Date.now();
+}
+
 export function encodeSseEvent(event: AiStreamEvent): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
 }
@@ -22,8 +39,10 @@ export function createSseResponse(
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      trackSseConnection(1);
       const emit: SseEmitter = (event) => {
         if (abort.signal.aborted) return;
+        globalForSse.sseLastHeartbeat = Date.now();
         try {
           controller.enqueue(encodeSseEvent(event));
         } catch {
@@ -39,6 +58,7 @@ export function createSseResponse(
           controller.enqueue(encodeSseEvent({ type: "error", message }));
         }
       } finally {
+        trackSseConnection(-1);
         try {
           controller.close();
         } catch {

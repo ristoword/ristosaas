@@ -5,6 +5,7 @@ import { executeVoiceTurn, runVoiceTurnStream } from "@/lib/ai/voice/executor";
 import { getVoiceSession } from "@/lib/ai/voice/memory";
 import type { VoiceTurnRequest } from "@/lib/ai/voice/types";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
+import { isVoiceRuntimeEnabled, isAiFeatureEnabled } from "@/lib/ai/platform-config.runtime";
 
 const VOICE_ROLES = [
   "owner",
@@ -24,6 +25,10 @@ const VOICE_ROLES = [
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, VOICE_ROLES);
   if (guard.error) return guard.error;
+
+  if (!(await isAiFeatureEnabled("master")) || !(await isVoiceRuntimeEnabled())) {
+    return err("Voice AI disattivato dalla piattaforma", 503);
+  }
 
   const payload = await body<VoiceTurnRequest>(req);
   if (!payload.sessionId?.trim()) return err("sessionId obbligatorio", 400);

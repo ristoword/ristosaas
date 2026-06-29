@@ -10,11 +10,17 @@ import { runAiChatStream } from "@/lib/ai/chat-stream";
 import { prepareBuiltChatContext, recordMemoryExchange } from "@/lib/ai/memory/context-manager";
 import { createSseResponse } from "@/lib/ai/sse";
 import { applyRateLimit, clientIpFromRequest, rateLimitHeaders } from "@/lib/security/rate-limit";
+import { isAiFeatureEnabled, isStreamingRuntimeEnabled } from "@/lib/ai/platform-config.runtime";
 
 export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req);
   if (guard.error) return guard.error;
   const user = guard.user;
+
+  if (!(await isAiFeatureEnabled("master"))) {
+    return err("Infrastruttura AI disattivata dalla piattaforma", 503);
+  }
+
   const tenantId = user?.tenantId || getTenantId();
 
   const limitKey = `${clientIpFromRequest(req)}|${user?.id ?? "anon"}|${tenantId ?? "none"}`;
@@ -85,6 +91,9 @@ export async function POST(req: NextRequest) {
   };
 
   if (payload.stream) {
+    if (!(await isStreamingRuntimeEnabled())) {
+      return err("Streaming AI disattivato dalla piattaforma", 503);
+    }
     return createSseResponse(
       (emit, signal) => runAiChatStream(chatParams, emit, signal),
       req.signal,

@@ -134,6 +134,43 @@ export function isAutomationEnabledSync(): boolean {
   return process.env.AI_AUTOMATION_ENABLED !== "false";
 }
 
+function syncToggle(key: AiFeatureKey, envKey: string | undefined): boolean {
+  if (!envAllows(envKey)) return false;
+  if (syncCache) {
+    if (!syncCache.aiMasterEnabled && key !== "master") return false;
+    return dbToggle(syncCache, key);
+  }
+  return envKey !== "false";
+}
+
+export function isMasterEnabledSync(): boolean {
+  return syncToggle("master", process.env.AI_MASTER_ENABLED);
+}
+
+export function isRagEnabledSync(): boolean {
+  return syncToggle("rag", process.env.AI_RAG_ENABLED);
+}
+
+export function isVectorDbEnabledSync(): boolean {
+  return syncToggle("vectorDb", process.env.AI_VECTOR_DB_ENABLED);
+}
+
+export function isToolCallingEnabledSync(): boolean {
+  return syncToggle("toolCalling", process.env.AI_TOOL_CALLING_ENABLED);
+}
+
+export function isStreamingEnabledSync(): boolean {
+  return syncToggle("streaming", process.env.AI_STREAMING_ENABLED);
+}
+
+export function isVoiceEnabledSync(): boolean {
+  return syncToggle("voice", process.env.AI_VOICE_ENABLED);
+}
+
+export function isMultiAgentEnabledSync(): boolean {
+  return syncToggle("multiAgent", process.env.AI_MULTI_AGENT_ENABLED);
+}
+
 /** Warm cache on module load in server context. */
 void cachedConfig().catch(() => undefined);
 

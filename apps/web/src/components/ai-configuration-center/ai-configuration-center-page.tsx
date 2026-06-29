@@ -191,6 +191,10 @@ export function AiConfigurationCenterPage() {
             <Kpi label="Dim. indice" value={formatBytes(data.rag.indexSizeBytes)} />
             <Kpi label="Ricerca media" value={data.rag.avgSearchMs != null ? `${data.rag.avgSearchMs} ms` : "—"} />
             <Kpi label="In errore" value={data.rag.errorDocuments} />
+            <Kpi
+              label="Ultima sync"
+              value={data.rag.lastSyncAt ? new Date(data.rag.lastSyncAt).toLocaleString("it-IT") : "—"}
+            />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {(["sync", "reindex_all", "update", "clear"] as const).map((action) => (
@@ -207,6 +211,13 @@ export function AiConfigurationCenterPage() {
                 {action === "clear" && "Svuota indice"}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => document.getElementById("ai-system-logs")?.scrollIntoView({ behavior: "smooth" })}
+              className="rounded-lg border border-rw-line bg-rw-surface px-2.5 py-1.5 text-xs text-rw-ink hover:bg-rw-surfaceAlt"
+            >
+              Visualizza log
+            </button>
           </div>
         </Section>
 
@@ -261,6 +272,10 @@ export function AiConfigurationCenterPage() {
             <Kpi label="Connessioni" value={data.streaming.activeConnections} />
             <Kpi label="Throughput oggi" value={data.streaming.throughputToday} />
             <Kpi label="Errori oggi" value={data.streaming.errorsToday} />
+            <Kpi
+              label="Risposta media"
+              value={data.streaming.avgResponseMs != null ? `${data.streaming.avgResponseMs} ms` : "—"}
+            />
             <Kpi label="Heartbeat" value={new Date(data.streaming.lastHeartbeat).toLocaleTimeString("it-IT")} />
           </div>
         </Section>
@@ -282,6 +297,14 @@ export function AiConfigurationCenterPage() {
             <Kpi label="Job attivi" value={data.automation.activeJobs} />
             <Kpi label="Completati oggi" value={data.automation.completedJobs} />
             <Kpi label="Falliti oggi" value={data.automation.failedJobs} />
+            <Kpi
+              label="Prossima esecuzione"
+              value={
+                data.automation.nextScheduledAt
+                  ? new Date(data.automation.nextScheduledAt).toLocaleString("it-IT")
+                  : "—"
+              }
+            />
           </div>
         </Section>
 
@@ -325,7 +348,7 @@ export function AiConfigurationCenterPage() {
       </Section>
 
       <Section title="AI System Logs" icon={Server}>
-        <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div id="ai-system-logs" className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Kpi label="Ultimo riavvio" value={new Date(data.meta.serverStartedAt).toLocaleString("it-IT")} />
           <Kpi label="Ultimo deploy" value={data.meta.lastDeployAt ? new Date(data.meta.lastDeployAt).toLocaleString("it-IT") : "—"} />
           <Kpi label="OpenAI" value={data.meta.openAiConfigured ? "OK" : "KO"} />
