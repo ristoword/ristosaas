@@ -8,6 +8,8 @@ import { useAiStreamChat } from "@/hooks/use-ai-stream";
 
 export type AiMessage = { role: "user" | "assistant"; content: string; ts: number; streaming?: boolean };
 
+export type AiSuggestedPrompt = { label: string; prompt: string };
+
 type Props = {
   context: string;
   open: boolean;
@@ -15,13 +17,23 @@ type Props = {
   title?: string;
   locale?: string;
   onAction?: (action: string, data: Record<string, unknown>) => void;
+  suggestedPrompts?: AiSuggestedPrompt[];
+  panelClassName?: string;
 };
 
 function StreamingCursor() {
   return <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-rw-accent align-middle" />;
 }
 
-export function AiChat({ context, open, onClose, title, locale: localeProp }: Props) {
+export function AiChat({
+  context,
+  open,
+  onClose,
+  title,
+  locale: localeProp,
+  suggestedPrompts,
+  panelClassName,
+}: Props) {
   const i18n = useI18n();
   const locale = localeProp || i18n.locale;
   const [messages, setMessages] = useState<AiMessage[]>([]);
@@ -33,26 +45,25 @@ export function AiChat({ context, open, onClose, title, locale: localeProp }: Pr
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, statusText]);
 
-  const send = useCallback(() => {
-    const text = input.trim();
-    if (!text || isStreaming) return;
-    setInput("");
+  const dispatchMessage = useCallback(
+    (text: string) => {
+      if (!text.trim() || isStreaming) return;
 
-    const userMsg: AiMessage = { role: "user", content: text, ts: Date.now() };
-    const assistantTs = Date.now() + 1;
-    const history = messages
-      .filter((m) => !m.streaming)
-      .slice(-8)
-      .map((m) => ({ role: m.role, content: m.content }));
+      const userMsg: AiMessage = { role: "user", content: text.trim(), ts: Date.now() };
+      const assistantTs = Date.now() + 1;
+      const history = messages
+        .filter((m) => !m.streaming)
+        .slice(-8)
+        .map((m) => ({ role: m.role, content: m.content }));
 
-    setMessages((p) => [
-      ...p,
-      userMsg,
-      { role: "assistant", content: "", ts: assistantTs, streaming: true },
-    ]);
+      setMessages((p) => [
+        ...p,
+        userMsg,
+        { role: "assistant", content: "", ts: assistantTs, streaming: true },
+      ]);
 
-    void streamChat(
-      { context, message: text, history, locale },
+      void streamChat(
+        { context, message: text.trim(), history, locale },
       (fullText) => {
         setMessages((p) =>
           p.map((m) =>
@@ -77,14 +88,28 @@ export function AiChat({ context, open, onClose, title, locale: localeProp }: Pr
               : m,
           ),
         );
-      },
-    );
-  }, [input, isStreaming, context, messages, locale, streamChat]);
+        },
+      );
+    },
+    [isStreaming, context, messages, locale, streamChat],
+  );
+
+  const send = useCallback(() => {
+    const text = input.trim();
+    if (!text) return;
+    setInput("");
+    dispatchMessage(text);
+  }, [input, dispatchMessage]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 flex w-96 max-w-full flex-col border-l border-rw-line bg-rw-surface shadow-2xl">
+    <div
+      className={cn(
+        "fixed inset-y-0 right-0 z-50 flex max-w-full flex-col border-l border-rw-line bg-rw-surface shadow-2xl",
+        panelClassName ?? "w-96",
+      )}
+    >
       <div className="flex items-center justify-between border-b border-rw-line px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-rw-accent" />
@@ -94,6 +119,24 @@ export function AiChat({ context, open, onClose, title, locale: localeProp }: Pr
           <X className="h-5 w-5" />
         </button>
       </div>
+
+      {suggestedPrompts && suggestedPrompts.length > 0 && (
+        <div className="max-h-48 shrink-0 overflow-y-auto border-b border-rw-line px-3 py-2">
+          <div className="flex flex-wrap gap-1.5">
+            {suggestedPrompts.map((s) => (
+              <button
+                key={s.label}
+                type="button"
+                disabled={isStreaming}
+                onClick={() => dispatchMessage(s.prompt)}
+                className="rounded-lg border border-[#D4AF37]/30 bg-[#D4AF37]/10 px-2.5 py-1.5 text-xs font-semibold text-[#E8C547] transition hover:bg-[#D4AF37]/20 disabled:opacity-40"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.length === 0 && (
