@@ -19,7 +19,11 @@ export type AdminAuditAction =
   | "user.force_change_password"
   | "user.create"
   | "user.role.change"
-  | "signup.provision";
+  | "signup.provision"
+  | "ai.config.toggle"
+  | "ai.config.rag.reindex"
+  | "ai.config.rag.clear"
+  | "ai.config.rag.sync";
 
 type AuditInput = {
   action: AdminAuditAction;

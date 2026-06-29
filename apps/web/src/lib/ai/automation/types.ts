@@ -202,8 +202,10 @@ export const DEFAULT_TRIGGER_THRESHOLDS: Record<string, number> = {
 
 export const AUTOMATION_TIMEOUT_MS = Number(process.env.AI_AUTOMATION_TIMEOUT_MS || 120_000);
 
+import { isAutomationEnabledSync } from "@/lib/ai/platform-config.runtime";
+
 export function isAutomationEnabled(): boolean {
-  return process.env.AI_AUTOMATION_ENABLED !== "false";
+  return isAutomationEnabledSync();
 }
 
 export function buildIdempotencyKey(

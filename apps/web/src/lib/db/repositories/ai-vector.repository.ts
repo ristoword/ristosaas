@@ -15,6 +15,7 @@ const MANUAL_SOURCE = "manual";
 const globalForVector = globalThis as unknown as {
   manualVectorSync?: Promise<void>;
   pgVectorReady?: boolean;
+  lastSearchMs?: number;
 };
 
 export function hashChunkContent(text: string): string {
@@ -143,6 +144,7 @@ export const aiVectorRepository = {
   async searchManual(queryEmbedding: number[], topK: number): Promise<VectorSearchHit[]> {
     if (!(await this.isAvailable())) return [];
 
+    const started = Date.now();
     const vectorLiteral = toPgVector(queryEmbedding);
     const rows = await prisma.$queryRawUnsafe<VectorSearchHit[]>(
       `SELECT
@@ -159,11 +161,72 @@ export const aiVectorRepository = {
       topK,
     );
 
+    globalForVector.lastSearchMs = Date.now() - started;
+
     return rows.map((r) => ({
       chunkKey: r.chunkKey,
       sectionId: r.sectionId,
       content: r.content,
       score: Number(r.score),
     }));
+  },
+
+  async getStats(): Promise<{
+    chunkCount: number;
+    sourceCount: number;
+    totalBytes: number;
+    lastUpdated: string | null;
+    avgSearchMs: number | null;
+  }> {
+    if (!(await this.isAvailable())) {
+      return { chunkCount: 0, sourceCount: 0, totalBytes: 0, lastUpdated: null, avgSearchMs: null };
+    }
+
+    const [countRow, sizeRow, lastRow] = await Promise.all([
+      prisma.$queryRaw<Array<{ cnt: bigint; sources: bigint }>>`
+        SELECT COUNT(*)::bigint AS cnt, COUNT(DISTINCT source)::bigint AS sources
+        FROM "AiVectorChunk"
+      `,
+      prisma.$queryRaw<Array<{ bytes: bigint | null }>>`
+        SELECT COALESCE(SUM(octet_length(content)), 0)::bigint AS bytes FROM "AiVectorChunk"
+      `,
+      prisma.$queryRaw<Array<{ updated: Date | null }>>`
+        SELECT MAX("updatedAt") AS updated FROM "AiVectorChunk"
+      `,
+    ]);
+
+    return {
+      chunkCount: Number(countRow[0]?.cnt ?? 0),
+      sourceCount: Number(countRow[0]?.sources ?? 0),
+      totalBytes: Number(sizeRow[0]?.bytes ?? 0),
+      lastUpdated: lastRow[0]?.updated?.toISOString() ?? null,
+      avgSearchMs: globalForVector.lastSearchMs ?? null,
+    };
+  },
+
+  async clearManualIndex(): Promise<number> {
+    if (!(await tableReady())) return 0;
+    const result = await prisma.$executeRawUnsafe(
+      `DELETE FROM "AiVectorChunk" WHERE source = $1`,
+      MANUAL_SOURCE,
+    );
+    globalForVector.manualVectorSync = undefined;
+    return typeof result === "number" ? result : 0;
+  },
+
+  async forceReindex(
+    chunks: RagChunk[],
+    embeddingModel: string,
+    embedTexts: (texts: string[]) => Promise<number[][]>,
+  ): Promise<{ upserted: number; removed: number }> {
+    if (!(await this.isAvailable())) throw new Error("Vector DB non disponibile");
+    globalForVector.manualVectorSync = undefined;
+    const existing = await prisma.$queryRaw<Array<{ chunkKey: string }>>`
+      SELECT "chunkKey" FROM "AiVectorChunk" WHERE source = ${MANUAL_SOURCE}
+    `;
+    const before = existing.length;
+    await this.syncManualChunks(chunks, embeddingModel, embedTexts);
+    const after = await prisma.aiVectorChunk.count({ where: { source: MANUAL_SOURCE } });
+    return { upserted: after, removed: Math.max(0, before - after) };
   },
 };

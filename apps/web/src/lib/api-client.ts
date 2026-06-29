@@ -75,6 +75,8 @@ export type AdminPlatformConfig = {
   maintenanceMode: boolean;
   updatedAt: string;
 };
+
+export type AiConfigCenterPayload = import("@/lib/ai/config-center/service").AiConfigCenterPayload;
 export type AdminSystemSnapshot = {
   appVersion: string;
   processUptimeSec: number;
@@ -2113,6 +2115,16 @@ export const api = {
       create: (payload: { username: string; name: string; email: string; password: string; role: string; tenantId?: string }) =>
         post<{ user: AdminUser; password: string }>("/admin/users", payload),
       toggleActive: (id: string) => patch<{ user: AdminUser }>(`/admin/users/${id}`, { toggleActive: true }),
+    },
+    aiConfig: {
+      get: () => get<AiConfigCenterPayload>("/admin/ai-config"),
+      update: (body: Record<string, boolean | number | string>) =>
+        patch<AiConfigCenterPayload>("/admin/ai-config", body),
+      ragAction: (action: string) =>
+        post<{ success: boolean; action: string; upserted?: number; removed?: number }>(
+          "/admin/ai-config/rag",
+          { action },
+        ),
     },
   },
   kitchen: kitchenApi,

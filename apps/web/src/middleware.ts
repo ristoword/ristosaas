@@ -24,7 +24,7 @@ const PUBLIC = [
   "/api/auth/login",
   "/api/auth/refresh",
 ];
-const SUPER_ADMIN_ONLY = ["/super-admin", "/dev-access", "/email-settings"];
+const SUPER_ADMIN_ONLY = ["/super-admin", "/dev-access", "/email-settings", "/ai-configuration-center"];
 
 type Gates = { maintenanceMode: boolean; tenantBlocked: boolean };
 let gatesCache: { key: string; value: Gates; exp: number } = {

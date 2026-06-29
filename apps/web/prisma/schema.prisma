@@ -472,6 +472,29 @@ model PlatformConfig {
   updatedAt        DateTime @updatedAt
 }
 
+/// Singleton platform-wide AI infrastructure toggles (super_admin only).
+model AiPlatformConfig {
+  id                 String    @id @default("default")
+  aiMasterEnabled    Boolean   @default(true)
+  memoryEnabled      Boolean   @default(true)
+  ragEnabled         Boolean   @default(true)
+  vectorDbEnabled    Boolean   @default(true)
+  toolCallingEnabled Boolean   @default(true)
+  voiceAiEnabled     Boolean   @default(true)
+  automationsEnabled Boolean   @default(true)
+  schedulerEnabled   Boolean   @default(true)
+  streamingEnabled   Boolean   @default(true)
+  webSearchEnabled   Boolean   @default(false)
+  multiAgentEnabled  Boolean   @default(false)
+  vectorProvider     String    @default("pgvector")
+  memoryRetentionDays Int      @default(90)
+  ragLastSyncAt      DateTime?
+  ragLastError       String?   @db.Text
+  memoryLastCleanupAt DateTime?
+  updatedBy          String?
+  updatedAt          DateTime  @updatedAt
+}
+
 model AdminAuditLog {
   id         String   @id @default(cuid())
   createdAt  DateTime @default(now())

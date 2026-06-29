@@ -38,6 +38,7 @@ import {
   Radio,
   ScrollText,
   Settings,
+  Settings2,
   Shield,
   ShoppingBag,
   Soup,
@@ -91,6 +92,15 @@ export const navSections: NavSection[] = [
         icon: Brain,
         ready: true,
         visibleFor: ["owner", "supervisor", "super_admin"],
+      },
+      {
+        id: "ai-configuration-center",
+        label: "AI Configuration Center",
+        hint: "Controllo infrastruttura AI, toggle, RAG, health — Super Admin.",
+        href: "/ai-configuration-center",
+        icon: Settings2,
+        ready: true,
+        visibleFor: ["super_admin"],
       },
       {
         id: "ai-assistente",

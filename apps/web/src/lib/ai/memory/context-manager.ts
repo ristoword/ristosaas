@@ -9,6 +9,7 @@ import {
   turnsToHistoryMessages,
 } from "@/lib/ai/memory/history";
 import { memoryVectorStore } from "@/lib/ai/memory/memory-vector-store";
+import { isMemoryEnabledSync } from "@/lib/ai/platform-config.runtime";
 
 export type MemoryContextInput = {
   tenantId: string;
@@ -40,7 +41,7 @@ export type RecordMemoryInput = {
 };
 
 function isMemoryEnabled(): boolean {
-  return process.env.AI_MEMORY_ENABLED !== "false";
+  return isMemoryEnabledSync();
 }
 
 export async function loadMemoryContext(input: MemoryContextInput): Promise<LoadedMemoryContext | null> {
