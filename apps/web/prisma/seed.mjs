@@ -113,6 +113,7 @@ async function upsertUsers() {
     { id: "usr_hotel", username: "hotel", password: "hotel123", name: "Hotel Manager", email: "hotel@ristosaas.local", role: "hotel_manager", mustChangePassword: false },
     { id: "usr_reception", username: "reception", password: "reception123", name: "Reception", email: "reception@ristosaas.local", role: "reception", mustChangePassword: false },
     { id: "usr_housekeeping", username: "housekeeping", password: "house123", name: "Housekeeping", email: "housekeeping@ristosaas.local", role: "housekeeping", mustChangePassword: false },
+    { id: "usr_partner", username: "partner", password: "partner123", name: "Partner Enterprise", email: "partner@ristosaas.local", role: "partner", mustChangePassword: false },
   ];
   await Promise.all(
     users.map((user) =>

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { canAccessWithRole, getApiRequiredRoles, isPublicApiPath } from "@/lib/auth/rbac";
+import { assertPartnerCanMutate } from "@/lib/auth/partner";
 import { SESSION_COOKIE, verifyEdgeSessionToken } from "@/lib/auth/session.edge";
 import { getOrCreateRequestId } from "@/lib/observability/request-context";
 
@@ -23,7 +24,7 @@ const PUBLIC = [
   "/api/auth/login",
   "/api/auth/refresh",
 ];
-const INTERNAL_ONLY = ["/licenses", "/stripe", "/email-settings", "/super-admin", "/dev-access"];
+const SUPER_ADMIN_ONLY = ["/super-admin", "/dev-access", "/email-settings"];
 
 type Gates = { maintenanceMode: boolean; tenantBlocked: boolean };
 let gatesCache: { key: string; value: Gates; exp: number } = {
@@ -130,7 +131,12 @@ export async function middleware(req: NextRequest) {
     const session = token ? await verifyEdgeSessionToken(token) : null;
     if (session) {
       const targetUrl = req.nextUrl.clone();
-      targetUrl.pathname = session.role === "reseller" ? "/controllo-vendite" : "/dashboard";
+      targetUrl.pathname =
+        session.role === "reseller"
+          ? "/controllo-vendite"
+          : session.role === "partner"
+            ? "/partner"
+            : "/dashboard";
       return redirectWithRequestId(targetUrl, requestId);
     }
     return nextWithRequestId(req, requestId);
@@ -159,6 +165,14 @@ export async function middleware(req: NextRequest) {
     const requiredRoles = getApiRequiredRoles(pathname);
     if (requiredRoles && !canAccessWithRole(user.role, requiredRoles)) {
       return jsonWithRequestId({ error: "Forbidden" }, { status: 403 }, requestId);
+    }
+
+    if (!assertPartnerCanMutate(user.role, req.method, pathname)) {
+      return jsonWithRequestId(
+        { error: "Partner: modalità sola lettura — operazione non consentita." },
+        { status: 403 },
+        requestId,
+      );
     }
 
     if (
@@ -221,10 +235,19 @@ export async function middleware(req: NextRequest) {
     return redirectWithRequestId(changeUrl, requestId);
   }
 
-  if (INTERNAL_ONLY.some((p) => pathname.startsWith(p)) && user.role !== "super_admin") {
+  if (SUPER_ADMIN_ONLY.some((p) => pathname.startsWith(p)) && user.role !== "super_admin") {
     const dashboardUrl = req.nextUrl.clone();
-    dashboardUrl.pathname = "/dashboard";
+    dashboardUrl.pathname = user.role === "partner" ? "/partner" : "/dashboard";
     return redirectWithRequestId(dashboardUrl, requestId);
+  }
+
+  if (
+    (pathname.startsWith("/licenses") || pathname.startsWith("/stripe")) &&
+    user.role !== "super_admin"
+  ) {
+    const u = req.nextUrl.clone();
+    u.pathname = user.role === "partner" ? "/partner/stripe" : "/dashboard";
+    return redirectWithRequestId(u, requestId);
   }
 
   // Reseller can only access their portal — redirect everything else to it

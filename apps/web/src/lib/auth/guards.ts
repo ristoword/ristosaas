@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { assertPartnerCanMutate, isPartnerRole } from "@/lib/auth/partner";
 import { err } from "@/lib/api/helpers";
 import { canAccessWithRole, getApiRequiredRoles } from "@/lib/auth/rbac";
 import { getRequestUser } from "@/lib/auth/session";
@@ -43,11 +44,15 @@ export async function requireApiUser(req: NextRequest, requiredRoles?: readonly 
     return { error: err("Forbidden", 403), user: null as PublicUser | null };
   }
 
+  if (!assertPartnerCanMutate(user.role, req.method, pathname)) {
+    return { error: err("Partner: modalità sola lettura — operazione non consentita.", 403), user: null as PublicUser | null };
+  }
+
   if (user.role !== "super_admin") {
     if (await isMaintenanceMode()) {
       return { error: err("Piattaforma in manutenzione. Riprova più tardi.", 503), user: null as PublicUser | null };
     }
-    if (await isTenantBlocked(user.tenantId)) {
+    if (!isPartnerRole(user.role) && user.tenantId && (await isTenantBlocked(user.tenantId))) {
       return { error: err("Struttura sospesa. Contatta l'assistenza.", 403), user: null as PublicUser | null };
     }
   }

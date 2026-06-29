@@ -12,7 +12,8 @@ export type UserRole =
   | "reception"
   | "housekeeping"
   | "super_admin"
-  | "reseller";
+  | "reseller"
+  | "partner";
 
 export type ProductPlan = "restaurant_only" | "hotel_only" | "all_included";
 export type LicenseStatus = "trial" | "active" | "expired" | "suspended";

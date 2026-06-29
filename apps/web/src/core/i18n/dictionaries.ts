@@ -1,5 +1,6 @@
 import type { Locale, TranslationDictionary } from "@/core/i18n/types";
 import { hotelModulesIt, hotelModulesEn, hotelModulesNl, hotelModulesPt } from "@/core/i18n/hotel-modules-i18n";
+import { partnerEn, partnerIt } from "@/core/i18n/partner-i18n";
 
 const it: TranslationDictionary = {
   /* ── App shell ───────────────────────────────────── */
@@ -41,6 +42,7 @@ const it: TranslationDictionary = {
   "role.reception": "Reception",
   "role.housekeeping": "Housekeeping",
   "role.reseller": "Partner Reseller",
+  "role.partner": "Partner Enterprise",
 
   /* ── Tempo relativo ──────────────────────────────── */
   "time.now": "Adesso",
@@ -1346,6 +1348,7 @@ const it: TranslationDictionary = {
   "hotel.housekeeping.inspection.pending": "Da verificare",
 
   ...hotelModulesIt,
+  ...partnerIt,
 
   /* ── Owner page ─────────────────────────────────── */
   "owner.title": "Area Owner",
@@ -3275,6 +3278,7 @@ const en: TranslationDictionary = {
   "hotel.housekeeping.inspection.pending": "To verify",
 
   ...hotelModulesEn,
+  ...partnerEn,
 
   /* ── Owner page ─────────────────────────────────── */
   "owner.title": "Owner Area",

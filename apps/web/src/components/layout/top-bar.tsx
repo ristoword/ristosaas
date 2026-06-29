@@ -25,6 +25,7 @@ import { useI10n } from "@/core/i18n/formatters";
 import type { Locale } from "@/core/i18n/types";
 import { SUPPORTED_LOCALES } from "@/core/i18n/types";
 import { useAuth } from "@/components/auth/auth-context";
+import { PartnerReadOnlyBadge } from "@/components/partner/partner-readonly-badge";
 import { notificationsApi, type AppNotification } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import type { SearchResultItem } from "@/app/api/search/route";
@@ -475,6 +476,8 @@ export function TopBar({ onOpenSidebar, menuOpen }: TopBarProps) {
             ))}
           </select>
         </label>
+
+        <PartnerReadOnlyBadge />
 
         {/* ─── Notification Bell ──────────────────── */}
         <div ref={notifRef} className="relative shrink-0">

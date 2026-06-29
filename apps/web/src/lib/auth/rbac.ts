@@ -161,6 +161,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/health/ai", roles: ["owner", "super_admin"] },
   { prefix: "/api/owner/portfolio", roles: ["owner", "super_admin"] },
   { prefix: "/api/reseller", roles: ["reseller", "super_admin"] },
+  { prefix: "/api/partner", roles: ["partner", "super_admin"] },
 ] as const;
 
 export function canAccessWithRole(role: string, required: readonly UserRole[]) {
@@ -170,6 +171,10 @@ export function canAccessWithRole(role: string, required: readonly UserRole[]) {
   // l'owner puo' sempre accedere. Evita che dimenticanze in una costante
   // locale su una singola route blocchino il proprietario del tenant.
   if (role === "owner" && !(required.length === 1 && required[0] === "super_admin")) {
+    return true;
+  }
+  // Partner enterprise: accesso operativo come owner, esclusi endpoint super_admin-only.
+  if (role === "partner" && !(required.length === 1 && required[0] === "super_admin")) {
     return true;
   }
   return required.includes(role as UserRole);

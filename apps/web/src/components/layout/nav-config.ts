@@ -11,6 +11,7 @@ import {
   BookUser,
   Bot,
   Brain,
+  Building2,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
@@ -44,6 +45,7 @@ import {
   Store,
   Terminal,
   Trophy,
+  TrendingUp,
   Truck,
   UserCheck,
   Users,
@@ -641,6 +643,48 @@ export const navSections: NavSection[] = [
     ],
   },
   {
+    title: "Partner Enterprise",
+    key: "partner-enterprise",
+    items: [
+      {
+        id: "partner-dashboard",
+        label: "Dashboard Partner",
+        hint: "KPI SaaS, MRR, licenze e piattaforma.",
+        href: "/partner",
+        icon: LineChart,
+        ready: true,
+        visibleFor: ["partner", "super_admin"],
+      },
+      {
+        id: "partner-sales",
+        label: "Controllo Vendite",
+        hint: "Licenze globali, dealer e commissioni.",
+        href: "/partner/controllo-vendite",
+        icon: TrendingUp,
+        ready: true,
+        visibleFor: ["partner", "super_admin"],
+      },
+      {
+        id: "partner-tenants",
+        label: "Tenant",
+        hint: "Strutture e utilizzo.",
+        href: "/partner/tenants",
+        icon: Building2,
+        ready: true,
+        visibleFor: ["partner", "super_admin"],
+      },
+      {
+        id: "partner-stripe",
+        label: "Stripe",
+        hint: "Pagamenti e abbonamenti.",
+        href: "/partner/stripe",
+        icon: CreditCard,
+        ready: true,
+        visibleFor: ["partner", "super_admin"],
+      },
+    ],
+  },
+  {
     title: "Partner",
     key: "partner",
     items: [
@@ -686,19 +730,29 @@ export function getVisibleNavSections(
   t?: (key: string) => string,
 ) {
   const isSuperAdmin = userRole === "super_admin";
+  const isPartner = userRole === "partner";
+
+  function canSeeItem(item: NavItem): boolean {
+    if (!hasVerticalEnabled(item.vertical)) return false;
+    if (!hasFeatureEnabled(item.feature)) return false;
+    if (!item.ready && !isSuperAdmin) return false;
+    if (!item.visibleFor) return true;
+    if (!userRole) return false;
+    if (isPartner) {
+      if (item.visibleFor.includes("partner")) return true;
+      if (item.visibleFor.length === 1 && item.visibleFor[0] === "super_admin") return false;
+      if (item.visibleFor.length === 1 && item.visibleFor[0] === "reseller") return false;
+      return true;
+    }
+    return item.visibleFor.includes(userRole);
+  }
+
   return navSections
     .map((section) => ({
       ...section,
       title: t ? (t(`nav.section.${section.key}`) || section.title) : section.title,
       items: section.items
-        .filter((item) => {
-          if (!hasVerticalEnabled(item.vertical)) return false;
-          if (!hasFeatureEnabled(item.feature)) return false;
-          if (!item.ready && !isSuperAdmin) return false;
-          if (!item.visibleFor) return true;
-          if (!userRole) return false;
-          return item.visibleFor.includes(userRole);
-        })
+        .filter(canSeeItem)
         .map((item) => ({
           ...item,
           label: t ? (t(`nav.${item.id}.label`) || item.label) : item.label,

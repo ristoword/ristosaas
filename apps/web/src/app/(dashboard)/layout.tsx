@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/layout/app-shell";
 import { AuthProvider } from "@/components/auth/auth-context";
+import { PartnerReadOnlyProvider } from "@/components/partner/partner-readonly-provider";
 import { HotelProvider } from "@/components/hotel/hotel-context";
 import { OrdersProvider } from "@/components/orders/orders-context";
 import { MenuProvider } from "@/components/menu/menu-context";
@@ -16,7 +17,9 @@ export default function DashboardGroupLayout({
         <WarehouseProvider>
           <MenuProvider>
             <OrdersProvider>
-              <AppShell>{children}</AppShell>
+              <PartnerReadOnlyProvider>
+                <AppShell>{children}</AppShell>
+              </PartnerReadOnlyProvider>
             </OrdersProvider>
           </MenuProvider>
         </WarehouseProvider>

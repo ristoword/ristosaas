@@ -53,4 +53,10 @@ describe("rbac", () => {
     expect(reports).toContain("hotel_manager");
     expect(reports).toContain("reception");
   });
+
+  it("partner accede alle route operative come owner ma non super_admin-only", () => {
+    expect(canAccessWithRole("partner", ["owner", "super_admin"])).toBe(true);
+    expect(canAccessWithRole("partner", ["super_admin"])).toBe(false);
+    expect(getApiRequiredRoles("/api/partner/dashboard")).toContain("partner");
+  });
 });
