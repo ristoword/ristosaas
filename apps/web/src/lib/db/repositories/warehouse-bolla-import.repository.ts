@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import type { Prisma } from "@prisma/client";
 import { normalizeProductKey } from "@/lib/warehouse/bolla-import/categories";
+import { syncCantinaWineFromLine, undoCantinaWineLine } from "@/lib/warehouse/bolla-import/cantina-sync";
 import type {
   BollaDashboardDto,
   BollaImportDto,
@@ -28,11 +29,13 @@ function mapLine(
     selectedCategory: string;
     warehouseLocation: string;
     warehouseItemId: string | null;
+    wineCellarItemId: string | null;
     matchStatus: string;
     selected: boolean;
     imported: boolean;
   },
   itemName?: string | null,
+  wineName?: string | null,
 ): BollaImportLineDto {
   return {
     id: row.id,
@@ -50,7 +53,9 @@ function mapLine(
     selectedCategory: row.selectedCategory,
     warehouseLocation: row.warehouseLocation,
     warehouseItemId: row.warehouseItemId,
-    warehouseItemName: itemName ?? null,
+    warehouseItemName: itemName ?? wineName ?? null,
+    wineCellarItemId: row.wineCellarItemId,
+    wineCellarItemName: wineName ?? null,
     matchStatus: row.matchStatus as BollaImportLineDto["matchStatus"],
     selected: row.selected,
     imported: row.imported,
@@ -85,6 +90,7 @@ function mapImport(
     lines?: Array<Parameters<typeof mapLine>[0] & { warehouseItemId: string | null }>;
   },
   itemNames: Map<string, string>,
+  wineNames: Map<string, string> = new Map(),
 ): BollaImportDto {
   return {
     id: row.id,
@@ -111,7 +117,11 @@ function mapImport(
     createdAt: row.createdAt.toISOString(),
     importedAt: row.importedAt ? row.importedAt.toISOString() : null,
     lines: (row.lines ?? []).map((l) =>
-      mapLine(l, l.warehouseItemId ? itemNames.get(l.warehouseItemId) ?? null : null),
+      mapLine(
+        l,
+        l.warehouseItemId ? itemNames.get(l.warehouseItemId) ?? null : null,
+        l.wineCellarItemId ? wineNames.get(l.wineCellarItemId) ?? null : null,
+      ),
     ),
   };
 }
@@ -124,6 +134,7 @@ export const warehouseBollaImportRepository = {
     documentMime: string;
     documentBase64: string;
     documentFileName: string;
+    defaultWarehouseLocation?: string;
     userId?: string;
     userName?: string;
   }) {
@@ -135,6 +146,7 @@ export const warehouseBollaImportRepository = {
         documentMime: params.documentMime,
         documentBase64: params.documentBase64,
         documentFileName: params.documentFileName,
+        defaultWarehouseLocation: params.defaultWarehouseLocation ?? "MAGAZZINO_CENTRALE",
         createdByUserId: params.userId ?? null,
         createdByName: params.userName ?? null,
         status: "queued",
@@ -196,6 +208,7 @@ export const warehouseBollaImportRepository = {
       selectedCategory: string;
       warehouseLocation: string;
       warehouseItemId: string | null;
+      wineCellarItemId?: string | null;
       matchStatus: string;
     }>,
   ) {
@@ -218,11 +231,18 @@ export const warehouseBollaImportRepository = {
     });
     if (!row) return null;
     const itemIds = row.lines.map((l) => l.warehouseItemId).filter(Boolean) as string[];
-    const items = itemIds.length
-      ? await prisma.warehouseItem.findMany({ where: { tenantId, id: { in: itemIds } }, select: { id: true, name: true } })
-      : [];
+    const wineIds = row.lines.map((l) => l.wineCellarItemId).filter(Boolean) as string[];
+    const [items, wines] = await Promise.all([
+      itemIds.length
+        ? prisma.warehouseItem.findMany({ where: { tenantId, id: { in: itemIds } }, select: { id: true, name: true } })
+        : Promise.resolve([]),
+      wineIds.length
+        ? prisma.wineCellarItem.findMany({ where: { tenantId, id: { in: wineIds } }, select: { id: true, name: true } })
+        : Promise.resolve([]),
+    ]);
     const itemNames = new Map(items.map((i) => [i.id, i.name]));
-    return mapImport(row, itemNames);
+    const wineNames = new Map(wines.map((w) => [w.id, w.name]));
+    return mapImport(row, itemNames, wineNames);
   },
 
   async getDocument(tenantId: string, id: string) {
@@ -381,6 +401,7 @@ export const warehouseBollaImportRepository = {
     if (imp.lines.length === 0) throw new Error("Nessuna riga selezionata.");
 
     const code = imp.bollaNumber ?? imp.documentNumber ?? imp.id.slice(-8).toUpperCase();
+    const syncCantina = imp.defaultWarehouseLocation === "CANTINA";
 
     await prisma.$transaction(async (tx) => {
       for (const line of imp.lines) {
@@ -523,6 +544,10 @@ export const warehouseBollaImportRepository = {
           create: { tenantId, productKey, category: line.selectedCategory, hitCount: 1 },
           update: { category: line.selectedCategory, hitCount: { increment: 1 } },
         });
+
+        if (syncCantina) {
+          await syncCantinaWineFromLine(tx, tenantId, line, supplierName);
+        }
       }
 
       await tx.warehouseBollaImport.update({
@@ -550,6 +575,10 @@ export const warehouseBollaImportRepository = {
 
     await prisma.$transaction(async (tx) => {
       for (const line of imp.lines) {
+        if (line.wineCellarItemId) {
+          await undoCantinaWineLine(tx, tenantId, line);
+        }
+
         if (!line.warehouseItemId || !line.movementId) continue;
         const qty = line.quantity.toNumber();
         const item = await tx.warehouseItem.findFirst({ where: { id: line.warehouseItemId, tenantId } });
@@ -577,7 +606,7 @@ export const warehouseBollaImportRepository = {
         await tx.warehouseMovement.delete({ where: { id: line.movementId } });
         await tx.warehouseBollaImportLine.update({
           where: { id: line.id },
-          data: { imported: false, movementId: null },
+          data: { imported: false, movementId: null, wineCellarItemId: null, prevWineStock: null, wineCreated: false },
         });
 
         if (line.createdItemId) {

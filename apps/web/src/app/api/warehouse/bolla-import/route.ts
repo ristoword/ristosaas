@@ -3,7 +3,6 @@ import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseBollaImportRepository } from "@/lib/db/repositories/warehouse-bolla-import.repository";
-import { startBollaImportProcessing } from "@/lib/warehouse/bolla-import/service";
 import { BOLLA_IMPORT_ROLES } from "@/lib/warehouse/bolla-import/permissions";
 import { WAREHOUSE_LOCATIONS } from "@/lib/api/types/warehouse";
 import { prisma } from "@/lib/db/prisma";
@@ -54,22 +53,12 @@ export async function POST(req: NextRequest) {
 
   if (!resolvedSupplierName) return err("Seleziona un fornitore", 400);
 
+  const isPdf = mimeType === "application/pdf" || mimeType.includes("pdf");
   const allowed =
     mimeType.startsWith("image/") ||
-    mimeType === "application/pdf" ||
+    isPdf ||
     mimeType === "application/octet-stream";
-  if (!allowed) return err("Formato non supportato. Usa PDF, JPG o PNG.", 400);
-
-  const importId = await warehouseBollaImportRepository.createImport({
-    tenantId,
-    supplierId: supplierId ?? null,
-    supplierName: resolvedSupplierName,
-    documentMime: mimeType,
-    documentBase64: contentBase64.replace(/^data:[^;]+;base64,/, ""),
-    documentFileName: fileName ?? "bolla.pdf",
-    userId: guard.user.id,
-    userName: guard.user.name,
-  });
+  if (!allowed) return err("Formato non supportato. Usa JPG o PNG (foto/scansione della bolla).", 400);
 
   const targetLocation =
     defaultWarehouseLocation &&
@@ -77,14 +66,17 @@ export async function POST(req: NextRequest) {
       ? defaultWarehouseLocation
       : "MAGAZZINO_CENTRALE";
 
-  startBollaImportProcessing(
+  const importId = await warehouseBollaImportRepository.createImport({
     tenantId,
-    importId,
-    resolvedSupplierName,
-    contentBase64.replace(/^data:[^;]+;base64,/, ""),
-    mimeType,
-    targetLocation,
-  );
+    supplierId: supplierId ?? null,
+    supplierName: resolvedSupplierName,
+    documentMime: mimeType,
+    documentBase64: contentBase64.replace(/^data:[^;]+;base64,/, ""),
+    documentFileName: fileName ?? (isPdf ? "bolla.pdf" : "bolla.jpg"),
+    defaultWarehouseLocation: targetLocation,
+    userId: guard.user.id,
+    userName: guard.user.name,
+  });
 
   const record = await warehouseBollaImportRepository.getById(tenantId, importId);
   return ok({ importId, import: record });

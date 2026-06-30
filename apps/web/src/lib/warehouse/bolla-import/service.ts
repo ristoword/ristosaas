@@ -1,8 +1,10 @@
 import { analyzeVisionImage } from "@/lib/ai/vision/service";
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
+import { wineCellarRepository } from "@/lib/db/repositories/wine-cellar.repository";
 import { warehouseBollaImportRepository } from "@/lib/db/repositories/warehouse-bolla-import.repository";
 import { normalizeProductKey, suggestCategoryFromRules } from "@/lib/warehouse/bolla-import/categories";
 import { matchWarehouseItem } from "@/lib/warehouse/bolla-import/matcher";
+import { matchWineItem } from "@/lib/warehouse/bolla-import/wine-matcher";
 import type { BollaImportStatus } from "@/lib/warehouse/bolla-import/types";
 
 const STEPS: Array<{ step: string; pct: number; status: BollaImportStatus }> = [
@@ -40,11 +42,17 @@ export async function processBollaImportAsync(
 ) {
   const t0 = Date.now();
   try {
+    if (documentMime === "application/pdf" || documentMime.includes("pdf")) {
+      throw new Error(
+        "I PDF non sono supportati per l'OCR. Scatta una foto o esporta la bolla come JPG/PNG.",
+      );
+    }
+
     await setStep(tenantId, importId, 0);
     await new Promise((r) => setTimeout(r, 200));
 
     await setStep(tenantId, importId, 1);
-    const taskType = documentMime.includes("pdf") ? "invoice" : "ddt";
+    const taskType = "ddt";
     const vision = await analyzeVisionImage({
       tenantId,
       request: {
@@ -75,7 +83,11 @@ export async function processBollaImportAsync(
     });
 
     await setStep(tenantId, importId, 3);
-    const stockItems = await warehouseRepository.listItems(tenantId);
+    const isCantina = defaultWarehouseLocation === "CANTINA";
+    const [stockItems, wines] = await Promise.all([
+      warehouseRepository.listItems(tenantId),
+      isCantina ? wineCellarRepository.list(tenantId) : Promise.resolve([]),
+    ]);
 
     const mappedLines = await Promise.all(
       rawLines.map(async (l, idx) => {
@@ -83,8 +95,8 @@ export async function processBollaImportAsync(
         const productKey = normalizeProductKey(description);
         const learned = await warehouseBollaImportRepository.getLearnedCategory(tenantId, productKey);
         const suggestedCategory = learned ?? suggestCategoryFromRules(description);
+        const wineMatch = isCantina ? matchWineItem(description, wines) : null;
         const match = matchWarehouseItem(description, stockItems);
-        const isCantina = defaultWarehouseLocation === "CANTINA";
         const category =
           match?.category ??
           (isCantina && suggestedCategory === "Dispensa" ? "Vini" : suggestedCategory);
@@ -104,7 +116,8 @@ export async function processBollaImportAsync(
           selectedCategory: category,
           warehouseLocation: defaultWarehouseLocation,
           warehouseItemId: match?.id ?? null,
-          matchStatus: match ? "matched" : "new",
+          wineCellarItemId: wineMatch?.id ?? null,
+          matchStatus: wineMatch || match ? "matched" : "new",
         };
       }),
     );
@@ -142,20 +155,3 @@ export async function processBollaImportAsync(
   }
 }
 
-export function startBollaImportProcessing(
-  tenantId: string,
-  importId: string,
-  supplierName: string,
-  documentBase64: string,
-  documentMime: string,
-  defaultWarehouseLocation?: string,
-) {
-  void processBollaImportAsync(
-    tenantId,
-    importId,
-    supplierName,
-    documentBase64,
-    documentMime,
-    defaultWarehouseLocation,
-  );
-}

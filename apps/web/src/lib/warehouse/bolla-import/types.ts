@@ -38,6 +38,8 @@ export type BollaImportLineDto = {
   warehouseLocation: string;
   warehouseItemId: string | null;
   warehouseItemName: string | null;
+  wineCellarItemId: string | null;
+  wineCellarItemName: string | null;
   matchStatus: BollaLineMatchStatus;
   selected: boolean;
   imported: boolean;

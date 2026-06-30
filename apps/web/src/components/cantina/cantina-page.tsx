@@ -263,7 +263,11 @@ export function CantinaPage() {
         </div>
       )}
 
-      <BollaAiImportPanel defaultLocation="CANTINA" variant="cantina" />
+      <BollaAiImportPanel
+        defaultLocation="CANTINA"
+        variant="cantina"
+        onImportComplete={loadWines}
+      />
 
       {/* Search & filters */}
       <div className="flex flex-wrap gap-3">

@@ -280,6 +280,8 @@ export type BollaImportLine = {
   warehouseLocation: string;
   warehouseItemId: string | null;
   warehouseItemName: string | null;
+  wineCellarItemId: string | null;
+  wineCellarItemName: string | null;
   matchStatus: "matched" | "new" | "created";
   selected: boolean;
   imported: boolean;
@@ -340,6 +342,8 @@ export const bollaImportApi = {
     contentBase64: string;
     defaultWarehouseLocation?: string;
   }) => post<{ importId: string; import: BollaImportRecord | null }>("/warehouse/bolla-import", payload),
+  process: (id: string) =>
+    post<{ import: BollaImportRecord | null }>(`/warehouse/bolla-import/${id}/process`, {}),
   get: (id: string) =>
     get<{ import: BollaImportRecord; audit: Array<{ id: string; action: string; createdAt: string; userName: string | null }> }>(
       `/warehouse/bolla-import/${id}`,

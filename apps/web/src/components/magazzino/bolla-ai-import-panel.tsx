@@ -62,11 +62,14 @@ type BollaAiImportPanelProps = {
   defaultLocation?: WarehouseLocation;
   /** Filtra le categorie proposte (es. cantina → vini/birre). */
   variant?: "magazzino" | "cantina";
+  /** Chiamato dopo conferma importazione (es. refresh card cantina). */
+  onImportComplete?: () => void | Promise<void>;
 };
 
 export function BollaAiImportPanel({
   defaultLocation = "MAGAZZINO_CENTRALE",
   variant = "magazzino",
+  onImportComplete,
 }: BollaAiImportPanelProps) {
   const { t } = useI18n();
   const { refresh } = useWarehouse();
@@ -81,6 +84,8 @@ export function BollaAiImportPanel({
   const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollStartedAtRef = useRef<number | null>(null);
+  const POLL_TIMEOUT_MS = 120_000;
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -108,7 +113,14 @@ export function BollaAiImportPanel({
 
   const startPoll = (importId: string) => {
     stopPoll();
+    pollStartedAtRef.current = Date.now();
     pollRef.current = setInterval(() => {
+      if (pollStartedAtRef.current && Date.now() - pollStartedAtRef.current > POLL_TIMEOUT_MS) {
+        stopPoll();
+        setUploading(false);
+        setError("Elaborazione troppo lunga. Riprova con un'immagine JPG/PNG più nitida.");
+        return;
+      }
       void bollaImportApi.get(importId).then(({ import: imp }) => {
         setCurrent(imp);
         if (imp.status === "review" || imp.status === "completed" || imp.status === "failed") {
@@ -116,10 +128,40 @@ export function BollaAiImportPanel({
           stopPoll();
           setUploading(false);
           void loadDashboard();
+          if (imp.status === "failed" && imp.errorMessage) {
+            setError(imp.errorMessage);
+          }
         }
-      }).catch(() => stopPoll());
+      }).catch(() => {
+        stopPoll();
+        setUploading(false);
+        setError("Errore durante l'elaborazione della bolla.");
+      });
     }, 800);
   };
+
+  async function runOcr(importId: string) {
+    startPoll(importId);
+    try {
+      const { import: imp } = await bollaImportApi.process(importId);
+      stopPoll();
+      setUploading(false);
+      if (imp) {
+        setCurrent(imp);
+        setLines(imp.lines);
+        if (imp.status === "failed") {
+          setError(imp.errorMessage ?? "OCR non riuscito");
+        } else if (imp.status === "review" && imp.lines.length === 0) {
+          setError("Nessuna riga riconosciuta nel documento.");
+        }
+      }
+      void loadDashboard();
+    } catch (e) {
+      stopPoll();
+      setUploading(false);
+      setError(e instanceof Error ? e.message : "Errore elaborazione OCR");
+    }
+  }
 
   const categoryOptions =
     variant === "cantina" ? [...CANTINA_CATEGORIES] : [...WAREHOUSE_CATEGORIES];
@@ -130,6 +172,10 @@ export function BollaAiImportPanel({
       return;
     }
     const file = files[0]!;
+    if (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")) {
+      setError("I PDF non sono supportati. Scatta una foto della bolla (JPG/PNG) o esportala come immagine.");
+      return;
+    }
     setError(null);
     setUploading(true);
     try {
@@ -145,7 +191,7 @@ export function BollaAiImportPanel({
         setCurrent(imp);
         setLines(imp.lines);
       }
-      startPoll(importId);
+      await runOcr(importId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore upload");
       setUploading(false);
@@ -181,6 +227,7 @@ export function BollaAiImportPanel({
       setLines(imp.lines);
       await refresh();
       await loadDashboard();
+      await onImportComplete?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore importazione");
     } finally {
@@ -195,6 +242,7 @@ export function BollaAiImportPanel({
       setCurrent(imp);
       await refresh();
       await loadDashboard();
+      await onImportComplete?.();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Annullamento non riuscito");
     }
@@ -279,11 +327,11 @@ export function BollaAiImportPanel({
         >
           <Upload className="h-10 w-10 text-[#D4AF37]" />
           <p className="text-center text-sm font-semibold text-rw-ink">{t("magazzino.bollaAi.dropzone")}</p>
-          <p className="text-center text-xs text-rw-muted">PDF · JPG · PNG · Scansione · Foto</p>
+          <p className="text-center text-xs text-rw-muted">JPG · PNG · Scansione · Foto</p>
           <input
             ref={fileRef}
             type="file"
-            accept="image/*,application/pdf"
+            accept="image/*"
             className="hidden"
             onChange={(e) => void handleFiles(e.target.files)}
           />
@@ -318,6 +366,19 @@ export function BollaAiImportPanel({
             />
           </div>
           <p className="mt-2 text-xs text-rw-muted">{t("magazzino.bollaAi.processing")}</p>
+        </div>
+      )}
+
+      {current?.status === "review" && lines.length === 0 && (
+        <div className={`${GOLD_CARD} p-5 text-center`}>
+          <XCircle className="mx-auto mb-2 h-12 w-12 text-amber-400" />
+          <p className="font-bold text-rw-ink">{t("magazzino.bollaAi.failed")}</p>
+          <p className="mt-1 text-sm text-rw-muted">
+            {current.errorMessage ?? "Nessuna riga riconosciuta. Riprova con una foto più nitida."}
+          </p>
+          <button type="button" className={cn(GOLD_BTN, "mt-4")} onClick={() => { setCurrent(null); setLines([]); }}>
+            {t("magazzino.bollaAi.retry")}
+          </button>
         </div>
       )}
 
@@ -420,7 +481,10 @@ export function BollaAiImportPanel({
                     <td className="px-3 py-2">
                       {line.matchStatus === "matched" ? (
                         <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-400">
-                          <CheckCircle2 className="h-3.5 w-3.5" /> {line.warehouseItemName ?? t("magazzino.bollaAi.existing")}
+                          <CheckCircle2 className="h-3.5 w-3.5" />{" "}
+                          {line.wineCellarItemName ??
+                            line.warehouseItemName ??
+                            t("magazzino.bollaAi.existing")}
                         </span>
                       ) : (
                         <button
