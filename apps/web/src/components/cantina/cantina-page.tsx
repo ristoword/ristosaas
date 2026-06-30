@@ -121,6 +121,16 @@ export function CantinaPage() {
     }
   }, [filterColor, searchQ, t]);
 
+  const reloadAllWines = useCallback(async () => {
+    try {
+      const data = await cantinaApi.list({});
+      setWines(data);
+      setLoading(false);
+    } catch {
+      showFlash(t("cantina.error.load"));
+    }
+  }, [t]);
+
   useEffect(() => {
     void loadWines();
   }, [loadWines]);
@@ -266,7 +276,7 @@ export function CantinaPage() {
       <BollaAiImportPanel
         defaultLocation="CANTINA"
         variant="cantina"
-        onImportComplete={loadWines}
+        onImportComplete={reloadAllWines}
       />
 
       {/* Search & filters */}

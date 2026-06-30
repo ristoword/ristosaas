@@ -270,6 +270,11 @@ export const warehouseBollaImportRepository = {
         newCount: true,
         createdAt: true,
         durationMs: true,
+        documentFileName: true,
+        documentMime: true,
+        bollaNumber: true,
+        defaultWarehouseLocation: true,
+        documentBase64: true,
       },
     });
     return rows.map((r) => ({
@@ -281,12 +286,17 @@ export const warehouseBollaImportRepository = {
       newCount: r.newCount,
       createdAt: r.createdAt.toISOString(),
       durationMs: r.durationMs,
+      documentFileName: r.documentFileName,
+      documentMime: r.documentMime,
+      bollaNumber: r.bollaNumber,
+      defaultWarehouseLocation: r.defaultWarehouseLocation,
+      hasDocument: Boolean(r.documentBase64?.trim()),
     }));
   },
 
   async getDashboard(tenantId: string): Promise<BollaDashboardDto> {
     const [recentImports, agg] = await Promise.all([
-      this.listRecent(tenantId, 8),
+      this.listRecent(tenantId, 20),
       prisma.warehouseBollaImport.aggregate({
         where: { tenantId },
         _count: { _all: true },
@@ -409,33 +419,53 @@ export const warehouseBollaImportRepository = {
         if (qty <= 0) continue;
         const unitCost = line.unitPrice?.toNumber() ?? 0;
 
+        if (syncCantina) {
+          await syncCantinaWineFromLine(tx, tenantId, line, supplierName);
+        }
+
         let itemId = line.warehouseItemId;
         let prevQty = 0;
         let prevCost = 0;
+        const trimmedName = line.description.trim();
 
-        if (!itemId && line.matchStatus === "new") {
-          const created = await tx.warehouseItem.create({
-            data: {
-              tenantId,
-              name: line.description.trim(),
-              category: line.selectedCategory,
-              qty: 0,
-              unit: line.unit || "pz",
-              minStock: 0,
-              costPerUnit: unitCost,
-              supplier: supplierName,
-              lotNumber: line.lotNumber,
-              expiryDate: line.expiryDate,
-            },
+        if (!itemId && (line.matchStatus === "new" || syncCantina)) {
+          const existing = await tx.warehouseItem.findFirst({
+            where: { tenantId, name: { equals: trimmedName, mode: "insensitive" } },
           });
-          itemId = created.id;
-          await tx.warehouseBollaImportLine.update({
-            where: { id: line.id },
-            data: { createdItemId: created.id, warehouseItemId: created.id, matchStatus: "created" },
-          });
+          if (existing) {
+            itemId = existing.id;
+          } else {
+            const created = await tx.warehouseItem.create({
+              data: {
+                tenantId,
+                name: trimmedName,
+                category: line.selectedCategory,
+                qty: 0,
+                unit: line.unit || "pz",
+                minStock: 0,
+                costPerUnit: unitCost,
+                supplier: supplierName,
+                lotNumber: line.lotNumber,
+                expiryDate: line.expiryDate,
+              },
+            });
+            itemId = created.id;
+            await tx.warehouseBollaImportLine.update({
+              where: { id: line.id },
+              data: { createdItemId: created.id, warehouseItemId: created.id, matchStatus: "created" },
+            });
+          }
         }
 
-        if (!itemId) continue;
+        if (!itemId) {
+          if (syncCantina) {
+            await tx.warehouseBollaImportLine.update({
+              where: { id: line.id },
+              data: { imported: true },
+            });
+          }
+          continue;
+        }
 
         const stockItem = await tx.warehouseItem.findFirst({ where: { id: itemId, tenantId } });
         if (!stockItem) continue;
@@ -544,10 +574,6 @@ export const warehouseBollaImportRepository = {
           create: { tenantId, productKey, category: line.selectedCategory, hitCount: 1 },
           update: { category: line.selectedCategory, hitCount: { increment: 1 } },
         });
-
-        if (syncCantina) {
-          await syncCantinaWineFromLine(tx, tenantId, line, supplierName);
-        }
       }
 
       await tx.warehouseBollaImport.update({
@@ -579,7 +605,21 @@ export const warehouseBollaImportRepository = {
           await undoCantinaWineLine(tx, tenantId, line);
         }
 
-        if (!line.warehouseItemId || !line.movementId) continue;
+        if (!line.warehouseItemId || !line.movementId) {
+          if (line.imported) {
+            await tx.warehouseBollaImportLine.update({
+              where: { id: line.id },
+              data: {
+                imported: false,
+                movementId: null,
+                wineCellarItemId: null,
+                prevWineStock: null,
+                wineCreated: false,
+              },
+            });
+          }
+          continue;
+        }
         const qty = line.quantity.toNumber();
         const item = await tx.warehouseItem.findFirst({ where: { id: line.warehouseItemId, tenantId } });
         if (!item) continue;

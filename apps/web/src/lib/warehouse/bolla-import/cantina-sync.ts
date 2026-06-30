@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { matchWineItem } from "@/lib/warehouse/bolla-import/wine-matcher";
+import { learnWineAlias } from "@/lib/warehouse/bolla-import/wine-learning";
 
 type Tx = Prisma.TransactionClient;
 
@@ -79,6 +80,8 @@ export async function syncCantinaWineFromLine(
     where: { id: line.id },
     data: { wineCellarItemId: wineId, prevWineStock, wineCreated },
   });
+
+  await learnWineAlias(tenantId, line.description, wineId, tx);
 
   return { wineCellarItemId: wineId, prevWineStock, wineCreated };
 }

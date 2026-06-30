@@ -5,6 +5,7 @@ import { warehouseBollaImportRepository } from "@/lib/db/repositories/warehouse-
 import { normalizeProductKey, suggestCategoryFromRules } from "@/lib/warehouse/bolla-import/categories";
 import { matchWarehouseItem } from "@/lib/warehouse/bolla-import/matcher";
 import { matchWineItem } from "@/lib/warehouse/bolla-import/wine-matcher";
+import { getLearnedWineId } from "@/lib/warehouse/bolla-import/wine-learning";
 import type { BollaImportStatus } from "@/lib/warehouse/bolla-import/types";
 
 const STEPS: Array<{ step: string; pct: number; status: BollaImportStatus }> = [
@@ -95,7 +96,12 @@ export async function processBollaImportAsync(
         const productKey = normalizeProductKey(description);
         const learned = await warehouseBollaImportRepository.getLearnedCategory(tenantId, productKey);
         const suggestedCategory = learned ?? suggestCategoryFromRules(description);
-        const wineMatch = isCantina ? matchWineItem(description, wines) : null;
+        const learnedWineId = isCantina ? await getLearnedWineId(tenantId, description) : null;
+        const wineMatch = isCantina
+          ? learnedWineId
+            ? wines.find((w) => w.id === learnedWineId) ?? matchWineItem(description, wines)
+            : matchWineItem(description, wines)
+          : null;
         const match = matchWarehouseItem(description, stockItems);
         const category =
           match?.category ??

@@ -55,6 +55,40 @@ function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: strin
   });
 }
 
+async function prepareUploadFile(file: File): Promise<{ base64: string; mimeType: string }> {
+  if (!file.type.startsWith("image/") || file.size < 600_000) {
+    return readFileAsBase64(file);
+  }
+
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const maxW = 1800;
+      const scale = Math.min(1, maxW / Math.max(img.width, 1));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        void readFileAsBase64(file).then(resolve).catch(reject);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      resolve({ base64: dataUrl.split(",")[1]!, mimeType: "image/jpeg" });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      void readFileAsBase64(file).then(resolve).catch(reject);
+    };
+    img.src = url;
+  });
+}
+
 type DashboardStats = Awaited<ReturnType<typeof bollaImportApi.dashboard>>;
 
 type BollaAiImportPanelProps = {
@@ -83,9 +117,12 @@ export function BollaAiImportPanel({
   const [lines, setLines] = useState<BollaImportLine[]>([]);
   const [dashboard, setDashboard] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [previewDocId, setPreviewDocId] = useState<string | null>(null);
+  const [openingArchiveId, setOpeningArchiveId] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStartedAtRef = useRef<number | null>(null);
-  const POLL_TIMEOUT_MS = 120_000;
+  const terminalRef = useRef(false);
+  const POLL_TIMEOUT_MS = 180_000;
 
   const loadDashboard = useCallback(async () => {
     try {
@@ -113,6 +150,7 @@ export function BollaAiImportPanel({
 
   const startPoll = (importId: string) => {
     stopPoll();
+    terminalRef.current = false;
     pollStartedAtRef.current = Date.now();
     pollRef.current = setInterval(() => {
       if (pollStartedAtRef.current && Date.now() - pollStartedAtRef.current > POLL_TIMEOUT_MS) {
@@ -124,12 +162,17 @@ export function BollaAiImportPanel({
       void bollaImportApi.get(importId).then(({ import: imp }) => {
         setCurrent(imp);
         if (imp.status === "review" || imp.status === "completed" || imp.status === "failed") {
+          terminalRef.current = true;
           setLines(imp.lines);
           stopPoll();
           setUploading(false);
           void loadDashboard();
           if (imp.status === "failed" && imp.errorMessage) {
             setError(imp.errorMessage);
+          } else if (imp.status === "review" && imp.lines.length === 0) {
+            setError("Nessuna riga riconosciuta nel documento.");
+          } else {
+            setError(null);
           }
         }
       }).catch(() => {
@@ -140,10 +183,12 @@ export function BollaAiImportPanel({
     }, 800);
   };
 
-  async function runOcr(importId: string) {
+  function runOcr(importId: string) {
+    setError(null);
+    setUploading(true);
     startPoll(importId);
-    try {
-      const { import: imp } = await bollaImportApi.process(importId);
+    void bollaImportApi.process(importId).then(({ import: imp }) => {
+      if (terminalRef.current) return;
       stopPoll();
       setUploading(false);
       if (imp) {
@@ -153,13 +198,30 @@ export function BollaAiImportPanel({
           setError(imp.errorMessage ?? "OCR non riuscito");
         } else if (imp.status === "review" && imp.lines.length === 0) {
           setError("Nessuna riga riconosciuta nel documento.");
+        } else {
+          setError(null);
         }
       }
       void loadDashboard();
-    } catch (e) {
+    }).catch((e) => {
+      if (terminalRef.current) return;
       stopPoll();
       setUploading(false);
       setError(e instanceof Error ? e.message : "Errore elaborazione OCR");
+    });
+  }
+
+  async function openImportRecord(id: string) {
+    setOpeningArchiveId(id);
+    setError(null);
+    try {
+      const { import: imp } = await bollaImportApi.get(id);
+      setCurrent(imp);
+      setLines(imp.lines);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossibile aprire l'importazione");
+    } finally {
+      setOpeningArchiveId(null);
     }
   }
 
@@ -179,10 +241,10 @@ export function BollaAiImportPanel({
     setError(null);
     setUploading(true);
     try {
-      const { base64, mimeType } = await readFileAsBase64(file);
+      const { base64, mimeType } = await prepareUploadFile(file);
       const { importId, import: imp } = await bollaImportApi.start({
         supplierId,
-        fileName: file.name,
+        fileName: file.name.replace(/\.[^.]+$/, ".jpg"),
         mimeType,
         contentBase64: base64,
         defaultWarehouseLocation: defaultLocation,
@@ -191,7 +253,7 @@ export function BollaAiImportPanel({
         setCurrent(imp);
         setLines(imp.lines);
       }
-      await runOcr(importId);
+      runOcr(importId);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore upload");
       setUploading(false);
@@ -220,12 +282,19 @@ export function BollaAiImportPanel({
           selectedCategory: l.selectedCategory,
           warehouseLocation: l.warehouseLocation,
           warehouseItemId: l.warehouseItemId,
-          createProduct: l.matchStatus === "new" && !l.warehouseItemId,
+          createProduct:
+            variant === "cantina"
+              ? l.matchStatus === "new" && !l.warehouseItemId && !l.wineCellarItemId
+              : l.matchStatus === "new" && !l.warehouseItemId,
         })),
       );
       setCurrent(imp);
       setLines(imp.lines);
-      await refresh();
+      try {
+        await refresh();
+      } catch {
+        /* cantina: refresh magazzino opzionale */
+      }
       await loadDashboard();
       await onImportComplete?.();
     } catch (e) {
@@ -516,8 +585,15 @@ export function BollaAiImportPanel({
                   rel="noreferrer"
                   className="inline-flex min-h-[52px] items-center gap-2 rounded-2xl border border-rw-line px-4 text-sm font-semibold text-rw-ink hover:border-[#D4AF37]/40"
                 >
-                  <Eye className="h-4 w-4" /> PDF
+                  <Eye className="h-4 w-4" /> {t("magazzino.bollaAi.viewDocument")}
                 </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewDocId(current.id)}
+                  className="inline-flex min-h-[52px] items-center gap-2 rounded-2xl border border-rw-line px-4 text-sm font-semibold text-rw-ink hover:border-[#D4AF37]/40"
+                >
+                  <Eye className="h-4 w-4" /> {t("magazzino.bollaAi.viewDocument")}
+                </button>
                 <a
                   href={bollaImportApi.documentUrl(current.id, "download")}
                   className="inline-flex min-h-[52px] items-center gap-2 rounded-2xl border border-rw-line px-4 text-sm font-semibold text-rw-ink hover:border-[#D4AF37]/40"
@@ -539,6 +615,23 @@ export function BollaAiImportPanel({
             {current.lineCount} articoli · {current.durationMs != null ? `${(current.durationMs / 1000).toFixed(1)}s` : ""}
           </p>
           <div className="mt-4 flex flex-wrap justify-center gap-3">
+            {current.documentFileName && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setPreviewDocId(current.id)}
+                  className="inline-flex min-h-[52px] items-center gap-2 rounded-2xl border border-rw-line px-5 text-sm font-semibold text-rw-ink hover:border-[#D4AF37]/40"
+                >
+                  <Eye className="h-4 w-4" /> {t("magazzino.bollaAi.viewDocument")}
+                </button>
+                <a
+                  href={bollaImportApi.documentUrl(current.id, "download")}
+                  className="inline-flex min-h-[52px] items-center gap-2 rounded-2xl border border-rw-line px-5 text-sm font-semibold text-rw-ink hover:border-[#D4AF37]/40"
+                >
+                  <Download className="h-4 w-4" /> {t("magazzino.bollaAi.download")}
+                </a>
+              </>
+            )}
             <button type="button" className={GOLD_BTN} onClick={() => { setCurrent(null); setLines([]); }}>
               {t("magazzino.bollaAi.newImport")}
             </button>
@@ -563,26 +656,102 @@ export function BollaAiImportPanel({
         </div>
       )}
 
-      {/* Recent imports */}
+      {/* Archive */}
       {dashboard && dashboard.recentImports.length > 0 && (
         <div className={`${GOLD_CARD} p-4`}>
-          <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-rw-muted">
-            {t("magazzino.bollaAi.recent")}
-          </h3>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-rw-muted">
+              {t("magazzino.bollaAi.recent")}
+            </h3>
+            <p className="text-[11px] text-rw-muted">{t("magazzino.bollaAi.archiveHint")}</p>
+          </div>
           <ul className="space-y-2">
             {dashboard.recentImports.map((imp) => (
               <li
                 key={imp.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rw-line/40 bg-rw-surfaceAlt/50 px-3 py-2 text-sm"
+                className="rounded-xl border border-rw-line/40 bg-rw-surfaceAlt/50 px-3 py-3 text-sm"
               >
-                <span className="font-semibold text-rw-ink">{imp.supplierName}</span>
-                <span className="text-xs text-rw-muted">{imp.lineCount} righe · {imp.status}</span>
-                <span className="text-xs tabular-nums text-rw-muted">
-                  {new Date(imp.createdAt).toLocaleString("it-IT")}
-                </span>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-rw-ink">{imp.supplierName}</p>
+                    <p className="text-xs text-rw-muted">
+                      {imp.bollaNumber ? `Bolla ${imp.bollaNumber} · ` : ""}
+                      {imp.lineCount} righe · {imp.status}
+                      {imp.defaultWarehouseLocation === "CANTINA" ? " · Cantina" : ""}
+                    </p>
+                    {imp.documentFileName && (
+                      <p className="mt-0.5 truncate text-xs text-rw-muted">{imp.documentFileName}</p>
+                    )}
+                    <p className="text-xs tabular-nums text-rw-muted">
+                      {new Date(imp.createdAt).toLocaleString("it-IT")}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {imp.hasDocument && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewDocId(imp.id)}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rw-line px-2.5 py-1.5 text-xs font-semibold text-rw-ink hover:border-[#D4AF37]/40"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          {t("magazzino.bollaAi.viewDocument")}
+                        </button>
+                        <a
+                          href={bollaImportApi.documentUrl(imp.id, "download")}
+                          className="inline-flex items-center gap-1 rounded-lg border border-rw-line px-2.5 py-1.5 text-xs font-semibold text-rw-ink hover:border-[#D4AF37]/40"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                          {t("magazzino.bollaAi.download")}
+                        </a>
+                      </>
+                    )}
+                    <button
+                      type="button"
+                      disabled={openingArchiveId === imp.id}
+                      onClick={() => void openImportRecord(imp.id)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-2.5 py-1.5 text-xs font-semibold text-[#E8C547] hover:border-[#D4AF37]/60 disabled:opacity-50"
+                    >
+                      {openingArchiveId === imp.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <FileText className="h-3.5 w-3.5" />
+                      )}
+                      {t("magazzino.bollaAi.openImport")}
+                    </button>
+                  </div>
+                </div>
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {previewDocId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setPreviewDocId(null)}
+        >
+          <div
+            className="relative max-h-[90vh] max-w-5xl overflow-auto rounded-2xl border border-rw-line bg-rw-surface p-2 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setPreviewDocId(null)}
+              className="absolute right-3 top-3 z-10 rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-1.5 text-xs font-semibold text-rw-ink"
+            >
+              {t("magazzino.bollaAi.closePreview")}
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={bollaImportApi.documentUrl(previewDocId, "inline")}
+              alt="Bolla"
+              className="max-h-[85vh] w-full object-contain"
+            />
+          </div>
         </div>
       )}
     </div>

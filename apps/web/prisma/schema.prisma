@@ -389,6 +389,7 @@ model Tenant {
   warehouseLocationStocks WarehouseLocationStock[]
   warehouseBollaImports WarehouseBollaImport[]
   warehouseCategoryLearnings WarehouseCategoryLearning[]
+  wineImportAliases          WineImportAlias[]
   operationalNotes OperationalNote[]
   shiftPlans ShiftPlan[]
   aiChatLogs  AiChatLog[]
@@ -1832,6 +1833,20 @@ model WarehouseCategoryLearning {
 
   @@unique([tenantId, productKey])
   @@index([tenantId, category])
+}
+
+/** Alias appresi da bolle cantina: testo riga OCR → vino in carta. */
+model WineImportAlias {
+  id               String   @id @default(cuid())
+  tenantId         String
+  productKey       String
+  wineCellarItemId String
+  hitCount         Int      @default(1)
+  updatedAt        DateTime @updatedAt
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, productKey])
+  @@index([tenantId, wineCellarItemId])
 }
 
 model Recipe {

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
   const guard = await requireApiUser(req, [...ROLES]);
   if (guard.error) return guard.error;
   const { id } = await context.params;
-  const tenantId = getTenantId();
+  const tenantId = guard.user.tenantId || getTenantId();
   const mode = req.nextUrl.searchParams.get("mode") ?? "inline";
 
   const doc = await warehouseBollaImportRepository.getDocument(tenantId, id);

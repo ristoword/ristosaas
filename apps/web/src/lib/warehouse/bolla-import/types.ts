@@ -82,6 +82,11 @@ export type BollaDashboardDto = {
     newCount: number;
     createdAt: string;
     durationMs: number | null;
+    documentFileName: string | null;
+    documentMime: string | null;
+    bollaNumber: string | null;
+    defaultWarehouseLocation: string;
+    hasDocument: boolean;
   }>;
   stats: {
     totalImports: number;
