@@ -591,6 +591,58 @@ export const candidatiApi = {
     del<{ deleted: boolean }>(`/candidati/${candidateId}/attachments/${attachmentId}`),
 };
 
+/* ─── Risto Community ────────────────────────────── */
+
+export type {
+  CommunityChefSummary,
+  CommunityRecipeSummary,
+  CommunityRecipeDetail,
+  CommunityComment,
+  CommunityRankings,
+  CommunityRecipeInput,
+  CommunityChefProfileInput,
+  CommunityAiImproveResult,
+} from "@/lib/community/types";
+
+export const communityApi = {
+  listRecipes: (params?: Record<string, string>) => {
+    const qs = params ? `?${new URLSearchParams(params)}` : "";
+    return get<import("@/lib/community/types").CommunityRecipeSummary[]>(`/community/recipes${qs}`);
+  },
+  getRecipe: (id: string, locale?: string) =>
+    get<import("@/lib/community/types").CommunityRecipeDetail>(
+      `/community/recipes/${id}${locale ? `?locale=${locale}` : ""}`,
+    ),
+  publishRecipe: (data: import("@/lib/community/types").CommunityRecipeInput) =>
+    post<import("@/lib/community/types").CommunityRecipeDetail>("/community/recipes/publish", data),
+  updateRecipe: (id: string, data: Partial<import("@/lib/community/types").CommunityRecipeInput>) =>
+    put<import("@/lib/community/types").CommunityRecipeDetail>(`/community/recipes/${id}`, data),
+  deleteRecipe: (id: string) => del<{ deleted: boolean }>(`/community/recipes/${id}`),
+  likeRecipe: (id: string) => post<{ liked: boolean }>(`/community/recipes/${id}/like`, {}),
+  importRecipe: (id: string) =>
+    post<{ localRecipeId: string; localRecipeName: string; communityRecipeId: string }>(
+      `/community/recipes/${id}/import`,
+      {},
+    ),
+  translateRecipe: (id: string, locale: string) =>
+    post<Record<string, unknown>>(`/community/recipes/${id}/translate?locale=${locale}`, {}),
+  listComments: (id: string) =>
+    get<import("@/lib/community/types").CommunityComment[]>(`/community/recipes/${id}/comments`),
+  addComment: (id: string, body: string, parentId?: string) =>
+    post<unknown>(`/community/recipes/${id}/comments`, { body, parentId }),
+  getRankings: () => get<import("@/lib/community/types").CommunityRankings>("/community/rankings"),
+  getChef: (id: string) =>
+    get<{ chef: import("@/lib/community/types").CommunityChefSummary; recipes: import("@/lib/community/types").CommunityRecipeSummary[] }>(
+      `/community/chefs/${id}`,
+    ),
+  followChef: (id: string) => post<{ following: boolean }>(`/community/chefs/${id}`, {}),
+  getMyChefProfile: () => get<import("@/lib/community/types").CommunityChefSummary | null>("/community/chef-profile"),
+  updateChefProfile: (data: import("@/lib/community/types").CommunityChefProfileInput) =>
+    put<import("@/lib/community/types").CommunityChefSummary>("/community/chef-profile", data),
+  aiImprove: (recipe: Partial<import("@/lib/community/types").CommunityRecipeDetail>, focus?: string) =>
+    post<import("@/lib/community/types").CommunityAiImproveResult>("/community/ai-improve", { recipe, focus }),
+};
+
 /* ─── Asporto ────────────────────────────────────── */
 
 export type AsportoCloseDaySummary = {
@@ -2332,6 +2384,7 @@ export const api = {
   purchaseOrders: purchaseOrdersApi,
   catering: cateringApi,
   candidati: candidatiApi,
+  community: communityApi,
   asporto: asportoApi,
   archivio: archivioApi,
   archivioFiscalStubs: archivioFiscalStubsApi,

@@ -2765,3 +2765,165 @@ model HrCandidateAttachment {
 
   @@index([tenantId, candidateId])
 }
+
+// ─── Risto Community (global, cross-tenant) ───────────────────────────────
+
+enum CommunityRecipeDifficulty {
+  easy
+  medium
+  hard
+  expert
+}
+
+model CommunityChefProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  tenantId       String
+  displayName    String
+  signature      String   @default("")
+  bio            String   @default("")
+  photoUrl       String?
+  restaurantName String
+  city           String   @default("")
+  country        String   @default("Italia")
+  followerCount  Int      @default(0)
+  likeCount      Int      @default(0)
+  importCount    Int      @default(0)
+  recipeCount    Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  recipes        CommunityRecipe[]
+  followers      CommunityChefFollow[]
+
+  @@index([tenantId])
+}
+
+model CommunityChefFollow {
+  id        String               @id @default(cuid())
+  chefId    String
+  userId    String
+  createdAt DateTime             @default(now())
+  chef      CommunityChefProfile @relation(fields: [chefId], references: [id], onDelete: Cascade)
+
+  @@unique([chefId, userId])
+  @@index([userId])
+}
+
+model CommunityRecipe {
+  id              String                    @id @default(cuid())
+  chefId          String
+  authorUserId    String
+  authorTenantId  String
+  title           String
+  category        String
+  description     String                    @default("")
+  photoUrl        String?                   @db.Text
+  prepTimeMin     Int                       @default(0)
+  cookTimeMin     Int                       @default(0)
+  difficulty      CommunityRecipeDifficulty @default(medium)
+  portions        Int                       @default(4)
+  allergens       String                    @default("")
+  chefTips        String                    @default("")
+  techniques      String                    @default("")
+  plating         String                    @default("")
+  variants        String                    @default("")
+  temperatures    String                    @default("")
+  theoreticalCost Decimal?                  @db.Decimal(10, 2)
+  featured        Boolean                   @default(false)
+  moderated       Boolean                   @default(true)
+  viewCount       Int                       @default(0)
+  likeCount       Int                       @default(0)
+  commentCount    Int                       @default(0)
+  importCount     Int                       @default(0)
+  publishedAt     DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  chef            CommunityChefProfile      @relation(fields: [chefId], references: [id], onDelete: Cascade)
+  ingredients     CommunityRecipeIngredient[]
+  steps           CommunityRecipeStep[]
+  likes           CommunityRecipeLike[]
+  comments        CommunityRecipeComment[]
+  translations    CommunityRecipeTranslation[]
+  imports         CommunityRecipeImport[]
+
+  @@index([publishedAt])
+  @@index([category])
+  @@index([chefId])
+  @@index([featured])
+  @@index([likeCount])
+  @@index([viewCount])
+  @@index([importCount])
+}
+
+model CommunityRecipeIngredient {
+  id        String          @id @default(cuid())
+  recipeId  String
+  name      String
+  qty       Decimal         @db.Decimal(12, 3)
+  unit      String
+  sortOrder Int             @default(0)
+  recipe    CommunityRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
+
+model CommunityRecipeStep {
+  id        String          @id @default(cuid())
+  recipeId  String
+  stepOrder Int
+  text      String
+  recipe    CommunityRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
+
+model CommunityRecipeLike {
+  id        String          @id @default(cuid())
+  recipeId  String
+  userId    String
+  createdAt DateTime        @default(now())
+  recipe    CommunityRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, userId])
+}
+
+model CommunityRecipeComment {
+  id        String                   @id @default(cuid())
+  recipeId  String
+  userId    String
+  userName  String
+  tenantId  String
+  parentId  String?
+  body      String
+  createdAt DateTime                 @default(now())
+  recipe    CommunityRecipe          @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  parent    CommunityRecipeComment?  @relation("CommunityCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   CommunityRecipeComment[] @relation("CommunityCommentReplies")
+
+  @@index([recipeId, createdAt])
+}
+
+model CommunityRecipeTranslation {
+  id          String          @id @default(cuid())
+  recipeId    String
+  locale      String
+  title       String
+  description String          @default("")
+  chefTips    String          @default("")
+  techniques  String          @default("")
+  plating     String          @default("")
+  variants    String          @default("")
+  stepsJson   String          @default("[]")
+  createdAt   DateTime        @default(now())
+  recipe      CommunityRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@unique([recipeId, locale])
+}
+
+model CommunityRecipeImport {
+  id            String          @id @default(cuid())
+  recipeId      String
+  tenantId      String
+  userId        String
+  localRecipeId String
+  createdAt     DateTime        @default(now())
+  recipe        CommunityRecipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@unique([recipeId, tenantId, localRecipeId])
+}

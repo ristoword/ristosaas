@@ -484,6 +484,20 @@ export const navSections: NavSection[] = [
     ],
   },
   {
+    title: "Community",
+    key: "community",
+    items: [
+      {
+        id: "risto-community",
+        label: "Risto Community",
+        hint: "Ricette professionali condivise da chef di tutto il mondo.",
+        href: "/risto-community",
+        icon: UtensilsCrossed,
+        ready: true,
+      },
+    ],
+  },
+  {
     title: "Persone",
     key: "persone",
     items: [
