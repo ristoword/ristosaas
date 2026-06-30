@@ -7,6 +7,7 @@ import type { SalaTable } from "@/lib/api-client";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { useTenantFeatures } from "@/components/auth/auth-context";
 import { SalaFloor } from "./sala-floor";
+import { SalaTableOrderPanel } from "./sala-table-order-panel";
 import { TableActionsModal, type AzioneId } from "./table-actions-modal";
 import { OrderSendModal } from "./order-send-modal";
 import { useOrders } from "@/components/orders/orders-context";
@@ -32,6 +33,23 @@ export function SalaPage() {
 
   const selectedId = selected?.id ?? null;
 
+  const tableOrders = useMemo(
+    () => (selected ? getOrdersForTable(selected.nome) : []),
+    [selected, getOrdersForTable, activeOrders],
+  );
+
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = tables.find((tbl) => tbl.id === selected.id);
+    if (!fresh) {
+      setSelected(null);
+      return;
+    }
+    if (fresh.stato !== selected.stato || fresh.nome !== selected.nome || fresh.posti !== selected.posti) {
+      setSelected(fresh);
+    }
+  }, [tables, selected]);
+
   const legend = useMemo(
     () => [
       { stato: "libero" as const, text: t("sala.status.libero") },
@@ -44,7 +62,6 @@ export function SalaPage() {
 
   function openTable(tbl: SalaTable) {
     setSelected(tbl);
-    setModalOpen(true);
   }
 
   function closeModal() {
@@ -417,14 +434,31 @@ export function SalaPage() {
         </div>
       )}
 
-      <SalaFloor
-        tables={tables}
-        selectedId={modalOpen ? selectedId : null}
-        onSelect={openTable}
-        editMode={editLayout}
-        onLocalMove={handleLocalMove}
-        onCommitMove={handleCommitMove}
-      />
+      <div
+        className={
+          selected
+            ? "flex flex-col gap-4 xl:flex-row xl:items-start"
+            : undefined
+        }
+      >
+        <div className={selected ? "min-w-0 flex-1 pb-[min(58dvh,520px)] md:pb-0" : undefined}>
+          <SalaFloor
+            tables={tables}
+            selectedId={selectedId}
+            onSelect={openTable}
+            editMode={editLayout}
+            onLocalMove={handleLocalMove}
+            onCommitMove={handleCommitMove}
+          />
+        </div>
+        {selected ? (
+          <SalaTableOrderPanel
+            table={selected}
+            orders={tableOrders}
+            onOpenActions={() => setModalOpen(true)}
+          />
+        ) : null}
+      </div>
 
       <TableActionsModal
         table={selected}
