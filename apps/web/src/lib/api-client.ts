@@ -263,6 +263,93 @@ export const warehouseApi = {
   deleteEquipment: (id: string) => del<{ deleted: boolean }>(`/warehouse/equipment/${id}`),
 };
 
+export type BollaImportLine = {
+  id: string;
+  lineOrder: number;
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number | null;
+  vatPct: number | null;
+  discountPct: number | null;
+  lineTotal: number | null;
+  lotNumber: string | null;
+  expiryDate: string | null;
+  suggestedCategory: string;
+  selectedCategory: string;
+  warehouseLocation: string;
+  warehouseItemId: string | null;
+  warehouseItemName: string | null;
+  matchStatus: "matched" | "new" | "created";
+  selected: boolean;
+  imported: boolean;
+};
+
+export type BollaImportRecord = {
+  id: string;
+  supplierId: string | null;
+  supplierName: string;
+  documentNumber: string | null;
+  documentDate: string | null;
+  bollaNumber: string | null;
+  invoiceNumber: string | null;
+  vatAmount: number | null;
+  totalAmount: number | null;
+  status: string;
+  currentStep: string;
+  progressPct: number;
+  errorMessage: string | null;
+  documentMime: string | null;
+  documentFileName: string | null;
+  ocrConfidence: number | null;
+  lineCount: number;
+  matchedCount: number;
+  newCount: number;
+  durationMs: number | null;
+  createdByName: string | null;
+  createdAt: string;
+  importedAt: string | null;
+  lines: BollaImportLine[];
+};
+
+export const bollaImportApi = {
+  dashboard: () =>
+    get<{
+      recentImports: Array<{
+        id: string;
+        supplierName: string;
+        status: string;
+        lineCount: number;
+        matchedCount: number;
+        newCount: number;
+        createdAt: string;
+        durationMs: number | null;
+      }>;
+      stats: {
+        totalImports: number;
+        itemsRecognized: number;
+        itemsNew: number;
+        ocrErrors: number;
+        avgDurationMs: number | null;
+      };
+    }>("/warehouse/bolla-import"),
+  start: (payload: {
+    supplierId: string;
+    fileName: string;
+    mimeType: string;
+    contentBase64: string;
+  }) => post<{ importId: string; import: BollaImportRecord | null }>("/warehouse/bolla-import", payload),
+  get: (id: string) =>
+    get<{ import: BollaImportRecord; audit: Array<{ id: string; action: string; createdAt: string; userName: string | null }> }>(
+      `/warehouse/bolla-import/${id}`,
+    ),
+  confirm: (id: string, lines: Array<Partial<BollaImportLine> & { id: string; selected: boolean; createProduct?: boolean }>) =>
+    post<{ import: BollaImportRecord }>(`/warehouse/bolla-import/${id}/confirm`, { lines }),
+  undo: (id: string) => post<{ import: BollaImportRecord }>(`/warehouse/bolla-import/${id}/undo`, {}),
+  documentUrl: (id: string, mode: "inline" | "download" = "inline") =>
+    `/api/warehouse/bolla-import/${id}/document?mode=${mode}`,
+};
+
 /* ─── Staff ──────────────────────────────────────── */
 
 export const staffApi = {

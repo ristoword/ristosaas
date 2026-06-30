@@ -26,6 +26,7 @@ import {
   WAREHOUSE_LOCATION_LABELS,
   type WarehouseLocation,
 } from "@/lib/api/types/warehouse";
+import { BollaAiImportPanel } from "@/components/magazzino/bolla-ai-import-panel";
 
 type ShoppingItem = { id: string; product: string; qty: number; unit: string; supplier: string; done: boolean };
 
@@ -793,6 +794,7 @@ function RicezioneTab() {
 
   return (
     <div className="space-y-4">
+      <BollaAiImportPanel />
       {flash && <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-300">{flash}</div>}
       <Card title={t("magazzino.reception.title")} description={t("magazzino.central.voiceDesc")} headerRight={<VoiceButton onResult={handleVoice} compact />}>
         <div className="space-y-3">

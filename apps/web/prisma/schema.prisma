@@ -387,6 +387,8 @@ model Tenant {
   warehouseLots WarehouseLot[]
   warehouseCostHistory WarehouseCostHistory[]
   warehouseLocationStocks WarehouseLocationStock[]
+  warehouseBollaImports WarehouseBollaImport[]
+  warehouseCategoryLearnings WarehouseCategoryLearning[]
   operationalNotes OperationalNote[]
   shiftPlans ShiftPlan[]
   aiChatLogs  AiChatLog[]
@@ -1296,11 +1298,14 @@ model WarehouseMovement {
   toLocation      String?
   note            String?
   orderId         String?
+  bollaImportId   String?
   createdAt       DateTime              @default(now())
   tenant          Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   item            WarehouseItem         @relation(fields: [warehouseItemId], references: [id], onDelete: Cascade)
+  bollaImport     WarehouseBollaImport? @relation(fields: [bollaImportId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, date])
+  @@index([tenantId, bollaImportId])
 }
 
 model WarehouseLocationStock {
@@ -1712,6 +1717,119 @@ model WarehouseCostHistory {
   @@index([tenantId, warehouseItemId, effectiveAt])
 }
 
+enum WarehouseBollaImportStatus {
+  queued
+  analyzing
+  ocr
+  matching
+  review
+  importing
+  completed
+  failed
+  undone
+}
+
+model WarehouseBollaImport {
+  id               String                     @id @default(cuid())
+  tenantId         String
+  supplierId       String?
+  supplierName     String
+  documentNumber   String?
+  documentDate     DateTime?
+  bollaNumber      String?
+  invoiceNumber    String?
+  vatAmount        Decimal?                   @db.Decimal(12, 2)
+  totalAmount      Decimal?                   @db.Decimal(12, 2)
+  status           WarehouseBollaImportStatus @default(queued)
+  currentStep      String                     @default("queued")
+  progressPct      Int                        @default(0)
+  errorMessage     String?
+  documentMime     String?
+  documentBase64   String?                    @db.Text
+  documentFileName String?
+  ocrConfidence    Float?
+  lineCount        Int                        @default(0)
+  matchedCount     Int                        @default(0)
+  newCount         Int                        @default(0)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  importedAt       DateTime?
+  undoneAt         DateTime?
+  durationMs       Int?
+  createdByUserId  String?
+  createdByName    String?
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+  tenant           Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier         Supplier?                  @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  lines            WarehouseBollaImportLine[]
+  auditLogs        WarehouseBollaImportAuditLog[]
+  movements        WarehouseMovement[]
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, status])
+}
+
+model WarehouseBollaImportLine {
+  id                String   @id @default(cuid())
+  importId          String
+  tenantId          String
+  lineOrder         Int
+  description       String
+  quantity          Decimal  @db.Decimal(12, 3)
+  unit              String
+  unitPrice         Decimal? @db.Decimal(12, 4)
+  vatPct            Decimal? @db.Decimal(5, 2)
+  discountPct       Decimal? @db.Decimal(5, 2)
+  lineTotal         Decimal? @db.Decimal(12, 2)
+  lotNumber         String?
+  expiryDate        DateTime?
+  suggestedCategory String
+  selectedCategory  String
+  warehouseLocation String   @default("MAGAZZINO_CENTRALE")
+  warehouseItemId   String?
+  matchStatus       String   @default("new")
+  selected          Boolean  @default(true)
+  imported          Boolean  @default(false)
+  movementId        String?
+  createdItemId     String?
+  prevQty           Decimal? @db.Decimal(12, 3)
+  prevCost          Decimal? @db.Decimal(12, 4)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  import            WarehouseBollaImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, importId])
+  @@index([importId, lineOrder])
+}
+
+model WarehouseBollaImportAuditLog {
+  id        String   @id @default(cuid())
+  importId  String
+  tenantId  String
+  action    String
+  detail    Json?
+  userId    String?
+  userName  String?
+  createdAt DateTime @default(now())
+  import    WarehouseBollaImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, importId, createdAt])
+}
+
+model WarehouseCategoryLearning {
+  id         String   @id @default(cuid())
+  tenantId   String
+  productKey String
+  category   String
+  hitCount   Int      @default(1)
+  updatedAt  DateTime @updatedAt
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, productKey])
+  @@index([tenantId, category])
+}
+
 model Recipe {
   id             String   @id @default(cuid())
   tenantId       String
@@ -1927,6 +2045,7 @@ model Supplier {
   updatedAt    DateTime @updatedAt
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   purchaseOrders PurchaseOrder[]
+  bollaImports WarehouseBollaImport[]
 }
 
 model CateringEvent {
