@@ -443,6 +443,8 @@ model Tenant {
   wineCellarItems          WineCellarItem[]
   chatMessages             ChatMessage[]
   staffRewards             StaffReward[]
+  hrCandidates             HrCandidate[]
+  hrCandidateAttachments   HrCandidateAttachment[]
 }
 
 model BillingSubscription {
@@ -2702,4 +2704,64 @@ model AiTenantMarketplaceAgent {
 
   @@unique([tenantId, marketplaceId])
   @@index([tenantId, active])
+}
+
+enum HrCandidateStatus {
+  new
+  screening
+  interview
+  offer
+  hired
+  rejected
+  archived
+}
+
+enum HrCandidateSource {
+  manual
+  email
+  paper
+}
+
+model HrCandidate {
+  id                 String              @id @default(cuid())
+  tenantId           String
+  firstName          String
+  lastName           String
+  email              String              @default("")
+  phone              String              @default("")
+  age                Int?
+  experienceYears    Int?
+  roles              String[]            @default([])
+  status             HrCandidateStatus   @default(new)
+  source             HrCandidateSource   @default(manual)
+  sourceEmailFrom    String              @default("")
+  sourceEmailSubject String              @default("")
+  sourceEmailBody    String              @default("") @db.Text
+  presentedAt        DateTime            @default(now())
+  notes              String              @default("") @db.Text
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attachments        HrCandidateAttachment[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, presentedAt])
+  @@index([tenantId, source])
+}
+
+model HrCandidateAttachment {
+  id               String      @id @default(cuid())
+  tenantId         String
+  candidateId      String
+  fileName         String
+  mimeType         String
+  fileSize         Int
+  dataBase64       String      @db.Text
+  uploadedByUserId String?
+  uploadedByName   String?
+  createdAt        DateTime    @default(now())
+  candidate        HrCandidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, candidateId])
 }

@@ -23,6 +23,20 @@ export async function body<T>(req: Request): Promise<T> {
   }
 }
 
+const MAX_LARGE_BODY_SIZE = 5_242_880; // 5 MB
+
+export async function bodyLarge<T>(req: Request, maxSize = MAX_LARGE_BODY_SIZE): Promise<T> {
+  const contentLength = req.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > maxSize) {
+    throw new BodyParseError("Request body too large");
+  }
+  try {
+    return (await req.json()) as T;
+  } catch {
+    throw new BodyParseError("Invalid JSON");
+  }
+}
+
 export class BodyParseError extends Error {
   constructor(message: string) {
     super(message);

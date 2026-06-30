@@ -13,9 +13,19 @@ type DataTableProps<T> = {
   keyExtractor: (row: T) => string;
   emptyMessage?: string;
   stickyHeader?: boolean;
+  onRowClick?: (row: T) => void;
+  selectedKey?: string | null;
 };
 
-export function DataTable<T>({ columns, data, keyExtractor, emptyMessage = "Nessun dato", stickyHeader }: DataTableProps<T>) {
+export function DataTable<T>({
+  columns,
+  data,
+  keyExtractor,
+  emptyMessage = "Nessun dato",
+  stickyHeader,
+  onRowClick,
+  selectedKey,
+}: DataTableProps<T>) {
   return (
     <div className="overflow-x-auto rounded-xl border border-rw-line">
       <table className="w-full min-w-[32rem] text-sm">
@@ -36,15 +46,26 @@ export function DataTable<T>({ columns, data, keyExtractor, emptyMessage = "Ness
               </td>
             </tr>
           ) : (
-            data.map((row) => (
-              <tr key={keyExtractor(row)} className="border-b border-rw-line/50 transition hover:bg-rw-surfaceAlt/50">
+            data.map((row) => {
+              const key = keyExtractor(row);
+              return (
+              <tr
+                key={key}
+                className={cn(
+                  "border-b border-rw-line/50 transition",
+                  onRowClick && "cursor-pointer hover:bg-rw-surfaceAlt/50",
+                  selectedKey === key && "bg-rw-accent/10",
+                )}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+              >
                 {columns.map((col) => (
                   <td key={col.key} className={cn("px-4 py-3 text-rw-soft", col.className)}>
                     {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? "")}
                   </td>
                 ))}
               </tr>
-            ))
+            );
+            })
           )}
         </tbody>
       </table>

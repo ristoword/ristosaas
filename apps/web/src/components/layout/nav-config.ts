@@ -515,6 +515,15 @@ export const navSections: NavSection[] = [
         ready: true,
       },
       {
+        id: "candidati",
+        label: "Candidati CV",
+        hint: "Database recruiting: curriculum, email e CV cartacei.",
+        href: "/candidati",
+        icon: FileText,
+        ready: true,
+        visibleFor: ["owner", "supervisor", "super_admin"],
+      },
+      {
         id: "staff-costo",
         label: "Staff Costo",
         hint: "Calcolo costo dipendente al centesimo: lordo, netto, contributi, TFR, IRAP.",

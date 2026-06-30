@@ -522,6 +522,75 @@ export const cateringApi = {
   delete: (id: string) => del<{ deleted: boolean }>(`/catering/${id}`),
 };
 
+/* ─── Candidati CV ───────────────────────────────── */
+
+export type HrCandidateStatus =
+  | "new"
+  | "screening"
+  | "interview"
+  | "offer"
+  | "hired"
+  | "rejected"
+  | "archived";
+
+export type HrCandidateSource = "manual" | "email" | "paper";
+
+export type HrCandidateAttachmentMeta = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+  createdAt: string;
+};
+
+export type HrCandidate = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  age: number | null;
+  experienceYears: number | null;
+  roles: string[];
+  status: HrCandidateStatus;
+  source: HrCandidateSource;
+  sourceEmailFrom: string;
+  sourceEmailSubject: string;
+  sourceEmailBody: string;
+  presentedAt: string;
+  notes: string;
+  attachmentCount: number;
+  attachments: HrCandidateAttachmentMeta[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type HrCandidateInput = Omit<
+  HrCandidate,
+  "id" | "fullName" | "attachmentCount" | "attachments" | "createdAt" | "updatedAt"
+>;
+
+export const candidatiApi = {
+  list: () => get<HrCandidate[]>("/candidati"),
+  get: (id: string) => get<HrCandidate>(`/candidati/${id}`),
+  create: (data: Partial<HrCandidateInput> & { firstName?: string; lastName?: string }) =>
+    post<HrCandidate>("/candidati", data),
+  update: (id: string, data: Partial<HrCandidateInput>) =>
+    put<HrCandidate>(`/candidati/${id}`, data),
+  delete: (id: string) => del<{ deleted: boolean }>(`/candidati/${id}`),
+  uploadAttachment: (
+    candidateId: string,
+    data: { fileName: string; mimeType: string; dataBase64: string },
+  ) => post<{ attachment: HrCandidateAttachmentMeta }>(`/candidati/${candidateId}/attachments`, data),
+  getAttachment: (candidateId: string, attachmentId: string) =>
+    get<HrCandidateAttachmentMeta & { dataUrl: string }>(
+      `/candidati/${candidateId}/attachments/${attachmentId}`,
+    ),
+  deleteAttachment: (candidateId: string, attachmentId: string) =>
+    del<{ deleted: boolean }>(`/candidati/${candidateId}/attachments/${attachmentId}`),
+};
+
 /* ─── Asporto ────────────────────────────────────── */
 
 export type AsportoCloseDaySummary = {
@@ -2262,6 +2331,7 @@ export const api = {
   suppliers: suppliersApi,
   purchaseOrders: purchaseOrdersApi,
   catering: cateringApi,
+  candidati: candidatiApi,
   asporto: asportoApi,
   archivio: archivioApi,
   archivioFiscalStubs: archivioFiscalStubsApi,
