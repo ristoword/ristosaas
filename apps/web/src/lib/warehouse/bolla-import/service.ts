@@ -36,6 +36,7 @@ export async function processBollaImportAsync(
   supplierName: string,
   documentBase64: string,
   documentMime: string,
+  defaultWarehouseLocation: string = "MAGAZZINO_CENTRALE",
 ) {
   const t0 = Date.now();
   try {
@@ -83,6 +84,10 @@ export async function processBollaImportAsync(
         const learned = await warehouseBollaImportRepository.getLearnedCategory(tenantId, productKey);
         const suggestedCategory = learned ?? suggestCategoryFromRules(description);
         const match = matchWarehouseItem(description, stockItems);
+        const isCantina = defaultWarehouseLocation === "CANTINA";
+        const category =
+          match?.category ??
+          (isCantina && suggestedCategory === "Dispensa" ? "Vini" : suggestedCategory);
 
         return {
           lineOrder: idx + 1,
@@ -95,9 +100,9 @@ export async function processBollaImportAsync(
           lineTotal: l.totalPrice,
           lotNumber: l.lotNumber,
           expiryDate: parseDate(l.expiryDate),
-          suggestedCategory,
-          selectedCategory: match?.category ?? suggestedCategory,
-          warehouseLocation: "MAGAZZINO_CENTRALE",
+          suggestedCategory: category,
+          selectedCategory: category,
+          warehouseLocation: defaultWarehouseLocation,
           warehouseItemId: match?.id ?? null,
           matchStatus: match ? "matched" : "new",
         };
@@ -143,6 +148,14 @@ export function startBollaImportProcessing(
   supplierName: string,
   documentBase64: string,
   documentMime: string,
+  defaultWarehouseLocation?: string,
 ) {
-  void processBollaImportAsync(tenantId, importId, supplierName, documentBase64, documentMime);
+  void processBollaImportAsync(
+    tenantId,
+    importId,
+    supplierName,
+    documentBase64,
+    documentMime,
+    defaultWarehouseLocation,
+  );
 }

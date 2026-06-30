@@ -16,6 +16,7 @@ export type WarehouseLocation =
   | "CUCINA"
   | "PIZZERIA"
   | "BAR"
+  | "CANTINA"
   | "SALA"
   | "PROPRIETA"
   | "ALTRO";
@@ -25,16 +26,23 @@ export const WAREHOUSE_LOCATIONS: WarehouseLocation[] = [
   "CUCINA",
   "PIZZERIA",
   "BAR",
+  "CANTINA",
   "SALA",
   "PROPRIETA",
   "ALTRO",
 ];
+
+/** Reparti operativi (tutte le location tranne il magazzino centrale). */
+export const WAREHOUSE_DEPARTMENTS: WarehouseLocation[] = WAREHOUSE_LOCATIONS.filter(
+  (l) => l !== "MAGAZZINO_CENTRALE",
+);
 
 export const WAREHOUSE_LOCATION_LABELS: Record<WarehouseLocation, string> = {
   MAGAZZINO_CENTRALE: "Magazzino Centrale",
   CUCINA: "Cucina",
   PIZZERIA: "Pizzeria",
   BAR: "Bar",
+  CANTINA: "Cantina",
   SALA: "Sala",
   PROPRIETA: "Proprietà",
   ALTRO: "Altro",

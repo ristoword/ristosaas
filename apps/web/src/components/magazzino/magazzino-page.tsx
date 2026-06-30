@@ -23,6 +23,7 @@ import {
 import { Modal } from "@/components/shared/modal";
 import {
   WAREHOUSE_LOCATIONS,
+  WAREHOUSE_DEPARTMENTS,
   WAREHOUSE_LOCATION_LABELS,
   type WarehouseLocation,
 } from "@/lib/api/types/warehouse";
@@ -544,6 +545,7 @@ const LOCATION_COLORS: Record<string, string> = {
   CUCINA: "bg-orange-500/15 text-orange-400 border-orange-500/30",
   PIZZERIA: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30",
   BAR: "bg-sky-500/15 text-sky-400 border-sky-500/30",
+  CANTINA: "bg-violet-500/15 text-violet-300 border-violet-500/30",
   SALA: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
   PROPRIETA: "bg-purple-500/15 text-purple-400 border-purple-500/30",
   ALTRO: "bg-rw-surfaceAlt text-rw-muted border-rw-line",
@@ -642,7 +644,7 @@ function RepartiTab() {
               <tr className="border-b border-rw-line bg-rw-surfaceAlt">
                 <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-rw-muted">{t("magazzino.col.product")}</th>
                 <th className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">{t("magazzino.reparti.centrale")}</th>
-                {(["CUCINA", "PIZZERIA", "BAR", "SALA", "PROPRIETA", "ALTRO"] as WarehouseLocation[]).map((loc) => (
+                {WAREHOUSE_DEPARTMENTS.map((loc) => (
                   <th key={loc} className="px-3 py-3 text-right text-xs font-semibold uppercase tracking-wide text-rw-muted">
                     {WAREHOUSE_LOCATION_LABELS[loc]}
                   </th>
@@ -661,7 +663,7 @@ function RepartiTab() {
                       <span className="ml-2 text-xs text-rw-muted">{item.unit}</span>
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-rw-soft">{item.qty.toFixed(3)}</td>
-                    {(["CUCINA", "PIZZERIA", "BAR", "SALA", "PROPRIETA", "ALTRO"] as WarehouseLocation[]).map((loc) => {
+                    {WAREHOUSE_DEPARTMENTS.map((loc) => {
                       const q = getLocQty(loc);
                       return (
                         <td key={loc} className={cn("px-3 py-2.5 text-right tabular-nums", q > 0 ? "font-semibold text-rw-ink" : "text-rw-muted")}>

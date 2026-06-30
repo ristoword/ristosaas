@@ -809,7 +809,7 @@ const it: TranslationDictionary = {
   "magazzino.reparti.desc": "Scorte operative nei reparti (derivate dai trasferimenti dal Magazzino Centrale).",
   "magazzino.reparti.newTransfer": "Nuovo trasferimento",
   "magazzino.reparti.noStock": "Nessuna scorta nei reparti",
-  "magazzino.reparti.noStockDesc": "Nessun prodotto ha ancora scorte nei reparti. Usa «Nuovo trasferimento» per spostare merce dal Magazzino Centrale verso Cucina, Pizzeria, Bar, Sala o Proprietà.",
+  "magazzino.reparti.noStockDesc": "Nessun prodotto ha ancora scorte nei reparti. Usa «Nuovo trasferimento» per spostare merce dal Magazzino Centrale verso Cucina, Pizzeria, Bar, Cantina, Sala o Proprietà.",
   "magazzino.reparti.centrale": "Centrale",
   "magazzino.transfer.title": "Trasferimento tra reparti",
   "magazzino.transfer.from": "Da",
@@ -1587,6 +1587,8 @@ const it: TranslationDictionary = {
   /* ── Cantina ──────────────────────────────────────── */
   "cantina.title": "Cantina",
   "cantina.subtitle": "Gestisci la carta dei vini: annate, prezzi, abbinamenti e giacenze.",
+  "cantina.bollaAi.title": "Importa Bolla AI — Cantina",
+  "cantina.bollaAi.subtitle": "Carica DDT o fattura fornitore: l'AI carica vini e bevande direttamente in reparto Cantina",
   "cantina.chip.total": "Etichette",
   "cantina.chip.rosso": "Rossi",
   "cantina.chip.bianco": "Bianchi",

@@ -4,9 +4,11 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseBollaImportRepository } from "@/lib/db/repositories/warehouse-bolla-import.repository";
 import { startBollaImportProcessing } from "@/lib/warehouse/bolla-import/service";
+import { BOLLA_IMPORT_ROLES } from "@/lib/warehouse/bolla-import/permissions";
+import { WAREHOUSE_LOCATIONS } from "@/lib/api/types/warehouse";
 import { prisma } from "@/lib/db/prisma";
 
-const ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
+const ROLES = BOLLA_IMPORT_ROLES;
 
 export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, [...ROLES]);
@@ -26,6 +28,7 @@ export async function POST(req: NextRequest) {
     fileName?: string;
     mimeType?: string;
     contentBase64?: string;
+    defaultWarehouseLocation?: string;
   };
   try {
     parsed = await body(req);
@@ -33,7 +36,7 @@ export async function POST(req: NextRequest) {
     return err("Invalid JSON", 400);
   }
 
-  const { supplierId, supplierName, fileName, mimeType, contentBase64 } = parsed;
+  const { supplierId, supplierName, fileName, mimeType, contentBase64, defaultWarehouseLocation } = parsed;
   if (!contentBase64?.trim()) return err("contentBase64 richiesto", 400);
   if (!mimeType?.trim()) return err("mimeType richiesto", 400);
 
@@ -68,12 +71,19 @@ export async function POST(req: NextRequest) {
     userName: guard.user.name,
   });
 
+  const targetLocation =
+    defaultWarehouseLocation &&
+    (WAREHOUSE_LOCATIONS as string[]).includes(defaultWarehouseLocation)
+      ? defaultWarehouseLocation
+      : "MAGAZZINO_CENTRALE";
+
   startBollaImportProcessing(
     tenantId,
     importId,
     resolvedSupplierName,
     contentBase64.replace(/^data:[^;]+;base64,/, ""),
     mimeType,
+    targetLocation,
   );
 
   const record = await warehouseBollaImportRepository.getById(tenantId, importId);

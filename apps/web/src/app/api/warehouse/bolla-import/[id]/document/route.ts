@@ -2,8 +2,9 @@ import { NextRequest } from "next/server";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseBollaImportRepository } from "@/lib/db/repositories/warehouse-bolla-import.repository";
+import { BOLLA_IMPORT_ROLES } from "@/lib/warehouse/bolla-import/permissions";
 
-const ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
+const ROLES = BOLLA_IMPORT_ROLES;
 
 type RouteContext = { params: Promise<{ id: string }> };
 

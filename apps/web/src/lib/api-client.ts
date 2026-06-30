@@ -338,6 +338,7 @@ export const bollaImportApi = {
     fileName: string;
     mimeType: string;
     contentBase64: string;
+    defaultWarehouseLocation?: string;
   }) => post<{ importId: string; import: BollaImportRecord | null }>("/warehouse/bolla-import", payload),
   get: (id: string) =>
     get<{ import: BollaImportRecord; audit: Array<{ id: string; action: string; createdAt: string; userName: string | null }> }>(

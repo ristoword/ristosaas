@@ -29,7 +29,10 @@ import {
 import {
   WAREHOUSE_LOCATIONS,
   WAREHOUSE_LOCATION_LABELS,
+  type WarehouseLocation,
 } from "@/lib/api/types/warehouse";
+
+const CANTINA_CATEGORIES = ["Vini", "Birre", "Distillati", "Bevande", "Altro"] as const;
 
 const INPUT =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink focus:border-[#D4AF37]/50 focus:outline-none focus:ring-1 focus:ring-[#D4AF37]/30";
@@ -54,7 +57,17 @@ function readFileAsBase64(file: File): Promise<{ base64: string; mimeType: strin
 
 type DashboardStats = Awaited<ReturnType<typeof bollaImportApi.dashboard>>;
 
-export function BollaAiImportPanel() {
+type BollaAiImportPanelProps = {
+  /** Reparto di destinazione predefinito per le righe importate. */
+  defaultLocation?: WarehouseLocation;
+  /** Filtra le categorie proposte (es. cantina → vini/birre). */
+  variant?: "magazzino" | "cantina";
+};
+
+export function BollaAiImportPanel({
+  defaultLocation = "MAGAZZINO_CENTRALE",
+  variant = "magazzino",
+}: BollaAiImportPanelProps) {
   const { t } = useI18n();
   const { refresh } = useWarehouse();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -108,6 +121,9 @@ export function BollaAiImportPanel() {
     }, 800);
   };
 
+  const categoryOptions =
+    variant === "cantina" ? [...CANTINA_CATEGORIES] : [...WAREHOUSE_CATEGORIES];
+
   async function handleFiles(files: FileList | null) {
     if (!files?.length || !supplierId) {
       setError(t("magazzino.bollaAi.selectSupplier"));
@@ -123,6 +139,7 @@ export function BollaAiImportPanel() {
         fileName: file.name,
         mimeType,
         contentBase64: base64,
+        defaultWarehouseLocation: defaultLocation,
       });
       if (imp) {
         setCurrent(imp);
@@ -221,8 +238,12 @@ export function BollaAiImportPanel() {
               <Sparkles className="h-6 w-6 text-[#E8C547]" />
             </div>
             <div>
-              <h2 className="font-display text-lg font-bold text-rw-ink">{t("magazzino.bollaAi.title")}</h2>
-              <p className="text-sm text-rw-muted">{t("magazzino.bollaAi.subtitle")}</p>
+              <h2 className="font-display text-lg font-bold text-rw-ink">
+                {variant === "cantina" ? t("cantina.bollaAi.title") : t("magazzino.bollaAi.title")}
+              </h2>
+              <p className="text-sm text-rw-muted">
+                {variant === "cantina" ? t("cantina.bollaAi.subtitle") : t("magazzino.bollaAi.subtitle")}
+              </p>
             </div>
           </div>
         </div>
@@ -350,7 +371,7 @@ export function BollaAiImportPanel() {
                         value={line.selectedCategory}
                         onChange={(e) => updateLine(line.id, { selectedCategory: e.target.value })}
                       >
-                        {WAREHOUSE_CATEGORIES.map((c) => (
+                        {categoryOptions.map((c) => (
                           <option key={c} value={c}>{c}</option>
                         ))}
                       </select>

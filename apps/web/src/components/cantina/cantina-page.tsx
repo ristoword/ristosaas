@@ -32,6 +32,7 @@ import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { cantinaApi, aiOpsApi, type WineCellarItem, type WineCellarCreatePayload, type CantinaAiSnapshot } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/core/i18n/provider";
+import { BollaAiImportPanel } from "@/components/magazzino/bolla-ai-import-panel";
 
 const COLORS = ["rosso", "bianco", "rosé", "bollicine", "passito", "orange"] as const;
 const BODIES = ["leggero", "medio", "corposo", "forte", "dolce", "secco"] as const;
@@ -261,6 +262,8 @@ export function CantinaPage() {
           {flash}
         </div>
       )}
+
+      <BollaAiImportPanel defaultLocation="CANTINA" variant="cantina" />
 
       {/* Search & filters */}
       <div className="flex flex-wrap gap-3">

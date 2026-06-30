@@ -5,8 +5,9 @@ import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { warehouseBollaImportRepository } from "@/lib/db/repositories/warehouse-bolla-import.repository";
 import type { ConfirmBollaLineInput } from "@/lib/warehouse/bolla-import/types";
 import { normalizeProductKey } from "@/lib/warehouse/bolla-import/categories";
+import { BOLLA_IMPORT_ROLES } from "@/lib/warehouse/bolla-import/permissions";
 
-const ROLES = ["magazzino", "supervisor", "owner", "super_admin"] as const;
+const ROLES = BOLLA_IMPORT_ROLES;
 
 type RouteContext = { params: Promise<{ id: string }> };
 
