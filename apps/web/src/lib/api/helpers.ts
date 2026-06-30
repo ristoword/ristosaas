@@ -55,7 +55,7 @@ export function fireAndForget(promise: Promise<unknown>, context: string) {
   });
 }
 
-type RouteContext = { params?: Promise<Record<string, string>> };
+type RouteContext = { params: Promise<Record<string, string>> };
 type RouteHandler = (req: NextRequest, ctx: RouteContext) => Promise<NextResponse>;
 
 /**

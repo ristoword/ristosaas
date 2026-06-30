@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { ok, err, body, withErrorHandler } from "@/lib/api/helpers";
+import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { hrCandidatesRepository } from "@/lib/db/repositories/hr-candidates.repository";
@@ -7,13 +7,13 @@ import type { HrCandidateSource, HrCandidateStatus } from "@/lib/api-client";
 
 const ROLES = ["owner", "supervisor", "super_admin"] as const;
 
-export const GET = withErrorHandler(async (req: NextRequest) => {
+export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   return ok(await hrCandidatesRepository.all(getTenantId()));
-});
+}
 
-export const POST = withErrorHandler(async (req: NextRequest) => {
+export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, ROLES);
   if (guard.error) return guard.error;
   const data = await body<{
@@ -41,4 +41,4 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
     lastName: data.lastName?.trim() || "",
   });
   return ok(item, 201);
-});
+}
