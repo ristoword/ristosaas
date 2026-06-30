@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { Prisma } from "@prisma/client";
 import type {
   ArchivedOrder,
   AsportoOrder,
@@ -70,7 +71,7 @@ function mapSupplier(row: {
 
 function mapCatering(row: {
   id: string; name: string; date: Date; guests: number; venue: string; budget: { toNumber: () => number };
-  status: string; contact: string; phone: string; menu: string; notes: string; depositPaid: boolean;
+  status: string; contact: string; phone: string; menu: string; notes: string; quoteData?: unknown; depositPaid: boolean;
 }): CateringEvent {
   return {
     id: row.id,
@@ -84,6 +85,7 @@ function mapCatering(row: {
     phone: row.phone,
     menu: row.menu,
     notes: row.notes,
+    quoteData: (row.quoteData as CateringEvent["quoteData"]) ?? null,
     depositPaid: row.depositPaid,
   };
 }
@@ -315,12 +317,38 @@ export const operationsRepository = {
       const row = await prisma.cateringEvent.findFirst({ where: { tenantId, id } });
       return row ? mapCatering(row) : null;
     },
-    create: async (tenantId: string, data: Omit<CateringEvent, "id">) =>
-      mapCatering(await prisma.cateringEvent.create({ data: { tenantId, ...data, date: new Date(`${data.date}T00:00:00Z`) } })),
+    create: async (tenantId: string, data: Omit<CateringEvent, "id">) => {
+      const { quoteData, date, ...rest } = data;
+      return mapCatering(
+        await prisma.cateringEvent.create({
+          data: {
+            tenantId,
+            ...rest,
+            date: new Date(`${date}T00:00:00Z`),
+            quoteData: quoteData ? (quoteData as Prisma.InputJsonValue) : undefined,
+          },
+        }),
+      );
+    },
     update: async (tenantId: string, id: string, updates: Partial<CateringEvent>) => {
       const exists = await prisma.cateringEvent.findFirst({ where: { tenantId, id } });
       if (!exists) return null;
-      return mapCatering(await prisma.cateringEvent.update({ where: { id }, data: { ...updates, date: updates.date ? new Date(`${updates.date}T00:00:00Z`) : undefined } }));
+      const { quoteData, date, ...rest } = updates;
+      return mapCatering(
+        await prisma.cateringEvent.update({
+          where: { id },
+          data: {
+            ...rest,
+            date: date ? new Date(`${date}T00:00:00Z`) : undefined,
+            quoteData:
+              quoteData === null
+                ? Prisma.DbNull
+                : quoteData !== undefined
+                  ? (quoteData as Prisma.InputJsonValue)
+                  : undefined,
+          },
+        }),
+      );
     },
     delete: (tenantId: string, id: string) => deleteScoped("cateringEvent", tenantId, id),
   },

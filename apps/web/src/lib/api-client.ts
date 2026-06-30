@@ -2380,6 +2380,21 @@ export type StaffShift = { id: string; staffId: string; clockInAt: string; clock
 export type Customer = { id: string; name: string; email: string; phone: string; type: "vip" | "habitue" | "walk-in" | "new"; visits: number; totalSpent: number; avgSpend: number; allergies: string; preferences: string; notes: string; lastVisit: string };
 export type Booking = { id: string; customerName: string; phone: string; email: string; date: string; time: string; guests: number; table: string; notes: string; status: "confermata" | "in_attesa" | "annullata" | "completata"; allergies: string };
 export type Supplier = { id: string; name: string; category: string; email: string; phone: string; address: string; piva: string; paymentTerms: string; rating: number; notes: string; active: boolean };
-export type CateringEvent = { id: string; name: string; date: string; guests: number; venue: string; budget: number; status: "preventivo" | "confermato" | "completato" | "annullato"; contact: string; phone: string; menu: string; notes: string; depositPaid: boolean };
+export type { CateringQuoteData } from "@/lib/catering/types";
+export type CateringEvent = {
+  id: string;
+  name: string;
+  date: string;
+  guests: number;
+  venue: string;
+  budget: number;
+  status: "preventivo" | "confermato" | "completato" | "annullato";
+  contact: string;
+  phone: string;
+  menu: string;
+  notes: string;
+  quoteData: import("@/lib/catering/types").CateringQuoteData | null;
+  depositPaid: boolean;
+};
 export type AsportoOrder = { id: string; customerName: string; phone: string; items: { name: string; qty: number; price: number }[]; total: number; status: "nuovo" | "in_preparazione" | "pronto" | "ritirato" | "consegnato" | "annullato"; pickupTime: string; notes: string; createdAt: string; type: "asporto" | "delivery"; address: string };
 export type ArchivedOrder = { id: string; date: string; table: string; waiter: string; items: { name: string; qty: number; price: number }[]; total: number; status: "completato" | "annullato" | "stornato"; paymentMethod: "contanti" | "carta" | "misto"; closedAt: string };

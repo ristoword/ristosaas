@@ -1,0 +1,1 @@
+ALTER TABLE "CateringEvent" ADD COLUMN IF NOT EXISTS "quoteData" JSONB;

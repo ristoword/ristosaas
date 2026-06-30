@@ -2080,6 +2080,7 @@ model CateringEvent {
   phone       String
   menu        String
   notes       String
+  quoteData   Json?
   depositPaid Boolean
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
