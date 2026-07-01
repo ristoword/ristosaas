@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   CalendarDays,
@@ -28,6 +28,7 @@ import {
   type Booking,
   type Customer,
 } from "@/lib/api-client";
+import { BookingEmailPanel } from "@/components/prenotazioni/booking-email-panel";
 
 type BookingStatus = Booking["status"];
 
@@ -96,17 +97,19 @@ export function PrenotazioniPage() {
   const [newTable, setNewTable] = useState(areaOptions[0]);
   const [newNotes, setNewNotes] = useState("");
 
-  useEffect(() => {
-    Promise.all([bookingsApi.list(), customersApi.list()])
-      .then(([bks, custs]) => {
-        setBookings(bks);
-        const map = new Map<string, CustomerProfile>();
-        custs.forEach((c) => map.set(c.name.toLowerCase(), customerToProfile(c)));
-        setCustomerMap(map);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+  const loadBookings = useCallback(async () => {
+    const [bks, custs] = await Promise.all([bookingsApi.list(), customersApi.list()]);
+    setBookings(bks);
+    const map = new Map<string, CustomerProfile>();
+    custs.forEach((c) => map.set(c.name.toLowerCase(), customerToProfile(c)));
+    setCustomerMap(map);
   }, []);
+
+  useEffect(() => {
+    loadBookings()
+      .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento"))
+      .finally(() => setLoading(false));
+  }, [loadBookings]);
 
   const today = new Date().toISOString().slice(0, 10);
   const todayBookings = bookings.filter((b) => b.date === today);
@@ -212,6 +215,8 @@ export function PrenotazioniPage() {
 
       <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
         <div className="space-y-4">
+          <BookingEmailPanel onBookingsChanged={loadBookings} />
+
           <Card title="Nuova prenotazione" headerRight={<Plus className="h-4 w-4 text-rw-accent" />}>
             <form className="space-y-3" onSubmit={handleAddBooking}>
               <div><label className={labelCls}>Data</label><input type="date" className={inputCls} value={newDate} onChange={(e) => setNewDate(e.target.value)} /></div>

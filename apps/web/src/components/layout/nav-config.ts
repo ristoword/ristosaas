@@ -235,7 +235,7 @@ export const navSections: NavSection[] = [
       {
         id: "prenotazioni",
         label: "Prenotazioni",
-        hint: "Agenda e disponibilità.",
+        hint: "Agenda, disponibilità e prenotazioni via email.",
         href: "/prenotazioni",
         icon: ClipboardList,
         ready: true,
