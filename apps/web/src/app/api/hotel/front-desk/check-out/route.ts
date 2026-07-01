@@ -9,6 +9,8 @@ import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 import { emitHousekeepingEvent } from "@/lib/hotel/housekeeping-event-bus";
+import { complianceRepository } from "@/lib/db/repositories/compliance.repository";
+import { revokeLockCredential } from "@/lib/integrations/lock-connector";
 
 const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
 
@@ -230,6 +232,27 @@ export async function POST(req: NextRequest) {
   const tenantId = getTenantId();
   const now = new Date();
   const tax = typeof cityTaxAmount === "number" && !Number.isNaN(cityTaxAmount) ? Math.max(0, cityTaxAmount) : 0;
+
+  const lockConfig = await complianceRepository.get(tenantId);
+  if (lockConfig.lockEnabled && lockConfig.lockBridgeUrl.trim()) {
+    const activeCards = await prisma.hotelKeycard.findMany({
+      where: {
+        tenantId,
+        reservationId,
+        status: "attiva",
+        lockCredentialId: { not: null },
+      },
+    });
+    for (const card of activeCards) {
+      if (card.lockCredentialId) {
+        await revokeLockCredential(
+          lockConfig.lockBridgeUrl,
+          lockConfig.lockBridgeApiKey,
+          card.lockCredentialId,
+        );
+      }
+    }
+  }
 
   try {
     const result = await prisma.$transaction(async (tx) => {

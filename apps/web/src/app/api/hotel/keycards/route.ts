@@ -22,6 +22,8 @@ export async function GET(req: NextRequest) {
       validUntil: true,
       status: true,
       issuedBy: true,
+      lockCredentialId: true,
+      encodedAt: true,
     },
   });
 
@@ -33,6 +35,8 @@ export async function GET(req: NextRequest) {
     validUntil: card.validUntil.toISOString(),
     status: card.status,
     issuedBy: card.issuedBy,
+    lockCredentialId: card.lockCredentialId,
+    encodedAt: card.encodedAt ? card.encodedAt.toISOString() : null,
   }));
   return ok(cards);
 }

@@ -5,6 +5,9 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { ordersRepository } from "@/lib/db/repositories/orders.repository";
 import { getActivePublicTenantIdBySlug } from "@/lib/db/repositories/public-menu.repository";
+import { complianceRepository } from "@/lib/db/repositories/compliance.repository";
+import { dispatchPrintJobAsync } from "@/lib/integrations/print-dispatcher";
+import type { HardwareDepartment } from "@/lib/db/repositories/hardware.repository";
 import {
   createRestaurantOrderCheckoutSession,
   restaurantOrderTotalCentsFromItems,
@@ -152,6 +155,20 @@ export async function POST(req: NextRequest) {
       stripeCheckoutSessionId: null,
     };
     const order = await ordersRepository.create(getTenantId(), orderPayload);
+
+    const tenantId = getTenantId();
+    const config = await complianceRepository.get(tenantId);
+    if (config.autoPrintOrders) {
+      const dept = mapOrderAreaToDepartment(data.area);
+      const lines = [
+        `COMANDA — Tavolo ${data.table ?? "—"}`,
+        `Cameriere: ${data.waiter}`,
+        ...order.items.map((i) => `${i.qty}x ${i.name}${i.note ? ` (${i.note})` : ""}`),
+        data.notes ? `Note: ${data.notes}` : "",
+      ].filter(Boolean);
+      dispatchPrintJobAsync(tenantId, "nuova_comanda", dept, lines);
+    }
+
     return ok(order, 201);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Impossibile creare l'ordine.";
@@ -167,4 +184,12 @@ function buildCourseStates(items: OrderItem[]): Record<string, "queued" | "in_at
     states[String(course)] = idx === 0 ? "in_attesa" : "queued";
   }
   return states;
+}
+
+function mapOrderAreaToDepartment(area: string): HardwareDepartment {
+  if (area === "bar") return "bar";
+  if (area === "pizzeria") return "pizzeria";
+  if (area === "cassa") return "cassa";
+  if (area === "sala") return "sala";
+  return "cucina";
 }

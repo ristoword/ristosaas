@@ -1,4 +1,9 @@
 import type { GuestRegisterEntryDetail } from "@/modules/hotel/domain/guest-register-types";
+import { complianceRepository } from "@/lib/db/repositories/compliance.repository";
+import {
+  alloggiatiSendGuests,
+  type AlloggiatiGuestLine,
+} from "@/lib/integrations/alloggiati-web";
 import type { AuthorityAdapter, TransmissionPayload, TransmissionResult } from "./types";
 
 function baseValidate(entry: GuestRegisterEntryDetail): string | null {
@@ -8,96 +13,138 @@ function baseValidate(entry: GuestRegisterEntryDetail): string | null {
   return null;
 }
 
-function buildRequest(entry: GuestRegisterEntryDetail) {
+function mapPersonToAlloggiati(p: GuestRegisterEntryDetail["persons"][0], arrivalDate: string, days: number): AlloggiatiGuestLine {
   return {
-    reservationId: entry.reservationId,
-    roomCode: entry.roomCode,
-    arrivalDate: entry.arrivalDate,
-    departureDate: entry.departureDate,
-    guestCount: entry.guestCount,
-    persons: entry.persons.map((p) => ({
-      firstName: p.firstName,
-      lastName: p.lastName,
-      nationality: p.nationality,
-      documentType: p.documentType,
-      documentNumber: p.documentNumber,
-      dateOfBirth: p.dateOfBirth,
-    })),
+    tipoAlloggiato: "16",
+    dataArrivo: arrivalDate,
+    giorniPermanenza: Math.max(1, days),
+    cognome: p.lastName.toUpperCase(),
+    nome: p.firstName.toUpperCase(),
+    sesso: p.sex === "M" ? "M" : p.sex === "F" ? "F" : "N",
+    dataNascita: p.dateOfBirth?.slice(0, 10) ?? "19000101",
+    comuneNascita: p.placeOfBirth ?? "",
+    provinciaNascita: p.province ?? "",
+    statoNascita: p.stateOfBirth ?? p.nationality ?? "IT",
+    cittadinanza: p.nationality ?? "IT",
+    tipoDocumento: mapDocType(p.documentType),
+    numeroDocumento: p.documentNumber ?? "",
+    luogoRilascio: p.documentIssuingAuthority ?? "",
   };
 }
 
-function createStubAdapter(params: {
+function mapDocType(t: string | null | undefined) {
+  if (t === "passport") return "PASOR";
+  if (t === "driving_license") return "PATEN";
+  if (t === "identity_card") return "IDENT";
+  return "ALTRO";
+}
+
+function daysBetween(start: string, end: string) {
+  const a = new Date(start);
+  const b = new Date(end);
+  return Math.max(1, Math.ceil((b.getTime() - a.getTime()) / 86_400_000));
+}
+
+export const italyAdapter: AuthorityAdapter = {
+  code: "it-alloggiati-web",
+  country: "IT",
+  name: "Italia — Alloggiati Web",
+  validate(entry) {
+    const base = baseValidate(entry);
+    if (base) return base;
+    const missingTax = entry.persons.filter((p) => p.nationality === "IT" && !p.taxCode);
+    if (missingTax.length > 0) return "Codice fiscale richiesto per ospiti italiani";
+    return null;
+  },
+  async transmit(payload: TransmissionPayload): Promise<TransmissionResult> {
+    const config = await complianceRepository.get(payload.tenantId);
+    if (!config.alloggiatiEnabled) {
+      return {
+        success: false,
+        errorMessage:
+          "Alloggiati Web non configurato. Vai in Area Owner → Integrazioni compliance e inserisci credenziali Questura.",
+      };
+    }
+    if (!config.alloggiatiUsername || !config.alloggiatiPassword || !config.alloggiatiWsKey || !config.alloggiatiApartmentId) {
+      return { success: false, errorMessage: "Credenziali Alloggiati Web incomplete" };
+    }
+
+    const arrival = payload.entry.arrivalDate.slice(0, 10).replace(/-/g, "");
+    const days = daysBetween(payload.entry.arrivalDate, payload.entry.departureDate);
+    const guests = payload.entry.persons.map((p) => mapPersonToAlloggiati(p, arrival, days));
+
+    try {
+      const result = await alloggiatiSendGuests(
+        {
+          username: config.alloggiatiUsername,
+          password: config.alloggiatiPassword,
+          wsKey: config.alloggiatiWsKey,
+          apartmentId: config.alloggiatiApartmentId,
+        },
+        guests,
+      );
+      return {
+        success: true,
+        externalRef: result.externalRef,
+        responsePayload: {
+          adapter: "it-alloggiati-web",
+          protocol: "SOAP",
+          guestCount: guests.length,
+          externalRef: result.externalRef,
+          transmittedAt: new Date().toISOString(),
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+};
+
+function notConfiguredAdapter(params: {
   code: string;
   country: AuthorityAdapter["country"];
   name: string;
-  extraValidate?: (entry: GuestRegisterEntryDetail) => string | null;
 }): AuthorityAdapter {
   return {
     code: params.code,
     country: params.country,
     name: params.name,
     validate(entry) {
-      const base = baseValidate(entry);
-      if (base) return base;
-      return params.extraValidate?.(entry) ?? null;
+      return baseValidate(entry);
     },
-    async transmit(payload: TransmissionPayload): Promise<TransmissionResult> {
-      const request = buildRequest(payload.entry);
-      const externalRef = `${params.code}-${Date.now()}-${payload.entry.id.slice(-6)}`;
+    async transmit(): Promise<TransmissionResult> {
       return {
-        success: true,
-        externalRef,
-        responsePayload: {
-          adapter: params.code,
-          country: params.country,
-          status: "accepted",
-          protocolVersion: "1.0",
-          receivedAt: new Date().toISOString(),
-          guestCount: payload.entry.persons.length,
-          requestSummary: request,
-          note: `Trasmissione accettata da adapter ${params.name} (layer PMS — collegare connettore istituzionale)`,
-        },
+        success: false,
+        errorMessage: `Integrazione ${params.name} non ancora attiva — contatta supporto RistoSimply`,
       };
     },
   };
 }
 
-export const italyAdapter = createStubAdapter({
-  code: "it-alloggiati-web",
-  country: "IT",
-  name: "Italia — Alloggiati Web",
-  extraValidate(entry) {
-    const missingTax = entry.persons.filter((p) => p.nationality === "IT" && !p.taxCode);
-    if (missingTax.length > 0) return "Codice fiscale richiesto per ospiti italiani";
-    return null;
-  },
-});
-
-export const netherlandsAdapter = createStubAdapter({
+export const netherlandsAdapter = notConfiguredAdapter({
   code: "nl-konmar",
   country: "NL",
   name: "Olanda — KonMar",
 });
-
-export const belgiumAdapter = createStubAdapter({
+export const belgiumAdapter = notConfiguredAdapter({
   code: "be-police-register",
   country: "BE",
   name: "Belgio — Registro Polizia",
 });
-
-export const germanyAdapter = createStubAdapter({
+export const germanyAdapter = notConfiguredAdapter({
   code: "de-meldewesen",
   country: "DE",
   name: "Germania — Meldewesen",
 });
-
-export const franceAdapter = createStubAdapter({
+export const franceAdapter = notConfiguredAdapter({
   code: "fr-fichier-police",
   country: "FR",
   name: "Francia — Fichier Police",
 });
-
-export const spainAdapter = createStubAdapter({
+export const spainAdapter = notConfiguredAdapter({
   code: "es-hospedajes",
   country: "ES",
   name: "Spagna — Hospedajes SES",

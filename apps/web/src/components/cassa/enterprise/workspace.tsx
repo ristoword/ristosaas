@@ -16,7 +16,10 @@ type MobilePanel = "tables" | "bill" | "menu" | "actions";
 type Props = {
   servedOrders: Order[];
   menuItems: ApiMenuItem[];
-  onCloseTable: (id: string) => void;
+  onCloseTable: (
+    orderIds: string[],
+    opts?: { discount?: number; vatRate?: number; paymentMethod?: string },
+  ) => Promise<{ total: number; fiscalInvoice: { progressiveNumber: number; sdiStatus: string } | null } | null>;
 };
 
 function panelVisibility(active: MobilePanel, panel: MobilePanel) {
@@ -60,13 +63,25 @@ export function CassaEnterpriseWorkspace({ servedOrders, menuItems, onCloseTable
     setTimeout(() => setFlash(null), 2500);
   }, []);
 
-  const handleCloseTable = useCallback(() => {
-    for (const o of tableOrders) {
-      onCloseTable(o.id);
+  const handleCloseTable = useCallback(async () => {
+    const ids = tableOrders.map((o) => o.id);
+    if (!ids.length) return;
+    try {
+      const result = await onCloseTable(ids, {
+        discount: discountVal,
+        vatRate: vatVal,
+        paymentMethod: "contanti",
+      });
+      setSelectedTable(null);
+      const fiscalNote =
+        result?.fiscalInvoice != null
+          ? ` — Fattura #${result.fiscalInvoice.progressiveNumber} (${result.fiscalInvoice.sdiStatus})`
+          : "";
+      doFlash(`${t("cassa.closeTable.flash")} €${(result?.total ?? total).toFixed(2)}${fiscalNote}`);
+    } catch {
+      doFlash(t("cassa.closeTable.error"));
     }
-    setSelectedTable(null);
-    doFlash(t("cassa.closeTable.flash"));
-  }, [tableOrders, onCloseTable, doFlash, t]);
+  }, [tableOrders, onCloseTable, discountVal, vatVal, total, doFlash, t]);
 
   const handlePay = useCallback(() => {
     if (!selected) {

@@ -15,6 +15,7 @@ import { DataTable } from "@/components/shared/data-table";
 import { AiChat } from "@/components/ai/ai-chat";
 import {
   ordersApi,
+  cassaApi,
   menuApi,
   cantinaApi,
   reportsApi,
@@ -83,16 +84,29 @@ export function CassaPage() {
     [servedOrders],
   );
 
-  const handleCloseTable = useCallback(async (orderId: string) => {
-    try {
-      await ordersApi.patchStatus(orderId, "chiuso");
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: "chiuso" as const } : o)),
-      );
-    } catch (err) {
-      console.error("Failed to close order:", err);
-    }
-  }, []);
+  const handleCloseTable = useCallback(
+    async (orderIds: string[], opts?: { discount?: number; vatRate?: number; paymentMethod?: string }) => {
+      if (!orderIds.length) return null;
+      try {
+        const result = await cassaApi.closeTable({
+          orderIds,
+          discount: opts?.discount,
+          vatRate: opts?.vatRate,
+          paymentMethod: opts?.paymentMethod ?? "contanti",
+        });
+        setOrders((prev) =>
+          prev.map((o) =>
+            result.closedOrderIds.includes(o.id) ? { ...o, status: "chiuso" as const } : o,
+          ),
+        );
+        return result;
+      } catch (err) {
+        console.error("Failed to close table:", err);
+        throw err;
+      }
+    },
+    [],
+  );
 
   if (loading) {
     return (

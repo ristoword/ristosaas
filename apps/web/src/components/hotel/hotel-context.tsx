@@ -10,6 +10,7 @@ import {
   type HotelManualPaymentMethod,
   type HotelReservation,
   type HotelRoom,
+  type HotelStay,
   type HousekeepingTask,
   type RatePlan,
 } from "@/lib/api-client";
@@ -17,6 +18,7 @@ import {
 type HotelContextValue = {
   rooms: HotelRoom[];
   reservations: HotelReservation[];
+  stays: HotelStay[];
   housekeeping: HousekeepingTask[];
   keycards: HotelKeycard[];
   folios: GuestFolio[];
@@ -54,6 +56,7 @@ export function useHotel() {
 export function HotelProvider({ children }: { children: React.ReactNode }) {
   const [rooms, setRooms] = useState<HotelRoom[]>([]);
   const [reservations, setReservations] = useState<HotelReservation[]>([]);
+  const [stays, setStays] = useState<HotelStay[]>([]);
   const [housekeeping, setHousekeeping] = useState<HousekeepingTask[]>([]);
   const [keycards, setKeycards] = useState<HotelKeycard[]>([]);
   const [folios, setFolios] = useState<GuestFolio[]>([]);
@@ -71,23 +74,25 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
     const results = await Promise.allSettled([
       hotelApi.listRooms(),
       hotelApi.listReservations(),
+      hotelApi.listStays(),
       hotelApi.listHousekeeping(),
       hotelApi.listKeycards(),
       integrationApi.listFolios(),
       integrationApi.listCharges(),
       hotelApi.listRatePlans(),
     ]);
-    const [roomsR, reservationsR, housekeepingR, keycardsR, foliosR, chargesR, ratePlansR] = results;
-    const names = ["rooms", "reservations", "housekeeping", "keycards", "folios", "charges", "ratePlans"] as const;
+    const [roomsR, reservationsR, staysR, housekeepingR, keycardsR, foliosR, chargesR, ratePlansR] = results;
+    const names = ["rooms", "reservations", "stays", "housekeeping", "keycards", "folios", "charges", "ratePlans"] as const;
     const failed: string[] = [];
 
     if (roomsR.status === "fulfilled") setRooms(roomsR.value); else failed.push(names[0]);
     if (reservationsR.status === "fulfilled") setReservations(reservationsR.value); else failed.push(names[1]);
-    if (housekeepingR.status === "fulfilled") setHousekeeping(housekeepingR.value); else failed.push(names[2]);
-    if (keycardsR.status === "fulfilled") setKeycards(keycardsR.value); else failed.push(names[3]);
-    if (foliosR.status === "fulfilled") setFolios(foliosR.value); else failed.push(names[4]);
-    if (chargesR.status === "fulfilled") setCharges(chargesR.value); else failed.push(names[5]);
-    if (ratePlansR.status === "fulfilled") setRatePlans(ratePlansR.value); else failed.push(names[6]);
+    if (staysR.status === "fulfilled") setStays(staysR.value); else failed.push(names[2]);
+    if (housekeepingR.status === "fulfilled") setHousekeeping(housekeepingR.value); else failed.push(names[3]);
+    if (keycardsR.status === "fulfilled") setKeycards(keycardsR.value); else failed.push(names[4]);
+    if (foliosR.status === "fulfilled") setFolios(foliosR.value); else failed.push(names[5]);
+    if (chargesR.status === "fulfilled") setCharges(chargesR.value); else failed.push(names[6]);
+    if (ratePlansR.status === "fulfilled") setRatePlans(ratePlansR.value); else failed.push(names[7]);
 
     setFailedSlices(failed);
     setLoading(false);
@@ -206,6 +211,7 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
       value={{
         rooms,
         reservations,
+        stays,
         housekeeping,
         keycards,
         folios,

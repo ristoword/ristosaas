@@ -644,6 +644,15 @@ export const navSections: NavSection[] = [
         ready: true,
       },
       {
+        id: "integrations-compliance",
+        label: "Integrazioni compliance",
+        hint: "Alloggiati Web, SDI, serrature, stampa.",
+        href: "/integrations/compliance",
+        icon: Shield,
+        ready: true,
+        visibleFor: ["owner", "super_admin"],
+      },
+      {
         id: "owner",
         label: "Area Owner",
         hint: "Licenza, SMTP, configurazione.",

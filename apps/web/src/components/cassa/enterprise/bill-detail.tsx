@@ -284,14 +284,6 @@ export function CassaBillDetail({
           </div>
 
           <div className="mt-2 flex shrink-0 flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => onFlash(t("cassa.simulateClose.flash"))}
-              className={`${TOUCH_BTN_SM} border border-rw-line bg-rw-surfaceAlt text-rw-ink`}
-            >
-              <CreditCard className="h-5 w-5" />
-              <span className="text-xs">{t("cassa.simulateClose")}</span>
-            </button>
             <PayOnlineButton total={total} tableLabel={tableLabel} />
             <button
               type="button"

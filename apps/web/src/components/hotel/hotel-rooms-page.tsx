@@ -22,7 +22,7 @@ const roomTone = {
 } as const;
 
 export function HotelRoomsPage() {
-  const { rooms, reservations, housekeeping, createRoom, updateRoom, deleteRoom, failedSlices } = useHotel();
+  const { rooms, reservations, stays, housekeeping, createRoom, updateRoom, deleteRoom, failedSlices } = useHotel();
   const { t } = useI18n();
   const [calendarStart, setCalendarStart] = useState(() => todayIso());
   const [calendarEnd, setCalendarEnd] = useState(() => addDaysIso(todayIso(), 1));
@@ -35,12 +35,6 @@ export function HotelRoomsPage() {
     defaultNightlyRate: 0,
   });
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
-
-  const stays = useMemo(
-    () =>
-      [] as Array<{ id: string; reservationId: string; roomId: string; actualCheckInAt: string | null; actualCheckOutAt: string | null }>,
-    [],
-  );
 
   const availableToday = rooms.filter((room) =>
     isRoomAvailableForRange(room, reservations, stays, calendarStart, calendarEnd),

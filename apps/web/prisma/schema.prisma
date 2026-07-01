@@ -435,6 +435,9 @@ model Tenant {
   supervisorStorni SupervisorStorno[]
   warehouseVoiceLogs WarehouseVoiceLog[]
   archivioFiscalStubs      ArchivioFiscalStub[]
+  complianceConfig         TenantComplianceConfig?
+  printJobs                PrintJob[]
+  fiscalInvoices           FiscalInvoice[]
   notifications            Notification[]
   roomServiceOrders        RoomServiceOrder[]
   roomServiceCatalogItems  RoomServiceCatalogItem[]
@@ -1254,6 +1257,8 @@ model HotelKeycard {
   validUntil    DateTime
   status        KeycardStatus
   issuedBy      String
+  lockCredentialId String?
+  encodedAt     DateTime?
   createdAt     DateTime         @default(now())
   tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   room          HotelRoom        @relation(fields: [roomId], references: [id], onDelete: Cascade)
@@ -2329,6 +2334,7 @@ model HardwareDevice {
   updatedAt  DateTime                  @updatedAt
   tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   routes     PrintRoute[]              @relation("DeviceRoutes")
+  printJobs  PrintJob[]
 
   @@unique([tenantId, name])
   @@index([tenantId, department])
@@ -2402,6 +2408,90 @@ model ArchivioFiscalStub {
   tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, kind, createdAt])
+}
+
+enum PrintJobStatus {
+  pending
+  sent
+  error
+}
+
+enum FiscalInvoiceStatus {
+  draft
+  xml_generated
+  sdi_sent
+  sdi_accepted
+  sdi_rejected
+}
+
+/// Credenziali e connettori compliance/hardware per tenant (Alloggiati, SDI, serrature).
+model TenantComplianceConfig {
+  id                     String   @id @default(cuid())
+  tenantId               String   @unique
+  alloggiatiEnabled      Boolean  @default(false)
+  alloggiatiUsername     String   @default("")
+  alloggiatiPassword     String   @default("")
+  alloggiatiWsKey        String   @default("")
+  alloggiatiApartmentId  String   @default("")
+  fiscalEnabled          Boolean  @default(false)
+  fiscalVatNumber        String   @default("")
+  fiscalBusinessName     String   @default("")
+  fiscalPec              String   @default("")
+  fiscalSdiRecipientCode String   @default("0000000")
+  fiscalRegimeFiscale    String   @default("RF01")
+  lockEnabled            Boolean  @default(false)
+  lockVendor             String   @default("generic")
+  lockBridgeUrl          String   @default("")
+  lockBridgeApiKey       String   @default("")
+  autoPrintOrders        Boolean  @default(true)
+  autoPrintBillClose     Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  tenant                 Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// Coda job di stampa verso stampanti termiche/fiscali TCP.
+model PrintJob {
+  id           String         @id @default(cuid())
+  tenantId     String
+  deviceId     String?
+  event        String
+  department   String
+  payload      String         @db.Text
+  status       PrintJobStatus @default(pending)
+  errorMessage String?
+  sentAt       DateTime?
+  createdAt    DateTime       @default(now())
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device       HardwareDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+}
+
+/// Fattura elettronica FatturaPA + stato invio SDI.
+model FiscalInvoice {
+  id                String              @id @default(cuid())
+  tenantId          String
+  kind              String
+  progressiveNumber Int
+  issueDate         DateTime            @default(now())
+  counterparty      String              @default("")
+  counterpartyVat   String              @default("")
+  amount            Decimal             @db.Decimal(12, 2)
+  vatAmount         Decimal             @db.Decimal(12, 2) @default(0)
+  total             Decimal             @db.Decimal(12, 2)
+  xmlContent        String              @db.Text @default("")
+  sdiStatus         FiscalInvoiceStatus @default(draft)
+  sdiMessageId      String?
+  sdiResponse       String              @db.Text @default("")
+  orderId           String?
+  notes             String              @default("")
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, progressiveNumber, kind])
+  @@index([tenantId, issueDate])
 }
 
 /// Log degli invii email del tenant (SMTP transazionale).

@@ -810,6 +810,86 @@ export const archivioFiscalStubsApi = {
   }) => post<ArchivioFiscalStub>("/archivio/fiscal-stubs", payload),
 };
 
+export type FiscalInvoiceRecord = {
+  id: string;
+  kind: string;
+  progressiveNumber: number;
+  issueDate: string;
+  counterparty: string;
+  counterpartyVat: string;
+  amount: number;
+  vatAmount: number;
+  total: number;
+  sdiStatus: string;
+  sdiMessageId: string | null;
+  orderId: string | null;
+  notes: string;
+  createdAt: string;
+};
+
+export const fiscalInvoicesApi = {
+  list: (kind?: string) =>
+    get<FiscalInvoiceRecord[]>(
+      `/archivio/fiscal-invoices${kind ? `?kind=${encodeURIComponent(kind)}` : ""}`,
+    ),
+  create: (payload: {
+    kind: string;
+    counterparty?: string;
+    counterpartyVat?: string;
+    lines: Array<{ description: string; quantity: number; unitPrice: number; vatRate: number }>;
+    orderId?: string;
+    notes?: string;
+  }) => post<{ id: string; kind: string; progressiveNumber: number; sdiStatus: string; sdiMessageId: string | null; total: number }>(
+    "/archivio/fiscal-invoices",
+    payload,
+  ),
+};
+
+export type ComplianceConfigDto = {
+  alloggiatiEnabled: boolean;
+  alloggiatiUsername: string;
+  alloggiatiPassword: string;
+  alloggiatiWsKey: string;
+  alloggiatiApartmentId: string;
+  fiscalEnabled: boolean;
+  fiscalVatNumber: string;
+  fiscalBusinessName: string;
+  fiscalPec: string;
+  fiscalSdiRecipientCode: string;
+  fiscalRegimeFiscale: string;
+  lockEnabled: boolean;
+  lockVendor: string;
+  lockBridgeUrl: string;
+  lockBridgeApiKey: string;
+  autoPrintOrders: boolean;
+  autoPrintBillClose: boolean;
+};
+
+export const complianceApi = {
+  get: () => get<ComplianceConfigDto>("/integrations/compliance"),
+  update: (data: Partial<ComplianceConfigDto>) => put<ComplianceConfigDto>("/integrations/compliance", data),
+  testAlloggiati: () => post<{ ok: boolean; tokenPreview?: string }>("/integrations/compliance/test-alloggiati", {}),
+};
+
+export const cassaApi = {
+  closeTable: (payload: {
+    orderIds: string[];
+    paymentMethod?: string;
+    counterparty?: string;
+    discount?: number;
+    vatRate?: number;
+  }) =>
+    post<{
+      closedOrderIds: string[];
+      table: string;
+      subtotal: number;
+      discount: number;
+      vatRate: number;
+      total: number;
+      fiscalInvoice: { id: string; progressiveNumber: number; sdiStatus: string } | null;
+    }>("/cassa/close-table", payload),
+};
+
 /* ─── Room Service ───────────────────────────────── */
 
 export type RoomServiceCategory =
@@ -1169,6 +1249,7 @@ export const hardwareApi = {
   createRoute: (data: { event: PrintRouteEvent; department: HardwareDepartment; deviceId: string }) =>
     post<PrintRouteRecord>("/hardware/routes", data),
   deleteRoute: (id: string) => del<{ deleted: boolean }>(`/hardware/routes/${id}`),
+  testDevice: (id: string) => post<{ ok: boolean }>(`/hardware/devices/${id}/test`, {}),
 };
 
 /* ─── AI chat ─────────────────────────────────────── */
@@ -1249,7 +1330,17 @@ export type HotelReservation = {
 };
 export type HotelStay = { id: string; reservationId: string; roomId: string; actualCheckInAt: string | null; actualCheckOutAt: string | null };
 export type HousekeepingTask = { id: string; roomId: string; assignedTo: string; status: "todo" | "in_progress" | "done"; scheduledFor: string; inspected: boolean };
-export type HotelKeycard = { id: string; roomId: string; reservationId: string; validFrom: string; validUntil: string; status: "attiva" | "scaduta" | "annullata"; issuedBy: string };
+export type HotelKeycard = {
+  id: string;
+  roomId: string;
+  reservationId: string;
+  validFrom: string;
+  validUntil: string;
+  status: "attiva" | "scaduta" | "annullata";
+  issuedBy: string;
+  lockCredentialId?: string | null;
+  encodedAt?: string | null;
+};
 export type GuestFolio = {
   id: string;
   tenantId: string;
@@ -1428,6 +1519,13 @@ export const hotelApi = {
     }),
   listHousekeeping: () => get<HousekeepingTask[]>("/hotel/housekeeping"),
   listKeycards: () => get<HotelKeycard[]>("/hotel/keycards"),
+  listStays: () => get<HotelStay[]>("/hotel/stays"),
+  encodeKeycard: (id: string) =>
+    post<{ card: HotelKeycard; lock: { success: boolean; credentialId?: string } }>(
+      `/hotel/keycards/${id}/encode`,
+      {},
+    ),
+  revokeKeycard: (id: string) => post<{ card: HotelKeycard }>(`/hotel/keycards/${id}/revoke`, {}),
   listRatePlans: (roomType?: string) =>
     get<RatePlan[]>(roomType ? `/hotel/rate-plans?roomType=${encodeURIComponent(roomType)}` : "/hotel/rate-plans"),
 };
@@ -2388,6 +2486,9 @@ export const api = {
   asporto: asportoApi,
   archivio: archivioApi,
   archivioFiscalStubs: archivioFiscalStubsApi,
+  fiscalInvoices: fiscalInvoicesApi,
+  compliance: complianceApi,
+  cassa: cassaApi,
   supervisorStorni: supervisorStorniApi,
   warehouseVoice: warehouseVoiceApi,
   haccp: haccpApi,

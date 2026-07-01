@@ -5,6 +5,9 @@ import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { actorFromRequest, postRoomChargesOnCheckIn } from "@/lib/hotel/folio-service";
 import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
+import { complianceRepository } from "@/lib/db/repositories/compliance.repository";
+import { encodeLockCredential } from "@/lib/integrations/lock-connector";
+import { dispatchPrintJobAsync } from "@/lib/integrations/print-dispatcher";
 import type { HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
 const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
@@ -223,13 +226,54 @@ export async function POST(req: NextRequest) {
       validUntil: true,
       status: true,
       issuedBy: true,
+      lockCredentialId: true,
+      encodedAt: true,
     },
   });
+
+  const config = await complianceRepository.get(tenantId);
+  let finalCard = card;
+  if (config.lockEnabled && config.lockBridgeUrl.trim()) {
+    const lockResult = await encodeLockCredential(
+      config.lockBridgeUrl,
+      config.lockBridgeApiKey,
+      config.lockVendor,
+      {
+        roomCode: room.code,
+        reservationId: reservation.id,
+        validFrom: now.toISOString(),
+        validUntil: validUntil.toISOString(),
+        guestName: updatedReservation.guestName,
+      },
+    );
+    if (lockResult.success && lockResult.credentialId) {
+      finalCard = await prisma.hotelKeycard.update({
+        where: { id: card.id },
+        data: { lockCredentialId: lockResult.credentialId, encodedAt: now },
+        select: {
+          id: true,
+          roomId: true,
+          reservationId: true,
+          validFrom: true,
+          validUntil: true,
+          status: true,
+          issuedBy: true,
+          lockCredentialId: true,
+          encodedAt: true,
+        },
+      });
+      dispatchPrintJobAsync(tenantId, "keycard_emessa", "reception", [
+        `CHECK-IN — Camera ${room.code}`,
+        updatedReservation.guestName,
+        lockResult.credentialId,
+      ]);
+    }
+  }
 
   return ok({
     reservation: mapReservation(updatedReservation),
     room: mapRoom(updatedRoom),
     stay: mapStay(stay),
-    card: mapCard(card),
+    card: mapCard(finalCard),
   });
 }

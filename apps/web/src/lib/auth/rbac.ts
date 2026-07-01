@@ -166,6 +166,10 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/sessions", roles: ["sala", "cucina", "cassa", "supervisor", "magazzino", "staff", "bar", "pizzeria", "hotel_manager", "reception", "housekeeping", "owner", "super_admin"] },
   // Hardware: configurazione stampanti/display, riservata a owner e super_admin.
   { prefix: "/api/hardware", roles: ["owner", "super_admin"] },
+  { prefix: "/api/integrations", roles: ["owner", "super_admin"] },
+  { prefix: "/api/cassa", roles: ["cassa", "sala", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/hotel/stays", roles: ["hotel_manager", "reception", "owner", "super_admin", "housekeeping"] },
+  { prefix: "/api/archivio/fiscal-invoices", roles: ["supervisor", "owner", "super_admin", "cassa"] },
   { prefix: "/api/health/ai", roles: ["owner", "super_admin"] },
   { prefix: "/api/owner/portfolio", roles: ["owner", "super_admin"] },
   { prefix: "/api/reseller", roles: ["reseller", "super_admin"] },

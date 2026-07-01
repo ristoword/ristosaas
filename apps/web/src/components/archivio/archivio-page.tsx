@@ -20,10 +20,12 @@ import { DataTable } from "@/components/shared/data-table";
 import {
   archivioApi,
   archivioFiscalStubsApi,
+  fiscalInvoicesApi,
   archivioOrdiniFornitoreApi,
   type ArchivedOrder,
   type ArchivedSupplierOrder,
   type ArchivioFiscalStub,
+  type FiscalInvoiceRecord,
 } from "@/lib/api-client";
 
 const inputCls =
@@ -36,6 +38,7 @@ const tabs = [
   { id: "report", label: "Report incassi" },
   { id: "fatture-entrata", label: "Fatture in entrata" },
   { id: "fatture-cassa", label: "Fatture da cassa" },
+  { id: "fatture-sdi", label: "Fatture elettroniche SDI" },
   { id: "comande", label: "Archivio comande" },
   { id: "ordini-fornitore", label: "Ordini fornitore" },
 ];
@@ -441,6 +444,53 @@ function ComandePanel({ orders, loading }: { orders: ArchivedOrder[]; loading: b
   );
 }
 
+/* ── Fatture elettroniche SDI ─────────────────────── */
+
+function FiscalInvoicesPanel() {
+  const [rows, setRows] = useState<FiscalInvoiceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fiscalInvoicesApi
+      .list("cassa")
+      .then(setRows)
+      .catch((e) => setError(e instanceof Error ? e.message : "Errore caricamento"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-rw-accent" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-soft">
+        Fatture generate in chiusura cassa con FatturaPA e inviate al Sistema di Interscambio. Configura in{" "}
+        <strong className="text-rw-ink">Integrazioni compliance</strong>.
+      </p>
+      {error ? <p className="text-sm text-red-400">{error}</p> : null}
+      <DataTable
+        columns={[
+          { key: "num", header: "N.", render: (r) => r.progressiveNumber },
+          { key: "date", header: "Data", render: (r) => r.issueDate.slice(0, 10) },
+          { key: "counterparty", header: "Cliente" },
+          { key: "total", header: "Totale", className: "text-right", render: (r) => `€${r.total.toFixed(2)}` },
+          { key: "sdi", header: "SDI", render: (r) => r.sdiStatus },
+          { key: "msg", header: "ID SDI", render: (r) => r.sdiMessageId ?? "—" },
+        ]}
+        data={rows}
+        keyExtractor={(r) => r.id}
+        emptyMessage="Nessuna fattura elettronica — abilita la fatturazione in Integrazioni compliance."
+      />
+    </div>
+  );
+}
+
 /* ── Main ──────────────────────────────────────────── */
 export function ArchivioPage() {
   const [activeTab, setActiveTab] = useState("report");
@@ -465,6 +515,7 @@ export function ArchivioPage() {
         {activeTab === "report" && <ReportPanel orders={orders} loading={loading} />}
         {activeTab === "fatture-entrata" && <FiscalStubPanel kind="entrata" title="Fatture in entrata" />}
         {activeTab === "fatture-cassa" && <FiscalStubPanel kind="cassa" title="Fatture da cassa" />}
+        {activeTab === "fatture-sdi" && <FiscalInvoicesPanel />}
         {activeTab === "comande" && <ComandePanel orders={orders} loading={loading} />}
         {activeTab === "ordini-fornitore" && <OrdiniFornitorePanel />}
       </div>

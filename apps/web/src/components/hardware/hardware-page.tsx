@@ -134,6 +134,8 @@ function DevicesPanel({
   const [status, setStatus] = useState<HardwareDeviceStatus>("offline");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testMessage, setTestMessage] = useState<string | null>(null);
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -182,8 +184,23 @@ function DevicesPanel({
     }
   }
 
+  async function handleTestPrint(device: HardwareDevice) {
+    setTestingId(device.id);
+    setTestMessage(null);
+    try {
+      await hardwareApi.testDevice(device.id);
+      setTestMessage(`Test inviato a ${device.name}`);
+      await onReload();
+    } catch (e) {
+      setTestMessage(e instanceof Error ? e.message : "Test stampa fallito");
+    } finally {
+      setTestingId(null);
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {testMessage ? <p className="text-sm text-rw-soft">{testMessage}</p> : null}
       <Card title="Aggiungi dispositivo" headerRight={<Plus className="h-4 w-4 text-rw-accent" />}>
         <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" onSubmit={handleAdd}>
           <div>
@@ -367,6 +384,15 @@ function DevicesPanel({
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => void handleTestPrint(d)}
+                disabled={testingId === d.id}
+                className="shrink-0 rounded-lg border border-rw-line px-2 py-1.5 text-xs text-rw-ink hover:border-rw-accent disabled:opacity-50"
+                title="Test stampa"
+              >
+                {testingId === d.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+              </button>
               <button
                 type="button"
                 onClick={() => handleDelete(d)}
