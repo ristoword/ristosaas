@@ -28,6 +28,7 @@ export const PUBLIC_API_PREFIXES = [
   "/api/ai/proposals/schedule/daily",
   "/api/ai/automation/schedule/run",
   "/api/jobs/billing/reconcile-all",
+  "/api/jobs/email-inbox/poll",
   "/api/health/live",
   "/api/health/gates",
   "/api/orders/public-append",
@@ -149,6 +150,8 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/shift-plans", roles: ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "super_admin"] },
   // Log email invii tenant.
   { prefix: "/api/email-logs", roles: ["owner", "super_admin"] },
+  { prefix: "/api/email-inbox", roles: ["owner", "supervisor", "super_admin", "sala", "reception"] },
+  { prefix: "/api/tenant/email-config", roles: ["owner", "supervisor", "super_admin"] },
   // Lista utenti tenant (per collegamento staff ↔ user).
   { prefix: "/api/users", roles: ["supervisor", "owner", "super_admin"] },
   // Ricerca globale: tutti gli utenti autenticati.

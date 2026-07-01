@@ -4,6 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
+    "dev:staging": "bash scripts/dev-staging.sh",
+    "db:use-staging": "bash scripts/use-staging-db.sh",
+    "db:use-production": "bash scripts/use-production-db.sh",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -41,9 +44,11 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "clsx": "^2.1.1",
+    "imapflow": "^1.4.3",
     "jose": "^6.1.0",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.468.0",
+    "mailparser": "^3.9.12",
     "next": "^15.5.18",
     "nodemailer": "^8.0.5",
     "pdfkit": "^0.18.0",
@@ -54,6 +59,7 @@
   "devDependencies": {
     "@playwright/test": "^1.59.1",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/mailparser": "^3.4.6",
     "@types/node": "^22.10.5",
     "@types/nodemailer": "^8.0.0",
     "@types/pdfkit": "^0.17.6",

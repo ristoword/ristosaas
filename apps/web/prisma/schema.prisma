@@ -50,6 +50,13 @@ enum BookingStatus {
   completata
 }
 
+enum InboundEmailStatus {
+  pending
+  processed
+  ignored
+  failed
+}
+
 enum CateringStatus {
   preventivo
   confermato
@@ -443,6 +450,7 @@ model Tenant {
   roomServiceCatalogItems  RoomServiceCatalogItem[]
   emailTemplates           EmailTemplate[]
   emailLogs                EmailLog[]
+  inboundEmailMessages     InboundEmailMessage[]
   wineCellarItems          WineCellarItem[]
   chatMessages             ChatMessage[]
   staffRewards             StaffReward[]
@@ -694,11 +702,44 @@ model TenantEmailConfig {
   password       String
   fromAddress    String
   secure         Boolean  @default(false)
+  imapHost       String   @default("")
+  imapPort       Int      @default(993)
+  imapSecure     Boolean  @default(true)
+  imapEnabled    Boolean  @default(false)
+  imapMailbox    String   @default("INBOX")
+  imapLastUid    Int?
+  imapLastSyncAt DateTime?
+  imapLastSyncStatus String?
   lastTestStatus String?
   lastTestedAt   DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+/// Email ricevute via IMAP e convertite in prenotazioni/ordini.
+model InboundEmailMessage {
+  id              String             @id @default(cuid())
+  tenantId        String
+  imapUid         Int
+  messageId       String?
+  fromEmail       String
+  fromName        String             @default("")
+  subject         String             @default("")
+  bodyText        String             @db.Text @default("")
+  receivedAt      DateTime
+  status          InboundEmailStatus @default(pending)
+  parsedType      String?
+  parsedPayload   Json?
+  linkedBookingId String?
+  linkedOrderId   String?
+  errorMessage    String             @default("")
+  processedAt     DateTime?
+  createdAt       DateTime           @default(now())
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, imapUid])
+  @@index([tenantId, status, receivedAt])
 }
 
 model HotelRoom {

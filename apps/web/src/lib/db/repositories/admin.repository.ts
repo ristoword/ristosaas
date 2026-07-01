@@ -2,6 +2,11 @@ import { prisma } from "@/lib/db/prisma";
 import { hashPassword } from "@/lib/auth/password";
 import { invalidateTenantAccessCache } from "@/lib/db/repositories/platform.repository";
 import {
+  mapTenantEmailConfigPublic,
+  normalizeEmailConfigPayload,
+  type TenantEmailConfigPayload,
+} from "@/lib/email/tenant-email-config";
+import {
   ensureTenantDefaults,
   type EnsureTenantDefaultsSummary,
 } from "@/lib/db/repositories/tenant-defaults.bootstrap";
@@ -125,30 +130,8 @@ function mapLicense(row: {
   };
 }
 
-function mapEmailConfig(row: {
-  id: string;
-  tenantId: string;
-  host: string;
-  port: number;
-  username: string;
-  fromAddress: string;
-  secure: boolean;
-  lastTestStatus: string | null;
-  lastTestedAt: Date | null;
-  tenant: { name: string };
-}) {
-  return {
-    id: row.id,
-    tenantId: row.tenantId,
-    tenantName: row.tenant.name,
-    host: row.host,
-    port: row.port,
-    username: row.username,
-    fromAddress: row.fromAddress,
-    secure: row.secure,
-    lastTestStatus: row.lastTestStatus,
-    lastTestedAt: row.lastTestedAt ? row.lastTestedAt.toISOString() : null,
-  };
+function mapEmailConfig(row: Parameters<typeof mapTenantEmailConfigPublic>[0]) {
+  return mapTenantEmailConfigPublic(row);
 }
 
 export const adminRepository = {
@@ -554,30 +537,11 @@ export const adminRepository = {
     });
     return rows.map(mapEmailConfig);
   },
-  async upsertEmailConfig(tenantId: string, payload: {
-    host: string;
-    port: number;
-    username: string;
-    password: string;
-    fromAddress: string;
-    secure: boolean;
-  }) {
+  async upsertEmailConfig(tenantId: string, payload: Partial<TenantEmailConfigPayload>) {
     const existing = await prisma.tenantEmailConfig.findUnique({ where: { tenantId } });
-    const incomingPwd = typeof payload.password === "string" ? payload.password.trim() : "";
-    const password = incomingPwd.length > 0 ? incomingPwd : existing?.password ?? "";
-    if (!password) {
-      throw new Error("SMTP password required when creating a new email configuration");
-    }
-    const data = {
-      host: payload.host.trim(),
-      port: Math.floor(Number(payload.port)),
-      username: payload.username.trim(),
-      password,
-      fromAddress: payload.fromAddress.trim(),
-      secure: !!payload.secure,
-    };
-    if (!Number.isFinite(data.port) || data.port <= 0 || data.port > 65535) {
-      throw new Error("Invalid SMTP port");
+    const data = normalizeEmailConfigPayload(payload, existing);
+    if (!data.host || !data.username || !data.fromAddress) {
+      throw new Error("Host, username e fromAddress sono obbligatori");
     }
     const row = await prisma.tenantEmailConfig.upsert({
       where: { tenantId },

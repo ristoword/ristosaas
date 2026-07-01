@@ -644,6 +644,15 @@ export const navSections: NavSection[] = [
         ready: true,
       },
       {
+        id: "email-inbox",
+        label: "Email & Prenotazioni",
+        hint: "Configura SMTP/IMAP e gestisci ordini e prenotazioni da email.",
+        href: "/email-inbox",
+        icon: Mail,
+        ready: true,
+        visibleFor: ["owner", "super_admin", "supervisor", "sala", "reception"],
+      },
+      {
         id: "integrations-compliance",
         label: "Integrazioni compliance",
         hint: "Alloggiati Web, SDI, serrature, stampa.",

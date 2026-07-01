@@ -178,8 +178,33 @@ export type AdminEmailConfig = {
   username: string;
   fromAddress: string;
   secure: boolean;
+  imapHost: string;
+  imapPort: number;
+  imapSecure: boolean;
+  imapEnabled: boolean;
+  imapMailbox: string;
+  imapLastUid?: number | null;
+  imapLastSyncAt?: string | null;
+  imapLastSyncStatus?: string | null;
   lastTestStatus: string | null;
   lastTestedAt: string | null;
+};
+
+export type InboundEmailMessageRow = {
+  id: string;
+  imapUid: number;
+  fromEmail: string;
+  fromName: string;
+  subject: string;
+  bodyPreview: string;
+  receivedAt: string;
+  status: "pending" | "processed" | "ignored" | "failed";
+  parsedType: string | null;
+  parsedPayload: unknown;
+  linkedBookingId: string | null;
+  linkedOrderId: string | null;
+  errorMessage: string;
+  processedAt: string | null;
 };
 
 /* ─── Kitchen / Recipes ──────────────────────────── */
@@ -2447,8 +2472,22 @@ export const api = {
     },
     emailConfig: {
       list: () => get<AdminEmailConfig[]>("/admin/email-config"),
-      save: (tenantId: string, payload: { host: string; port: number; username: string; password: string; fromAddress: string; secure: boolean }) =>
-        put<AdminEmailConfig>(`/admin/email-config/${tenantId}`, payload),
+      save: (
+        tenantId: string,
+        payload: {
+          host: string;
+          port: number;
+          username: string;
+          password: string;
+          fromAddress: string;
+          secure: boolean;
+          imapHost?: string;
+          imapPort?: number;
+          imapSecure?: boolean;
+          imapEnabled?: boolean;
+          imapMailbox?: string;
+        },
+      ) => put<AdminEmailConfig>(`/admin/email-config/${tenantId}`, payload),
       test: (tenantId: string, to?: string) =>
         post<AdminEmailConfig & { messageId?: string; recipient?: string; error?: string }>(
           `/admin/email-config/${tenantId}/test`,
@@ -2536,6 +2575,43 @@ export const api = {
   aiMemory: aiMemoryApi,
   ai: aiApi,
   billing: billingApi,
+  tenantEmailConfig: {
+    get: () => get<AdminEmailConfig | null>("/tenant/email-config"),
+    save: (payload: {
+      host: string;
+      port: number;
+      username: string;
+      password: string;
+      fromAddress: string;
+      secure: boolean;
+      imapHost: string;
+      imapPort: number;
+      imapSecure: boolean;
+      imapEnabled: boolean;
+      imapMailbox: string;
+    }) => put<AdminEmailConfig>("/tenant/email-config", payload),
+    testSmtp: (to?: string) => post<{ messageId: string; recipient: string }>("/tenant/email-config/test-smtp", to ? { to } : {}),
+    testImap: () => post<{ ok: true }>("/tenant/email-config/test-imap", {}),
+  },
+  emailInbox: {
+    list: (params?: { status?: string; limit?: number }) => {
+      const qs = new URLSearchParams();
+      if (params?.status) qs.set("status", params.status);
+      if (params?.limit) qs.set("limit", String(params.limit));
+      const suffix = qs.toString() ? `?${qs}` : "";
+      return get<InboundEmailMessageRow[]>(`/email-inbox${suffix}`);
+    },
+    poll: () => post<{ tenantId: string; fetched: number; created: number; processed: number; failed: number; maxUid: number }>("/email-inbox/poll", {}),
+    process: (id: string) =>
+      post<{
+        id: string;
+        status: string;
+        parsedType: string | null;
+        linkedBookingId: string | null;
+        linkedOrderId: string | null;
+        errorMessage: string;
+      }>(`/email-inbox/${id}/process`, {}),
+  },
 };
 
 /* ─── Types re-exported for frontend convenience ─── */

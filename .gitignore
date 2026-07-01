@@ -5,6 +5,8 @@ node_modules/
 # Ambiente (solo locale)
 .env
 .env.local
+.env.staging
+.env.production.db.backup
 .env.*.local
 !.env.example
 

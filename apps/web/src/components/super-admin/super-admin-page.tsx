@@ -34,7 +34,7 @@ import { TabBar } from "@/components/shared/tab-bar";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
-import { api, type AdminSystemSnapshot, type AdminUser } from "@/lib/api-client";
+import { api, type AdminEmailConfig, type AdminSystemSnapshot, type AdminUser } from "@/lib/api-client";
 import { CreateTenantLicenseModal } from "@/components/super-admin/create-tenant-license-modal";
 import { UserAccessReportPanel } from "@/components/admin/user-access-report-panel";
 
@@ -78,18 +78,7 @@ export function SuperAdminPage() {
   const [search, setSearch] = useState("");
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [licenses, setLicenses] = useState<License[]>([]);
-  const [emailConfigs, setEmailConfigs] = useState<Array<{
-    id: string;
-    tenantId: string;
-    tenantName: string;
-    host: string;
-    port: number;
-    username: string;
-    fromAddress: string;
-    secure: boolean;
-    lastTestStatus: string | null;
-    lastTestedAt: string | null;
-  }>>([]);
+  const [emailConfigs, setEmailConfigs] = useState<AdminEmailConfig[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [createTenantModalOpen, setCreateTenantModalOpen] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
