@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Building2,
   CreditCard,
+  Handshake,
   Hotel,
   Loader2,
   RefreshCw,
@@ -14,6 +15,7 @@ import {
 import { UserAccessReportPanel } from "@/components/admin/user-access-report-panel";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
+import { DataTable } from "@/components/shared/data-table";
 import { KpiTile } from "@/components/shared/kpi-tile";
 import { KPI_GRID } from "@/components/shared/ui-classes";
 import { BTN_GHOST } from "@/components/shared/ui-classes";
@@ -49,6 +51,25 @@ type DashboardData = {
     dealers: number;
     partners: number;
   };
+  sociPartners: Array<{
+    code: string;
+    name: string;
+    country: string;
+    email: string;
+    phone: string;
+    notes: string;
+    partnerKind: string;
+    linkedAccounts: Array<{
+      id: string;
+      username: string;
+      name: string;
+      email: string;
+      role: string;
+      tenantName: string;
+      tenantSlug: string;
+      lastLoginAt: string | null;
+    }>;
+  }>;
   generatedAt: string;
 };
 
@@ -155,6 +176,63 @@ export function PartnerDashboardPage() {
               <KpiTile label={t("partner.kpi.dealers")} value={data.platform.dealers} />
               <KpiTile label={t("partner.kpi.partners")} value={data.platform.partners} />
             </div>
+          </section>
+
+          <section>
+            <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-semibold uppercase tracking-wide text-rw-muted">
+              <Handshake className="h-4 w-4" />
+              {t("partner.dashboard.soci")}
+            </h2>
+            <Card
+              title={t("partner.soci.title")}
+              description={t("partner.soci.desc")}
+            >
+              {data.sociPartners?.length === 0 ? (
+                <p className="text-sm text-rw-muted">{t("partner.soci.empty")}</p>
+              ) : (
+                <div className="space-y-4">
+                  {data.sociPartners?.map((socio) => (
+                    <div key={socio.code} className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-rw-ink">{socio.name}</p>
+                          <p className="text-xs text-rw-muted">
+                            {t("partner.soci.badge")} · {socio.country}
+                            {socio.email ? ` · ${socio.email}` : ""}
+                          </p>
+                          {socio.notes ? <p className="mt-1 text-sm text-rw-soft">{socio.notes}</p> : null}
+                        </div>
+                        <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-300">
+                          {t("partner.soci.badge")}
+                        </span>
+                      </div>
+                      {socio.linkedAccounts.length > 0 ? (
+                        <DataTable
+                          columns={[
+                            { key: "name", header: t("partner.soci.col.account"), render: (a) => a.name },
+                            { key: "username", header: "Username", render: (a) => <span className="font-mono text-xs">{a.username}</span> },
+                            { key: "tenant", header: t("partner.soci.col.tenant"), render: (a) => a.tenantName },
+                            { key: "role", header: t("partner.soci.col.role"), render: (a) => a.role },
+                            {
+                              key: "lastLogin",
+                              header: t("partner.soci.col.lastLogin"),
+                              render: (a) =>
+                                a.lastLoginAt
+                                  ? new Date(a.lastLoginAt).toLocaleString("it-IT")
+                                  : t("partner.soci.neverLoggedIn"),
+                            },
+                          ]}
+                          data={socio.linkedAccounts}
+                          keyExtractor={(a) => a.id}
+                        />
+                      ) : (
+                        <p className="mt-3 text-xs text-rw-muted">{t("partner.soci.noLinkedAccount")}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           </section>
 
           <section>

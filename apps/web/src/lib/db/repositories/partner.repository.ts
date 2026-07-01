@@ -34,6 +34,10 @@ function licenseMonthlyValue(plan: string, billingCycle: string, partnerPrice: n
   return base;
 }
 
+function isSocioPartner(partner: { partnerKind?: string | null } | null | undefined) {
+  return partner?.partnerKind === "socio";
+}
+
 export async function getPartnerDashboardMetrics() {
   const now = new Date();
   const today = startOfDay(now);
@@ -48,6 +52,7 @@ export async function getPartnerDashboardMetrics() {
     dealers,
     partners,
     billingEvents,
+    sociPartnerRows,
   ] = await Promise.all([
     prisma.tenantLicense.findMany({
       include: {
@@ -74,7 +79,39 @@ export async function getPartnerDashboardMetrics() {
       where: { createdAt: { gte: yearStart(now) }, status: "processed" },
       select: { type: true, payload: true, createdAt: true },
     }),
+    prisma.partner.findMany({
+      where: { partnerKind: "socio", active: true },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        country: true,
+        email: true,
+        phone: true,
+        notes: true,
+        partnerKind: true,
+      },
+    }),
   ]);
+
+  const sociUsers =
+    sociPartnerRows.length > 0
+      ? await prisma.user.findMany({
+          where: { partnerCode: { in: sociPartnerRows.map((p) => p.code) } },
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            email: true,
+            role: true,
+            partnerCode: true,
+            lastLoginAt: true,
+            tenant: { select: { name: true, slug: true } },
+          },
+          orderBy: { name: "asc" },
+        })
+      : [];
 
   const byStatus = (s: string) => licenses.filter((l) => l.status === s).length;
 
@@ -148,6 +185,27 @@ export async function getPartnerDashboardMetrics() {
       dealers,
       partners,
     },
+    sociPartners: sociPartnerRows.map((p) => ({
+      code: p.code,
+      name: p.name,
+      country: p.country,
+      email: p.email,
+      phone: p.phone,
+      notes: p.notes,
+      partnerKind: p.partnerKind,
+      linkedAccounts: sociUsers
+        .filter((u) => u.partnerCode === p.code)
+        .map((u) => ({
+          id: u.id,
+          username: u.username,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          tenantName: u.tenant.name,
+          tenantSlug: u.tenant.slug,
+          lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+        })),
+    })),
     generatedAt: now.toISOString(),
   };
 }
@@ -175,7 +233,7 @@ export async function getPartnerSalesOverview() {
       : (l.partner?.licensePrice ?? null);
     const isPercent = l.partner?.commissionType === "percent";
     let commission: number | null = null;
-    if (l.partner && price != null) {
+    if (l.partner && price != null && !isSocioPartner(l.partner)) {
       if (isPercent) {
         const pct = isAllInclusive ? (l.partner.allInclusivePct ?? l.partner.commissionPct) : l.partner.commissionPct;
         commission = Math.round((price * pct / 100) * 100) / 100;
@@ -195,6 +253,7 @@ export async function getPartnerSalesOverview() {
       expiresAt: l.expiresAt.toISOString(),
       partnerCode: l.partnerCode,
       partnerName: l.partner?.name ?? null,
+      partnerKind: l.partner?.partnerKind ?? "commercial",
       licensePrice: price,
       commissionEuros: commission,
       accessStatus: l.tenant.accessStatus,

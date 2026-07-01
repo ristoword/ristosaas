@@ -21,6 +21,7 @@ type LicenseRow = {
   expiresAt: string;
   partnerCode: string | null;
   partnerName: string | null;
+  partnerKind?: string;
   licensePrice: number | null;
   commissionEuros: number | null;
   accessStatus: string;
@@ -65,7 +66,10 @@ export function PartnerSalesPage() {
 
   const active = rows.filter((r) => r.status === "active").length;
   const trial = rows.filter((r) => r.status === "trial").length;
-  const commission = rows.reduce((s, r) => s + (r.commissionEuros ?? 0), 0);
+  const commission = rows.reduce(
+    (s, r) => s + (r.partnerKind === "socio" ? 0 : (r.commissionEuros ?? 0)),
+    0,
+  );
 
   return (
     <div className="space-y-6 pb-10">
@@ -100,7 +104,16 @@ export function PartnerSalesPage() {
             { key: "status", header: t("partner.sales.col.status"), render: (r) => <StatusPill tone={r.status === "active" ? "success" : r.status === "trial" ? "warn" : "default"}>{r.status}</StatusPill> },
             { key: "dealer", header: t("partner.sales.col.dealer"), render: (r) => r.partnerName ?? "—" },
             { key: "price", header: t("partner.sales.col.price"), render: (r) => r.licensePrice != null ? formatCurrency(r.licensePrice) : "—" },
-            { key: "commission", header: t("partner.sales.col.commission"), render: (r) => r.commissionEuros != null ? formatCurrency(r.commissionEuros) : "—" },
+            {
+              key: "commission",
+              header: t("partner.sales.col.commission"),
+              render: (r) =>
+                r.partnerKind === "socio"
+                  ? t("partner.soci.badge")
+                  : r.commissionEuros != null
+                    ? formatCurrency(r.commissionEuros)
+                    : "—",
+            },
             { key: "expires", header: t("partner.sales.col.expires"), render: (r) => formatDateTime(r.expiresAt) },
           ]}
           data={rows}

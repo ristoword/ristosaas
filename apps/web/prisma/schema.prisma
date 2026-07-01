@@ -672,6 +672,7 @@ model Partner {
   phone                   String          @default("")
   notes                   String          @default("")
   commissionType          String          @default("fixed")
+  partnerKind             String          @default("commercial")
   licensePrice            Float
   commissionEuros         Float
   commissionPct           Float           @default(0)
