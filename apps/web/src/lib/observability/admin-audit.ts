@@ -19,6 +19,7 @@ export type AdminAuditAction =
   | "user.force_change_password"
   | "user.create"
   | "user.role.change"
+  | "user_access.report.view"
   | "signup.provision"
   | "ai.config.toggle"
   | "ai.config.rag.reindex"

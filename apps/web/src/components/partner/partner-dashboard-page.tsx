@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
+import { UserAccessReportPanel } from "@/components/admin/user-access-report-panel";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { KpiTile } from "@/components/shared/kpi-tile";
@@ -154,6 +155,18 @@ export function PartnerDashboardPage() {
               <KpiTile label={t("partner.kpi.dealers")} value={data.platform.dealers} />
               <KpiTile label={t("partner.kpi.partners")} value={data.platform.partners} />
             </div>
+          </section>
+
+          <section>
+            <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wide text-rw-muted">
+              {t("partner.dashboard.userAccess")}
+            </h2>
+            <UserAccessReportPanel
+              mode="readonly"
+              apiPath="/partner/user-access"
+              title={t("partner.userAccess.title")}
+              description={t("partner.userAccess.desc")}
+            />
           </section>
 
           <Card title={t("partner.dashboard.note.title")} description={t("partner.dashboard.note.desc")}>

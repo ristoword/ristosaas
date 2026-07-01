@@ -63,6 +63,37 @@ export type AdminUser = AuthUser & {
   lockedUntil?: number | null;
   partnerCode?: string | null;
 };
+
+export type UserAccessRow = {
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  role: string;
+  tenantId: string;
+  tenantName: string;
+  tenantSlug: string;
+  createdAt: string;
+  lastLoginAt: string | null;
+  lastSessionSeenAt: string | null;
+  hasLoggedIn: boolean;
+  isOnline: boolean;
+  mustChangePassword: boolean;
+  isLocked: boolean;
+  failedLoginAttempts: number;
+};
+
+export type UserAccessReport = {
+  summary: {
+    total: number;
+    loggedIn: number;
+    neverLoggedIn: number;
+    onlineNow: number;
+    thresholdMinutes: number;
+  };
+  users: UserAccessRow[];
+  generatedAt: string;
+};
 export type AdminTenant = {
   id: string;
   name: string;
@@ -2432,6 +2463,9 @@ export const api = {
       create: (payload: { username: string; name: string; email: string; password: string; role: string; tenantId?: string }) =>
         post<{ user: AdminUser; password: string }>("/admin/users", payload),
       toggleActive: (id: string) => patch<{ user: AdminUser }>(`/admin/users/${id}`, { toggleActive: true }),
+    },
+    userAccess: {
+      report: () => get<UserAccessReport>("/admin/user-access"),
     },
     aiConfig: {
       get: () => get<AiConfigCenterPayload>("/admin/ai-config"),

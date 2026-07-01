@@ -9,6 +9,9 @@ export const partnerIt: Record<string, string> = {
   "partner.dashboard.subscriptions": "Abbonamenti",
   "partner.dashboard.revenue": "Fatturato",
   "partner.dashboard.platform": "Piattaforma",
+  "partner.dashboard.userAccess": "Accessi utenti",
+  "partner.userAccess.title": "Chi ha accesso / mai entrato",
+  "partner.userAccess.desc": "Report login piattaforma in sola lettura. Nessuna azione amministrativa disponibile.",
   "partner.dashboard.note.title": "Modalità Partner",
   "partner.dashboard.note.desc": "Accesso operativo completo in sola lettura. Nessuna modifica amministrativa consentita.",
   "partner.dashboard.generatedAt": "Aggiornato",
@@ -99,4 +102,8 @@ export const partnerEn: Record<string, string> = {
   "role.partner": "Enterprise Partner",
   "partner.dashboard.title": "Partner Dashboard",
   "partner.dashboard.subtitle": "Licenses, revenue and SaaS platform overview in real time.",
+  "partner.dashboard.platform": "Platform",
+  "partner.dashboard.userAccess": "User access",
+  "partner.userAccess.title": "Who logged in / never accessed",
+  "partner.userAccess.desc": "Platform login report — read-only. No administrative actions available.",
 };

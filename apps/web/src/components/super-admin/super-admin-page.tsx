@@ -36,6 +36,7 @@ import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { api, type AdminSystemSnapshot, type AdminUser } from "@/lib/api-client";
 import { CreateTenantLicenseModal } from "@/components/super-admin/create-tenant-license-modal";
+import { UserAccessReportPanel } from "@/components/admin/user-access-report-panel";
 
 const tabs = [
   { id: "dashboard", label: "Dashboard" },
@@ -90,7 +91,6 @@ export function SuperAdminPage() {
     lastTestedAt: string | null;
   }>>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
-  const [tempPasswordFlash, setTempPasswordFlash] = useState("");
   const [createTenantModalOpen, setCreateTenantModalOpen] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceBusy, setMaintenanceBusy] = useState(false);
@@ -792,77 +792,12 @@ export function SuperAdminPage() {
       )}
 
       {tab === "access" && (
-        <Card title="Accessi e recovery password" description="Sblocco account e password provvisorie con cambio obbligatorio al primo accesso.">
-          {tempPasswordFlash ? (
-            <div className="mb-4 rounded-xl border border-rw-accent/30 bg-rw-accent/10 px-3 py-2 text-sm text-rw-ink">
-              {tempPasswordFlash}
-            </div>
-          ) : null}
-          <DataTable
-            columns={[
-              { key: "username", header: "Username" },
-              { key: "name", header: "Nome" },
-              { key: "role", header: "Ruolo" },
-              { key: "email", header: "Email" },
-              {
-                key: "mustChangePassword",
-                header: "Cambio password",
-                render: (u) => (
-                  <button
-                    type="button"
-                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition ${
-                      u.mustChangePassword
-                        ? "border-amber-500/30 bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
-                        : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
-                    }`}
-                    onClick={() =>
-                      api.admin.users.forceChangePassword(u.id).then((result) => {
-                        setUsers((prev) => prev.map((user) => (user.id === result.user.id ? result.user : user)));
-                      })
-                    }
-                    title={u.mustChangePassword ? "Clicca per rimuovere obbligo" : "Clicca per forzare cambio password"}
-                  >
-                    {u.mustChangePassword ? "⚠ Obbligatorio" : "✓ OK"}
-                  </button>
-                ),
-              },
-              { key: "isLocked", header: "Lock", render: (u) => (u.isLocked ? "Bloccato" : "Attivo") },
-              {
-                key: "actions",
-                header: "",
-                render: (u) => (
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-400"
-                      onClick={() =>
-                        api.admin.users.unlock(u.id).then((result) => {
-                          setUsers((prev) => prev.map((user) => (user.id === result.user.id ? result.user : user)));
-                        })
-                      }
-                    >
-                      <UnlockKeyhole className="h-3.5 w-3.5" /> Sblocca
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg bg-rw-accent/15 px-2 py-1 text-xs font-semibold text-rw-accent"
-                      onClick={() =>
-                        api.admin.users.generateTempPassword(u.id).then((result) => {
-                          setUsers((prev) => prev.map((user) => (user.id === result.user.id ? result.user : user)));
-                          setTempPasswordFlash(`Password provvisoria per ${result.user.username}: ${result.temporaryPassword}`);
-                        })
-                      }
-                    >
-                      <RefreshCcw className="h-3.5 w-3.5" /> Rigenera password
-                    </button>
-                  </div>
-                ),
-              },
-            ]}
-            data={users}
-            keyExtractor={(u) => u.id}
-          />
-        </Card>
+        <UserAccessReportPanel
+          mode="operational"
+          apiPath="/admin/user-access"
+          title="Accessi utenti piattaforma"
+          description="Monitoraggio login, utenti mai entrati, online ora e azioni di recovery (sblocco, password provvisoria, cambio obbligatorio)."
+        />
       )}
 
       {tab === "dealer" && (

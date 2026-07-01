@@ -13,7 +13,8 @@ export type PartnerAuditAction =
   | "partner.stripe.view"
   | "partner.search"
   | "partner.export"
-  | "partner.ai.query";
+  | "partner.ai.query"
+  | "partner.user_access.view";
 
 type AuditInput = {
   action: PartnerAuditAction;
