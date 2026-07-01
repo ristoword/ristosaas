@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { archivioApi, type ArchivedOrder } from "@/lib/api-client";
+import { useI18n } from "@/core/i18n/provider";
 
 type OrderStatus = "completato" | "annullato" | "stornato";
 
@@ -24,7 +25,22 @@ const statusTone: Record<OrderStatus, "success" | "danger" | "warn"> = {
   stornato: "warn",
 };
 
+function fmt(t: (key: string, fallback?: string) => string, key: string, vars?: Record<string, string | number>) {
+  let text = t(key);
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      text = text.replace(new RegExp(`\\{${k}\\}`, "g"), String(v));
+    }
+  }
+  return text;
+}
+
+function statusLabel(t: (key: string, fallback?: string) => string, status: OrderStatus) {
+  return t(`archivio.comande.status.${status}`);
+}
+
 export function ArchivioComandePage() {
+  const { t } = useI18n();
   const [orders, setOrders] = useState<ArchivedOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -61,14 +77,24 @@ export function ArchivioComandePage() {
 
   function handleExportCsv() {
     if (filtered.length === 0) return;
-    const header = ["ID", "Data", "Chiuso alle", "Tavolo", "Cameriere", "Stato", "Metodo pagamento", "Totale", "Dettaglio"];
+    const header = [
+      t("archivio.comande.csv.id"),
+      t("archivio.comande.csv.date"),
+      t("archivio.comande.csv.closedAt"),
+      t("archivio.comande.csv.table"),
+      t("archivio.comande.csv.waiter"),
+      t("archivio.comande.csv.status"),
+      t("archivio.comande.csv.payment"),
+      t("archivio.comande.csv.total"),
+      t("archivio.comande.csv.detail"),
+    ];
     const rows = filtered.map((o) => [
       o.id,
       o.date,
       o.closedAt ?? "",
       o.table,
       o.waiter,
-      o.status,
+      statusLabel(t, o.status),
       o.paymentMethod,
       o.total.toFixed(2),
       o.items.map((i) => `${i.qty}x ${i.name} @ ${i.price.toFixed(2)}`).join(" | "),
@@ -89,30 +115,29 @@ export function ArchivioComandePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Archivio comande" subtitle="Storico ordini con ricerca e filtri">
+      <PageHeader title={t("archivio.comande.title")} subtitle={t("archivio.comande.subtitle")}>
         <button
           type="button"
           onClick={handleExportCsv}
           disabled={filtered.length === 0}
           className="inline-flex items-center gap-2 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 text-sm font-semibold text-rw-ink hover:border-rw-accent/30 hover:text-rw-accent disabled:opacity-50"
         >
-          <Download className="h-4 w-4" /> Esporta CSV
+          <Download className="h-4 w-4" /> {t("archivio.comande.exportCsv")}
         </button>
       </PageHeader>
 
-      {/* filters */}
       <Card>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="relative block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
-            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cerca ordine, cameriere, tavolo…" className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2.5 pl-10 pr-4 text-sm text-rw-ink placeholder:text-rw-muted" />
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("archivio.comande.searchPlaceholder")} className="w-full rounded-xl border border-rw-line bg-rw-surfaceAlt py-2.5 pl-10 pr-4 text-sm text-rw-ink placeholder:text-rw-muted" />
           </label>
           <div className="relative">
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as OrderStatus | "")} className="w-full appearance-none rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-2.5 pr-10 text-sm text-rw-ink">
-              <option value="">Tutti gli stati</option>
-              <option value="completato">Completato</option>
-              <option value="annullato">Annullato</option>
-              <option value="stornato">Stornato</option>
+              <option value="">{t("archivio.comande.allStatuses")}</option>
+              <option value="completato">{statusLabel(t, "completato")}</option>
+              <option value="annullato">{statusLabel(t, "annullato")}</option>
+              <option value="stornato">{statusLabel(t, "stornato")}</option>
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-rw-muted" />
           </div>
@@ -127,23 +152,22 @@ export function ArchivioComandePage() {
         </div>
       </Card>
 
-      {/* orders list */}
-      <Card title={`Ordini (${filtered.length})`}>
+      <Card title={fmt(t, "archivio.comande.ordersCount", { n: filtered.length })}>
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-rw-accent" />
           </div>
         ) : (
           <div className="space-y-2">
-            {filtered.length === 0 && <p className="py-6 text-center text-sm text-rw-muted">Nessun ordine trovato.</p>}
+            {filtered.length === 0 && <p className="py-6 text-center text-sm text-rw-muted">{t("archivio.comande.empty")}</p>}
             {filtered.map((o) => (
               <button key={o.id} type="button" onClick={() => setDetail(o)} className="flex w-full items-center gap-4 rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-left transition hover:border-rw-accent/30">
                 <FileText className="h-5 w-5 shrink-0 text-rw-accent" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-rw-ink">{o.id} — Tavolo {o.table}</p>
+                  <p className="text-sm font-semibold text-rw-ink">{fmt(t, "archivio.comande.tableRow", { id: o.id, table: o.table })}</p>
                   <p className="text-xs text-rw-muted">{o.date} {o.closedAt?.slice(11, 16) ?? ""} · {o.waiter}</p>
                 </div>
-                <Chip label={o.status} tone={statusTone[o.status]} />
+                <Chip label={statusLabel(t, o.status)} tone={statusTone[o.status]} />
                 <span className="shrink-0 font-display text-sm font-bold text-rw-ink">€ {o.total.toFixed(2)}</span>
                 <Eye className="h-4 w-4 shrink-0 text-rw-muted" />
               </button>
@@ -152,23 +176,22 @@ export function ArchivioComandePage() {
         )}
       </Card>
 
-      {/* detail overlay */}
       {detail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setDetail(null); }}>
           <div className="w-full max-w-md rounded-3xl border border-rw-line bg-rw-surface p-6 shadow-rw">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">Dettaglio ordine</p>
+                <p className="text-xs font-semibold uppercase tracking-wide text-rw-muted">{t("archivio.comande.detail")}</p>
                 <h2 className="font-display text-xl font-bold text-rw-ink">{detail.id}</h2>
               </div>
-              <button type="button" onClick={() => setDetail(null)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink" aria-label="Chiudi">
+              <button type="button" onClick={() => setDetail(null)} className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-rw-line bg-rw-surfaceAlt text-rw-ink" aria-label={t("ui.close")}>
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-rw-muted">
-              <span>Tavolo {detail.table}</span>·<span>{detail.date} {detail.closedAt?.slice(11, 16) ?? ""}</span>·<span>{detail.waiter}</span>·<span>{detail.paymentMethod}</span>
+              <span>{t("archivio.comande.table")} {detail.table}</span>·<span>{detail.date} {detail.closedAt?.slice(11, 16) ?? ""}</span>·<span>{detail.waiter}</span>·<span>{detail.paymentMethod}</span>
             </div>
-            <Chip label={detail.status} tone={statusTone[detail.status]} className="mt-3" />
+            <Chip label={statusLabel(t, detail.status)} tone={statusTone[detail.status]} className="mt-3" />
             <div className="mt-4 space-y-1">
               {detail.items.map((it, i) => (
                 <div key={i} className="flex justify-between text-sm">

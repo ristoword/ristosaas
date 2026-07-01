@@ -16,7 +16,16 @@ import { cn } from "@/lib/utils";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useAuth } from "@/components/auth/auth-context";
+import { useI18n } from "@/core/i18n/provider";
 import { api, type AdminEmailConfig, type InboundEmailMessageRow } from "@/lib/api-client";
+
+function fmt(t: (key: string) => string, key: string, vars?: Record<string, string | number>) {
+  let text = t(key);
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) text = text.replace(`{${k}}`, String(v));
+  }
+  return text;
+}
 
 const CONFIG_ROLES = new Set(["owner", "supervisor", "super_admin"]);
 const SYNC_ROLES = new Set(["owner", "supervisor", "super_admin", "sala", "reception"]);
@@ -79,16 +88,8 @@ export function bookingMailboxAddress(cfg: AdminEmailConfig | null): string {
   return cfg.username.trim().toLowerCase();
 }
 
-function exampleBookingText(email: string): string {
-  return `Oggetto: Prenotazione tavolo
-
-Buongiorno,
-vorrei prenotare un tavolo per 4 persone sabato alle 20:30.
-Nome: Mario Rossi
-Telefono: +39 333 1234567
-Email: mario@esempio.it
-
-Grazie!`;
+function exampleBookingText(t: (key: string) => string) {
+  return `${t("prenotazioni.bookingEmail.exampleSubject")}\n\n${t("prenotazioni.bookingEmail.exampleBody")}`;
 }
 
 type Props = {
@@ -96,6 +97,7 @@ type Props = {
 };
 
 export function BookingEmailPanel({ onBookingsChanged }: Props) {
+  const { t } = useI18n();
   const { user } = useAuth();
   const canConfigure = user?.role ? CONFIG_ROLES.has(user.role) : false;
   const canSync = user?.role ? SYNC_ROLES.has(user.role) : false;
@@ -129,11 +131,11 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
       setDraft(bindConfig(cfg));
       setMessages(inbox);
     } catch (e) {
-      setToast({ kind: "err", message: e instanceof Error ? e.message : "Errore caricamento email" });
+      setToast({ kind: "err", message: e instanceof Error ? e.message : t("emailInbox.loading") });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void load();
@@ -164,10 +166,10 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
       const saved = await api.tenantEmailConfig.save(payload);
       setConfig(saved);
       setDraft((d) => ({ ...d, password: "" }));
-      setToast({ kind: "ok", message: "Casella prenotazioni salvata." });
+      setToast({ kind: "ok", message: t("prenotazioni.bookingEmail.saved") });
       setConfigOpen(false);
     } catch (e) {
-      setToast({ kind: "err", message: e instanceof Error ? e.message : "Salvataggio fallito" });
+      setToast({ kind: "err", message: e instanceof Error ? e.message : t("emailInbox.save") });
     } finally {
       setBusy(null);
     }
@@ -178,9 +180,9 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
     setToast(null);
     try {
       await api.tenantEmailConfig.testImap();
-      setToast({ kind: "ok", message: "Connessione IMAP riuscita." });
+      setToast({ kind: "ok", message: t("prenotazioni.bookingEmail.imapOk") });
     } catch (e) {
-      setToast({ kind: "err", message: e instanceof Error ? e.message : "Test IMAP fallito" });
+      setToast({ kind: "err", message: e instanceof Error ? e.message : t("emailInbox.testImap") });
     } finally {
       setBusy(null);
     }
@@ -193,7 +195,7 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
       const res = await api.emailInbox.poll();
       setToast({
         kind: "ok",
-        message: `Sincronizzate ${res.fetched} email, ${res.processed} prenotazioni create.`,
+        message: fmt(t, "prenotazioni.bookingEmail.syncOk", { fetched: res.fetched, processed: res.processed }),
       });
       await load();
       if (res.processed > 0) await onBookingsChanged?.();
@@ -209,10 +211,10 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
     try {
       const res = await api.emailInbox.process(id);
       if (res.status === "processed" && res.parsedType === "booking") {
-        setToast({ kind: "ok", message: "Prenotazione creata da email." });
+        setToast({ kind: "ok", message: t("prenotazioni.bookingEmail.processOk") });
         await onBookingsChanged?.();
       } else if (res.status === "processed") {
-        setToast({ kind: "ok", message: "Email elaborata." });
+        setToast({ kind: "ok", message: t("prenotazioni.bookingEmail.processOther") });
       } else {
         setToast({ kind: "err", message: res.errorMessage || "Elaborazione non riuscita" });
       }
@@ -226,9 +228,9 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
 
   if (loading) {
     return (
-      <Card title="Prenotazioni via email" description="Caricamento casella…">
+      <Card title={t("prenotazioni.bookingEmail.title")} description={t("prenotazioni.bookingEmail.loading")}>
         <div className="flex items-center gap-2 text-sm text-rw-muted">
-          <Loader2 className="h-4 w-4 animate-spin" /> Attendere…
+          <Loader2 className="h-4 w-4 animate-spin" /> {t("prenotazioni.bookingEmail.wait")}
         </div>
       </Card>
     );
@@ -236,8 +238,8 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
 
   return (
     <Card
-      title="Prenotazioni via email"
-      description="I clienti scrivono alla tua casella; le richieste diventano prenotazioni."
+      title={t("prenotazioni.bookingEmail.title")}
+      description={t("prenotazioni.bookingEmail.desc")}
       headerRight={<Mail className="h-4 w-4 text-rw-accent" />}
     >
       <div className="space-y-4">
@@ -256,13 +258,13 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
 
         <div className="flex flex-wrap items-center gap-2">
           <Chip
-            label="IMAP"
-            value={config?.imapEnabled ? "Attivo" : "Non attivo"}
+            label={t("prenotazioni.bookingEmail.imap")}
+            value={config?.imapEnabled ? t("prenotazioni.bookingEmail.imapActive") : t("prenotazioni.bookingEmail.imapInactive")}
             tone={config?.imapEnabled ? "success" : "warn"}
           />
           {config?.imapLastSyncAt ? (
             <Chip
-              label="Ultima sync"
+              label={t("prenotazioni.bookingEmail.lastSync")}
               value={new Date(config.imapLastSyncAt).toLocaleString("it-IT", {
                 day: "2-digit",
                 month: "2-digit",
@@ -276,7 +278,7 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
 
         {mailbox ? (
           <div className="rounded-xl border border-rw-accent/25 bg-rw-accent/5 p-3 space-y-2">
-            <p className="text-xs font-semibold text-rw-muted">Casella per le prenotazioni</p>
+            <p className="text-xs font-semibold text-rw-muted">{t("prenotazioni.bookingEmail.mailbox")}</p>
             <div className="flex flex-wrap items-center gap-2">
               <a href={`mailto:${mailbox}`} className="text-sm font-semibold text-rw-accent break-all">
                 {mailbox}
@@ -287,36 +289,33 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
                 onClick={() => void copyText("email", mailbox)}
               >
                 {copied === "email" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                {copied === "email" ? "Copiata" : "Copia"}
+                {copied === "email" ? t("prenotazioni.bookingEmail.copied") : t("prenotazioni.bookingEmail.copy")}
               </button>
             </div>
-            <p className="text-xs text-rw-muted">
-              Comunica questo indirizzo ai clienti o sul sito. Le email con data, ora e coperti vengono lette
-              automaticamente ogni 10 minuti.
-            </p>
+            <p className="text-xs text-rw-muted">{t("prenotazioni.bookingEmail.mailboxHelp")}</p>
           </div>
         ) : (
           <p className="text-sm text-amber-300">
             {canConfigure
-              ? "Configura la casella email del locale per ricevere prenotazioni."
-              : "La casella email non è ancora configurata. Chiedi all'owner di impostarla."}
+              ? t("prenotazioni.bookingEmail.configureOwner")
+              : t("prenotazioni.bookingEmail.configureStaff")}
           </p>
         )}
 
         <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold text-rw-muted">Testo da inviare ai clienti</p>
+            <p className="text-xs font-semibold text-rw-muted">{t("prenotazioni.bookingEmail.exampleTitle")}</p>
             <button
               type="button"
               className="inline-flex items-center gap-1 text-[11px] font-semibold text-rw-accent"
-              onClick={() => void copyText("example", exampleBookingText(mailbox || "prenotazioni@tuoristorante.it"))}
+              onClick={() => void copyText("example", exampleBookingText(t))}
             >
               {copied === "example" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-              {copied === "example" ? "Copiato" : "Copia esempio"}
+              {copied === "example" ? t("prenotazioni.bookingEmail.copiedExample") : t("prenotazioni.bookingEmail.copyExample")}
             </button>
           </div>
           <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-rw-soft font-sans">
-            {exampleBookingText(mailbox || "prenotazioni@tuoristorante.it")}
+            {exampleBookingText(t)}
           </pre>
         </div>
 
@@ -327,13 +326,13 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
               className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-semibold text-rw-ink"
               onClick={() => setConfigOpen((v) => !v)}
             >
-              <span>Configura casella email</span>
+              <span>{t("prenotazioni.bookingEmail.configureToggle")}</span>
               {configOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             </button>
             {configOpen ? (
               <div className="space-y-3 border-t border-rw-line px-3 py-3">
                 <div>
-                  <label className={labelCls}>Email prenotazioni (mittente / casella)</label>
+                  <label className={labelCls}>{t("prenotazioni.bookingEmail.fromAddress")}</label>
                   <input
                     className={inputCls}
                     placeholder="prenotazioni@tuoristorante.it"
@@ -342,20 +341,20 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Utente (se diverso dall&apos;indirizzo)</label>
+                  <label className={labelCls}>{t("prenotazioni.bookingEmail.username")}</label>
                   <input
                     className={inputCls}
-                    placeholder="stesso indirizzo email"
+                    placeholder={t("prenotazioni.bookingEmail.usernamePlaceholder")}
                     value={draft.username}
                     onChange={(e) => setDraft((d) => ({ ...d, username: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Password casella</label>
+                  <label className={labelCls}>{t("prenotazioni.bookingEmail.password")}</label>
                   <input
                     className={inputCls}
                     type="password"
-                    placeholder={config ? "Lascia vuoto per non cambiare" : "Password"}
+                    placeholder={config ? t("prenotazioni.bookingEmail.passwordKeep") : t("emailInbox.smtp.password")}
                     value={draft.password}
                     onChange={(e) => setDraft((d) => ({ ...d, password: e.target.value }))}
                   />
@@ -366,12 +365,12 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
                     checked={draft.imapEnabled}
                     onChange={(e) => setDraft((d) => ({ ...d, imapEnabled: e.target.checked }))}
                   />
-                  Ricevi prenotazioni via email (IMAP)
+                  {t("prenotazioni.bookingEmail.enableImap")}
                 </label>
                 {draft.imapEnabled ? (
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
-                      <label className={labelCls}>Host IMAP</label>
+                      <label className={labelCls}>{t("prenotazioni.bookingEmail.imapHost")}</label>
                       <input
                         className={inputCls}
                         value={draft.imapHost}
@@ -379,7 +378,7 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Porta</label>
+                      <label className={labelCls}>{t("prenotazioni.bookingEmail.imapPort")}</label>
                       <input
                         className={inputCls}
                         type="number"
@@ -389,9 +388,7 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
                     </div>
                   </div>
                 ) : null}
-                <p className="text-[11px] text-rw-muted">
-                  Aruba: SMTP <code>smtps.aruba.it:465</code> · IMAP <code>imaps.aruba.it:993</code>
-                </p>
+                <p className="text-[11px] text-rw-muted">{t("prenotazioni.bookingEmail.arubaHint")}</p>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -400,7 +397,7 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
                     disabled={!!busy}
                   >
                     {busy === "save" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                    Salva
+                    {t("prenotazioni.bookingEmail.save")}
                   </button>
                   {draft.imapEnabled ? (
                     <button
@@ -410,7 +407,7 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
                       disabled={!!busy}
                     >
                       {busy === "imap" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Server className="h-3.5 w-3.5" />}
-                      Test IMAP
+                      {t("prenotazioni.bookingEmail.testImap")}
                     </button>
                   ) : null}
                 </div>
@@ -428,17 +425,17 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
               disabled={!!busy || !config?.imapEnabled}
             >
               {busy === "poll" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-              Sincronizza email ora
+              {t("prenotazioni.bookingEmail.sync")}
             </button>
             {!config?.imapEnabled ? (
-              <p className="text-xs text-rw-muted">Abilita IMAP nella configurazione per ricevere le email.</p>
+              <p className="text-xs text-rw-muted">{t("prenotazioni.bookingEmail.syncImapHint")}</p>
             ) : null}
           </div>
         ) : null}
 
         {bookingEmails.length > 0 ? (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-rw-muted">Email prenotazioni recenti</p>
+            <p className="text-xs font-semibold text-rw-muted">{t("prenotazioni.bookingEmail.recent")}</p>
             {bookingEmails.slice(0, 5).map((row) => (
               <div key={row.id} className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-3 py-2 text-xs">
                 <div className="flex items-start justify-between gap-2">
@@ -456,17 +453,17 @@ export function BookingEmailPanel({ onBookingsChanged }: Props) {
                       disabled={!!busy}
                       onClick={() => void handleProcess(row.id)}
                     >
-                      {busy === `process-${row.id}` ? "…" : "Crea"}
+                      {busy === `process-${row.id}` ? "…" : t("prenotazioni.bookingEmail.create")}
                     </button>
                   ) : row.linkedBookingId ? (
-                    <span className="shrink-0 text-emerald-400 font-semibold">OK</span>
+                    <span className="shrink-0 text-emerald-400 font-semibold">{t("prenotazioni.bookingEmail.ok")}</span>
                   ) : null}
                 </div>
               </div>
             ))}
           </div>
         ) : config?.imapEnabled ? (
-          <p className="text-xs text-rw-muted">Nessuna email prenotazione in coda.</p>
+          <p className="text-xs text-rw-muted">{t("prenotazioni.bookingEmail.noQueue")}</p>
         ) : null}
       </div>
     </Card>

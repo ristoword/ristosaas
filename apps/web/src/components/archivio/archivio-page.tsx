@@ -27,21 +27,22 @@ import {
   type ArchivioFiscalStub,
   type FiscalInvoiceRecord,
 } from "@/lib/api-client";
+import { useI18n } from "@/core/i18n/provider";
+
+const tabDefs = [
+  { id: "report", labelKey: "archivio.tab.report" },
+  { id: "fatture-entrata", labelKey: "archivio.tab.fattureEntrata" },
+  { id: "fatture-cassa", labelKey: "archivio.tab.fattureCassa" },
+  { id: "fatture-sdi", labelKey: "archivio.tab.fattureSdi" },
+  { id: "comande", labelKey: "archivio.tab.comande" },
+  { id: "ordini-fornitore", labelKey: "archivio.tab.ordiniFornitore" },
+] as const;
 
 const inputCls =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent focus:outline-none";
 const labelCls = "block text-xs font-semibold text-rw-muted mb-1";
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-xl bg-rw-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-rw-accent/90 active:scale-[0.98]";
-
-const tabs = [
-  { id: "report", label: "Report incassi" },
-  { id: "fatture-entrata", label: "Fatture in entrata" },
-  { id: "fatture-cassa", label: "Fatture da cassa" },
-  { id: "fatture-sdi", label: "Fatture elettroniche SDI" },
-  { id: "comande", label: "Archivio comande" },
-  { id: "ordini-fornitore", label: "Ordini fornitore" },
-];
 
 type ReportRow = { id: string; period: string; orders: number; revenue: number; average: number };
 
@@ -493,6 +494,8 @@ function FiscalInvoicesPanel() {
 
 /* ── Main ──────────────────────────────────────────── */
 export function ArchivioPage() {
+  const { t } = useI18n();
+  const tabs = tabDefs.map((tab) => ({ id: tab.id, label: t(tab.labelKey) }));
   const [activeTab, setActiveTab] = useState("report");
   const [orders, setOrders] = useState<ArchivedOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -507,14 +510,14 @@ export function ArchivioPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Archivio" subtitle="Report finanziari, fatture, comande e ordini fornitore archiviati" />
+      <PageHeader title={t("archivio.title")} subtitle={t("archivio.subtitle")} />
 
       <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
       <div>
         {activeTab === "report" && <ReportPanel orders={orders} loading={loading} />}
-        {activeTab === "fatture-entrata" && <FiscalStubPanel kind="entrata" title="Fatture in entrata" />}
-        {activeTab === "fatture-cassa" && <FiscalStubPanel kind="cassa" title="Fatture da cassa" />}
+        {activeTab === "fatture-entrata" && <FiscalStubPanel kind="entrata" title={t("archivio.tab.fattureEntrata")} />}
+        {activeTab === "fatture-cassa" && <FiscalStubPanel kind="cassa" title={t("archivio.tab.fattureCassa")} />}
         {activeTab === "fatture-sdi" && <FiscalInvoicesPanel />}
         {activeTab === "comande" && <ComandePanel orders={orders} loading={loading} />}
         {activeTab === "ordini-fornitore" && <OrdiniFornitorePanel />}
