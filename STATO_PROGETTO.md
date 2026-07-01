@@ -8,7 +8,7 @@
 | Componente | Stato | Dettagli |
 |---|---|---|
 | **Hosting** | ✅ Attivo | Railway — `ristosaas-production.up.railway.app` |
-| **Database** | ✅ Connesso | PostgreSQL su Railway (`gondola.proxy.rlwy.net:21479`) |
+| **Database** | ✅ Connesso | PostgreSQL su Railway (credenziali solo in env, mai in repo) |
 | **Health endpoint** | ✅ 200 OK | `/api/health` → `{"status":"ok","db":"up"}` |
 | **Build TypeScript** | ✅ 0 errori | `tsc --noEmit` pulito |
 | **Linter** | ✅ 0 errori | Solo warning pre-esistenti su dep array `t` |
