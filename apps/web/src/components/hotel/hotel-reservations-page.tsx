@@ -10,6 +10,7 @@ import { HotelRoomTypeSelect } from "@/components/hotel/hotel-room-type-select";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { hotelApi, type HotelReservation, type HotelReservationStatus, type HotelRoom, type RatePlan } from "@/lib/api-client";
 import { addDaysIso, nightsBetweenIso, todayIso } from "@/lib/date-utils";
+import { stayTotalFromNightly } from "@/lib/hotel/pricing";
 import { useI18n } from "@/core/i18n/provider";
 
 const statusTone = {
@@ -65,23 +66,34 @@ export function HotelReservationsPage() {
   };
 
   const totalProjectedRevenue = useMemo(
-    () => reservations.reduce((sum, reservation) => sum + reservation.rate, 0),
+    () => reservations.reduce((sum, reservation) => sum + stayTotalFromNightly(reservation.rate, reservation.nights), 0),
     [reservations],
   );
   const [editingReservationId, setEditingReservationId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
 
-  const suggestedTotal = useMemo(() => {
+  const suggestedNightly = useMemo(() => {
     if (!availability) return null;
-    const n = nightsComputed;
+    const matching = availability.ratePlans.filter((p) => p.boardType === form.boardType);
+    const plan = matching[0] ?? availability.ratePlans[0];
+    if (plan) return plan.nightlyRate;
     const fromRooms = availability.rooms.map((r) => r.defaultNightlyRate).filter((p) => p > 0);
     if (fromRooms.length > 0) {
-      const avg = fromRooms.reduce((a, b) => a + b, 0) / fromRooms.length;
-      return Math.round(avg * n * 100) / 100;
+      return Math.round((fromRooms.reduce((a, b) => a + b, 0) / fromRooms.length) * 100) / 100;
     }
-    const plan = availability.ratePlans[0];
-    if (plan) return Math.round(plan.nightlyRate * n * 100) / 100;
     return null;
-  }, [availability, nightsComputed]);
+  }, [availability, form.boardType]);
+
+  const stayTotalPreview = useMemo(
+    () => (form.rate > 0 ? stayTotalFromNightly(form.rate, nightsComputed) : 0),
+    [form.rate, nightsComputed],
+  );
+
+  useEffect(() => {
+    if (!availability || !editingReservationId || !form.ratePlanName) return;
+    const match = availability.ratePlans.find((p) => p.name === form.ratePlanName);
+    if (match) setSelectedPlanId(match.id);
+  }, [availability, editingReservationId, form.ratePlanName]);
 
   useEffect(() => {
     hotelApi
@@ -161,11 +173,11 @@ export function HotelReservationsPage() {
               <option value="full_board">{t("hotel.booking.board.full")}</option>
             </select>
             <div>
-              <label className="text-xs font-semibold text-rw-muted" htmlFor="res-total-rate">
-                {t("hotel.booking.form.total_label")}
+              <label className="text-xs font-semibold text-rw-muted" htmlFor="res-nightly-rate">
+                {t("hotel.booking.form.nightly_label")}
               </label>
               <input
-                id="res-total-rate"
+                id="res-nightly-rate"
                 type="number"
                 min="0"
                 step="0.01"
@@ -174,19 +186,61 @@ export function HotelReservationsPage() {
                 onChange={(e) => setForm((prev) => ({ ...prev, rate: parseFloat(e.target.value) || 0 }))}
               />
               <p className="mt-1 text-[11px] text-rw-muted">
-                {nightsComputed} {t("hotel.booking.nights")} · {t("hotel.booking.nights_hint")}{" "}
-                {suggestedTotal != null ? `€ ${suggestedTotal.toFixed(2)}` : "—"}
+                {t("hotel.booking.form.vat_included")} · {nightsComputed} {t("hotel.booking.nights")} ·{" "}
+                {t("hotel.booking.form.stay_total")}{" "}
+                <span className="font-semibold text-rw-ink">€ {stayTotalPreview.toFixed(2)}</span>
               </p>
-              {suggestedTotal != null && suggestedTotal > 0 ? (
+              {suggestedNightly != null && suggestedNightly > 0 ? (
                 <button
                   type="button"
                   className="mt-2 rounded-lg border border-rw-accent/40 bg-rw-accent/10 px-3 py-1.5 text-xs font-semibold text-rw-accent"
-                  onClick={() => setForm((prev) => ({ ...prev, rate: suggestedTotal }))}
+                  onClick={() => {
+                    const plan = availability?.ratePlans.find((p) => p.id === selectedPlanId)
+                      ?? availability?.ratePlans.find((p) => p.boardType === form.boardType)
+                      ?? availability?.ratePlans[0];
+                    setForm((prev) => ({
+                      ...prev,
+                      rate: plan?.nightlyRate ?? suggestedNightly,
+                      ratePlanName: plan?.name,
+                    }));
+                  }}
                 >
-                  {t("hotel.booking.form.apply_rate")}
+                  {t("hotel.booking.form.apply_rate")} (€ {suggestedNightly.toFixed(2)}/n)
                 </button>
               ) : null}
             </div>
+            {availability && availability.ratePlans.length > 0 ? (
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold text-rw-muted" htmlFor="res-rate-plan">
+                  {t("hotel.booking.form.rate_plan")}
+                </label>
+                <select
+                  id="res-rate-plan"
+                  className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
+                  value={selectedPlanId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedPlanId(id);
+                    const plan = availability.ratePlans.find((p) => p.id === id);
+                    if (plan) {
+                      setForm((prev) => ({
+                        ...prev,
+                        rate: plan.nightlyRate,
+                        boardType: plan.boardType,
+                        ratePlanName: plan.name,
+                      }));
+                    }
+                  }}
+                >
+                  <option value="">{t("hotel.booking.form.rate_plan_none")}</option>
+                  {availability.ratePlans.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.name} — € {plan.nightlyRate.toFixed(2)}/n ({t("hotel.booking.form.vat_included")})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <input className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink sm:col-span-2" placeholder={t("hotel.booking.form.document")} value={form.documentCode} onChange={(e) => setForm((prev) => ({ ...prev, documentCode: e.target.value }))} />
             <button
               type="button"
@@ -249,7 +303,10 @@ export function HotelReservationsPage() {
             {availability?.ratePlans.map((plan) => (
               <div key={plan.id} className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
                 <p className="text-sm font-medium text-rw-muted">{plan.name}</p>
-                <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">€ {plan.nightlyRate}</p>
+                <p className="mt-2 font-display text-2xl font-semibold text-rw-ink">
+                  € {plan.nightlyRate.toFixed(2)}
+                  <span className="text-sm font-normal text-rw-muted">/n · {t("hotel.booking.form.vat_included")}</span>
+                </p>
                 <p className="mt-2 text-sm text-rw-soft">
                   {boardLabels[plan.boardType] ?? plan.boardType} · {plan.refundable ? "refundable" : t("hotel.booking.non_refundable")}
                 </p>
@@ -265,7 +322,14 @@ export function HotelReservationsPage() {
             { key: "guestName", header: t("hotel.booking.col.client"), render: (row) => <div><p className="font-semibold text-rw-ink">{row.guestName}</p><p className="text-xs text-rw-muted">{row.phone} · {row.email}</p></div> },
             { key: "dates", header: t("hotel.booking.col.stay"), render: (row) => <div><p className="text-rw-ink">{row.checkInDate} → {row.checkOutDate}</p><p className="text-xs text-rw-muted">{row.nights} {t("hotel.booking.nights")} · {row.guests} {t("hotel.booking.guests")}</p></div> },
             { key: "roomType", header: t("hotel.booking.col.room"), render: (row) => <div><p className="text-rw-ink">{row.roomType}</p><p className="text-xs text-rw-muted">{row.roomId ? `${t("hotel.booking.room_assigned")} ${row.roomId.replace("hr_", "")}` : t("hotel.booking.room_pending")}</p></div> },
-            { key: "rate", header: t("hotel.booking.col.rate"), render: (row) => <span className="font-semibold text-rw-ink">€ {row.rate}</span> },
+            { key: "rate", header: t("hotel.booking.col.rate"), render: (row) => (
+              <span className="font-semibold text-rw-ink">
+                € {row.rate.toFixed(2)}/n
+                <span className="block text-xs font-normal text-rw-muted">
+                  {t("hotel.booking.form.stay_total")} € {stayTotalFromNightly(row.rate, row.nights).toFixed(2)}
+                </span>
+              </span>
+            ) },
             {
               key: "boardType",
               header: t("hotel.booking.col.board"),
@@ -287,6 +351,7 @@ export function HotelReservationsPage() {
                     className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-2 py-1 text-xs font-semibold text-rw-ink"
                     onClick={() => {
                       setEditingReservationId(row.id);
+                      setSelectedPlanId("");
                       setForm({
                         customerId: row.customerId,
                         guestName: row.guestName,
@@ -302,7 +367,9 @@ export function HotelReservationsPage() {
                         nights: nightsBetweenIso(row.checkInDate, row.checkOutDate),
                         rate: row.rate,
                         documentCode: row.documentCode,
+                        ratePlanName: row.ratePlanName,
                       });
+                      formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
                   >
                     {t("ui.edit")}

@@ -1,3 +1,4 @@
+import { stayTotalFromNightly, sumVatFromChargeLines } from "@/lib/hotel/pricing";
 import type { Customer, FolioCharge, GuestFolio, HotelReservation, RatePlan } from "@/lib/api-client";
 
 export const FOLIO_SECTIONS = [
@@ -265,8 +266,10 @@ export function computeEconomics(
   }
 
   const projectedRoomRate =
-    reservation && roomTotal <= 0 ? reservation.rate * Math.max(1, reservation.nights) : 0;
-  const vatTotal = (roomTotal + extraTotal) * 0.1;
+    reservation && roomTotal <= 0 ? stayTotalFromNightly(reservation.rate, reservation.nights) : 0;
+  const vatTotal = sumVatFromChargeLines(
+    rows.map((r) => ({ amount: r.amount, vatPct: r.vatPct, source: r.source, section: r.section })),
+  );
   const balance = folio.balance;
   const dueTotal = Math.max(0, balance);
   const credit = balance < 0 ? -balance : creditTotal;

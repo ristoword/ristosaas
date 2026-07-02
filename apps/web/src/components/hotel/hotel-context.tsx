@@ -34,6 +34,9 @@ type HotelContextValue = {
   createReservation: (data: Omit<HotelReservation, "id">) => Promise<void>;
   updateReservation: (id: string, data: Partial<HotelReservation>) => Promise<void>;
   deleteReservation: (id: string) => Promise<void>;
+  createRatePlan: (data: Omit<RatePlan, "id"> & { code: string; name: string; nightlyRate: number }) => Promise<void>;
+  updateRatePlan: (id: string, data: Partial<RatePlan>) => Promise<void>;
+  deleteRatePlan: (id: string) => Promise<void>;
   roomCharge: (reservationId: string, orderId: string, description: string, amount: number, serviceType: "breakfast" | "lunch" | "dinner") => Promise<FolioCharge>;
   processCheckIn: (reservationId: string, roomId: string) => Promise<void>;
   recordFolioPayment: (reservationId: string, amount: number, method: HotelManualPaymentMethod, note?: string) => Promise<void>;
@@ -79,7 +82,7 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
       hotelApi.listKeycards(),
       integrationApi.listFolios(),
       integrationApi.listCharges(),
-      hotelApi.listRatePlans(),
+      hotelApi.listAllRatePlans(),
     ]);
     const [roomsR, reservationsR, staysR, housekeepingR, keycardsR, foliosR, chargesR, ratePlansR] = results;
     const names = ["rooms", "reservations", "stays", "housekeeping", "keycards", "folios", "charges", "ratePlans"] as const;
@@ -144,6 +147,21 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
     setReservations((prev) => prev.filter((reservation) => reservation.id !== id));
   }, []);
 
+  const createRatePlan = useCallback(async (data: Omit<RatePlan, "id"> & { code: string; name: string; nightlyRate: number }) => {
+    const created = await hotelApi.createRatePlan(data);
+    setRatePlans((prev) => [...prev.filter((p) => p.id !== created.id), created].sort((a, b) => a.roomType.localeCompare(b.roomType)));
+  }, []);
+
+  const updateRatePlan = useCallback(async (id: string, data: Partial<RatePlan>) => {
+    const updated = await hotelApi.updateRatePlan(id, data);
+    setRatePlans((prev) => prev.map((p) => (p.id === id ? updated : p)));
+  }, []);
+
+  const deleteRatePlan = useCallback(async (id: string) => {
+    await hotelApi.deleteRatePlan(id);
+    setRatePlans((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   const processCheckIn = useCallback(
     async (reservationId: string, roomId: string) => {
       const result = await hotelApi.checkIn(reservationId, roomId);
@@ -157,10 +175,9 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
         const next = prev.filter((card) => card.id !== result.card.id);
         return [result.card, ...next];
       });
-      // Lo stay/folio creati dal check-in verranno riallineati al prossimo refresh
-      // di integrationApi.listFolios; per adesso evitiamo di forzarlo se non serve.
+      await refresh();
     },
-    [],
+    [refresh],
   );
 
   const recordFolioPayment = useCallback(async (reservationId: string, amount: number, method: HotelManualPaymentMethod, note?: string) => {
@@ -226,6 +243,9 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
         createReservation,
         updateReservation,
         deleteReservation,
+        createRatePlan,
+        updateRatePlan,
+        deleteRatePlan,
         roomCharge,
         processCheckIn,
         recordFolioPayment,

@@ -780,6 +780,8 @@ model HotelRatePlan {
   roomType    String
   boardType   BoardType
   nightlyRate Decimal  @db.Decimal(10, 2)
+  /// true = nightlyRate è lordo IVA inclusa (default IT).
+  priceIncludesVat Boolean @default(true)
   refundable  Boolean  @default(true)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -805,6 +807,7 @@ model HotelReservation {
   roomType     String
   boardType    BoardType
   nights       Int
+  /// Tariffa per notte (€ lordo, IVA inclusa). Totale soggiorno = rate × nights.
   rate         Decimal               @db.Decimal(10, 2)
   documentCode String?
   nationality  String?

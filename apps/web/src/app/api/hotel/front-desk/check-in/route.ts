@@ -3,14 +3,16 @@ import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
-import { actorFromRequest, postRoomChargesOnCheckIn } from "@/lib/hotel/folio-service";
+import { actorFromRequest, postDepositOnCheckIn, postRoomChargesOnCheckIn } from "@/lib/hotel/folio-service";
 import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
 import { complianceRepository } from "@/lib/db/repositories/compliance.repository";
 import { encodeLockCredential } from "@/lib/integrations/lock-connector";
 import { dispatchPrintJobAsync } from "@/lib/integrations/print-dispatcher";
+import { roomTypesMatch } from "@/modules/hotel/domain/room-type";
 import type { HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
 const HOTEL_ROLES = ["hotel_manager", "reception", "owner", "super_admin"] as const;
+const CHECKIN_ROOM_STATUSES = new Set(["libera", "pulita"]);
 
 function toDateString(value: Date) {
   return value.toISOString().slice(0, 10);
@@ -118,121 +120,133 @@ export async function POST(req: NextRequest) {
   if (!reservationId || !roomId) return err("reservationId and roomId required");
   const tenantId = getTenantId();
   const now = new Date();
+  const actor = actorFromRequest(guard.user, req.headers);
+
   const reservation = await prisma.hotelReservation.findFirst({
     where: { id: reservationId, tenantId },
   });
-  if (!reservation) return err("Reservation or room not found", 404);
+  if (!reservation) return err("Prenotazione non trovata", 404);
+
+  if (reservation.status !== "confermata" && reservation.status !== "in_casa") {
+    return err("La prenotazione non è in stato confermata o già in casa", 400);
+  }
 
   const room = await prisma.hotelRoom.findFirst({
     where: { id: roomId, tenantId },
   });
-  if (!room) return err("Reservation or room not found", 404);
+  if (!room) return err("Camera non trovata", 404);
 
-  const updatedReservation = await prisma.hotelReservation.update({
-    where: { id: reservation.id },
-    data: {
-      roomId: room.id,
-      status: "in_casa",
-    },
+  if (!CHECKIN_ROOM_STATUSES.has(room.status) && reservation.roomId !== room.id) {
+    return err(`Camera ${room.code} non disponibile (stato: ${room.status})`, 400);
+  }
+
+  if (!roomTypesMatch(room.roomType, reservation.roomType)) {
+    return err(`Tipo camera non compatibile: prenotazione ${reservation.roomType}, camera ${room.roomType}`, 400);
+  }
+
+  const txResult = await prisma.$transaction(async (tx) => {
+    const updatedReservation = await tx.hotelReservation.update({
+      where: { id: reservation.id },
+      data: { roomId: room.id, status: "in_casa" },
+    });
+
+    const updatedRoom = await tx.hotelRoom.update({
+      where: { id: room.id },
+      data: { status: "occupata" },
+    });
+
+    const stay = await tx.stay.upsert({
+      where: { reservationId: reservation.id },
+      update: { actualCheckInAt: now, actualCheckOutAt: null },
+      create: { tenantId, reservationId: reservation.id, actualCheckInAt: now },
+      select: {
+        id: true,
+        reservationId: true,
+        reservation: { select: { roomId: true } },
+        actualCheckInAt: true,
+        actualCheckOutAt: true,
+      },
+    });
+
+    const folio = await tx.guestFolio.upsert({
+      where: { stayId: stay.id },
+      update: {},
+      create: {
+        tenantId,
+        customerId: updatedReservation.customerId,
+        stayId: stay.id,
+        currency: "EUR",
+        balance: 0,
+        status: "open",
+      },
+      select: { id: true },
+    });
+
+    await tx.hotelKeycard.updateMany({
+      where: { tenantId, reservationId: reservation.id, status: "attiva" },
+      data: { status: "annullata" },
+    });
+
+    const validUntil = new Date(updatedReservation.checkOutDate);
+    validUntil.setUTCHours(11, 0, 0, 0);
+
+    const card = await tx.hotelKeycard.create({
+      data: {
+        tenantId,
+        roomId: room.id,
+        reservationId: reservation.id,
+        validFrom: now,
+        validUntil,
+        status: "attiva",
+        issuedBy: guard.user?.username || guard.user?.name || "operator",
+      },
+      select: {
+        id: true,
+        roomId: true,
+        reservationId: true,
+        validFrom: true,
+        validUntil: true,
+        status: true,
+        issuedBy: true,
+        lockCredentialId: true,
+        encodedAt: true,
+      },
+    });
+
+    return { updatedReservation, updatedRoom, stay, folio, card, validUntil };
   });
-
-  const updatedRoom = await prisma.hotelRoom.update({
-    where: { id: room.id },
-    data: {
-      status: "occupata",
-    },
-  });
-
-  const stay = await prisma.stay.upsert({
-    where: { reservationId: reservation.id },
-    update: {
-      actualCheckInAt: now,
-      actualCheckOutAt: null,
-    },
-    create: {
-      tenantId,
-      reservationId: reservation.id,
-      actualCheckInAt: now,
-    },
-    select: {
-      id: true,
-      reservationId: true,
-      reservation: { select: { roomId: true } },
-      actualCheckInAt: true,
-      actualCheckOutAt: true,
-    },
-  });
-
-  const folio = await prisma.guestFolio.upsert({
-    where: { stayId: stay.id },
-    update: {},
-    create: {
-      tenantId,
-      customerId: updatedReservation.customerId,
-      stayId: stay.id,
-      currency: "EUR",
-      balance: 0,
-      status: "open",
-    },
-    select: { id: true },
-  });
-
-  const actor = actorFromRequest(guard.user, req.headers);
 
   await postRoomChargesOnCheckIn({
     tenantId,
-    folioId: folio.id,
-    nights: updatedReservation.nights,
-    rate: updatedReservation.rate.toNumber(),
+    folioId: txResult.folio.id,
+    nights: txResult.updatedReservation.nights,
+    rate: txResult.updatedReservation.rate.toNumber(),
     roomCode: room.code,
     actor,
   });
 
+  const deposit = txResult.updatedReservation.depositReceived?.toNumber() ?? 0;
+  if (deposit > 0) {
+    await postDepositOnCheckIn({
+      tenantId,
+      folioId: txResult.folio.id,
+      reservationId: reservation.id,
+      amount: deposit,
+      actor,
+    });
+  }
+
   await guestRegisterRepository.upsertFromReservation({
     tenantId,
     reservationId: reservation.id,
-    stayId: stay.id,
+    stayId: txResult.stay.id,
     roomId: room.id,
     roomCode: room.code,
     actor,
   });
 
-  await prisma.hotelKeycard.updateMany({
-    where: {
-      tenantId,
-      reservationId: reservation.id,
-      status: "attiva",
-    },
-    data: { status: "annullata" },
-  });
-
-  const validUntil = new Date(updatedReservation.checkOutDate);
-  validUntil.setUTCHours(11, 0, 0, 0);
-  const card = await prisma.hotelKeycard.create({
-    data: {
-      tenantId,
-      roomId: room.id,
-      reservationId: reservation.id,
-      validFrom: now,
-      validUntil,
-      status: "attiva",
-      issuedBy: guard.user?.username || guard.user?.name || "operator",
-    },
-    select: {
-      id: true,
-      roomId: true,
-      reservationId: true,
-      validFrom: true,
-      validUntil: true,
-      status: true,
-      issuedBy: true,
-      lockCredentialId: true,
-      encodedAt: true,
-    },
-  });
-
+  let finalCard = txResult.card;
   const config = await complianceRepository.get(tenantId);
-  let finalCard = card;
   if (config.lockEnabled && config.lockBridgeUrl.trim()) {
     const lockResult = await encodeLockCredential(
       config.lockBridgeUrl,
@@ -242,13 +256,13 @@ export async function POST(req: NextRequest) {
         roomCode: room.code,
         reservationId: reservation.id,
         validFrom: now.toISOString(),
-        validUntil: validUntil.toISOString(),
-        guestName: updatedReservation.guestName,
+        validUntil: txResult.validUntil.toISOString(),
+        guestName: txResult.updatedReservation.guestName,
       },
     );
     if (lockResult.success && lockResult.credentialId) {
       finalCard = await prisma.hotelKeycard.update({
-        where: { id: card.id },
+        where: { id: txResult.card.id },
         data: { lockCredentialId: lockResult.credentialId, encodedAt: now },
         select: {
           id: true,
@@ -264,16 +278,16 @@ export async function POST(req: NextRequest) {
       });
       dispatchPrintJobAsync(tenantId, "keycard_emessa", "reception", [
         `CHECK-IN — Camera ${room.code}`,
-        updatedReservation.guestName,
+        txResult.updatedReservation.guestName,
         lockResult.credentialId,
       ]);
     }
   }
 
   return ok({
-    reservation: mapReservation(updatedReservation),
-    room: mapRoom(updatedRoom),
-    stay: mapStay(stay),
+    reservation: mapReservation(txResult.updatedReservation),
+    room: mapRoom(txResult.updatedRoom),
+    stay: mapStay(txResult.stay),
     card: mapCard(finalCard),
   });
 }

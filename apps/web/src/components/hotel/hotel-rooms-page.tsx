@@ -22,7 +22,7 @@ const roomTone = {
 } as const;
 
 export function HotelRoomsPage() {
-  const { rooms, reservations, stays, housekeeping, createRoom, updateRoom, deleteRoom, failedSlices } = useHotel();
+  const { rooms, reservations, stays, housekeeping, ratePlans, createRoom, updateRoom, deleteRoom, failedSlices } = useHotel();
   const { t } = useI18n();
   const [calendarStart, setCalendarStart] = useState(() => todayIso());
   const [calendarEnd, setCalendarEnd] = useState(() => addDaysIso(todayIso(), 1));
@@ -87,7 +87,27 @@ export function HotelRoomsPage() {
                   setForm((prev) => ({ ...prev, defaultNightlyRate: parseFloat(e.target.value) || 0 }))
                 }
               />
-              <p className="mt-1 text-[11px] text-rw-muted">{t("hotel.room.form.nightly_hint")}</p>
+              <p className="mt-1 text-[11px] text-rw-muted">{t("hotel.room.form.nightly_hint")} · {t("hotel.booking.form.vat_included")}</p>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-rw-muted" htmlFor="hotel-room-rate-plan">
+                {t("hotel.room.form.rate_plan")}
+              </label>
+              <select
+                id="hotel-room-rate-plan"
+                className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
+                value={form.ratePlanCode ?? ""}
+                onChange={(e) => setForm((prev) => ({ ...prev, ratePlanCode: e.target.value || undefined }))}
+              >
+                <option value="">{t("hotel.room.form.rate_plan_none")}</option>
+                {ratePlans
+                  .filter((p) => p.active !== false && (p.roomType === form.roomType || !form.roomType))
+                  .map((p) => (
+                    <option key={p.id} value={p.code}>
+                      {p.name} (€ {p.nightlyRate.toFixed(2)}/n)
+                    </option>
+                  ))}
+              </select>
             </div>
             <div className="sm:col-span-2">
               <HotelRoomTypeSelect

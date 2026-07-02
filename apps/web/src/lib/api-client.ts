@@ -1354,6 +1354,8 @@ export type RatePlan = {
   boardType: "room_only" | "bed_breakfast" | "half_board" | "full_board";
   nightlyRate: number;
   refundable: boolean;
+  active?: boolean;
+  priceIncludesVat?: boolean;
 };
 export type HotelReservation = {
   id: string;
@@ -1584,6 +1586,12 @@ export const hotelApi = {
   revokeKeycard: (id: string) => post<{ card: HotelKeycard }>(`/hotel/keycards/${id}/revoke`, {}),
   listRatePlans: (roomType?: string) =>
     get<RatePlan[]>(roomType ? `/hotel/rate-plans?roomType=${encodeURIComponent(roomType)}` : "/hotel/rate-plans"),
+  listAllRatePlans: () => get<RatePlan[]>("/hotel/rate-plans?all=1"),
+  createRatePlan: (data: Omit<RatePlan, "id"> & { code: string; name: string; roomType: string; nightlyRate: number }) =>
+    post<RatePlan>("/hotel/rate-plans", data),
+  updateRatePlan: (id: string, data: Partial<RatePlan> & { code?: string; name?: string; nightlyRate?: number }) =>
+    put<RatePlan>(`/hotel/rate-plans/${id}`, data),
+  deleteRatePlan: (id: string) => del<{ deleted: boolean }>(`/hotel/rate-plans/${id}`),
 };
 
 export type HousekeepingPmsCode =

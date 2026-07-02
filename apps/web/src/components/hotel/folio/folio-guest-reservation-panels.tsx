@@ -2,6 +2,7 @@
 
 import type { Customer, HotelReservation, RatePlan } from "@/lib/api-client";
 import { folioBoardKey, folioStayStatusKey, ratePlanLabel } from "@/lib/hotel/folio-utils";
+import { stayTotalFromNightly } from "@/lib/hotel/pricing";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/shared/card";
 import { PANEL_GRID_2 } from "@/components/shared/ui-classes";
@@ -56,6 +57,10 @@ export function FolioGuestReservationPanels({ customer, reservation, ratePlans }
             <Row
               label={t("hotel.folio.guestPanel.rate")}
               value={tf(t, "hotel.folio.guestPanel.ratePerNight", { amount: formatCurrency(reservation.rate) })}
+            />
+            <Row
+              label={t("hotel.booking.form.stay_total")}
+              value={formatCurrency(stayTotalFromNightly(reservation.rate, reservation.nights))}
             />
             <Row label={t("hotel.folio.guestPanel.ratePlan")} value={reservation.ratePlanName || ratePlanLabel(reservation, ratePlans)} />
             <Row label={t("hotel.folio.guestPanel.package")} value={reservation.packageName || "—"} />

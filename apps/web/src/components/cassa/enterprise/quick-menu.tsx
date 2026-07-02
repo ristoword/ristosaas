@@ -85,7 +85,7 @@ export function CassaQuickMenu({ menuItems, onProductTap }: Props) {
         {filtered.length === 0 ? (
           <p className="py-12 text-center text-sm text-rw-muted">{t("cassa.menu.notFound")}</p>
         ) : (
-          <div className="grid grid-cols-2 justify-items-center gap-2 sm:grid-cols-3 md:grid-cols-[repeat(auto-fill,minmax(7.375rem,1fr))] xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 min-[420px]:grid-cols-3 2xl:grid-cols-3">
             {filtered.map((item) => (
               <ProductCard key={item.id} item={item} onAdd={onProductTap} />
             ))}

@@ -8,6 +8,7 @@ import {
   Lock,
   Mail,
   Paperclip,
+  Plus,
   Printer,
   RefreshCw,
   Unlock,
@@ -27,6 +28,7 @@ import {
   FOLIO_SECTIONS,
   type FolioChargeFilters,
   type FolioChargeRow,
+  type FolioSection,
   type FolioSplitId,
   type FolioTimelineEvent,
   buildTimeline,
@@ -78,6 +80,11 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
   const [auditLogs, setAuditLogs] = useState<FolioAuditLogEntry[]>([]);
   const [attachments, setAttachments] = useState<FolioAttachmentEntry[]>([]);
   const [payOpen, setPayOpen] = useState(false);
+  const [chargeOpen, setChargeOpen] = useState(false);
+  const [chargeDesc, setChargeDesc] = useState("");
+  const [chargeAmount, setChargeAmount] = useState("");
+  const [chargeSection, setChargeSection] = useState<FolioSection>("EXTRA");
+  const [chargeVat, setChargeVat] = useState("10");
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState<HotelManualPaymentMethod>("carta");
   const [payNote, setPayNote] = useState("");
@@ -140,6 +147,33 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       setMsg(t("hotel.folio.msg.paymentOk"));
     } catch (e) {
       setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.paymentErr"), t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAddCharge = async () => {
+    if (locked) return;
+    const amount = parseFloat(chargeAmount);
+    if (!chargeDesc.trim() || !amount || amount <= 0) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      await hotelFolioApi.postCharge({
+        folioId: folio.id,
+        description: chargeDesc.trim(),
+        amount,
+        section: chargeSection,
+        vatPct: parseFloat(chargeVat) || 10,
+        source: "manual",
+      });
+      await onRefresh();
+      setChargeOpen(false);
+      setChargeDesc("");
+      setChargeAmount("");
+      setMsg(t("hotel.folio.msg.chargeOk"));
+    } catch (e) {
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.folio.msg.chargeErr"), t));
     } finally {
       setBusy(false);
     }
@@ -279,6 +313,7 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
       <section className="[grid-area:ledger] min-w-0 space-y-6">
       <Card title={t("hotel.folio.actions.title")}>
         <div className="flex flex-wrap gap-2">
+          <ActionBtn disabled={locked} onClick={() => setChargeOpen(true)} icon={Plus} label={t("hotel.folio.actions.addCharge")} />
           <ActionBtn disabled={locked || !reservation} onClick={() => setPayOpen(true)} icon={CreditCard} label={t("hotel.folio.actions.pay")} />
           <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(false)} icon={CreditCard} label={t("hotel.folio.actions.checkout")} />
           <ActionBtn disabled={locked || !reservation} onClick={() => handleCheckout(true)} icon={RefreshCw} label={t("hotel.folio.actions.quickCheckout")} />
@@ -358,6 +393,28 @@ export function GuestFolioWorkspace({ folio, customers, onRefresh, locked, onTog
             {t("ui.confirm")}
           </button>
           <button type="button" onClick={() => setPayOpen(false)} className={cn(BTN_OUTLINE, "w-full sm:w-auto")}>
+            {t("ui.cancel")}
+          </button>
+        </div>
+      </Modal>
+
+      <Modal open={chargeOpen} onClose={() => setChargeOpen(false)} title={t("hotel.folio.charge.title")}>
+        <div className="grid gap-3">
+          <input className={INPUT_CLASS} placeholder={t("hotel.folio.charge.description")} value={chargeDesc} onChange={(e) => setChargeDesc(e.target.value)} />
+          <input className={INPUT_CLASS} type="number" min="0" step="0.01" placeholder={t("hotel.folio.charge.amount")} value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value)} />
+          <select className={SELECT_CLASS} value={chargeSection} onChange={(e) => setChargeSection(e.target.value as FolioSection)}>
+            {FOLIO_SECTIONS.filter((s) => s !== "SCONTI" && s !== "RIMBORSI").map((s) => (
+              <option key={s} value={s}>{t(folioSectionKey(s))}</option>
+            ))}
+          </select>
+          <input className={INPUT_CLASS} type="number" min="0" max="22" step="1" placeholder={t("hotel.folio.charge.vat")} value={chargeVat} onChange={(e) => setChargeVat(e.target.value)} />
+          <p className="text-[11px] text-rw-muted">{t("hotel.folio.charge.vatHint")}</p>
+        </div>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+          <button type="button" disabled={busy} onClick={() => void handleAddCharge()} className={cn(BTN_PRIMARY, "w-full sm:w-auto")}>
+            {t("ui.confirm")}
+          </button>
+          <button type="button" onClick={() => setChargeOpen(false)} className={cn(BTN_OUTLINE, "w-full sm:w-auto")}>
             {t("ui.cancel")}
           </button>
         </div>

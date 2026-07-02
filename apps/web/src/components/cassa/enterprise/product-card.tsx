@@ -1,6 +1,6 @@
 "use client";
 
-import { UtensilsCrossed } from "lucide-react";
+import { Plus, UtensilsCrossed } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { MenuItem as ApiMenuItem } from "@/lib/api-client";
 
@@ -41,32 +41,35 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
         }
       }}
       className={cn(
-        "mx-auto flex h-[180px] w-full max-w-[118px] cursor-pointer flex-col gap-2 rounded-2xl border border-white/[0.08] bg-[#141A24] p-3 shadow-sm transition-transform duration-150 hover:scale-[1.03] active:scale-[0.98]",
+        "flex h-[152px] w-full min-w-0 cursor-pointer flex-col rounded-xl border border-white/[0.08] bg-[#141A24] p-2.5 shadow-sm transition-transform duration-150 hover:scale-[1.02] active:scale-[0.98]",
         !item.active && "opacity-75",
       )}
     >
-      <UtensilsCrossed
-        className="h-5 w-5 shrink-0 text-[#D4AF37]/75"
-        strokeWidth={1.75}
-        aria-hidden
-      />
+      <div className="flex min-h-0 items-start gap-1.5">
+        <UtensilsCrossed
+          className="mt-0.5 h-4 w-4 shrink-0 text-[#D4AF37]/80"
+          strokeWidth={1.75}
+          aria-hidden
+        />
+        <h3
+          className="line-clamp-2 min-h-[2.25rem] flex-1 text-sm font-bold leading-snug text-white"
+          title={item.name}
+        >
+          {item.name}
+        </h3>
+      </div>
 
-      <h3
-        className="line-clamp-2 min-h-[2.5rem] text-base font-bold leading-tight text-white"
-        title={item.name}
-      >
-        {item.name}
-      </h3>
-
-      <div className="flex min-h-0 flex-1 flex-col justify-end gap-1">
-        <p className="text-2xl font-extrabold leading-none tabular-nums text-[#E8C547]">
+      <div className="mt-auto flex flex-col gap-1 pt-2">
+        <p className="truncate text-lg font-extrabold leading-none tabular-nums text-[#E8C547]">
           € {priceLabel}
         </p>
 
-        {fc != null && item.foodCostPct != null && (
-          <p className={cn("text-xs font-semibold leading-none", FC_TEXT[fc])}>
+        {fc != null && item.foodCostPct != null ? (
+          <p className={cn("truncate text-[10px] font-semibold leading-none", FC_TEXT[fc])}>
             FC {item.foodCostPct}%
           </p>
+        ) : (
+          <span className="h-[10px]" aria-hidden />
         )}
 
         <button
@@ -75,9 +78,9 @@ export function ProductCard({ item, onAdd }: ProductCardProps) {
             e.stopPropagation();
             onAdd(item);
           }}
-          className="mt-1 flex h-9 w-full shrink-0 items-center justify-center gap-1 rounded-[10px] bg-emerald-600 text-xs font-bold uppercase tracking-wide text-white shadow-sm transition-colors duration-150 hover:bg-emerald-500 active:scale-[0.98]"
+          className="flex h-8 w-full shrink-0 items-center justify-center gap-1 rounded-lg bg-emerald-600 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm transition-colors duration-150 hover:bg-emerald-500 active:scale-[0.98]"
         >
-          <span aria-hidden>+</span>
+          <Plus className="h-3 w-3 shrink-0" aria-hidden />
           <span>AGGIUNGI</span>
         </button>
       </div>

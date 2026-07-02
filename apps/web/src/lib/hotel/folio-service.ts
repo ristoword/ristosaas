@@ -1,6 +1,7 @@
 import type { FolioChargeSource, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { emitFolioEvent } from "@/lib/hotel/folio-event-bus";
+import { HOTEL_ACCOMMODATION_VAT_PCT } from "@/lib/hotel/pricing";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 
 export type FolioActor = {
@@ -216,7 +217,35 @@ export async function postRoomChargesOnCheckIn(params: {
     section: "CAMERA",
     quantity: nights,
     unitPrice: params.rate,
-    vatPct: 10,
+    vatPct: HOTEL_ACCOMMODATION_VAT_PCT,
+    actor: params.actor,
+  });
+}
+
+/** Registra acconto già incassato come pagamento sul folio (una sola volta). */
+export async function postDepositOnCheckIn(params: {
+  tenantId: string;
+  folioId: string;
+  reservationId: string;
+  amount: number;
+  actor?: FolioActor;
+}) {
+  if (params.amount <= 0) return null;
+  const existing = await prisma.folioCharge.findFirst({
+    where: { folioId: params.folioId, source: "payment", sourceId: `${params.reservationId}:deposit` },
+  });
+  if (existing) return null;
+
+  return postFolioCharge({
+    tenantId: params.tenantId,
+    folioId: params.folioId,
+    source: "payment",
+    sourceId: `${params.reservationId}:deposit`,
+    description: "Acconto / caparra ricevuta",
+    amount: -params.amount,
+    department: "Front Office",
+    section: "CAMERA",
+    vatPct: 0,
     actor: params.actor,
   });
 }

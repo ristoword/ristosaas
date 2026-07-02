@@ -289,7 +289,10 @@ export function SupervisorPage() {
   const ordiniAttivi = orders.filter((o) => o.status !== "chiuso" && o.status !== "annullato").length;
   const activeStaff = staffMembers.filter((s) => s.status === "attivo");
   const occupiedRooms = unifiedReport?.occupancy.occupiedRooms ?? hotelRooms.filter((room) => room.status === "occupata").length;
-  const hotelRevenue = unifiedReport?.hotelRevenue ?? hotelReservations.reduce((sum, reservation) => sum + reservation.rate, 0);
+  const hotelRevenue = unifiedReport?.hotelRevenue ?? hotelReservations.reduce(
+    (sum, reservation) => sum + reservation.rate * Math.max(1, reservation.nights),
+    0,
+  );
   const integratedRevenue =
     unifiedReport?.integratedRoomChargeRevenue ??
     folioCharges.filter((charge) => charge.source === "restaurant").reduce((sum, charge) => sum + charge.amount, 0);

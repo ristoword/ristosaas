@@ -336,7 +336,7 @@ async function upsertReservations(roomCodeToId) {
       roomType: "Classic",
       boardType: "bed_breakfast",
       nights: 3,
-      rate: 330,
+      rate: 110,
       documentCode: "CI123456",
     },
     {
@@ -353,7 +353,7 @@ async function upsertReservations(roomCodeToId) {
       roomType: "Superior",
       boardType: "half_board",
       nights: 3,
-      rate: 390,
+      rate: 130,
       documentCode: "LM998877",
     },
     {
@@ -370,7 +370,7 @@ async function upsertReservations(roomCodeToId) {
       roomType: "Classic",
       boardType: "room_only",
       nights: 3,
-      rate: 270,
+      rate: 90,
       documentCode: "AB667788",
     },
   ];

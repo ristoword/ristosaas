@@ -26,6 +26,8 @@ export type RatePlan = {
   boardType: HotelReservation["boardType"];
   nightlyRate: number;
   refundable: boolean;
+  /** Prezzo lordo IVA inclusa (default true). */
+  priceIncludesVat?: boolean;
 };
 
 export type HotelReservationStatus =

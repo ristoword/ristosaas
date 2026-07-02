@@ -83,7 +83,13 @@ export const unifiedReportsRepository = {
       }),
     ]);
 
-    const hotelRevenue = reservations.reduce((sum, reservation) => sum + reservation.rate.toNumber(), 0);
+    const hotelRevenue = reservations.reduce((sum, reservation) => {
+      const nights = Math.max(
+        1,
+        Math.round((reservation.checkOutDate.getTime() - reservation.checkInDate.getTime()) / (1000 * 60 * 60 * 24)),
+      );
+      return sum + reservation.rate.toNumber() * nights;
+    }, 0);
     const restaurantRevenue = orders.reduce(
       (orderSum, order) =>
         orderSum +
