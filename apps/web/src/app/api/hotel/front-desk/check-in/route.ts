@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { body, err, ok } from "@/lib/api/helpers";
+import { body, err, ok, withErrorHandler } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
@@ -8,6 +8,7 @@ import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
 import { complianceRepository } from "@/lib/db/repositories/compliance.repository";
 import { encodeLockCredential } from "@/lib/integrations/lock-connector";
 import { dispatchPrintJobAsync } from "@/lib/integrations/print-dispatcher";
+import { logger } from "@/lib/observability/logger";
 import { roomTypesMatch } from "@/modules/hotel/domain/room-type";
 import type { HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 
@@ -112,7 +113,7 @@ function mapCard(row: {
   };
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withErrorHandler(async (req: NextRequest) => {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
@@ -126,6 +127,10 @@ export async function POST(req: NextRequest) {
     where: { id: reservationId, tenantId },
   });
   if (!reservation) return err("Prenotazione non trovata", 404);
+
+  if (reservation.status === "in_attesa") {
+    return err("Confermare la prenotazione prima del check-in", 400);
+  }
 
   if (reservation.status !== "confermata" && reservation.status !== "in_casa") {
     return err("La prenotazione non è in stato confermata o già in casa", 400);
@@ -243,6 +248,9 @@ export async function POST(req: NextRequest) {
     roomId: room.id,
     roomCode: room.code,
     actor,
+  }).catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn("checkin_guest_register_failed", { reservationId: reservation.id, error: message });
   });
 
   let finalCard = txResult.card;
@@ -290,4 +298,4 @@ export async function POST(req: NextRequest) {
     stay: mapStay(txResult.stay),
     card: mapCard(finalCard),
   });
-}
+});

@@ -31,11 +31,14 @@ export type RatePlan = {
 };
 
 export type HotelReservationStatus =
+  | "in_attesa"
   | "confermata"
   | "in_casa"
   | "check_out"
   | "cancellata"
   | "no_show";
+
+export type HotelBookingChannel = "online" | "desk" | "agency" | "voucher";
 
 export type HotelReservation = {
   id: string;
@@ -56,7 +59,8 @@ export type HotelReservation = {
   nationality?: string;
   address?: string;
   company?: string;
-  channel?: string;
+  channel?: HotelBookingChannel;
+  voucherCode?: string | null;
   children?: number;
   crib?: boolean;
   lateCheckout?: boolean;

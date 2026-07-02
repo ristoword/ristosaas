@@ -19,7 +19,22 @@ async function request<T>(path: string, init?: RequestInit, canRetry = true): Pr
       return request<T>(path, init, false);
     }
   }
-  const data = await res.json();
+  const raw = await res.text();
+  let data: { error?: string } = {};
+  if (raw) {
+    try {
+      data = JSON.parse(raw) as { error?: string };
+    } catch {
+      const snippet = raw.replace(/\s+/g, " ").trim().slice(0, 180);
+      throw new Error(
+        res.ok
+          ? "Risposta server non valida."
+          : snippet.startsWith("<!")
+            ? `Errore server (HTTP ${res.status}). Riprovare o contattare il supporto.`
+            : snippet || `HTTP ${res.status}`,
+      );
+    }
+  }
   if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
   return data as T;
 }
@@ -1335,7 +1350,8 @@ export const aiApi = {
 };
 
 export type HotelRoomStatus = "libera" | "occupata" | "da_pulire" | "pulita" | "fuori_servizio" | "manutenzione";
-export type HotelReservationStatus = "confermata" | "in_casa" | "check_out" | "cancellata" | "no_show";
+export type HotelReservationStatus = "in_attesa" | "confermata" | "in_casa" | "check_out" | "cancellata" | "no_show";
+export type HotelBookingChannel = "online" | "desk" | "agency" | "voucher";
 export type HotelRoom = {
   id: string;
   code: string;
@@ -1376,7 +1392,8 @@ export type HotelReservation = {
   nationality?: string;
   address?: string;
   company?: string;
-  channel?: string;
+  channel?: HotelBookingChannel;
+  voucherCode?: string | null;
   children?: number;
   crib?: boolean;
   lateCheckout?: boolean;
@@ -1533,6 +1550,24 @@ export type ReportTrendsSnapshot = {
   };
 };
 
+export type BookingListStats = {
+  total: number;
+  inAttesa: number;
+  confermata: number;
+  cancellata: number;
+  noShow: number;
+  arrivalsToday: number;
+  byChannel: Record<HotelBookingChannel, number>;
+};
+
+export type BookingListResponse = {
+  items: HotelReservation[];
+  total: number;
+  page: number;
+  pageSize: number;
+  stats: BookingListStats;
+};
+
 export const hotelApi = {
   availability: (params: { roomType: string; checkInDate: string; checkOutDate: string }) => {
     const qs = new URLSearchParams(params);
@@ -1543,6 +1578,28 @@ export const hotelApi = {
   updateRoom: (id: string, data: Partial<HotelRoom>) => put<HotelRoom>(`/hotel/rooms/${id}`, data),
   deleteRoom: (id: string) => del<{ deleted: boolean }>(`/hotel/rooms/${id}`),
   listReservations: () => get<HotelReservation[]>("/hotel/reservations"),
+  listBookingSheet: (params?: {
+    status?: HotelReservationStatus | "all";
+    channel?: HotelBookingChannel | "all";
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    includeCancelled?: boolean;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.channel) qs.set("channel", params.channel);
+    if (params?.search) qs.set("search", params.search);
+    if (params?.dateFrom) qs.set("dateFrom", params.dateFrom);
+    if (params?.dateTo) qs.set("dateTo", params.dateTo);
+    if (params?.includeCancelled) qs.set("includeCancelled", "1");
+    if (params?.page) qs.set("page", String(params.page));
+    if (params?.pageSize) qs.set("pageSize", String(params.pageSize));
+    const q = qs.toString();
+    return get<BookingListResponse>(`/hotel/booking-list${q ? `?${q}` : ""}`);
+  },
   createReservation: (data: Omit<HotelReservation, "id">) => post<HotelReservation>("/hotel/reservations", data),
   updateReservation: (id: string, data: Partial<HotelReservation>) => put<HotelReservation>(`/hotel/reservations/${id}`, data),
   deleteReservation: (id: string) => del<{ deleted: boolean }>(`/hotel/reservations/${id}`),

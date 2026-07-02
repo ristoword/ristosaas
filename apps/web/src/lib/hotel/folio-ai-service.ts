@@ -394,6 +394,7 @@ function buildGuestSummary(
 
 function stayStatus(status: HotelReservation["status"]): string {
   const map: Record<HotelReservation["status"], string> = {
+    in_attesa: "In attesa di conferma",
     confermata: "Confermata",
     in_casa: "In casa",
     check_out: "Check-out effettuato",

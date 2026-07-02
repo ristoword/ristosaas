@@ -127,11 +127,19 @@ enum RestaurantOrderOnlinePaymentStatus {
 }
 
 enum HotelReservationStatus {
+  in_attesa
   confermata
   in_casa
   check_out
   cancellata
   no_show
+}
+
+enum HotelBookingChannel {
+  online
+  desk
+  agency
+  voucher
 }
 
 enum HotelRoomStatus {
@@ -813,7 +821,8 @@ model HotelReservation {
   nationality  String?
   address      String?
   company      String?
-  channel      String?               @default("direct")
+  channel      HotelBookingChannel     @default(desk)
+  voucherCode  String?
   children     Int                   @default(0)
   crib         Boolean               @default(false)
   lateCheckout Boolean               @default(false)
@@ -831,6 +840,7 @@ model HotelReservation {
 
   @@index([tenantId, checkInDate])
   @@index([tenantId, status])
+  @@index([tenantId, channel, status])
 }
 
 model Stay {

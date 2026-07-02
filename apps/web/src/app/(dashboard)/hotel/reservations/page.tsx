@@ -1,5 +1,5 @@
-import { HotelReservationsPage } from "@/components/hotel/hotel-reservations-page";
+import { redirect } from "next/navigation";
 
 export default function HotelReservationsRoute() {
-  return <HotelReservationsPage />;
+  redirect("/hotel/booking-list");
 }

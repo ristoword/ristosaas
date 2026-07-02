@@ -385,6 +385,7 @@ export function paymentStatusLabel(balance: number, status: GuestFolio["status"]
 export function stayStatusLabel(reservation: HotelReservation | null): string {
   if (!reservation) return "—";
   const map: Record<HotelReservation["status"], string> = {
+    in_attesa: "In attesa",
     confermata: "Confermata",
     in_casa: "In casa",
     check_out: "Check-out",

@@ -12,17 +12,25 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  const updates = await body<Partial<HotelReservation>>(req);
-  const updated = await hotelReservationsRepository.update(getTenantId(), id, updates);
-  if (!updated) return err("Reservation not found", 404);
-  return ok(updated);
+  try {
+    const updates = await body<Partial<HotelReservation>>(req);
+    const updated = await hotelReservationsRepository.update(getTenantId(), id, updates);
+    if (!updated) return err("Reservation not found", 404);
+    return ok(updated);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "update failed", 400);
+  }
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
   const { id } = await ctx.params;
-  const deleted = await hotelReservationsRepository.delete(getTenantId(), id);
-  if (!deleted) return err("Reservation not found", 404);
-  return ok({ deleted: true });
+  try {
+    const deleted = await hotelReservationsRepository.delete(getTenantId(), id);
+    if (!deleted) return err("Reservation not found", 404);
+    return ok({ deleted: true });
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "delete failed", 400);
+  }
 }

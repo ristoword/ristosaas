@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   CheckCircle2,
   CircleDashed,
@@ -19,6 +20,7 @@ import { useHotel } from "@/components/hotel/hotel-context";
 import type { HotelManualPaymentMethod } from "@/lib/api-client";
 import { roomTypesMatch } from "@/modules/hotel/domain/room-type";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
+import { translateApiError } from "@/core/i18n/translate-api-error";
 import { useI18n } from "@/core/i18n/provider";
 
 export function HotelFrontDeskPage() {
@@ -36,6 +38,8 @@ export function HotelFrontDeskPage() {
     refresh,
   } = useHotel();
   const { t, locale } = useI18n();
+  const searchParams = useSearchParams();
+  const reservationFromUrl = searchParams.get("reservation");
   const [aiOpen, setAiOpen] = useState(false);
 
   // Check-in state
@@ -67,6 +71,15 @@ export function HotelFrontDeskPage() {
     () => reservations.filter((item) => item.status === "confermata"),
     [reservations],
   );
+
+  useEffect(() => {
+    if (!reservationFromUrl) return;
+    const match = reservations.find((r) => r.id === reservationFromUrl);
+    if (match && match.status === "confermata") {
+      setSelectedCheckin(match.id);
+      setDocumentCode(match.documentCode ?? "");
+    }
+  }, [reservationFromUrl, reservations]);
   const inHouse = useMemo(
     () => reservations.filter((item) => item.status === "in_casa"),
     [reservations],
@@ -223,7 +236,9 @@ export function HotelFrontDeskPage() {
       setAssignedRoomId("");
       setTimeout(() => setCheckinFlash(null), 3000);
     } catch (error) {
-      setCheckinError(error instanceof Error ? error.message : t("hotel.checkin.err.failed"));
+      setCheckinError(
+        translateApiError(error instanceof Error ? error.message : t("hotel.checkin.err.failed"), t),
+      );
     } finally {
       setCheckinBusy(false);
     }

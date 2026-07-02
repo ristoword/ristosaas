@@ -53,7 +53,7 @@ export function FolioGuestReservationPanels({ customer, reservation, ratePlans }
             <Row label={t("hotel.folio.guestPanel.nationality")} value={reservation.nationality || "—"} />
             <Row label={t("hotel.folio.guestPanel.address")} value={reservation.address || "—"} />
             <Row label={t("hotel.folio.guestPanel.company")} value={reservation.company || "—"} />
-            <Row label={t("hotel.folio.guestPanel.channel")} value={reservation.channel || t("hotel.folio.guestPanel.channelDirect")} />
+            <Row label={t("hotel.folio.guestPanel.channel")} value={t(`hotel.bookingList.channel.${reservation.channel ?? "desk"}`)} />
             <Row
               label={t("hotel.folio.guestPanel.rate")}
               value={tf(t, "hotel.folio.guestPanel.ratePerNight", { amount: formatCurrency(reservation.rate) })}

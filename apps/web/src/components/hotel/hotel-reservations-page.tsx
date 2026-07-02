@@ -14,6 +14,7 @@ import { stayTotalFromNightly } from "@/lib/hotel/pricing";
 import { useI18n } from "@/core/i18n/provider";
 
 const statusTone = {
+  in_attesa: "warn",
   confermata: "info",
   in_casa: "success",
   check_out: "warn",

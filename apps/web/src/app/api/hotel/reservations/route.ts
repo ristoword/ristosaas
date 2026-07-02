@@ -18,8 +18,11 @@ export async function POST(req: NextRequest) {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
-  const data = await body<Omit<HotelReservation, "id">>(req);
-  if (!data.guestName?.trim()) return err("guestName required");
-  const created = await hotelReservationsRepository.create(getTenantId(), data);
-  return ok(created, 201);
+  try {
+    const data = await body<Omit<HotelReservation, "id">>(req);
+    const created = await hotelReservationsRepository.create(getTenantId(), data);
+    return ok(created, 201);
+  } catch (e) {
+    return err(e instanceof Error ? e.message : "create failed", 400);
+  }
 }
