@@ -228,6 +228,9 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
     rate: txResult.updatedReservation.rate.toNumber(),
     roomCode: room.code,
     actor,
+  }).catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn("checkin_room_charge_failed", { reservationId: reservation.id, folioId: txResult.folio.id, error: message });
   });
 
   const deposit = txResult.updatedReservation.depositReceived?.toNumber() ?? 0;
@@ -238,6 +241,9 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
       reservationId: reservation.id,
       amount: deposit,
       actor,
+    }).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn("checkin_deposit_failed", { reservationId: reservation.id, folioId: txResult.folio.id, error: message });
     });
   }
 

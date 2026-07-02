@@ -28,6 +28,9 @@ const PREFIX: [string, string][] = [
   ["Adapter non configurato", "hotel.apiError.adapterNotConfigured"],
   ["Unauthorized", "hotel.apiError.unauthorized"],
   ["Forbidden", "hotel.apiError.forbidden"],
+  ["The string did not match the expected pattern", "hotel.apiError.invalidServerResponse"],
+  ["Errore server (HTTP", "hotel.apiError.invalidServerResponse"],
+  ["Risposta server non valida", "hotel.apiError.invalidServerResponse"],
 ];
 
 export function translateApiError(message: string, t: TranslateFn): string {
