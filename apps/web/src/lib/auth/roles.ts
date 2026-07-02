@@ -1,5 +1,5 @@
 // Ruoli disponibili nel sistema per la gestione dei turni
-export const SHIFT_ROLES = ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "superadmin"] as const;
+export const SHIFT_ROLES = ["cucina", "pizzeria", "bar", "sala", "supervisor", "owner", "superadmin", "hotel_manager", "reception", "housekeeping"] as const;
 export type ShiftRole = typeof SHIFT_ROLES[number];
 
 // Tutti i ruoli disponibili nel sistema

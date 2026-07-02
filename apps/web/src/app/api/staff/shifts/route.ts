@@ -4,7 +4,7 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { operationsRepository } from "@/lib/db/repositories/operations.repository";
 
-const STAFF_SHIFT_ROLES = ["owner", "supervisor", "staff", "super_admin"] as const;
+const STAFF_SHIFT_ROLES = ["owner", "supervisor", "staff", "super_admin", "hotel_manager", "reception", "housekeeping"] as const;
 
 export async function GET(req: NextRequest) {
   const guard = await requireApiUser(req, STAFF_SHIFT_ROLES);

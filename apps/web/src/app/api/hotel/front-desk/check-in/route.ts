@@ -219,7 +219,7 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
     });
 
     return { updatedReservation, updatedRoom, stay, folio, card, validUntil };
-  });
+  }, { timeout: 30_000 });
 
   await postRoomChargesOnCheckIn({
     tenantId,

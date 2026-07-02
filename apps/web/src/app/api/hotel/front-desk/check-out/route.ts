@@ -433,7 +433,7 @@ export async function POST(req: NextRequest) {
           settlement: lastPayment ? mapCharge(lastPayment) : null,
         },
       };
-    });
+    }, { timeout: 30_000 });
 
     await guestRegisterRepository.markCheckedOut(
       tenantId,

@@ -4,6 +4,7 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
 import { actorFromRequest, postFolioCharge } from "@/lib/hotel/folio-service";
+import { resolveOpenFolioForRoom } from "@/lib/hotel/room-service-folio";
 
 const CHARGE_ROLES = ["hotel_manager", "supervisor", "owner", "super_admin"] as const;
 
@@ -35,7 +36,18 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     folioId = folio?.id ?? null;
   }
 
-  if (!folioId) return err("Nessun folio aperto associato a questo ordine. Associa prima un soggiorno attivo.", 400);
+  if (!folioId) {
+    const resolved = await resolveOpenFolioForRoom(tenantId, order.roomCode, order.guestName);
+    folioId = resolved.folioId;
+    if (!order.stayId && resolved.stayId) {
+      await prisma.roomServiceOrder.update({
+        where: { id: order.id },
+        data: { stayId: resolved.stayId, folioId: resolved.folioId },
+      });
+    }
+  }
+
+  if (!folioId) return err("Nessun folio aperto per questa camera. Verifica che l'ospite sia in check-in.", 400);
 
   const categoryLabel: Record<string, string> = {
     food: "Room Service Food",

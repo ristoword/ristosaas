@@ -3,6 +3,7 @@ import { ok, err, body, fireAndForget } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { prisma } from "@/lib/db/prisma";
+import { resolveOpenFolioForRoom } from "@/lib/hotel/room-service-folio";
 import type { RoomServiceCategory, RoomServiceStatus } from "@prisma/client";
 
 const RS_ROLES = [
@@ -79,13 +80,19 @@ export async function POST(req: NextRequest) {
 
   const total = data.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
 
+  let stayId = data.stayId?.trim() || null;
   let folioId: string | null = null;
-  if (data.stayId) {
+
+  if (stayId) {
     const folio = await prisma.guestFolio.findFirst({
-      where: { stayId: data.stayId, tenantId, status: "open" },
+      where: { stayId, tenantId, status: "open" },
       select: { id: true },
     });
     folioId = folio?.id ?? null;
+  } else {
+    const resolved = await resolveOpenFolioForRoom(tenantId, data.roomCode, data.guestName);
+    stayId = resolved.stayId;
+    folioId = resolved.folioId;
   }
 
   const row = await prisma.roomServiceOrder.create({
@@ -98,7 +105,7 @@ export async function POST(req: NextRequest) {
       total,
       notes: data.notes?.trim() ?? "",
       assignedTo: data.assignedTo?.trim() ?? null,
-      stayId: data.stayId ?? null,
+      stayId,
       folioId,
     },
     select: SELECT,

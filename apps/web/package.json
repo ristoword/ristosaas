@@ -37,7 +37,8 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:baseline": "prisma migrate resolve --applied 20240101000000_baseline",
     "prisma:seed": "node prisma/seed.mjs",
-    "db:backfill-hotel-reservations": "node scripts/backfill-hotel-reservations.mjs"
+    "db:backfill-hotel-reservations": "node scripts/backfill-hotel-reservations.mjs",
+    "db:audit-hotel": "node scripts/audit-hotel-suite.mjs"
   },
   "engines": {
     "node": ">=20"
