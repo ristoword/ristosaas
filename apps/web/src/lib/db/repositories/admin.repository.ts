@@ -60,12 +60,14 @@ async function bootstrapMinimalTenantResources(
     restaurantTables: number;
     hotelRooms: number;
     hotelRatePlans: number;
+    hotelReservations: number;
     seedDefaults?: EnsureTenantDefaultsSummary;
   } = {
     restaurantRooms: 0,
     restaurantTables: 0,
     hotelRooms: 0,
     hotelRatePlans: 0,
+    hotelReservations: 0,
   };
 
   if (hasRestaurant) {
@@ -97,6 +99,7 @@ async function bootstrapMinimalTenantResources(
   if (hasHotel) {
     summary.hotelRooms = await tx.hotelRoom.count({ where: { tenantId } });
     summary.hotelRatePlans = await tx.hotelRatePlan.count({ where: { tenantId } });
+    summary.hotelReservations = summary.seedDefaults?.hotelReservationsAdded ?? 0;
   }
 
   return summary;

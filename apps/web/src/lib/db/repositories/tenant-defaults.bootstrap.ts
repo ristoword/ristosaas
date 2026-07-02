@@ -1,10 +1,12 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { ensureDefaultHotelReservations } from "@/lib/db/repositories/hotel-reservations.bootstrap";
 
 export type TenantPlanForDefaults = "restaurant_only" | "hotel_only" | "all_included" | "risto_premium" | "risto_premium_gold" | "hotel_premium" | "hotel_premium_gold";
 
 export type EnsureTenantDefaultsSummary = {
   hotelRoomsAdded: number;
+  hotelReservationsAdded: number;
   tablesAdded: number;
   recipesAdded: number;
   menuItemsAdded: number;
@@ -400,8 +402,10 @@ export async function ensureTenantDefaults(
   const hasRestaurant = RESTAURANT_PLANS.includes(plan);
   const hasHotel = HOTEL_PLANS.includes(plan);
   let hotelRoomsAdded = 0;
+  let hotelReservationsAdded = 0;
   if (hasHotel) {
     hotelRoomsAdded = await ensureDefaultHotelRooms(tx, tenantId);
+    hotelReservationsAdded = await ensureDefaultHotelReservations(tx, tenantId, plan);
   }
   let tablesAdded = 0;
   if (hasRestaurant) {
@@ -410,6 +414,7 @@ export async function ensureTenantDefaults(
   const menu = await ensureHouseMenuAndRecipes(tx, tenantId);
   return {
     hotelRoomsAdded,
+    hotelReservationsAdded,
     tablesAdded,
     recipesAdded: menu.recipesAdded,
     menuItemsAdded: menu.menuItemsAdded,

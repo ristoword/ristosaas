@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomBytes, scryptSync } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import { backfillAllTenantsHotelReservations } from "./lib/hotel-reservations-bootstrap.mjs";
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
@@ -432,6 +433,7 @@ async function upsertReservations(roomCodeToId) {
       nights: 3,
       rate: 90,
       documentCode: "AB667788",
+      channel: "desk",
     },
   ];
   await Promise.all(
@@ -1357,6 +1359,10 @@ async function main() {
   await upsertStaffShifts();
   await upsertWineCellar();
   await upsertPartners();
+  const hotelResAdded = await backfillAllTenantsHotelReservations(prisma);
+  if (hotelResAdded > 0) {
+    console.log(`  ✔ ${hotelResAdded} prenotazioni demo su tenant hotel (backfill)`);
+  }
   console.log("Seed completato con successo.");
 }
 
