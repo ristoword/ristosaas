@@ -73,6 +73,82 @@ export type NavItem = {
 
 export type NavSection = { title: string; key: string; items: NavItem[] };
 
+export type NavHub = {
+  id: string;
+  key: string;
+  label: string;
+  hint: string;
+  icon: LucideIcon;
+  items: NavItem[];
+  /** Link diretto senza sotto-menu (es. Panoramica). */
+  direct?: boolean;
+};
+
+const hubIcons: Record<string, LucideIcon> = {
+  panoramica: LayoutDashboard,
+  ai: Brain,
+  operativita: UtensilsCrossed,
+  hotel: BedDouble,
+  gestione: Package,
+  community: Sparkles,
+  persone: Users,
+  archivio: Archive,
+  sistema: Settings,
+  integrazioni: CreditCard,
+  "partner-enterprise": LineChart,
+  partner: Store,
+  admin: Wrench,
+};
+
+const hubDefaultsIt: Record<string, { label: string; hint: string }> = {
+  panoramica: { label: "Panoramica", hint: "Tutto quello che conta, in un colpo d'occhio." },
+  ai: { label: "AI", hint: "Command center, knowledge base, assistente e automazioni." },
+  operativita: { label: "Operatività Ristorante", hint: "Sala, cucina, bar, cassa e prenotazioni." },
+  hotel: { label: "Hotel", hint: "Reception, camere, housekeeping e PMS." },
+  gestione: { label: "Gestione", hint: "Magazzino, fornitori, menu e food cost." },
+  community: { label: "Community", hint: "Ricette e community professionale." },
+  persone: { label: "Persone", hint: "Staff, turni, HR e CRM clienti." },
+  archivio: { label: "Archivio", hint: "Incassi, fatture, comande e ordini fornitore." },
+  sistema: { label: "Sistema", hint: "Hardware, QR, email, owner e configurazione." },
+  integrazioni: { label: "Integrazioni", hint: "Stripe, SMTP e servizi esterni." },
+  "partner-enterprise": { label: "Partner Enterprise", hint: "Dashboard partner, tenant e vendite." },
+  partner: { label: "Partner", hint: "Controllo vendite e commissioni." },
+  admin: { label: "Admin", hint: "Super admin e strumenti di sistema." },
+};
+
+type HubSource =
+  | { hubKey: string; direct?: boolean; sectionKey: "oggi"; onlyIds: string[] }
+  | { hubKey: string; sectionKey: "oggi"; excludeIds: string[] }
+  | { hubKey: string; sectionKey: string };
+
+const hubSources: HubSource[] = [
+  { hubKey: "panoramica", direct: true, sectionKey: "oggi", onlyIds: ["dashboard"] },
+  { hubKey: "ai", sectionKey: "oggi", excludeIds: ["dashboard"] },
+  { hubKey: "operativita", sectionKey: "operativita" },
+  { hubKey: "hotel", sectionKey: "hotel" },
+  { hubKey: "gestione", sectionKey: "gestione" },
+  { hubKey: "community", sectionKey: "community" },
+  { hubKey: "persone", sectionKey: "persone" },
+  { hubKey: "archivio", sectionKey: "archivio" },
+  { hubKey: "sistema", sectionKey: "sistema" },
+  { hubKey: "integrazioni", sectionKey: "integrazioni" },
+  { hubKey: "partner-enterprise", sectionKey: "partner-enterprise" },
+  { hubKey: "partner", sectionKey: "partner" },
+  { hubKey: "admin", sectionKey: "admin" },
+];
+
+function pickHubItems(source: HubSource): NavItem[] {
+  const section = navSections.find((s) => s.key === source.sectionKey);
+  if (!section) return [];
+  if ("onlyIds" in source && source.onlyIds) {
+    return section.items.filter((item) => source.onlyIds.includes(item.id));
+  }
+  if ("excludeIds" in source && source.excludeIds) {
+    return section.items.filter((item) => !source.excludeIds.includes(item.id));
+  }
+  return section.items;
+}
+
 export const navSections: NavSection[] = [
   {
     title: "Oggi",
@@ -796,11 +872,11 @@ export const navSections: NavSection[] = [
   },
 ];
 
-export function getVisibleNavSections(
+export function getVisibleNavHubs(
   userRole?: UserRole | null,
   t?: (key: string) => string,
   partnerCode?: string | null,
-) {
+): NavHub[] {
   const isSuperAdmin = userRole === "super_admin";
   const isPartner = userRole === "partner" || Boolean(partnerCode?.trim());
 
@@ -819,17 +895,60 @@ export function getVisibleNavSections(
     return item.visibleFor.includes(userRole);
   }
 
-  return navSections
-    .map((section) => ({
-      ...section,
-      title: t ? (t(`nav.section.${section.key}`) || section.title) : section.title,
-      items: section.items
-        .filter(canSeeItem)
-        .map((item) => ({
-          ...item,
-          label: t ? (t(`nav.${item.id}.label`) || item.label) : item.label,
-          hint: t ? (t(`nav.${item.id}.hint`) || item.hint) : item.hint,
-        })),
-    }))
-    .filter((section) => section.items.length > 0);
+  function translateItem(item: NavItem): NavItem {
+    return {
+      ...item,
+      label: t ? (t(`nav.${item.id}.label`) || item.label) : item.label,
+      hint: t ? (t(`nav.${item.id}.hint`) || item.hint) : item.hint,
+    };
+  }
+
+  const hubs: NavHub[] = [];
+
+  for (const source of hubSources) {
+    const defaults = hubDefaultsIt[source.hubKey];
+    const items = pickHubItems(source).filter(canSeeItem).map(translateItem);
+    if (items.length === 0) continue;
+
+    const label = t
+      ? t(`nav.hub.${source.hubKey}.label`) || t(`nav.section.${source.hubKey}`) || defaults?.label || source.hubKey
+      : defaults?.label || source.hubKey;
+    const hint = t
+      ? t(`nav.hub.${source.hubKey}.hint`) || defaults?.hint || ""
+      : defaults?.hint || "";
+
+    hubs.push({
+      id: source.hubKey,
+      key: source.hubKey,
+      label,
+      hint,
+      icon: hubIcons[source.hubKey] ?? LayoutDashboard,
+      items,
+      ...("direct" in source && source.direct ? { direct: true } : {}),
+    });
+  }
+
+  return hubs;
+}
+
+/** Elenco piatto di tutte le voci visibili (es. dashboard moduli). */
+export function getVisibleNavItems(
+  userRole?: UserRole | null,
+  t?: (key: string) => string,
+  partnerCode?: string | null,
+) {
+  return getVisibleNavHubs(userRole, t, partnerCode).flatMap((hub) => hub.items);
+}
+
+/** @deprecated Usare getVisibleNavHubs */
+export function getVisibleNavSections(
+  userRole?: UserRole | null,
+  t?: (key: string) => string,
+  partnerCode?: string | null,
+) {
+  return getVisibleNavHubs(userRole, t, partnerCode).map((hub) => ({
+    title: hub.label,
+    key: hub.key,
+    items: hub.items,
+  }));
 }

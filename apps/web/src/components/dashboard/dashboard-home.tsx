@@ -13,7 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { getVisibleNavSections } from "@/components/layout/nav-config";
+import { getVisibleNavItems } from "@/components/layout/nav-config";
 import { useAuth, useTenantFeatures } from "@/components/auth/auth-context";
 import { useHotel } from "@/components/hotel/hotel-context";
 import { useI18n } from "@/core/i18n/provider";
@@ -31,7 +31,7 @@ export function DashboardHome() {
   const { activeOrders } = useOrders();
   const { t } = useI18n();
   const { formatCurrency } = useI10n();
-  const modules = getVisibleNavSections(user?.role).flatMap((s) => s.items).filter((i) => i.id !== "dashboard");
+  const modules = getVisibleNavItems(user?.role).filter((i) => i.id !== "dashboard");
   const moduleIds = useMemo(() => modules.map((m) => m.id), [modules]);
   const { insights, loading: aiLoading } = useDashboardModuleAi(moduleIds);
   const [trends, setTrends] = useState<ReportTrendsSnapshot | null>(null);
