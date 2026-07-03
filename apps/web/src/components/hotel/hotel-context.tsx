@@ -6,8 +6,10 @@ import {
   integrationApi,
   type FolioCharge,
   type GuestFolio,
+  type AccessCredentialType,
   type HotelKeycard,
   type HotelManualPaymentMethod,
+  type MobileAccessDeliveryChannel,
   type HotelReservation,
   type HotelRoom,
   type HotelStay,
@@ -38,7 +40,14 @@ type HotelContextValue = {
   updateRatePlan: (id: string, data: Partial<RatePlan>) => Promise<void>;
   deleteRatePlan: (id: string) => Promise<void>;
   roomCharge: (reservationId: string, orderId: string, description: string, amount: number, serviceType: "breakfast" | "lunch" | "dinner") => Promise<FolioCharge>;
-  processCheckIn: (reservationId: string, roomId: string) => Promise<void>;
+  processCheckIn: (
+    reservationId: string,
+    roomId: string,
+    options?: {
+      accessMethods?: AccessCredentialType[];
+      sendVia?: MobileAccessDeliveryChannel[];
+    },
+  ) => Promise<void>;
   recordFolioPayment: (reservationId: string, amount: number, method: HotelManualPaymentMethod, note?: string) => Promise<void>;
   finalizeCheckout: (
     reservationId: string,
@@ -163,8 +172,15 @@ export function HotelProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const processCheckIn = useCallback(
-    async (reservationId: string, roomId: string) => {
-      const result = await hotelApi.checkIn(reservationId, roomId);
+    async (
+      reservationId: string,
+      roomId: string,
+      options?: {
+        accessMethods?: AccessCredentialType[];
+        sendVia?: MobileAccessDeliveryChannel[];
+      },
+    ) => {
+      const result = await hotelApi.checkIn(reservationId, roomId, options);
       setReservations((prev) =>
         prev.map((reservation) =>
           reservation.id === result.reservation.id ? result.reservation : reservation,

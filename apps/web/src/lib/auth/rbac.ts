@@ -74,6 +74,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/hotel/front-desk", roles: ["reception", "hotel_manager", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/housekeeping", roles: ["housekeeping", "hotel_manager", "reception", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/keycards", roles: ["reception", "hotel_manager", "supervisor", "owner", "super_admin"] },
+  { prefix: "/api/mobile-access", roles: ["reception", "hotel_manager", "housekeeping", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/rate-plans", roles: ["hotel_manager", "reception", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/rooms", roles: ["reception", "hotel_manager", "housekeeping", "supervisor", "owner", "super_admin"] },
   { prefix: "/api/hotel/booking-list", roles: ["reception", "hotel_manager", "supervisor", "owner", "super_admin"] },

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { actorFromRequest } from "@/lib/hotel/folio-service";
 import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
+import { mobileAccessService } from "@/lib/hotel/mobile-access-service";
 import type { FolioCharge, GuestFolio } from "@/modules/integration/domain/types";
 import type { HousekeepingTask, HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
 import { emitHousekeepingEvent } from "@/lib/hotel/housekeeping-event-bus";
@@ -440,6 +441,15 @@ export async function POST(req: NextRequest) {
       reservationId,
       actorFromRequest(guard.user, req.headers),
     );
+
+    await mobileAccessService.revokeOnCheckOut(
+      tenantId,
+      reservationId,
+      actorFromRequest(guard.user, req.headers),
+    ).catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error("checkout_mobile_access_revoke_failed", message);
+    });
 
     emitHousekeepingEvent(tenantId, { reason: "checkout", roomId: result.room.id, taskId: result.housekeepingTask.id });
 

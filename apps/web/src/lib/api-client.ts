@@ -1416,6 +1416,52 @@ export type HotelKeycard = {
   lockCredentialId?: string | null;
   encodedAt?: string | null;
 };
+export type AccessCredentialType =
+  | "PHYSICAL_KEY"
+  | "RFID_CARD"
+  | "MOBILE_KEY"
+  | "APPLE_WALLET"
+  | "GOOGLE_WALLET"
+  | "NFC"
+  | "BLE"
+  | "QR_CODE";
+export type MobileAccessDeliveryChannel = "email" | "sms" | "whatsapp" | "qr" | "link";
+export type AccessCredential = {
+  id: string;
+  reservationId: string;
+  roomId: string;
+  roomCode?: string;
+  guestName?: string;
+  credentialType: AccessCredentialType;
+  provider: string;
+  status: "pending" | "active" | "expired" | "revoked";
+  validFrom: string;
+  validUntil: string;
+  lastUsedAt: string | null;
+};
+export type MobileAccessDashboard = {
+  mobileKeysActive: number;
+  mobileKeysExpired: number;
+  rfidCardsActive: number;
+  doorsOpenedToday: number;
+  lastAccessAt: string | null;
+  accessSuccessToday: number;
+  accessFailedToday: number;
+  locksOnline: number;
+  locksOffline: number;
+  avgBatteryLevel: number | null;
+  lastSyncAt: string | null;
+};
+export type DoorAccessLogEntry = {
+  id: string;
+  credentialId?: string | null;
+  roomCode?: string;
+  guestName?: string;
+  timestamp: string;
+  action: string;
+  result: string;
+  device?: string | null;
+};
 export type GuestFolio = {
   id: string;
   tenantId: string;
@@ -1603,8 +1649,21 @@ export const hotelApi = {
   createReservation: (data: Omit<HotelReservation, "id">) => post<HotelReservation>("/hotel/reservations", data),
   updateReservation: (id: string, data: Partial<HotelReservation>) => put<HotelReservation>(`/hotel/reservations/${id}`, data),
   deleteReservation: (id: string) => del<{ deleted: boolean }>(`/hotel/reservations/${id}`),
-  checkIn: (reservationId: string, roomId: string) =>
-    post<{ reservation: HotelReservation; room: HotelRoom; stay: HotelStay; card: HotelKeycard }>("/hotel/front-desk/check-in", { reservationId, roomId }),
+  checkIn: (
+    reservationId: string,
+    roomId: string,
+    options?: {
+      accessMethods?: AccessCredentialType[];
+      sendVia?: MobileAccessDeliveryChannel[];
+    },
+  ) =>
+    post<{
+      reservation: HotelReservation;
+      room: HotelRoom;
+      stay: HotelStay;
+      card: HotelKeycard;
+      accessCredentials?: AccessCredential[];
+    }>("/hotel/front-desk/check-in", { reservationId, roomId, ...options }),
   recordFolioPayment: (reservationId: string, amount: number, method: HotelManualPaymentMethod, note?: string) =>
     post<{ folio: GuestFolio; charges: FolioCharge[]; balance: number }>("/hotel/front-desk/payment", {
       reservationId,
@@ -1649,6 +1708,45 @@ export const hotelApi = {
   updateRatePlan: (id: string, data: Partial<RatePlan> & { code?: string; name?: string; nightlyRate?: number }) =>
     put<RatePlan>(`/hotel/rate-plans/${id}`, data),
   deleteRatePlan: (id: string) => del<{ deleted: boolean }>(`/hotel/rate-plans/${id}`),
+};
+
+export const mobileAccessApi = {
+  list: (params?: { status?: AccessCredential["status"]; roomId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.status) qs.set("status", params.status);
+    if (params?.roomId) qs.set("roomId", params.roomId);
+    const q = qs.toString();
+    return get<{ dashboard: MobileAccessDashboard; items: AccessCredential[] }>(
+      `/mobile-access${q ? `?${q}` : ""}`,
+    );
+  },
+  dashboard: () => get<{ dashboard: MobileAccessDashboard }>("/mobile-access?view=dashboard"),
+  get: (id: string) => get<AccessCredential>(`/mobile-access/${id}`),
+  create: (payload: {
+    reservationId: string;
+    roomId?: string;
+    credentialType: AccessCredentialType;
+    providerName?: string;
+    validFrom?: string;
+    validUntil?: string;
+  }) => post<{ credential: AccessCredential; secureLinkToken?: string | null }>("/mobile-access/create", payload),
+  revoke: (credentialId: string) =>
+    post<{ credential: AccessCredential }>("/mobile-access/revoke", { credentialId }),
+  regenerate: (credentialId: string) =>
+    post<{ credential: AccessCredential; secureLinkToken?: string | null }>("/mobile-access/regenerate", {
+      credentialId,
+    }),
+  send: (credentialId: string, channel: MobileAccessDeliveryChannel) =>
+    post<{
+      channel: MobileAccessDeliveryChannel;
+      queued: boolean;
+      preview: string;
+      secureUrl: string;
+      recipientEmail?: string | null;
+      recipientPhone?: string | null;
+      walletReady: boolean;
+    }>("/mobile-access/send", { credentialId, channel }),
+  logs: (limit = 100) => get<{ logs: DoorAccessLogEntry[] }>(`/mobile-access/logs?limit=${limit}`),
 };
 
 export type HousekeepingPmsCode =

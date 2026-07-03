@@ -262,6 +262,30 @@ enum KeycardStatus {
   annullata
 }
 
+enum AccessCredentialType {
+  PHYSICAL_KEY
+  RFID_CARD
+  MOBILE_KEY
+  APPLE_WALLET
+  GOOGLE_WALLET
+  NFC
+  BLE
+  QR_CODE
+}
+
+enum AccessCredentialStatus {
+  pending
+  active
+  expired
+  revoked
+}
+
+enum LockProviderStatus {
+  inactive
+  active
+  error
+}
+
 enum GuestRegisterEntryStatus {
   draft
   incomplete
@@ -396,6 +420,11 @@ model Tenant {
   maintenanceTickets MaintenanceTicket[]
   housekeepingAuditLogs HousekeepingAuditLog[]
   keycards    HotelKeycard[]
+  lockProviders LockProvider[]
+  doorLocks   DoorLock[]
+  accessCredentials AccessCredential[]
+  doorAccessLogs DoorAccessLog[]
+  accessCredentialAuditLogs AccessCredentialAuditLog[]
   warehouseItems WarehouseItem[]
   warehouseMovements WarehouseMovement[]
   warehouseEquipments WarehouseEquipment[]
@@ -773,6 +802,9 @@ model HotelRoom {
   reservations HotelReservation[]
   tasks        HousekeepingTask[]
   keycards     HotelKeycard[]
+  doorLock     DoorLock?
+  accessCredentials AccessCredential[]
+  doorAccessLogs DoorAccessLog[]
   guestRegisterEntries GuestRegisterEntry[]
   maintenanceTickets MaintenanceTicket[]
   housekeepingInspections HousekeepingInspection[]
@@ -836,6 +868,7 @@ model HotelReservation {
   room         HotelRoom?            @relation(fields: [roomId], references: [id], onDelete: SetNull)
   stay         Stay?
   keycards     HotelKeycard[]
+  accessCredentials AccessCredential[]
   guestRegisterEntry GuestRegisterEntry?
 
   @@index([tenantId, checkInDate])
@@ -1321,6 +1354,123 @@ model HotelKeycard {
 
   @@index([tenantId, reservationId])
   @@index([tenantId, roomId])
+}
+
+model LockProvider {
+  id               String             @id @default(cuid())
+  tenantId         String
+  providerName     String
+  apiEndpoint      String             @default("")
+  apiKeyEncrypted  String             @default("")
+  hotelIdentifier  String             @default("")
+  status           LockProviderStatus @default(inactive)
+  lastSync         DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  tenant           Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  doorLocks        DoorLock[]
+  accessCredentials AccessCredential[]
+
+  @@unique([tenantId, providerName])
+  @@index([tenantId, status])
+}
+
+model DoorLock {
+  id           String    @id @default(cuid())
+  tenantId     String
+  roomId       String    @unique
+  providerId   String?
+  serialNumber String    @default("")
+  firmware     String    @default("")
+  batteryLevel Int?
+  online       Boolean   @default(false)
+  lastSeen     DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  room         HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  provider     LockProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  accessCredentials AccessCredential[]
+
+  @@index([tenantId, online])
+  @@index([tenantId, providerId])
+}
+
+model AccessCredential {
+  id                  String                 @id @default(cuid())
+  tenantId            String
+  reservationId       String
+  guestId             String
+  roomId              String
+  credentialType      AccessCredentialType
+  provider            String                 @default("internal")
+  lockId              String?
+  providerId          String?
+  encryptedCredential String?
+  publicKey           String?
+  accessTokenEnc      String?
+  walletTokenEnc      String?
+  qrTokenEnc          String?
+  secureLinkHash      String?
+  status              AccessCredentialStatus @default(pending)
+  validFrom           DateTime
+  validUntil          DateTime
+  lastUsedAt          DateTime?
+  revokedAt           DateTime?
+  revokedBy           String?
+  issuedBy            String?
+  hotelKeycardId      String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  tenant              Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reservation         HotelReservation       @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  room                HotelRoom              @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  doorLock            DoorLock?              @relation(fields: [lockId], references: [id], onDelete: SetNull)
+  lockProvider        LockProvider?          @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  accessLogs          DoorAccessLog[]
+
+  @@index([tenantId, reservationId])
+  @@index([tenantId, roomId, status])
+  @@index([tenantId, credentialType, status])
+  @@index([tenantId, guestId])
+}
+
+model DoorAccessLog {
+  id               String            @id @default(cuid())
+  tenantId         String
+  credentialId     String?
+  roomId           String
+  timestamp        DateTime          @default(now())
+  action           String
+  result           String
+  providerResponse String?
+  device           String?
+  ipAddress        String?
+  createdAt        DateTime          @default(now())
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  credential       AccessCredential? @relation(fields: [credentialId], references: [id], onDelete: SetNull)
+  room             HotelRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, roomId, timestamp])
+  @@index([tenantId, credentialId])
+  @@index([tenantId, timestamp])
+}
+
+model AccessCredentialAuditLog {
+  id            String   @id @default(cuid())
+  tenantId      String
+  credentialId  String?
+  reservationId String?
+  action        String
+  actorUserId   String?
+  actorName     String?
+  actorRole     String?
+  detail        String?
+  createdAt     DateTime @default(now())
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, credentialId])
 }
 
 model WarehouseItem {

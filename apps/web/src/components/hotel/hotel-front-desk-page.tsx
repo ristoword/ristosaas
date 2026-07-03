@@ -17,7 +17,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useHotel } from "@/components/hotel/hotel-context";
-import type { HotelManualPaymentMethod } from "@/lib/api-client";
+import type { AccessCredentialType, HotelManualPaymentMethod, MobileAccessDeliveryChannel } from "@/lib/api-client";
 import { roomTypesMatch } from "@/modules/hotel/domain/room-type";
 import { AiChat, AiToggleButton } from "@/components/ai/ai-chat";
 import { translateApiError } from "@/core/i18n/translate-api-error";
@@ -49,6 +49,8 @@ export function HotelFrontDeskPage() {
   const [checkinBusy, setCheckinBusy] = useState(false);
   const [checkinError, setCheckinError] = useState<string | null>(null);
   const [checkinFlash, setCheckinFlash] = useState<string | null>(null);
+  const [accessMethods, setAccessMethods] = useState<AccessCredentialType[]>(["RFID_CARD"]);
+  const [sendVia, setSendVia] = useState<MobileAccessDeliveryChannel[]>([]);
 
   // Check-out state
   const [selectedCheckout, setSelectedCheckout] = useState("");
@@ -194,6 +196,8 @@ export function HotelFrontDeskPage() {
     setDocumentCode(reservation?.documentCode ?? "");
     setAssignedRoomId(reservation?.roomId ?? "");
     setCheckinError(null);
+    setAccessMethods(["RFID_CARD"]);
+    setSendVia([]);
   }, [selectedCheckin, arrivals]);
 
   const selectedReservation = arrivals.find((r) => r.id === selectedCheckin) ?? null;
@@ -210,6 +214,22 @@ export function HotelFrontDeskPage() {
       : rooms.filter((r) => r.status === "libera" || r.status === "pulita");
   }, [rooms, selectedReservation]);
 
+  const digitalAccessSelected = accessMethods.some((m) =>
+    ["MOBILE_KEY", "APPLE_WALLET", "GOOGLE_WALLET", "NFC", "BLE", "QR_CODE"].includes(m),
+  );
+
+  function toggleAccessMethod(method: AccessCredentialType) {
+    setAccessMethods((prev) =>
+      prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method],
+    );
+  }
+
+  function toggleSendChannel(channel: MobileAccessDeliveryChannel) {
+    setSendVia((prev) =>
+      prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel],
+    );
+  }
+
   async function handleCheckIn() {
     setCheckinError(null);
     if (!selectedReservation) {
@@ -224,12 +244,19 @@ export function HotelFrontDeskPage() {
       setCheckinError(t("hotel.checkin.err.no_room"));
       return;
     }
+    if (accessMethods.length === 0) {
+      setCheckinError(t("hotel.checkin.access.err.none"));
+      return;
+    }
     setCheckinBusy(true);
     try {
       if (documentCode.trim() !== (selectedReservation.documentCode ?? "")) {
         await updateReservation(selectedReservation.id, { documentCode: documentCode.trim() });
       }
-      await processCheckIn(selectedReservation.id, assignedRoomId);
+      await processCheckIn(selectedReservation.id, assignedRoomId, {
+        accessMethods,
+        sendVia: digitalAccessSelected && sendVia.length > 0 ? sendVia : undefined,
+      });
       setCheckinFlash(`${t("hotel.checkin.success")} ${selectedReservation.guestName}.`);
       setSelectedCheckin("");
       setDocumentCode("");
@@ -416,6 +443,64 @@ export function HotelFrontDeskPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-rw-surface text-rw-accent ring-1 ring-rw-line">
+                  <Lock className="h-5 w-5" />
+                </span>
+                <div>
+                  <p className="font-semibold text-rw-ink">{t("hotel.checkin.access.title")}</p>
+                  <p className="text-sm text-rw-soft">{t("hotel.checkin.access.desc")}</p>
+                </div>
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {(
+                  [
+                    ["PHYSICAL_KEY", "hotel.checkin.access.physical"],
+                    ["RFID_CARD", "hotel.checkin.access.rfid"],
+                    ["MOBILE_KEY", "hotel.checkin.access.mobile"],
+                    ["APPLE_WALLET", "hotel.checkin.access.apple"],
+                    ["GOOGLE_WALLET", "hotel.checkin.access.google"],
+                  ] as const
+                ).map(([method, labelKey]) => (
+                  <label
+                    key={method}
+                    className="flex cursor-pointer items-center gap-2 rounded-xl border border-rw-line bg-rw-surface px-3 py-2 text-sm text-rw-ink"
+                  >
+                    <input
+                      type="checkbox"
+                      className="rounded border-rw-line"
+                      checked={accessMethods.includes(method)}
+                      onChange={() => toggleAccessMethod(method)}
+                      disabled={!selectedReservation}
+                    />
+                    {t(labelKey)}
+                  </label>
+                ))}
+              </div>
+              {digitalAccessSelected ? (
+                <div className="mt-3 border-t border-rw-line/50 pt-3">
+                  <p className="text-xs font-semibold text-rw-soft">{t("hotel.checkin.access.sendVia")}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(["email", "sms", "whatsapp", "qr", "link"] as const).map((ch) => (
+                      <label
+                        key={ch}
+                        className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-rw-line px-2.5 py-1 text-xs text-rw-ink"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={sendVia.includes(ch)}
+                          onChange={() => toggleSendChannel(ch)}
+                          disabled={!selectedReservation}
+                        />
+                        {t(`hotel.checkin.access.send.${ch}`)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">

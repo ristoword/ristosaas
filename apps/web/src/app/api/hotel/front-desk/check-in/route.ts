@@ -8,6 +8,8 @@ import { guestRegisterRepository } from "@/lib/hotel/guest-register-service";
 import { complianceRepository } from "@/lib/db/repositories/compliance.repository";
 import { encodeLockCredential } from "@/lib/integrations/lock-connector";
 import { dispatchPrintJobAsync } from "@/lib/integrations/print-dispatcher";
+import { mobileAccessService } from "@/lib/hotel/mobile-access-service";
+import type { AccessCredentialType, MobileAccessDeliveryChannel } from "@/modules/hotel/domain/mobile-access-types";
 import { logger } from "@/lib/observability/logger";
 import { roomTypesMatch } from "@/modules/hotel/domain/room-type";
 import type { HotelKeycard, HotelReservation, HotelRoom, HotelStay } from "@/modules/hotel/domain/types";
@@ -117,7 +119,17 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
   const guard = await requireApiUser(req, HOTEL_ROLES);
   if (guard.error) return guard.error;
 
-  const { reservationId, roomId } = await body<{ reservationId: string; roomId: string }>(req);
+  const {
+    reservationId,
+    roomId,
+    accessMethods,
+    sendVia,
+  } = await body<{
+    reservationId: string;
+    roomId: string;
+    accessMethods?: AccessCredentialType[];
+    sendVia?: MobileAccessDeliveryChannel[];
+  }>(req);
   if (!reservationId || !roomId) return err("reservationId and roomId required");
   const tenantId = getTenantId();
   const now = new Date();
@@ -298,10 +310,36 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
     }
   }
 
+  const methods: AccessCredentialType[] =
+    accessMethods?.length ? accessMethods : (["RFID_CARD"] as AccessCredentialType[]);
+
+  const validUntil = new Date(txResult.updatedReservation.checkOutDate);
+  validUntil.setUTCHours(11, 0, 0, 0);
+
+  const accessCredentials = await mobileAccessService.issueOnCheckIn({
+    tenantId,
+    reservationId: reservation.id,
+    roomId: room.id,
+    guestId: txResult.updatedReservation.customerId,
+    guestName: txResult.updatedReservation.guestName,
+    roomCode: room.code,
+    validFrom: now,
+    validUntil,
+    methods,
+    actor,
+    hotelKeycardId: finalCard.id,
+    sendVia,
+  }).catch((error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn("checkin_mobile_access_failed", { reservationId: reservation.id, error: message });
+    return [];
+  });
+
   return ok({
     reservation: mapReservation(txResult.updatedReservation),
     room: mapRoom(txResult.updatedRoom),
     stay: mapStay(txResult.stay),
     card: mapCard(finalCard),
+    accessCredentials,
   });
 });
