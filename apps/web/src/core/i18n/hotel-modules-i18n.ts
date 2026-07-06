@@ -557,6 +557,10 @@ export const hotelModulesIt = {
   "hotel.mobileAccess.history.device": "Dispositivo",
   "hotel.mobileAccess.detail.title": "Dettaglio credenziale",
   "hotel.mobileAccess.detail.close": "Chiudi",
+  "hotel.mobileAccess.qr.title": "QR Code — Scansiona per aprire la porta",
+  "hotel.mobileAccess.link.title": "Link di accesso sicuro",
+  "hotel.mobileAccess.link.copy": "Copia",
+  "hotel.mobileAccess.link.copied": "Link copiato negli appunti.",
 
   "hotel.checkin.access.title": "Metodo di accesso",
   "hotel.checkin.access.desc": "Seleziona uno o più metodi di accesso alla camera.",
@@ -1128,6 +1132,10 @@ export const hotelModulesEn = {
   "hotel.mobileAccess.history.device": "Device",
   "hotel.mobileAccess.detail.title": "Credential detail",
   "hotel.mobileAccess.detail.close": "Close",
+  "hotel.mobileAccess.qr.title": "QR Code — Scan to unlock the door",
+  "hotel.mobileAccess.link.title": "Secure access link",
+  "hotel.mobileAccess.link.copy": "Copy",
+  "hotel.mobileAccess.link.copied": "Link copied to clipboard.",
 
   "hotel.checkin.access.title": "Access method",
   "hotel.checkin.access.desc": "Select one or more room access methods.",
@@ -1699,6 +1707,10 @@ export const hotelModulesNl = {
   "hotel.mobileAccess.history.device": "Apparaat",
   "hotel.mobileAccess.detail.title": "Credentialdetail",
   "hotel.mobileAccess.detail.close": "Sluiten",
+  "hotel.mobileAccess.qr.title": "QR Code — Scan om de deur te openen",
+  "hotel.mobileAccess.link.title": "Beveiligde toegangslink",
+  "hotel.mobileAccess.link.copy": "Kopiëren",
+  "hotel.mobileAccess.link.copied": "Link gekopieerd naar klembord.",
 
   "hotel.checkin.access.title": "Toegangsmethode",
   "hotel.checkin.access.desc": "Selecteer een of meer toegangsmethoden tot de kamer.",
@@ -2270,6 +2282,10 @@ export const hotelModulesPt = {
   "hotel.mobileAccess.history.device": "Dispositivo",
   "hotel.mobileAccess.detail.title": "Detalhe da credencial",
   "hotel.mobileAccess.detail.close": "Fechar",
+  "hotel.mobileAccess.qr.title": "QR Code — Escaneie para abrir a porta",
+  "hotel.mobileAccess.link.title": "Link de acesso seguro",
+  "hotel.mobileAccess.link.copy": "Copiar",
+  "hotel.mobileAccess.link.copied": "Link copiado para a área de transferência.",
 
   "hotel.checkin.access.title": "Método de acesso",
   "hotel.checkin.access.desc": "Selecione um ou mais métodos de acesso ao quarto.",

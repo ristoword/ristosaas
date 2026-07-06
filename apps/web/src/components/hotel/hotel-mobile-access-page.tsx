@@ -108,16 +108,25 @@ export function HotelMobileAccessPage() {
     [load, t],
   );
 
+  const [qrUrl, setQrUrl] = useState<string | null>(null);
+  const [linkUrl, setLinkUrl] = useState<string | null>(null);
+
   const sendCredential = useCallback(
     async (id: string, channel: MobileAccessDeliveryChannel) => {
       setBusyId(id);
       setMessage(null);
+      setQrUrl(null);
+      setLinkUrl(null);
       try {
         const result = await mobileAccessApi.send(id, channel);
         const channelLabel = t(`hotel.mobileAccess.send.${channel}`);
         setMessage(tf(t, "hotel.mobileAccess.msg.sent", { channel: channelLabel }));
-        if (channel === "link" && result.secureUrl) {
-          setMessage(`${tf(t, "hotel.mobileAccess.msg.sent", { channel: channelLabel })} ${result.secureUrl}`);
+        if (result.secureUrl) {
+          if (channel === "qr") {
+            setQrUrl(result.secureUrl);
+          } else if (channel === "link") {
+            setLinkUrl(result.secureUrl);
+          }
         }
       } catch (e) {
         setMessage(e instanceof Error ? e.message : t("hotel.mobileAccess.err.action"));
@@ -160,6 +169,51 @@ export function HotelMobileAccessPage() {
 
       {message ? (
         <p className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-4 py-3 text-sm text-rw-soft">{message}</p>
+      ) : null}
+
+      {qrUrl ? (
+        <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-6 text-center">
+          <p className="mb-4 text-sm font-medium text-rw-ink">{t("hotel.mobileAccess.qr.title")}</p>
+          <div className="mx-auto w-56 rounded-xl bg-white p-4">
+            <QrCode url={qrUrl} />
+          </div>
+          <p className="mt-3 break-all text-xs text-rw-muted">{qrUrl}</p>
+          <button
+            type="button"
+            className="mt-4 rounded-lg border border-rw-line px-3 py-1.5 text-xs text-rw-ink hover:border-rw-accent"
+            onClick={() => setQrUrl(null)}
+          >
+            {t("hotel.mobileAccess.detail.close")}
+          </button>
+        </div>
+      ) : null}
+
+      {linkUrl ? (
+        <div className="rounded-xl border border-rw-line bg-rw-surfaceAlt p-4">
+          <p className="mb-2 text-sm font-medium text-rw-ink">{t("hotel.mobileAccess.link.title")}</p>
+          <div className="flex items-center gap-2">
+            <input
+              readOnly
+              value={linkUrl}
+              className="flex-1 rounded-lg border border-rw-line bg-rw-surface px-3 py-2 text-xs font-mono text-rw-ink"
+              onFocus={(e) => e.target.select()}
+            />
+            <button
+              type="button"
+              className="rounded-lg border border-rw-line px-3 py-2 text-xs text-rw-ink hover:border-rw-accent"
+              onClick={() => { void navigator.clipboard.writeText(linkUrl); setMessage(t("hotel.mobileAccess.link.copied")); }}
+            >
+              {t("hotel.mobileAccess.link.copy")}
+            </button>
+          </div>
+          <button
+            type="button"
+            className="mt-3 rounded-lg border border-rw-line px-3 py-1.5 text-xs text-rw-ink hover:border-rw-accent"
+            onClick={() => setLinkUrl(null)}
+          >
+            {t("hotel.mobileAccess.detail.close")}
+          </button>
+        </div>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -436,6 +490,21 @@ function SendMenu({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function QrCode({ url }: { url: string }) {
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={qrSrc}
+      alt="QR Code"
+      width={200}
+      height={200}
+      className="mx-auto"
+      style={{ imageRendering: "pixelated" }}
+    />
   );
 }
 

@@ -393,7 +393,8 @@ export const mobileAccessService = {
       data: { secureLinkHash: linkHash },
     });
 
-    const secureUrl = `/api/mobile-access/guest-link?token=${linkToken}`;
+    const origin = process.env.NEXT_PUBLIC_APP_URL || "https://app.ristosimply.it";
+    const secureUrl = `${origin}/api/mobile-access/guest-link?token=${linkToken}`;
     const message = `KeyKARD — Camera ${cred.room.code} · Valida fino al ${cred.validUntil.toISOString().slice(0, 16)}`;
 
     await writeAudit(tenantId, `credential_send_${channel}`, actor, {
