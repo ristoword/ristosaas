@@ -65,8 +65,9 @@ export function FolioGuestReservationPanels({ customer, reservation, ratePlans }
             <Row label={t("hotel.folio.guestPanel.ratePlan")} value={reservation.ratePlanName || ratePlanLabel(reservation, ratePlans)} />
             <Row label={t("hotel.folio.guestPanel.package")} value={reservation.packageName || "—"} />
             <Row label={t("hotel.folio.guestPanel.board")} value={t(folioBoardKey(reservation.boardType))} />
-            <Row label={t("hotel.folio.guestPanel.adults")} value={String(reservation.guests)} />
+            <Row label={t("hotel.folio.guestPanel.adults")} value={String(Math.max(1, reservation.guests - (reservation.children ?? 0)))} />
             <Row label={t("hotel.folio.guestPanel.children")} value={String(reservation.children ?? 0)} />
+            <Row label={t("hotel.folio.guestPanel.totalGuests")} value={String(reservation.guests)} />
             <Row label={t("hotel.folio.guestPanel.crib")} value={reservation.crib ? yes : no} />
             <Row label={t("hotel.folio.guestPanel.nights")} value={String(reservation.nights)} />
             <Row label={t("hotel.folio.guestPanel.earlyCheckin")} value={reservation.earlyCheckin ? yes : no} />

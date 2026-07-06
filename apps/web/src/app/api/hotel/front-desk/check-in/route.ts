@@ -161,6 +161,13 @@ export const POST = withErrorHandler(async (req: NextRequest) => {
     return err(`Tipo camera non compatibile: prenotazione ${reservation.roomType}, camera ${room.roomType}`, 400);
   }
 
+  if (reservation.guests > room.capacity) {
+    return err(
+      `guests_exceed_capacity:${reservation.guests}:${room.capacity}:${room.code}`,
+      400,
+    );
+  }
+
   const txResult = await prisma.$transaction(async (tx) => {
     const updatedReservation = await tx.hotelReservation.update({
       where: { id: reservation.id },

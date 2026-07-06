@@ -25,6 +25,7 @@ const EXACT: Record<string, string> = {
 };
 
 const PREFIX: [string, string][] = [
+  ["guests_exceed_capacity:", "hotel.apiError.guestsExceedCapacity"],
   ["Adapter non configurato", "hotel.apiError.adapterNotConfigured"],
   ["Unauthorized", "hotel.apiError.unauthorized"],
   ["Forbidden", "hotel.apiError.forbidden"],
@@ -35,6 +36,19 @@ const PREFIX: [string, string][] = [
 
 export function translateApiError(message: string, t: TranslateFn): string {
   const trimmed = message.trim();
+
+  const capMatch = trimmed.match(/^guests_exceed_capacity:(\d+):(\d+):(.+)$/);
+  if (capMatch) {
+    const tpl = t("hotel.apiError.guestsExceedCapacity");
+    if (tpl !== "hotel.apiError.guestsExceedCapacity") {
+      return tpl
+        .replace("{guests}", capMatch[1])
+        .replace("{capacity}", capMatch[2])
+        .replace("{room}", capMatch[3]);
+    }
+    return `Ospiti (${capMatch[1]}) superano la capienza della camera ${capMatch[3]} (max ${capMatch[2]})`;
+  }
+
   const exactKey = EXACT[trimmed];
   if (exactKey) {
     const translated = t(exactKey);

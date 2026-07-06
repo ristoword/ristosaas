@@ -60,7 +60,7 @@ const STATUS_TONE = {
   no_show: "default",
 } as const;
 
-function emptyForm(today: string): Omit<HotelReservation, "id"> {
+function emptyForm(today: string): Omit<HotelReservation, "id"> & { _adults: number } {
   const out = addDaysIso(today, 2);
   return {
     customerId: `cst_${Date.now()}`,
@@ -71,6 +71,8 @@ function emptyForm(today: string): Omit<HotelReservation, "id"> {
     checkInDate: today,
     checkOutDate: out,
     guests: 2,
+    children: 0,
+    crib: false,
     status: "confermata",
     roomType: "CLASSIC",
     boardType: "bed_breakfast",
@@ -79,6 +81,7 @@ function emptyForm(today: string): Omit<HotelReservation, "id"> {
     documentCode: "",
     channel: "desk",
     voucherCode: null,
+    _adults: 2,
   };
 }
 
@@ -111,7 +114,7 @@ export function HotelBookingListPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<Omit<HotelReservation, "id">>(() => emptyForm(today));
+  const [form, setForm] = useState(() => emptyForm(today));
   const [availability, setAvailability] = useState<{ ratePlans: RatePlan[] } | null>(null);
 
   const nightsComputed = useMemo(
@@ -169,6 +172,7 @@ export function HotelBookingListPage() {
 
   const openEdit = (row: HotelReservation) => {
     setEditingId(row.id);
+    const children = row.children ?? 0;
     setForm({
       customerId: row.customerId,
       guestName: row.guestName,
@@ -178,6 +182,8 @@ export function HotelBookingListPage() {
       checkInDate: row.checkInDate,
       checkOutDate: row.checkOutDate,
       guests: row.guests,
+      children,
+      crib: row.crib ?? false,
       status: row.status,
       roomType: row.roomType,
       boardType: row.boardType,
@@ -189,12 +195,11 @@ export function HotelBookingListPage() {
       company: row.company,
       channel: row.channel ?? "desk",
       voucherCode: row.voucherCode ?? null,
-      children: row.children,
-      crib: row.crib,
       depositReceived: row.depositReceived,
       receptionNotes: row.receptionNotes,
       packageName: row.packageName,
       ratePlanName: row.ratePlanName,
+      _adults: Math.max(1, row.guests - children),
     });
     setModalOpen(true);
   };
@@ -203,7 +208,9 @@ export function HotelBookingListPage() {
     setBusy(true);
     setMsg(null);
     try {
-      const payload = { ...form, nights: nightsComputed, roomId: form.roomId || null };
+      const { _adults, ...rest } = form;
+      void _adults;
+      const payload = { ...rest, nights: nightsComputed, roomId: rest.roomId || null };
       if (editingId) {
         await hotelApi.updateReservation(editingId, payload);
         setMsg(t("hotel.bookingList.msg.updated"));
@@ -366,12 +373,18 @@ export function HotelBookingListPage() {
               {
                 key: "stay",
                 header: t("hotel.bookingList.col.stay"),
-                render: (row) => (
-                  <div>
-                    <p className="text-rw-ink">{row.checkInDate} → {row.checkOutDate}</p>
-                    <p className="text-xs text-rw-muted">{row.nights} {t("hotel.booking.nights")} · {row.roomType}</p>
-                  </div>
-                ),
+                render: (row) => {
+                  const ch = row.children ?? 0;
+                  const ad = Math.max(1, row.guests - ch);
+                  return (
+                    <div>
+                      <p className="text-rw-ink">{row.checkInDate} → {row.checkOutDate}</p>
+                      <p className="text-xs text-rw-muted">
+                        {row.nights} {t("hotel.booking.nights")} · {row.roomType} · {ad} {t("hotel.booking.adults")}{ch > 0 ? ` + ${ch} ${t("hotel.booking.children_short")}` : ""}
+                      </p>
+                    </div>
+                  );
+                },
               },
               {
                 key: "rate",
@@ -474,6 +487,29 @@ export function HotelBookingListPage() {
           )}
           <input type="date" className={INPUT_CLASS} value={form.checkInDate} onChange={(e) => setForm((p) => ({ ...p, checkInDate: e.target.value, nights: nightsBetweenIso(e.target.value, p.checkOutDate) }))} />
           <input type="date" className={INPUT_CLASS} value={form.checkOutDate} onChange={(e) => setForm((p) => ({ ...p, checkOutDate: e.target.value, nights: nightsBetweenIso(p.checkInDate, e.target.value) }))} />
+          <div>
+            <label className="text-xs font-semibold text-rw-muted">{t("hotel.booking.form.adults")}</label>
+            <input type="number" min="1" max="20" className={`${INPUT_CLASS} mt-1`} value={form._adults} onChange={(e) => {
+              const adults = Math.max(1, parseInt(e.target.value, 10) || 1);
+              setForm((p) => ({ ...p, _adults: adults, guests: adults + (p.children ?? 0) }));
+            }} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-rw-muted">{t("hotel.booking.form.children")}</label>
+            <input type="number" min="0" max="10" className={`${INPUT_CLASS} mt-1`} value={form.children ?? 0} onChange={(e) => {
+              const children = Math.max(0, parseInt(e.target.value, 10) || 0);
+              setForm((p) => ({ ...p, children, guests: p._adults + children }));
+            }} />
+          </div>
+          <div className="flex items-center gap-4 sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm text-rw-ink">
+              <input type="checkbox" className="rounded border-rw-line" checked={form.crib ?? false} onChange={(e) => setForm((p) => ({ ...p, crib: e.target.checked }))} />
+              {t("hotel.booking.form.crib")}
+            </label>
+            <span className="text-xs text-rw-muted">
+              {t("hotel.booking.form.totalGuests")}: <strong className="text-rw-ink">{form.guests}</strong>
+            </span>
+          </div>
           <div className="sm:col-span-2">
             <HotelRoomTypeSelect id="bl-room-type" value={form.roomType} onChange={(roomType) => setForm((p) => ({ ...p, roomType }))} selectClassName="w-full" />
           </div>

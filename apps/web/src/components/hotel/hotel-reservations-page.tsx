@@ -22,7 +22,7 @@ const statusTone = {
   no_show: "default",
 } as const;
 
-function emptyForm(today: string): Omit<HotelReservation, "id"> {
+function emptyForm(today: string): Omit<HotelReservation, "id"> & { _adults: number } {
   const out = addDaysIso(today, 2);
   return {
     customerId: "cst_new",
@@ -33,12 +33,15 @@ function emptyForm(today: string): Omit<HotelReservation, "id"> {
     checkInDate: today,
     checkOutDate: out,
     guests: 2,
+    children: 0,
     status: "confermata" as HotelReservationStatus,
     roomType: "CLASSIC",
     boardType: "bed_breakfast" as const,
     nights: nightsBetweenIso(today, out),
     rate: 0,
     documentCode: "",
+    crib: false,
+    _adults: 2,
   };
 }
 
@@ -49,7 +52,7 @@ export function HotelReservationsPage() {
   const formCardRef = useRef<HTMLDivElement | null>(null);
   const guestNameRef = useRef<HTMLInputElement | null>(null);
   const today = todayIso();
-  const [form, setForm] = useState<Omit<HotelReservation, "id">>(() => emptyForm(today));
+  const [form, setForm] = useState(() => emptyForm(today));
 
   const nightsComputed = useMemo(
     () => nightsBetweenIso(form.checkInDate, form.checkOutDate),
@@ -158,7 +161,29 @@ export function HotelReservationsPage() {
                 }));
               }}
             />
-            <input type="number" min="1" className="rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" value={form.guests} onChange={(e) => setForm((prev) => ({ ...prev, guests: parseInt(e.target.value, 10) || 1 }))} />
+            <div>
+              <label className="text-xs font-semibold text-rw-muted">{t("hotel.booking.form.adults")}</label>
+              <input type="number" min="1" max="20" className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" value={form._adults} onChange={(e) => {
+                const adults = Math.max(1, parseInt(e.target.value, 10) || 1);
+                setForm((prev) => ({ ...prev, _adults: adults, guests: adults + (prev.children ?? 0) }));
+              }} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-rw-muted">{t("hotel.booking.form.children")}</label>
+              <input type="number" min="0" max="10" className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink" value={form.children ?? 0} onChange={(e) => {
+                const children = Math.max(0, parseInt(e.target.value, 10) || 0);
+                setForm((prev) => ({ ...prev, children, guests: prev._adults + children }));
+              }} />
+            </div>
+            <div className="flex items-end gap-4 sm:col-span-2">
+              <label className="flex items-center gap-2 text-sm text-rw-ink">
+                <input type="checkbox" className="rounded border-rw-line" checked={form.crib ?? false} onChange={(e) => setForm((prev) => ({ ...prev, crib: e.target.checked }))} />
+                {t("hotel.booking.form.crib")}
+              </label>
+              <span className="text-xs text-rw-muted">
+                {t("hotel.booking.form.totalGuests")}: <strong className="text-rw-ink">{form.guests}</strong>
+              </span>
+            </div>
             <div className="sm:col-span-2">
               <HotelRoomTypeSelect
                 id="reservation-room-type"
@@ -247,9 +272,11 @@ export function HotelReservationsPage() {
               type="button"
               className="inline-flex items-center justify-center rounded-xl bg-rw-accent px-4 py-2.5 text-sm font-semibold text-white sm:col-span-2"
               onClick={() => {
+                const { _adults, ...payload } = form;
+                void _adults;
                 const action = editingReservationId
-                  ? updateReservation(editingReservationId, { ...form, roomId: form.roomId || null, nights: nightsComputed })
-                  : createReservation({ ...form, roomId: form.roomId || null, nights: nightsComputed });
+                  ? updateReservation(editingReservationId, { ...payload, roomId: payload.roomId || null, nights: nightsComputed })
+                  : createReservation({ ...payload, roomId: payload.roomId || null, nights: nightsComputed });
                 action.then(() => {
                   setEditingReservationId(null);
                   setForm(emptyForm(todayIso()));
@@ -321,7 +348,11 @@ export function HotelReservationsPage() {
         <DataTable
           columns={[
             { key: "guestName", header: t("hotel.booking.col.client"), render: (row) => <div><p className="font-semibold text-rw-ink">{row.guestName}</p><p className="text-xs text-rw-muted">{row.phone} · {row.email}</p></div> },
-            { key: "dates", header: t("hotel.booking.col.stay"), render: (row) => <div><p className="text-rw-ink">{row.checkInDate} → {row.checkOutDate}</p><p className="text-xs text-rw-muted">{row.nights} {t("hotel.booking.nights")} · {row.guests} {t("hotel.booking.guests")}</p></div> },
+            { key: "dates", header: t("hotel.booking.col.stay"), render: (row) => {
+              const children = row.children ?? 0;
+              const adults = Math.max(1, row.guests - children);
+              return <div><p className="text-rw-ink">{row.checkInDate} → {row.checkOutDate}</p><p className="text-xs text-rw-muted">{row.nights} {t("hotel.booking.nights")} · {adults} {t("hotel.booking.adults")}{children > 0 ? ` + ${children} ${t("hotel.booking.children_short")}` : ""}{row.crib ? ` 🛏️` : ""}</p></div>;
+            } },
             { key: "roomType", header: t("hotel.booking.col.room"), render: (row) => <div><p className="text-rw-ink">{row.roomType}</p><p className="text-xs text-rw-muted">{row.roomId ? `${t("hotel.booking.room_assigned")} ${row.roomId.replace("hr_", "")}` : t("hotel.booking.room_pending")}</p></div> },
             { key: "rate", header: t("hotel.booking.col.rate"), render: (row) => (
               <span className="font-semibold text-rw-ink">
@@ -362,6 +393,8 @@ export function HotelReservationsPage() {
                         checkInDate: row.checkInDate,
                         checkOutDate: row.checkOutDate,
                         guests: row.guests,
+                        children: row.children ?? 0,
+                        crib: row.crib ?? false,
                         status: row.status,
                         roomType: row.roomType,
                         boardType: row.boardType,
@@ -369,6 +402,7 @@ export function HotelReservationsPage() {
                         rate: row.rate,
                         documentCode: row.documentCode,
                         ratePlanName: row.ratePlanName,
+                        _adults: Math.max(1, row.guests - (row.children ?? 0)),
                       });
                       formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}

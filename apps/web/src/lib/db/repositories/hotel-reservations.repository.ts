@@ -173,6 +173,26 @@ function validateReservationPayload(data: Partial<HotelReservation>, isCreate: b
   if (data.status === "in_casa" || data.status === "check_out") {
     throw new Error("Use front desk for check-in/check-out status changes");
   }
+  if (data.guests != null && data.guests < 1) {
+    throw new Error("guests must be at least 1");
+  }
+  if (data.children != null && data.children < 0) {
+    throw new Error("children cannot be negative");
+  }
+  if (data.guests != null && data.children != null && data.children >= data.guests) {
+    throw new Error("adults must be at least 1 (children >= guests)");
+  }
+}
+
+async function validateRoomCapacity(tenantId: string, roomId: string | null | undefined, guests: number | undefined) {
+  if (!roomId || !guests) return;
+  const room = await prisma.hotelRoom.findFirst({
+    where: { id: roomId, tenantId },
+    select: { capacity: true, code: true },
+  });
+  if (room && guests > room.capacity) {
+    throw new Error(`guests_exceed_capacity:${guests}:${room.capacity}:${room.code}`);
+  }
 }
 
 function assertEditable(existing: { status: HotelReservationStatus }) {
@@ -265,6 +285,7 @@ export const hotelReservationsRepository = {
 
   async create(tenantId: string, data: Omit<HotelReservation, "id">) {
     validateReservationPayload(data, true);
+    await validateRoomCapacity(tenantId, data.roomId, data.guests);
     const channel = data.channel ?? "desk";
     const status = data.status ?? defaultStatusForChannel(channel);
 
@@ -335,6 +356,10 @@ export const hotelReservationsRepository = {
     } else if (Object.keys(data).length > 0) {
       assertEditable(existing);
     }
+
+    const effectiveRoomId = data.roomId !== undefined ? data.roomId : existing.roomId;
+    const effectiveGuests = data.guests ?? existing.guests;
+    await validateRoomCapacity(tenantId, effectiveRoomId, effectiveGuests);
 
     if (data.customerId) {
       await ensureCustomer({

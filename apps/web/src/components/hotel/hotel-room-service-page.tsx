@@ -8,6 +8,7 @@ import {
   ClipboardList,
   CreditCard,
   Loader2,
+  Minus,
   Plus,
   RefreshCw,
   Settings,
@@ -22,6 +23,7 @@ import { TabBar } from "@/components/shared/tab-bar";
 import { Card } from "@/components/shared/card";
 import { useAuth } from "@/components/auth/auth-context";
 import {
+  hotelApi,
   roomServiceApi,
   type RoomServiceCategory,
   type RoomServiceCatalogItem,
@@ -63,65 +65,126 @@ const btnGhost = "inline-flex items-center gap-2 rounded-xl border border-rw-lin
 
 const euro = (n: number) => `€ ${n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/* ─── New Order Modal ────────────────────────────── */
+/* ─── New Order Modal (guest-style catalog browser) ── */
+
+type InHouseRoom = { roomCode: string; guestName: string; stayId: string | null };
 
 type NewOrderModalProps = {
   open: boolean;
   onClose: () => void;
   catalog: RoomServiceCatalogItem[];
+  inHouseRooms: InHouseRoom[];
   onSave: (data: {
     roomCode: string; guestName: string; category: RoomServiceCategory;
     items: RoomServiceItem[]; notes: string; assignedTo: string; stayId: string;
   }) => Promise<void>;
 };
 
-function NewOrderModal({ open, onClose, catalog, onSave }: NewOrderModalProps) {
-  const [roomCode, setRoomCode] = useState("");
+type CartEntry = { item: RoomServiceCatalogItem; qty: number };
+
+function NewOrderModal({ open, onClose, catalog, inHouseRooms, onSave }: NewOrderModalProps) {
+  const [selectedRoom, setSelectedRoom] = useState("");
+  const [manualRoom, setManualRoom] = useState("");
   const [guestName, setGuestName] = useState("");
-  const [category, setCategory] = useState<RoomServiceCategory>("food");
   const [notes, setNotes] = useState("");
   const [assignedTo, setAssignedTo] = useState("");
   const [stayId, setStayId] = useState("");
-  const [items, setItems] = useState<RoomServiceItem[]>([]);
+  const [cart, setCart] = useState<CartEntry[]>([]);
+  const [customItems, setCustomItems] = useState<RoomServiceItem[]>([]);
+  const [activeCategory, setActiveCategory] = useState<"all" | RoomServiceCategory>("all");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const catCatalog = catalog.filter((c) => c.category === category);
+  const isManual = selectedRoom === "__custom" || inHouseRooms.length === 0;
+  const roomCode = isManual ? manualRoom : selectedRoom;
+
+  const categories = [...new Set(catalog.map((c) => c.category))].sort(
+    (a, b) => CATEGORIES.indexOf(a) - CATEGORIES.indexOf(b),
+  );
+
+  const filtered = activeCategory === "all"
+    ? catalog
+    : catalog.filter((c) => c.category === activeCategory);
 
   useEffect(() => {
     if (open) {
-      setRoomCode(""); setGuestName(""); setCategory("food"); setNotes("");
-      setAssignedTo(""); setStayId(""); setItems([]); setErr(null);
+      setSelectedRoom(""); setManualRoom(""); setGuestName(""); setNotes(""); setAssignedTo("");
+      setStayId(""); setCart([]); setCustomItems([]); setActiveCategory("all"); setErr(null);
     }
   }, [open]);
 
-  function addFromCatalog(item: RoomServiceCatalogItem) {
-    setItems((prev) => {
-      const ex = prev.find((i) => i.name === item.name);
-      if (ex) return prev.map((i) => i.name === item.name ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { name: item.name, qty: 1, unitPrice: item.unitPrice }];
-    });
+  function selectRoom(code: string) {
+    setSelectedRoom(code);
+    if (code === "__custom") {
+      setManualRoom(""); setGuestName(""); setStayId("");
+      return;
+    }
+    const match = inHouseRooms.find((r) => r.roomCode === code);
+    if (match) {
+      setGuestName(match.guestName);
+      setStayId(match.stayId ?? "");
+    }
+  }
+
+  function getQty(id: string) {
+    return cart.find((e) => e.item.id === id)?.qty ?? 0;
+  }
+
+  function setQty(item: RoomServiceCatalogItem, qty: number) {
+    if (qty <= 0) {
+      setCart((prev) => prev.filter((e) => e.item.id !== item.id));
+    } else {
+      setCart((prev) => {
+        const ex = prev.find((e) => e.item.id === item.id);
+        if (ex) return prev.map((e) => e.item.id === item.id ? { ...e, qty } : e);
+        return [...prev, { item, qty }];
+      });
+    }
   }
 
   function addCustomItem() {
-    setItems((prev) => [...prev, { name: "", qty: 1, unitPrice: 0 }]);
+    setCustomItems((prev) => [...prev, { name: "", qty: 1, unitPrice: 0 }]);
+  }
+  function updateCustom(idx: number, patch: Partial<RoomServiceItem>) {
+    setCustomItems((prev) => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
+  }
+  function removeCustom(idx: number) {
+    setCustomItems((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  function removeItem(idx: number) { setItems((prev) => prev.filter((_, i) => i !== idx)); }
+  const cartTotal = cart.reduce((s, e) => s + e.qty * e.item.unitPrice, 0);
+  const customTotal = customItems.reduce((s, it) => s + it.qty * it.unitPrice, 0);
+  const total = cartTotal + customTotal;
+  const allItems: RoomServiceItem[] = [
+    ...cart.map((e) => ({ name: e.item.name, qty: e.qty, unitPrice: e.item.unitPrice })),
+    ...customItems.filter((i) => i.name.trim()),
+  ];
 
-  function updateItem(idx: number, patch: Partial<RoomServiceItem>) {
-    setItems((prev) => prev.map((it, i) => i === idx ? { ...it, ...patch } : it));
-  }
-
-  const total = items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
+  const dominantCategory = cart.length > 0
+    ? (Object.entries(
+        cart.reduce<Record<string, number>>((acc, e) => {
+          acc[e.item.category] = (acc[e.item.category] ?? 0) + e.qty;
+          return acc;
+        }, {}),
+      ).sort(([, a], [, b]) => b - a)[0]?.[0] as RoomServiceCategory) ?? "food"
+    : "food";
 
   async function handleSave() {
     if (!roomCode.trim()) { setErr("Numero camera obbligatorio"); return; }
     if (!guestName.trim()) { setErr("Nome ospite obbligatorio"); return; }
-    if (!items.length || items.some((i) => !i.name.trim())) { setErr("Aggiungi almeno un servizio con nome"); return; }
+    if (allItems.length === 0) { setErr("Aggiungi almeno un servizio"); return; }
+    if (allItems.some((i) => !i.name.trim())) { setErr("Ogni voce deve avere un nome"); return; }
     setSaving(true); setErr(null);
     try {
-      await onSave({ roomCode: roomCode.trim(), guestName: guestName.trim(), category, items, notes: notes.trim(), assignedTo: assignedTo.trim(), stayId: stayId.trim() });
+      await onSave({
+        roomCode: roomCode.trim(),
+        guestName: guestName.trim(),
+        category: dominantCategory,
+        items: allItems,
+        notes: notes.trim(),
+        assignedTo: assignedTo.trim(),
+        stayId: stayId.trim(),
+      });
       onClose();
     } catch (e) { setErr(e instanceof Error ? e.message : "Errore"); }
     finally { setSaving(false); }
@@ -131,16 +194,36 @@ function NewOrderModal({ open, onClose, catalog, onSave }: NewOrderModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
-      <div className="my-8 w-full max-w-2xl rounded-2xl border border-rw-line bg-rw-bg shadow-2xl">
+      <div className="my-6 w-full max-w-3xl rounded-2xl border border-rw-line bg-rw-bg shadow-2xl">
+        {/* Header */}
         <div className="flex items-center justify-between border-b border-rw-line px-6 py-4">
-          <h2 className="font-display text-lg font-semibold text-rw-ink">Nuova richiesta servizio</h2>
+          <h2 className="font-display text-lg font-semibold text-rw-ink">Nuovo ordine Room Service</h2>
           <button type="button" onClick={onClose} className="text-rw-muted hover:text-rw-ink"><X className="h-5 w-5" /></button>
         </div>
-        <div className="space-y-5 p-6">
+
+        <div className="space-y-5 p-6 max-h-[75vh] overflow-y-auto">
+          {/* Room & guest selection */}
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
-              <label className={labelCls}>N° Camera *</label>
-              <input value={roomCode} onChange={(e) => setRoomCode(e.target.value)} placeholder="101" className={inputCls} />
+              <label className={labelCls}>Camera *</label>
+              {inHouseRooms.length > 0 ? (
+                <>
+                  <select value={selectedRoom} onChange={(e) => selectRoom(e.target.value)} className={inputCls}>
+                    <option value="">Seleziona camera…</option>
+                    {inHouseRooms.map((r) => (
+                      <option key={r.roomCode} value={r.roomCode}>
+                        {r.roomCode} — {r.guestName}
+                      </option>
+                    ))}
+                    <option value="__custom">Inserisci manualmente…</option>
+                  </select>
+                  {selectedRoom === "__custom" && (
+                    <input value={manualRoom} onChange={(e) => setManualRoom(e.target.value)} placeholder="N° camera" className={cn(inputCls, "mt-2")} />
+                  )}
+                </>
+              ) : (
+                <input value={manualRoom} onChange={(e) => setManualRoom(e.target.value)} placeholder="101" className={inputCls} />
+              )}
             </div>
             <div className="sm:col-span-2">
               <label className={labelCls}>Nome ospite *</label>
@@ -148,93 +231,155 @@ function NewOrderModal({ open, onClose, catalog, onSave }: NewOrderModalProps) {
             </div>
           </div>
 
+          {/* Category filter pills */}
           <div>
-            <label className={labelCls}>Categoria servizio *</label>
+            <label className={labelCls}>Menu — seleziona dal catalogo</label>
             <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((cat) => {
+              <button type="button" onClick={() => setActiveCategory("all")}
+                className={cn("flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition",
+                  activeCategory === "all" ? "bg-rw-accent/15 text-rw-accent border-rw-accent/40" : "border-rw-line text-rw-muted hover:border-rw-accent/40")}>
+                Tutti
+              </button>
+              {categories.map((cat) => {
                 const meta = CATEGORY_META[cat];
                 const Icon = meta.icon;
+                const countInCart = cart.filter((e) => e.item.category === cat).reduce((s, e) => s + e.qty, 0);
                 return (
-                  <button key={cat} type="button" onClick={() => setCategory(cat)}
+                  <button key={cat} type="button" onClick={() => setActiveCategory(cat)}
                     className={cn("flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition",
-                      category === cat ? meta.color : "border-rw-line text-rw-muted hover:border-rw-accent/40")}>
+                      activeCategory === cat ? meta.color : "border-rw-line text-rw-muted hover:border-rw-accent/40")}>
                     <Icon className="h-3.5 w-3.5" />{meta.label}
+                    {countInCart > 0 && (
+                      <span className="ml-1 rounded-full bg-rw-accent/20 px-1.5 py-0.5 text-[10px] font-bold text-rw-accent">{countInCart}</span>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {catCatalog.length > 0 && (
-            <div>
-              <label className={labelCls}>Aggiungi dal catalogo</label>
-              <div className="flex flex-wrap gap-2">
-                {catCatalog.map((c) => (
-                  <button key={c.id} type="button" onClick={() => addFromCatalog(c)}
-                    className="flex items-center gap-1.5 rounded-lg border border-rw-line bg-rw-surfaceAlt px-2.5 py-1.5 text-xs text-rw-ink hover:border-rw-accent/40 hover:bg-rw-surface transition">
-                    <Plus className="h-3 w-3" />{c.name} — {euro(c.unitPrice)}/{c.unit}
-                  </button>
+          {/* Catalog items — guest-style browsing */}
+          <div className="space-y-2 max-h-[32vh] overflow-y-auto rounded-xl border border-rw-line/50 p-2">
+            {filtered.length === 0 ? (
+              <p className="py-6 text-center text-xs text-rw-muted">Nessun servizio in questa categoria.</p>
+            ) : (
+              filtered.map((item) => {
+                const meta = CATEGORY_META[item.category];
+                const Icon = meta.icon;
+                const qty = getQty(item.id);
+                return (
+                  <div key={item.id}
+                    className={cn(
+                      "flex items-center justify-between rounded-xl border px-4 py-3 transition",
+                      qty > 0 ? "border-rw-accent/30 bg-rw-accent/5" : "border-rw-line bg-rw-surfaceAlt",
+                    )}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border", meta.color)}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-rw-ink truncate">{item.name}</p>
+                        <p className="text-xs text-rw-muted">{euro(item.unitPrice)} / {item.unit}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      {qty > 0 && (
+                        <button type="button" onClick={() => setQty(item, qty - 1)}
+                          className="flex h-8 w-8 items-center justify-center rounded-full border border-rw-line text-rw-ink hover:bg-rw-surfaceAlt transition">
+                          <Minus className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {qty > 0 && (
+                        <span className="w-5 text-center text-sm font-bold text-rw-ink">{qty}</span>
+                      )}
+                      <button type="button" onClick={() => setQty(item, qty + 1)}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-rw-accent text-white hover:bg-rw-accent/90 transition">
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Custom items */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className={cn(labelCls, "mb-0")}>Voci personalizzate</label>
+              <button type="button" onClick={addCustomItem} className="text-xs text-rw-accent hover:underline flex items-center gap-1">
+                <Plus className="h-3 w-3" /> Aggiungi voce manuale
+              </button>
+            </div>
+            {customItems.length > 0 && (
+              <div className="space-y-2">
+                {customItems.map((it, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_60px_80px_32px] gap-2 items-center">
+                    <input value={it.name} onChange={(e) => updateCustom(idx, { name: e.target.value })}
+                      placeholder="Descrizione" className={inputCls} />
+                    <input type="number" min={1} value={it.qty} onChange={(e) => updateCustom(idx, { qty: Number(e.target.value) || 1 })}
+                      className={inputCls} />
+                    <input type="number" min={0} step={0.01} value={it.unitPrice} onChange={(e) => updateCustom(idx, { unitPrice: Number(e.target.value) || 0 })}
+                      placeholder="€" className={inputCls} />
+                    <button type="button" onClick={() => removeCustom(idx)} className="text-red-400 hover:text-red-300">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Cart summary */}
+          {allItems.length > 0 && (
+            <div className="rounded-xl border border-rw-accent/30 bg-rw-accent/5 p-4 space-y-2">
+              <p className="text-xs font-semibold text-rw-muted">Riepilogo ordine</p>
+              {cart.map((e) => (
+                <div key={e.item.id} className="flex justify-between text-sm">
+                  <span className="text-rw-soft">{e.qty}× {e.item.name}</span>
+                  <span className="font-medium text-rw-ink">{euro(e.qty * e.item.unitPrice)}</span>
+                </div>
+              ))}
+              {customItems.filter((i) => i.name.trim()).map((it, idx) => (
+                <div key={`c${idx}`} className="flex justify-between text-sm">
+                  <span className="text-rw-soft">{it.qty}× {it.name} <span className="text-[10px] text-rw-muted">(manuale)</span></span>
+                  <span className="font-medium text-rw-ink">{euro(it.qty * it.unitPrice)}</span>
+                </div>
+              ))}
+              <div className="border-t border-rw-line/50 pt-2 flex justify-between font-bold text-rw-ink">
+                <span>Totale</span>
+                <span>{euro(total)}</span>
               </div>
             </div>
           )}
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className={cn(labelCls, "mb-0")}>Voci richiesta *</label>
-              <button type="button" onClick={addCustomItem} className="text-xs text-rw-accent hover:underline flex items-center gap-1">
-                <Plus className="h-3 w-3" /> Voce personalizzata
-              </button>
-            </div>
-            <div className="overflow-x-auto -mx-1 px-1 space-y-2">
-              {items.length === 0 && (
-                <p className="rounded-xl border border-dashed border-rw-line py-4 text-center text-xs text-rw-muted">
-                  Aggiungi voci dal catalogo o inserisci manualmente
-                </p>
-              )}
-              {items.map((it, idx) => (
-                <div key={idx} className="grid min-w-[300px] grid-cols-[1fr_60px_80px_32px] gap-2 items-center">
-                  <input value={it.name} onChange={(e) => updateItem(idx, { name: e.target.value })}
-                    placeholder="Descrizione" className={inputCls} />
-                  <input type="number" min={1} value={it.qty} onChange={(e) => updateItem(idx, { qty: Number(e.target.value) })}
-                    className={inputCls} />
-                  <input type="number" min={0} step={0.01} value={it.unitPrice} onChange={(e) => updateItem(idx, { unitPrice: Number(e.target.value) })}
-                    placeholder="€" className={inputCls} />
-                  <button type="button" onClick={() => removeItem(idx)} className="text-red-400 hover:text-red-300">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-            {items.length > 0 && (
-              <p className="mt-2 text-right text-sm font-semibold text-rw-ink">Totale: {euro(total)}</p>
-            )}
-          </div>
-
+          {/* Extra fields */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label className={labelCls}>Assegna a (operatore)</label>
               <input value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} placeholder="Es. Luigi — Portiere" className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>ID Soggiorno (per addebito)</label>
-              <input value={stayId} onChange={(e) => setStayId(e.target.value)} placeholder="ID stay (opzionale)" className={inputCls} />
+              <label className={labelCls}>Note aggiuntive</label>
+              <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Istruzioni speciali…" className={inputCls} />
             </div>
-          </div>
-
-          <div>
-            <label className={labelCls}>Note aggiuntive</label>
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Istruzioni speciali…" className={inputCls} />
           </div>
 
           {err && <p className="text-xs text-red-400">{err}</p>}
         </div>
-        <div className="flex justify-end gap-3 border-t border-rw-line px-6 py-4">
-          <button type="button" onClick={onClose} className={btnGhost}>Annulla</button>
-          <button type="button" onClick={() => void handleSave()} disabled={saving} className={btnPrimary}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            {saving ? "Salvataggio…" : "Crea richiesta"}
-          </button>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between border-t border-rw-line px-6 py-4">
+          <span className="text-sm text-rw-muted">
+            {allItems.length > 0 ? `${allItems.reduce((s, i) => s + i.qty, 0)} voci · ${euro(total)}` : "Nessuna voce selezionata"}
+          </span>
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className={btnGhost}>Annulla</button>
+            <button type="button" onClick={() => void handleSave()} disabled={saving || allItems.length === 0} className={btnPrimary}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {saving ? "Invio…" : `Crea ordine — ${euro(total)}`}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -467,6 +612,7 @@ export function HotelRoomServicePage() {
   const [tab, setTab] = useState("attivi");
   const [orders, setOrders] = useState<RoomServiceOrder[]>([]);
   const [catalog, setCatalog] = useState<RoomServiceCatalogItem[]>([]);
+  const [inHouseRooms, setInHouseRooms] = useState<InHouseRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -478,12 +624,24 @@ export function HotelRoomServicePage() {
     else setRefreshing(true);
     setError(null);
     try {
-      const [orderRows, catalogRows] = await Promise.all([
+      const [orderRows, catalogRows, reservations, rooms] = await Promise.all([
         roomServiceApi.list(),
         roomServiceApi.listCatalog(),
+        hotelApi.listReservations().catch(() => []),
+        hotelApi.listRooms().catch(() => []),
       ]);
       setOrders(orderRows);
       setCatalog(catalogRows);
+      const roomMap = new Map(rooms.map((r) => [r.id, r.code]));
+      setInHouseRooms(
+        reservations
+          .filter((r) => r.status === "in_casa" && r.roomId)
+          .map((r) => ({
+            roomCode: roomMap.get(r.roomId!) ?? r.roomId!,
+            guestName: r.guestName,
+            stayId: null,
+          })),
+      );
     } catch (e) { setError(e instanceof Error ? e.message : "Errore caricamento"); }
     finally { setLoading(false); setRefreshing(false); }
   }, []);
@@ -633,7 +791,7 @@ export function HotelRoomServicePage() {
         </>
       )}
 
-      <NewOrderModal open={modalOpen} onClose={() => setModalOpen(false)} catalog={catalog} onSave={handleCreate} />
+      <NewOrderModal open={modalOpen} onClose={() => setModalOpen(false)} catalog={catalog} inHouseRooms={inHouseRooms} onSave={handleCreate} />
     </div>
   );
 }

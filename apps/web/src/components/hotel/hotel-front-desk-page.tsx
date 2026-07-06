@@ -439,10 +439,26 @@ export function HotelFrontDeskPage() {
                 <option value="">{t("hotel.checkin.step3.select")}</option>
                 {availableRoomsForCheckin.map((room) => (
                   <option key={room.id} value={room.id}>
-                    {room.code} · {room.roomType} · {t("hotel.checkin.step3.floor")} {room.floor} · {room.status}
+                    {room.code} · {room.roomType} · {t("hotel.checkin.step3.floor")} {room.floor} · max {room.capacity} · {room.status}
                   </option>
                 ))}
               </select>
+              {selectedReservation && assignedRoomId ? (() => {
+                const selRoom = availableRoomsForCheckin.find((r) => r.id === assignedRoomId);
+                if (!selRoom) return null;
+                const ch = selectedReservation.children ?? 0;
+                const ad = Math.max(1, selectedReservation.guests - ch);
+                const overCap = selectedReservation.guests > selRoom.capacity;
+                return (
+                  <div className={`mt-2 rounded-xl px-3 py-2 text-xs ${overCap ? "border border-amber-500/30 bg-amber-500/10 text-amber-300" : "text-rw-soft"}`}>
+                    {ad} {t("hotel.booking.adults")}{ch > 0 ? ` + ${ch} ${t("hotel.booking.children_short")}` : ""}
+                    {selectedReservation.crib ? ` + ${t("hotel.booking.form.crib").toLowerCase()}` : ""}
+                    {" · "}
+                    {t("hotel.checkin.step3.capacity")}: {selRoom.capacity}
+                    {overCap ? ` — ${t("hotel.checkin.step3.overCapacity")}` : ""}
+                  </div>
+                );
+              })() : null}
             </div>
 
             <div className="rounded-2xl border border-rw-line bg-rw-surfaceAlt p-4">
