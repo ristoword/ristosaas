@@ -1373,6 +1373,25 @@ export type RatePlan = {
   active?: boolean;
   priceIncludesVat?: boolean;
 };
+export type ReservationGroupStatus = "tentative" | "confirmed" | "cancelled";
+
+export type ReservationGroup = {
+  id: string;
+  name: string;
+  contactPerson: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  company: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+  notes: string | null;
+  status: ReservationGroupStatus;
+  roomCount: number;
+  totalGuests: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type HotelReservation = {
   id: string;
   customerId: string;
@@ -1380,6 +1399,8 @@ export type HotelReservation = {
   phone: string;
   email: string;
   roomId: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
   checkInDate: string;
   checkOutDate: string;
   guests: number;
@@ -1708,6 +1729,20 @@ export const hotelApi = {
   updateRatePlan: (id: string, data: Partial<RatePlan> & { code?: string; name?: string; nightlyRate?: number }) =>
     put<RatePlan>(`/hotel/rate-plans/${id}`, data),
   deleteRatePlan: (id: string) => del<{ deleted: boolean }>(`/hotel/rate-plans/${id}`),
+
+  listGroups: () => get<ReservationGroup[]>("/hotel/reservation-groups"),
+  getGroup: (id: string) => get<ReservationGroup>(`/hotel/reservation-groups/${id}`),
+  createGroup: (data: {
+    name: string; contactPerson?: string; contactEmail?: string; contactPhone?: string;
+    company?: string; checkInDate: string; checkOutDate: string; notes?: string;
+    status?: ReservationGroupStatus;
+  }) => post<ReservationGroup>("/hotel/reservation-groups", data),
+  updateGroup: (id: string, data: Partial<{
+    name: string; contactPerson: string | null; contactEmail: string | null; contactPhone: string | null;
+    company: string | null; checkInDate: string; checkOutDate: string; notes: string | null;
+    status: ReservationGroupStatus;
+  }>) => put<ReservationGroup>(`/hotel/reservation-groups/${id}`, data),
+  deleteGroup: (id: string) => del<{ deleted: boolean }>(`/hotel/reservation-groups/${id}`),
 };
 
 export const mobileAccessApi = {

@@ -5,7 +5,13 @@ import {
   channelRequiresVoucher,
   defaultStatusForChannel,
 } from "@/lib/hotel/booking-list";
-import type { HotelBookingChannel, HotelReservation, HotelReservationStatus } from "@/modules/hotel/domain/types";
+import type {
+  HotelBookingChannel,
+  HotelReservation,
+  HotelReservationStatus,
+  ReservationGroup,
+  ReservationGroupStatus,
+} from "@/modules/hotel/domain/types";
 
 function toDate(value: string) {
   return new Date(`${value}T00:00:00Z`);
@@ -22,6 +28,7 @@ function mapReservation(row: {
   phone: string | null;
   email: string | null;
   roomId: string | null;
+  groupId?: string | null;
   checkInDate: Date;
   checkOutDate: Date;
   guests: number;
@@ -44,6 +51,7 @@ function mapReservation(row: {
   receptionNotes?: string | null;
   packageName?: string | null;
   ratePlanName?: string | null;
+  group?: { name: string } | null;
 }): HotelReservation {
   return {
     id: row.id,
@@ -52,6 +60,8 @@ function mapReservation(row: {
     phone: row.phone ?? "",
     email: row.email ?? "",
     roomId: row.roomId,
+    groupId: row.groupId ?? null,
+    groupName: row.group?.name ?? null,
     checkInDate: toDateString(row.checkInDate),
     checkOutDate: toDateString(row.checkOutDate),
     guests: row.guests,
@@ -205,6 +215,7 @@ export const hotelReservationsRepository = {
   async all(tenantId: string) {
     const rows = await prisma.hotelReservation.findMany({
       where: { tenantId },
+      include: { group: { select: { name: true } } },
       orderBy: [{ checkInDate: "asc" }, { guestName: "asc" }],
     });
     return rows.map(mapReservation);
@@ -219,6 +230,7 @@ export const hotelReservationsRepository = {
     const [rows, total, groupedStatus, groupedChannel, arrivalsToday] = await Promise.all([
       prisma.hotelReservation.findMany({
         where,
+        include: { group: { select: { name: true } } },
         orderBy: [{ checkInDate: "asc" }, { guestName: "asc" }],
         skip: (page - 1) * pageSize,
         take: pageSize,
@@ -279,6 +291,7 @@ export const hotelReservationsRepository = {
   async get(tenantId: string, id: string) {
     const row = await prisma.hotelReservation.findFirst({
       where: { id, tenantId },
+      include: { group: { select: { name: true } } },
     });
     return row ? mapReservation(row) : null;
   },
@@ -301,6 +314,7 @@ export const hotelReservationsRepository = {
         tenantId,
         customerId: data.customerId,
         roomId: data.roomId,
+        groupId: data.groupId || null,
         guestName: data.guestName,
         phone: data.phone || null,
         email: data.email || null,
@@ -327,6 +341,7 @@ export const hotelReservationsRepository = {
         packageName: data.packageName || null,
         ratePlanName: data.ratePlanName || null,
       },
+      include: { group: { select: { name: true } } },
     });
     return mapReservation(row);
   },
@@ -376,6 +391,7 @@ export const hotelReservationsRepository = {
       data: {
         customerId: data.customerId,
         roomId: data.roomId === undefined ? undefined : data.roomId,
+        groupId: data.groupId === undefined ? undefined : data.groupId || null,
         guestName: data.guestName,
         phone: data.phone === undefined ? undefined : data.phone || null,
         email: data.email === undefined ? undefined : data.email || null,
@@ -402,6 +418,7 @@ export const hotelReservationsRepository = {
         packageName: data.packageName === undefined ? undefined : data.packageName || null,
         ratePlanName: data.ratePlanName === undefined ? undefined : data.ratePlanName || null,
       },
+      include: { group: { select: { name: true } } },
     });
     return mapReservation(row);
   },
@@ -415,6 +432,164 @@ export const hotelReservationsRepository = {
       throw new Error("Cannot delete checked-in reservation");
     }
     await prisma.hotelReservation.delete({ where: { id } });
+    return true;
+  },
+};
+
+/* ─── Reservation Groups ───────────────────────────── */
+
+function mapGroup(
+  row: {
+    id: string;
+    name: string;
+    contactPerson: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    company: string | null;
+    checkInDate: Date;
+    checkOutDate: Date;
+    notes: string | null;
+    status: ReservationGroupStatus;
+    createdAt: Date;
+    updatedAt: Date;
+  },
+  stats?: { roomCount: number; totalGuests: number },
+): ReservationGroup {
+  return {
+    id: row.id,
+    name: row.name,
+    contactPerson: row.contactPerson,
+    contactEmail: row.contactEmail,
+    contactPhone: row.contactPhone,
+    company: row.company,
+    checkInDate: toDateString(row.checkInDate),
+    checkOutDate: toDateString(row.checkOutDate),
+    notes: row.notes,
+    status: row.status,
+    roomCount: stats?.roomCount ?? 0,
+    totalGuests: stats?.totalGuests ?? 0,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+export const reservationGroupsRepository = {
+  async list(tenantId: string) {
+    const rows = await prisma.reservationGroup.findMany({
+      where: { tenantId },
+      include: {
+        reservations: { select: { id: true, guests: true } },
+      },
+      orderBy: [{ checkInDate: "asc" }, { name: "asc" }],
+    });
+    return rows.map((r) =>
+      mapGroup(r, {
+        roomCount: r.reservations.length,
+        totalGuests: r.reservations.reduce((s, rv) => s + rv.guests, 0),
+      }),
+    );
+  },
+
+  async get(tenantId: string, id: string) {
+    const row = await prisma.reservationGroup.findFirst({
+      where: { id, tenantId },
+      include: {
+        reservations: { select: { id: true, guests: true } },
+      },
+    });
+    if (!row) return null;
+    return mapGroup(row, {
+      roomCount: row.reservations.length,
+      totalGuests: row.reservations.reduce((s, rv) => s + rv.guests, 0),
+    });
+  },
+
+  async create(
+    tenantId: string,
+    data: {
+      name: string;
+      contactPerson?: string;
+      contactEmail?: string;
+      contactPhone?: string;
+      company?: string;
+      checkInDate: string;
+      checkOutDate: string;
+      notes?: string;
+      status?: ReservationGroupStatus;
+    },
+  ) {
+    if (!data.name?.trim()) throw new Error("name required");
+    const row = await prisma.reservationGroup.create({
+      data: {
+        tenantId,
+        name: data.name.trim(),
+        contactPerson: data.contactPerson?.trim() || null,
+        contactEmail: data.contactEmail?.trim() || null,
+        contactPhone: data.contactPhone?.trim() || null,
+        company: data.company?.trim() || null,
+        checkInDate: toDate(data.checkInDate),
+        checkOutDate: toDate(data.checkOutDate),
+        notes: data.notes?.trim() || null,
+        status: data.status ?? "tentative",
+      },
+    });
+    return mapGroup(row, { roomCount: 0, totalGuests: 0 });
+  },
+
+  async update(
+    tenantId: string,
+    id: string,
+    data: {
+      name?: string;
+      contactPerson?: string | null;
+      contactEmail?: string | null;
+      contactPhone?: string | null;
+      company?: string | null;
+      checkInDate?: string;
+      checkOutDate?: string;
+      notes?: string | null;
+      status?: ReservationGroupStatus;
+    },
+  ) {
+    const existing = await prisma.reservationGroup.findFirst({
+      where: { id, tenantId },
+    });
+    if (!existing) return null;
+
+    const row = await prisma.reservationGroup.update({
+      where: { id },
+      data: {
+        name: data.name?.trim(),
+        contactPerson: data.contactPerson === undefined ? undefined : data.contactPerson?.trim() || null,
+        contactEmail: data.contactEmail === undefined ? undefined : data.contactEmail?.trim() || null,
+        contactPhone: data.contactPhone === undefined ? undefined : data.contactPhone?.trim() || null,
+        company: data.company === undefined ? undefined : data.company?.trim() || null,
+        checkInDate: data.checkInDate ? toDate(data.checkInDate) : undefined,
+        checkOutDate: data.checkOutDate ? toDate(data.checkOutDate) : undefined,
+        notes: data.notes === undefined ? undefined : data.notes?.trim() || null,
+        status: data.status,
+      },
+      include: { reservations: { select: { id: true, guests: true } } },
+    });
+    return mapGroup(row, {
+      roomCount: row.reservations.length,
+      totalGuests: row.reservations.reduce((s, rv) => s + rv.guests, 0),
+    });
+  },
+
+  async delete(tenantId: string, id: string) {
+    const existing = await prisma.reservationGroup.findFirst({
+      where: { id, tenantId },
+      include: { reservations: { select: { id: true } } },
+    });
+    if (!existing) return false;
+    if (existing.reservations.length > 0) {
+      await prisma.hotelReservation.updateMany({
+        where: { groupId: id, tenantId },
+        data: { groupId: null },
+      });
+    }
+    await prisma.reservationGroup.delete({ where: { id } });
     return true;
   },
 };

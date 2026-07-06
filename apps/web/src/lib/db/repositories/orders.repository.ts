@@ -135,11 +135,12 @@ export const ordersRepository = {
     return rows.map(mapOrder);
   },
   async get(tenantId: string, id: string) {
-    const row = await prisma.restaurantOrder.findFirst({
-      where: { tenantId, id },
+    const row = await prisma.restaurantOrder.findUnique({
+      where: { id },
       include: { items: true },
     });
-    return row ? mapOrder(row) : null;
+    if (!row || row.tenantId !== tenantId) return null;
+    return mapOrder(row);
   },
   async create(
     tenantId: string,

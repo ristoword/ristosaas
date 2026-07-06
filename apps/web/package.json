@@ -3,12 +3,14 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
+    "dev": "tsx server.ts",
+    "dev:next": "next dev --port 3000",
     "dev:staging": "bash scripts/dev-staging.sh",
     "db:use-staging": "bash scripts/use-staging-db.sh",
     "db:use-production": "bash scripts/use-production-db.sh",
     "build": "next build",
-    "start": "next start",
+    "start": "node --import tsx server.ts",
+    "start:next": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
@@ -56,6 +58,8 @@
     "pdfkit": "^0.18.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {

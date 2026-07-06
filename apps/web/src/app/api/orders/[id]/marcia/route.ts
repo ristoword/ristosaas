@@ -3,6 +3,7 @@ import { ok, err, body } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { ordersRepository } from "@/lib/db/repositories/orders.repository";
+import { emitOrderStatusChanged } from "@/lib/realtime/emit";
 
 const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor", "owner", "super_admin"] as const;
 
@@ -36,12 +37,15 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     cs[String(course)] = "in_preparazione";
   }
 
+  const previousStatus = order.status;
   const updated = await ordersRepository.update(tenantId, id, {
     activeCourse: course,
     courseStates: cs,
     status: "in_preparazione",
   });
   if (!updated) return err("Order not found", 404);
+
+  emitOrderStatusChanged(tenantId, updated, previousStatus);
 
   return ok(updated);
 }

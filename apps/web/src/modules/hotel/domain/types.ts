@@ -40,6 +40,25 @@ export type HotelReservationStatus =
 
 export type HotelBookingChannel = "online" | "desk" | "agency" | "voucher";
 
+export type ReservationGroupStatus = "tentative" | "confirmed" | "cancelled";
+
+export type ReservationGroup = {
+  id: string;
+  name: string;
+  contactPerson: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  company: string | null;
+  checkInDate: string;
+  checkOutDate: string;
+  notes: string | null;
+  status: ReservationGroupStatus;
+  roomCount: number;
+  totalGuests: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type HotelReservation = {
   id: string;
   customerId: string;
@@ -47,6 +66,8 @@ export type HotelReservation = {
   phone: string;
   email: string;
   roomId: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
   checkInDate: string;
   checkOutDate: string;
   guests: number;

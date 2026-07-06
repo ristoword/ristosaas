@@ -8,6 +8,7 @@ import { getActivePublicTenantIdBySlug } from "@/lib/db/repositories/public-menu
 import { complianceRepository } from "@/lib/db/repositories/compliance.repository";
 import { dispatchPrintJobAsync } from "@/lib/integrations/print-dispatcher";
 import type { HardwareDepartment } from "@/lib/db/repositories/hardware.repository";
+import { emitOrderCreated } from "@/lib/realtime/emit";
 import {
   createRestaurantOrderCheckoutSession,
   restaurantOrderTotalCentsFromItems,
@@ -85,6 +86,8 @@ export async function POST(req: NextRequest) {
         tableId: parsed.tableId?.trim() || null,
       });
 
+      emitOrderCreated(tenantId, order);
+
       if (!payOnline) {
         return ok(order, 201);
       }
@@ -154,9 +157,10 @@ export async function POST(req: NextRequest) {
       onlinePaymentStatus: "unpaid",
       stripeCheckoutSessionId: null,
     };
-    const order = await ordersRepository.create(getTenantId(), orderPayload);
-
     const tenantId = getTenantId();
+    const order = await ordersRepository.create(tenantId, orderPayload);
+
+    emitOrderCreated(tenantId, order);
     const config = await complianceRepository.get(tenantId);
     if (config.autoPrintOrders) {
       const dept = mapOrderAreaToDepartment(data.area);

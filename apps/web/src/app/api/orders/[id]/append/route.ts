@@ -4,6 +4,7 @@ import { body, err, ok } from "@/lib/api/helpers";
 import { requireApiUser } from "@/lib/auth/guards";
 import { getTenantId } from "@/lib/db/repositories/tenant-context";
 import { ordersRepository } from "@/lib/db/repositories/orders.repository";
+import { emitOrderAppended } from "@/lib/realtime/emit";
 
 const ORDER_ROLES = ["sala", "cassa", "cucina", "bar", "pizzeria", "supervisor", "owner", "super_admin"] as const;
 
@@ -79,5 +80,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
   });
 
   if (!updated) return err("Failed to update order", 500);
+
+  emitOrderAppended(tenantId, updated);
+
   return ok(updated);
 }

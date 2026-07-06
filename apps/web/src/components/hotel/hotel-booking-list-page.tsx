@@ -8,10 +8,13 @@ import {
   Globe,
   Loader2,
   Monitor,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
   Ticket,
+  Trash2,
+  Users,
   XCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
@@ -20,6 +23,7 @@ import { Chip } from "@/components/shared/chip";
 import { DataTable } from "@/components/shared/data-table";
 import { KpiTile } from "@/components/shared/kpi-tile";
 import { Modal } from "@/components/shared/modal";
+import { TabBar } from "@/components/shared/tab-bar";
 import { HotelRoomTypeSelect } from "@/components/hotel/hotel-room-type-select";
 import { useHotel } from "@/components/hotel/hotel-context";
 import {
@@ -30,6 +34,8 @@ import {
   type HotelReservation,
   type HotelReservationStatus,
   type RatePlan,
+  type ReservationGroup,
+  type ReservationGroupStatus,
 } from "@/lib/api-client";
 import { addDaysIso, nightsBetweenIso, todayIso } from "@/lib/date-utils";
 import {
@@ -85,6 +91,38 @@ function emptyForm(today: string): Omit<HotelReservation, "id"> & { _adults: num
   };
 }
 
+type GroupForm = {
+  name: string;
+  contactPerson: string;
+  contactEmail: string;
+  contactPhone: string;
+  company: string;
+  checkInDate: string;
+  checkOutDate: string;
+  notes: string;
+  status: ReservationGroupStatus;
+};
+
+function emptyGroupForm(today: string): GroupForm {
+  return {
+    name: "",
+    contactPerson: "",
+    contactEmail: "",
+    contactPhone: "",
+    company: "",
+    checkInDate: today,
+    checkOutDate: addDaysIso(today, 2),
+    notes: "",
+    status: "tentative",
+  };
+}
+
+const GROUP_STATUS_TONE = {
+  tentative: "warn",
+  confirmed: "success",
+  cancelled: "danger",
+} as const;
+
 type Filters = {
   status: HotelReservationStatus | "all";
   channel: HotelBookingChannel | "all";
@@ -108,6 +146,7 @@ export function HotelBookingListPage() {
     dateTo: addDaysIso(today, 30),
     includeCancelled: false,
   });
+  const [tab, setTab] = useState<"bookings" | "groups">("bookings");
   const [data, setData] = useState<BookingListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -117,6 +156,11 @@ export function HotelBookingListPage() {
   const [form, setForm] = useState(() => emptyForm(today));
   const [availability, setAvailability] = useState<{ ratePlans: RatePlan[] } | null>(null);
 
+  const [groups, setGroups] = useState<ReservationGroup[]>([]);
+  const [groupModalOpen, setGroupModalOpen] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [gf, setGf] = useState(() => emptyGroupForm(today));
+
   const nightsComputed = useMemo(
     () => nightsBetweenIso(form.checkInDate, form.checkOutDate),
     [form.checkInDate, form.checkOutDate],
@@ -125,17 +169,21 @@ export function HotelBookingListPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await hotelApi.listBookingSheet({
-        status: filters.status,
-        channel: filters.channel,
-        search: filters.search || undefined,
-        dateFrom: filters.dateFrom || undefined,
-        dateTo: filters.dateTo || undefined,
-        includeCancelled: filters.includeCancelled,
-        page: 1,
-        pageSize: 100,
-      });
+      const [result, groupRows] = await Promise.all([
+        hotelApi.listBookingSheet({
+          status: filters.status,
+          channel: filters.channel,
+          search: filters.search || undefined,
+          dateFrom: filters.dateFrom || undefined,
+          dateTo: filters.dateTo || undefined,
+          includeCancelled: filters.includeCancelled,
+          page: 1,
+          pageSize: 100,
+        }),
+        hotelApi.listGroups().catch(() => [] as ReservationGroup[]),
+      ]);
       setData(result);
+      setGroups(groupRows);
     } catch (e) {
       setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.bookingList.loadErr"), t));
     } finally {
@@ -179,6 +227,7 @@ export function HotelBookingListPage() {
       phone: row.phone,
       email: row.email,
       roomId: row.roomId,
+      groupId: row.groupId ?? null,
       checkInDate: row.checkInDate,
       checkOutDate: row.checkOutDate,
       guests: row.guests,
@@ -200,7 +249,7 @@ export function HotelBookingListPage() {
       packageName: row.packageName,
       ratePlanName: row.ratePlanName,
       _adults: Math.max(1, row.guests - children),
-    });
+    } as typeof form);
     setModalOpen(true);
   };
 
@@ -210,7 +259,7 @@ export function HotelBookingListPage() {
     try {
       const { _adults, ...rest } = form;
       void _adults;
-      const payload = { ...rest, nights: nightsComputed, roomId: rest.roomId || null };
+      const payload = { ...rest, nights: nightsComputed, roomId: rest.roomId || null, groupId: (form as Record<string, unknown>).groupId as string | null ?? null };
       if (editingId) {
         await hotelApi.updateReservation(editingId, payload);
         setMsg(t("hotel.bookingList.msg.updated"));
@@ -240,6 +289,70 @@ export function HotelBookingListPage() {
     }
   };
 
+  /* ─── Group handlers ─────────────────────────────── */
+
+  const openCreateGroup = () => {
+    setEditingGroupId(null);
+    setGf(emptyGroupForm(todayIso()));
+    setGroupModalOpen(true);
+  };
+
+  const openEditGroup = (g: ReservationGroup) => {
+    setEditingGroupId(g.id);
+    setGf({
+      name: g.name,
+      contactPerson: g.contactPerson ?? "",
+      contactEmail: g.contactEmail ?? "",
+      contactPhone: g.contactPhone ?? "",
+      company: g.company ?? "",
+      checkInDate: g.checkInDate,
+      checkOutDate: g.checkOutDate,
+      notes: g.notes ?? "",
+      status: g.status,
+    });
+    setGroupModalOpen(true);
+  };
+
+  const saveGroup = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      if (editingGroupId) {
+        const updated = await hotelApi.updateGroup(editingGroupId, gf);
+        setGroups((prev) => prev.map((g) => g.id === updated.id ? updated : g));
+        setMsg(t("hotel.groups.msg.updated"));
+      } else {
+        const created = await hotelApi.createGroup(gf);
+        setGroups((prev) => [...prev, created]);
+        setMsg(t("hotel.groups.msg.created"));
+      }
+      setGroupModalOpen(false);
+    } catch (e) {
+      setMsg(translateApiError(e instanceof Error ? e.message : t("hotel.groups.msg.saveErr"), t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteGroup = async (id: string) => {
+    if (!confirm(t("hotel.groups.confirmDelete"))) return;
+    setBusy(true);
+    try {
+      await hotelApi.deleteGroup(id);
+      setGroups((prev) => prev.filter((g) => g.id !== id));
+      setMsg(t("hotel.groups.msg.deleted"));
+    } catch (e) {
+      setMsg(translateApiError(e instanceof Error ? e.message : "Errore", t));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const TABS = [
+    { id: "bookings" as const, label: t("hotel.bookingList.tab.bookings") },
+    { id: "groups" as const, label: `${t("hotel.bookingList.tab.groups")} (${groups.length})` },
+  ];
+
   return (
     <div className="space-y-6 pb-10">
       <PageHeader title={t("hotel.bookingList.title")} subtitle={t("hotel.bookingList.subtitle")}>
@@ -254,7 +367,9 @@ export function HotelBookingListPage() {
 
       {msg && <div className={ALERT_INFO}>{msg}</div>}
 
-      {stats && (
+      <TabBar tabs={TABS} active={tab} onChange={(id) => setTab(id as "bookings" | "groups")} />
+
+      {tab === "bookings" && stats && (
         <div className={KPI_GRID}>
           <KpiTile label={t("hotel.bookingList.kpi.active")} value={stats.inAttesa + stats.confermata} />
           <KpiTile label={t("hotel.bookingList.kpi.pending")} value={stats.inAttesa} tone="warn" />
@@ -267,6 +382,7 @@ export function HotelBookingListPage() {
         </div>
       )}
 
+      {tab === "bookings" && <>
       <Card title={t("hotel.bookingList.filters.title")}>
         <div className="flex flex-wrap gap-3">
           <div className="relative min-w-[12rem] flex-1">
@@ -352,6 +468,11 @@ export function HotelBookingListPage() {
                   <div>
                     <p className="font-semibold text-rw-ink">{row.guestName}</p>
                     <p className="text-xs text-rw-muted">{row.phone} · {row.email}</p>
+                    {row.groupName && (
+                      <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 text-[10px] font-semibold text-purple-400">
+                        <Users className="h-2.5 w-2.5" />{row.groupName}
+                      </span>
+                    )}
                   </div>
                 ),
               },
@@ -459,7 +580,144 @@ export function HotelBookingListPage() {
       <Card title={t("hotel.bookingList.flow.title")}>
         <p className="text-sm text-rw-soft">{t("hotel.bookingList.flow.desc")}</p>
       </Card>
+      </>}
 
+      {/* ─── Groups tab ─────────────────────────────────── */}
+      {tab === "groups" && (
+        <>
+          <div className="flex justify-end">
+            <button type="button" onClick={openCreateGroup} className={BTN_PRIMARY}>
+              <Plus className="h-4 w-4" /> {t("hotel.groups.new")}
+            </button>
+          </div>
+          <Card title={t("hotel.groups.title")} description={t("hotel.groups.desc")}>
+            {groups.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 py-12">
+                <Users className="h-12 w-12 text-rw-line" />
+                <p className="text-sm text-rw-muted">{t("hotel.groups.empty")}</p>
+              </div>
+            ) : (
+              <DataTable
+                data={groups}
+                keyExtractor={(g) => g.id}
+                emptyMessage={t("hotel.groups.empty")}
+                columns={[
+                  {
+                    key: "name",
+                    header: t("hotel.groups.col.name"),
+                    render: (g) => (
+                      <div>
+                        <p className="font-semibold text-rw-ink">{g.name}</p>
+                        {g.company && <p className="text-xs text-rw-muted">{g.company}</p>}
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "contact",
+                    header: t("hotel.groups.col.contact"),
+                    render: (g) => (
+                      <div className="text-sm text-rw-soft">
+                        {g.contactPerson && <p>{g.contactPerson}</p>}
+                        {g.contactEmail && <p className="text-xs text-rw-muted">{g.contactEmail}</p>}
+                        {g.contactPhone && <p className="text-xs text-rw-muted">{g.contactPhone}</p>}
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "dates",
+                    header: t("hotel.groups.col.dates"),
+                    render: (g) => (
+                      <p className="text-sm text-rw-ink">{g.checkInDate} → {g.checkOutDate}</p>
+                    ),
+                  },
+                  {
+                    key: "rooms",
+                    header: t("hotel.groups.col.rooms"),
+                    render: (g) => (
+                      <div className="text-center">
+                        <p className="font-bold text-rw-ink">{g.roomCount}</p>
+                        <p className="text-xs text-rw-muted">{g.totalGuests} {t("hotel.groups.col.guests")}</p>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "status",
+                    header: t("hotel.groups.col.status"),
+                    render: (g) => (
+                      <Chip
+                        label={t(`hotel.groups.status.${g.status}`)}
+                        tone={GROUP_STATUS_TONE[g.status]}
+                      />
+                    ),
+                  },
+                  {
+                    key: "actions",
+                    header: "",
+                    render: (g) => (
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          disabled={busy}
+                          className={BTN_OUTLINE}
+                          onClick={() => openEditGroup(g)}
+                        >
+                          <Pencil className="h-3 w-3" /> {t("ui.edit")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
+                          className="rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-xs font-semibold text-red-400"
+                          onClick={() => void deleteGroup(g.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ),
+                  },
+                ]}
+              />
+            )}
+          </Card>
+        </>
+      )}
+
+      {/* ─── Group modal ────────────────────────────────── */}
+      <Modal
+        open={groupModalOpen}
+        onClose={() => setGroupModalOpen(false)}
+        title={editingGroupId ? t("hotel.groups.form.edit") : t("hotel.groups.form.new")}
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input className={`${INPUT_CLASS} sm:col-span-2`} placeholder={t("hotel.groups.form.name")} value={gf.name} onChange={(e) => setGf((p) => ({ ...p, name: e.target.value }))} />
+          <input className={INPUT_CLASS} placeholder={t("hotel.groups.form.contactPerson")} value={gf.contactPerson} onChange={(e) => setGf((p) => ({ ...p, contactPerson: e.target.value }))} />
+          <input className={INPUT_CLASS} placeholder={t("hotel.groups.form.company")} value={gf.company} onChange={(e) => setGf((p) => ({ ...p, company: e.target.value }))} />
+          <input className={INPUT_CLASS} placeholder={t("hotel.groups.form.contactEmail")} value={gf.contactEmail} onChange={(e) => setGf((p) => ({ ...p, contactEmail: e.target.value }))} />
+          <input className={INPUT_CLASS} placeholder={t("hotel.groups.form.contactPhone")} value={gf.contactPhone} onChange={(e) => setGf((p) => ({ ...p, contactPhone: e.target.value }))} />
+          <div>
+            <label className="text-xs font-semibold text-rw-muted">Check-in</label>
+            <input type="date" className={`${INPUT_CLASS} mt-1`} value={gf.checkInDate} onChange={(e) => setGf((p) => ({ ...p, checkInDate: e.target.value }))} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-rw-muted">Check-out</label>
+            <input type="date" className={`${INPUT_CLASS} mt-1`} value={gf.checkOutDate} onChange={(e) => setGf((p) => ({ ...p, checkOutDate: e.target.value }))} />
+          </div>
+          <select className={SELECT_CLASS} value={gf.status} onChange={(e) => setGf((p) => ({ ...p, status: e.target.value as ReservationGroupStatus }))}>
+            <option value="tentative">{t("hotel.groups.status.tentative")}</option>
+            <option value="confirmed">{t("hotel.groups.status.confirmed")}</option>
+            <option value="cancelled">{t("hotel.groups.status.cancelled")}</option>
+          </select>
+          <textarea className={`${INPUT_CLASS} sm:col-span-2`} rows={2} placeholder={t("hotel.groups.form.notes")} value={gf.notes} onChange={(e) => setGf((p) => ({ ...p, notes: e.target.value }))} />
+          <div className="flex gap-2 sm:col-span-2">
+            <button type="button" className={BTN_PRIMARY} disabled={busy || !gf.name.trim()} onClick={() => void saveGroup()}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              {editingGroupId ? t("hotel.booking.form.save") : t("hotel.booking.form.create")}
+            </button>
+            <button type="button" className={BTN_GHOST} onClick={() => setGroupModalOpen(false)}>{t("ui.cancel")}</button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* ─── Reservation modal ──────────────────────────── */}
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -484,6 +742,22 @@ export function HotelBookingListPage() {
           </select>
           {form.channel === "voucher" && (
             <input className={`${INPUT_CLASS} sm:col-span-2`} placeholder={t("hotel.bookingList.form.voucherCode")} value={form.voucherCode ?? ""} onChange={(e) => setForm((p) => ({ ...p, voucherCode: e.target.value }))} />
+          )}
+          {groups.length > 0 && (
+            <select className={`${SELECT_CLASS} sm:col-span-2`} value={(form as Record<string, unknown>).groupId as string ?? ""} onChange={(e) => {
+              const groupId = e.target.value || null;
+              const group = groups.find((g) => g.id === groupId);
+              setForm((p) => ({
+                ...p,
+                groupId,
+                ...(group ? { checkInDate: group.checkInDate, checkOutDate: group.checkOutDate, company: group.company ?? p.company } : {}),
+              } as typeof p));
+            }}>
+              <option value="">{t("hotel.groups.form.noGroup")}</option>
+              {groups.filter((g) => g.status !== "cancelled").map((g) => (
+                <option key={g.id} value={g.id}>{g.name}{g.company ? ` — ${g.company}` : ""} ({g.roomCount} {t("hotel.groups.col.rooms")})</option>
+              ))}
+            </select>
           )}
           <input type="date" className={INPUT_CLASS} value={form.checkInDate} onChange={(e) => setForm((p) => ({ ...p, checkInDate: e.target.value, nights: nightsBetweenIso(e.target.value, p.checkOutDate) }))} />
           <input type="date" className={INPUT_CLASS} value={form.checkOutDate} onChange={(e) => setForm((p) => ({ ...p, checkOutDate: e.target.value, nights: nightsBetweenIso(p.checkInDate, e.target.value) }))} />

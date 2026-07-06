@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { ordersApi, type Order, type OrderStatus } from "@/lib/api-client";
+import { useOrderSocket } from "@/lib/realtime/use-socket";
+import { useAuth } from "@/components/auth/auth-context";
 
 export type StockAlert = {
   itemId: string;
@@ -44,6 +46,9 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
   const alertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const { user } = useAuth();
+  const tenantId = user?.tenantId;
+
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
@@ -59,12 +64,34 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const upsertOrder = useCallback((order: Order) => {
+    setOrders((prev) => {
+      const idx = prev.findIndex((o) => o.id === order.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = order;
+        return copy;
+      }
+      return [order, ...prev];
+    });
+  }, []);
+
+  const { connected: socketConnected } = useOrderSocket(tenantId, {
+    onOrderCreated: (p) => upsertOrder(p.order),
+    onOrderUpdated: (p) => upsertOrder(p.order),
+    onOrderAppended: (p) => upsertOrder(p.order),
+    onOrderStatusChanged: (p) => upsertOrder(p.order),
+    onOrderDeleted: (p) => setOrders((prev) => prev.filter((o) => o.id !== p.orderId)),
+  });
+
   useEffect(() => {
     void refresh();
-    // Polling ogni 20 secondi: le schermate KDS vedono le nuove comande automaticamente.
-    const interval = setInterval(() => void refresh(), 20_000);
-    return () => clearInterval(interval);
-  }, [refresh]);
+    // When WebSocket is connected, reduce polling to 60s (safety net).
+    // When disconnected, poll every 5s for faster feedback.
+    const interval = socketConnected ? 60_000 : 5_000;
+    const timer = setInterval(() => void refresh(), interval);
+    return () => clearInterval(timer);
+  }, [refresh, socketConnected]);
 
   const clearStockAlerts = useCallback(() => setStockAlerts([]), []);
 

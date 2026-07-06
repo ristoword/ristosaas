@@ -8,6 +8,7 @@ import { kitchenMenuRepository } from "@/lib/db/repositories/kitchen-menu.reposi
 import { warehouseRepository } from "@/lib/db/repositories/warehouse.repository";
 import { prisma } from "@/lib/db/prisma";
 import type { WarehouseLocation } from "@/lib/api/types/warehouse";
+import { emitOrderStatusChanged } from "@/lib/realtime/emit";
 
 /** Mappa l'area dell'item ordine alla location di reparto magazzino. */
 function orderAreaToWarehouseLocation(area: string): WarehouseLocation {
@@ -78,12 +79,15 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
   }
 
+  const previousStatus = order.status;
   const updated = await ordersRepository.update(tenantId, id, {
     status: newStatus,
     courseStates: cs,
     activeCourse: newActiveCourse,
   });
   if (!updated) return err("Order not found", 404);
+
+  emitOrderStatusChanged(tenantId, updated, previousStatus);
 
   let discharge = {
     reports: [] as Array<{ course: number; dishName: string; totalCost: number; ingredients: { name: string; qty: number; unit: string; cost: number }[] }>,
