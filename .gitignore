@@ -14,6 +14,9 @@ node_modules/
 railway-variables.tmp.json
 *.tmp.json
 
+# Demo video / screenshot output (generated, large binaries)
+apps/web/e2e/videos/
+
 # Build e cache
 dist/
 build/
