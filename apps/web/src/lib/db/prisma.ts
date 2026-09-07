@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { applyRailwayPrivateDatabaseUrl } from "@/lib/db/railway-database-url";
+
+applyRailwayPrivateDatabaseUrl();
 
 declare global {
   // eslint-disable-next-line no-var

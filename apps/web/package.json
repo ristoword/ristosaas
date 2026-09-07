@@ -11,6 +11,7 @@
     "build": "next build",
     "start": "node --import tsx server.ts",
     "start:next": "next start",
+    "start:railway": "node scripts/railway-start.mjs",
     "lint": "next lint",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "typecheck:test": "tsc --noEmit -p tsconfig.test.json",
