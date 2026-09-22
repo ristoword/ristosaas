@@ -389,6 +389,8 @@ model Tenant {
   id                             String                          @id @default(cuid())
   name                           String
   slug                           String                          @unique
+  /// ISO country used for staff-cost tax rules (IT/NL). Never inferred from employee phone.
+  country                        String                          @default("IT")
   plan                           ProductPlan
   accessStatus                   TenantAccessStatus              @default(active)
   createdAt                      DateTime                        @default(now())

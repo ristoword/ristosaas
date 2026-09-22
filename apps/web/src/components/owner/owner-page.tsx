@@ -34,6 +34,7 @@ import {
   type BillingReadiness,
   type BillingSubscription,
   type ReportTrendsSnapshot,
+  type StaffCostCountry,
   type StaffMember,
   type UnifiedReportSnapshot,
 } from "@/lib/api-client";
@@ -108,7 +109,7 @@ const EMPTY_SMTP: SmtpDraft = {
 
 export function OwnerPage() {
   const { t } = useI18n();
-  const { user } = useAuth();
+  const { user, tenant, refresh } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
   const isOwnerOrAbove = user?.role === "owner" || isSuperAdmin;
 
@@ -133,6 +134,10 @@ export function OwnerPage() {
   const [portfolioGroups, setPortfolioGroups] = useState<PortfolioGroup[]>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
 
+  const [regCountry, setRegCountry] = useState<StaffCostCountry>("IT");
+  const [countryBusy, setCountryBusy] = useState(false);
+  const [countryMessage, setCountryMessage] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -149,6 +154,12 @@ export function OwnerPage() {
       setStaff(staffRes);
       setReadiness(readinessRes);
       setSubscription(billingRes?.subscription ?? null);
+      try {
+        const current = await api.auth.getTenant();
+        if (current?.country === "IT" || current?.country === "NL") setRegCountry(current.country);
+      } catch {
+        /* keep current selector */
+      }
 
       if (isSuperAdmin) {
         const configs = await api.admin.emailConfig.list().catch(() => []);
@@ -190,6 +201,10 @@ export function OwnerPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (tenant?.country === "IT" || tenant?.country === "NL") setRegCountry(tenant.country);
+  }, [tenant?.country]);
 
   async function handleCreateStaff() {
     if (!draft.name.trim()) return;
@@ -270,6 +285,20 @@ export function OwnerPage() {
       setSmtpMessage((err as Error).message || t("owner.smtp.testError"));
     } finally {
       setSmtpBusy(null);
+    }
+  }
+
+  async function handleSaveCountry() {
+    setCountryBusy(true);
+    setCountryMessage(null);
+    try {
+      await api.auth.updateTenantCountry(regCountry);
+      await refresh();
+      setCountryMessage(t("owner.country.saved"));
+    } catch (err) {
+      setCountryMessage((err as Error).message || t("owner.country.saveError"));
+    } finally {
+      setCountryBusy(false);
     }
   }
 
@@ -543,6 +572,38 @@ export function OwnerPage() {
           </Card>
         )}
       </div>
+
+      {isOwnerOrAbove && (
+        <Card
+          title={t("owner.country.title")}
+          description={t("owner.country.desc")}
+          headerRight={<MapPin className="h-4 w-4 text-rw-accent" />}
+        >
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[220px]">
+              <label className={labelCls}>{t("owner.country.label")}</label>
+              <select
+                className={inputCls}
+                value={regCountry}
+                onChange={(e) => setRegCountry(e.target.value as StaffCostCountry)}
+              >
+                <option value="IT">🇮🇹 {t("staffCosto.country.it")}</option>
+                <option value="NL">🇳🇱 {t("staffCosto.country.nl")}</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              disabled={countryBusy}
+              onClick={() => void handleSaveCountry()}
+              className={btnPrimary}
+            >
+              {countryBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {t("owner.country.save")}
+            </button>
+          </div>
+          {countryMessage && <p className="mt-3 text-sm text-rw-soft">{countryMessage}</p>}
+        </Card>
+      )}
 
       <Card
         title={t("owner.manageStaff")}

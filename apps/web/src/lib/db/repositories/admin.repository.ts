@@ -10,6 +10,7 @@ import {
   ensureTenantDefaults,
   type EnsureTenantDefaultsSummary,
 } from "@/lib/db/repositories/tenant-defaults.bootstrap";
+import { staffCostCountryFromTenant, type StaffCostCountry } from "@/lib/staff/staff-cost-country";
 
 type ProductPlan = "restaurant_only" | "hotel_only" | "all_included" | "risto_premium" | "risto_premium_gold" | "hotel_premium" | "hotel_premium_gold";
 
@@ -144,6 +145,7 @@ export const adminRepository = {
       select: {
         id: true,
         name: true,
+        country: true,
         plan: true,
         accessStatus: true,
         createdAt: true,
@@ -157,11 +159,22 @@ export const adminRepository = {
       data: { accessStatus },
     });
     invalidateTenantAccessCache(tenantId);
+    return this.findTenantAdminRow(tenantId);
+  },
+  async setTenantCountry(tenantId: string, country: StaffCostCountry) {
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: { country },
+    });
+    return this.findTenantAdminRow(tenantId);
+  },
+  async findTenantAdminRow(tenantId: string) {
     const row = await prisma.tenant.findUnique({
       where: { id: tenantId },
       select: {
         id: true,
         name: true,
+        country: true,
         plan: true,
         accessStatus: true,
         createdAt: true,
@@ -174,6 +187,7 @@ export const adminRepository = {
   async createTenantWithLicense(payload: {
     name: string;
     slug: string;
+    country?: StaffCostCountry;
     plan: ProductPlan;
     billingCycle: "monthly" | "annual";
     seats: number;
@@ -213,6 +227,7 @@ export const adminRepository = {
         data: {
           name: payload.name,
           slug: payload.slug,
+          country: payload.country ?? "IT",
           plan: payload.plan,
         },
       });
@@ -263,6 +278,7 @@ export const adminRepository = {
           id: tenant.id,
           name: tenant.name,
           slug: tenant.slug,
+          country: staffCostCountryFromTenant(tenant),
           plan: tenant.plan,
         },
         license: {

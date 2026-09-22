@@ -50,7 +50,7 @@ const tabs = [
   { id: "system", label: "Sistema" },
 ];
 
-type Tenant = { id: string; name: string; plan: string; status: "active" | "blocked"; users: number; created: string };
+type Tenant = { id: string; name: string; country?: "IT" | "NL"; plan: string; status: "active" | "blocked"; users: number; created: string };
 type License = { id: string; key: string; tenant: string; plan: string; status: "trial" | "active" | "expired" | "suspended"; expiresAt: string; seats: number; activated: string };
 
 const tenantStatusTone = { active: "success", blocked: "danger" } as const;
@@ -622,6 +622,33 @@ export function SuperAdminPage() {
             columns={[
               { key: "name", header: "Nome" },
               { key: "plan", header: "Piano" },
+              {
+                key: "country",
+                header: "Paese",
+                render: (r) => (
+                  <select
+                    className="rounded-lg border border-rw-line bg-rw-surfaceAlt px-2 py-1 text-xs text-rw-ink"
+                    value={r.country === "NL" ? "NL" : "IT"}
+                    disabled={tenantActionId === r.id}
+                    onChange={(e) => {
+                      const country = e.target.value === "NL" ? "NL" : "IT";
+                      setTenantActionId(r.id);
+                      void api.admin.tenants
+                        .setCountry(r.id, country)
+                        .then((updated) => {
+                          setTenants((prev) =>
+                            prev.map((t) => (t.id === updated.id ? { ...t, country: updated.country ?? country } : t)),
+                          );
+                        })
+                        .catch(() => {})
+                        .finally(() => setTenantActionId(null));
+                    }}
+                  >
+                    <option value="IT">🇮🇹 IT</option>
+                    <option value="NL">🇳🇱 NL</option>
+                  </select>
+                ),
+              },
               { key: "users", header: "Utenti" },
               { key: "status", header: "Stato", render: (r) => <Chip label={r.status} tone={tenantStatusTone[r.status]} /> },
               { key: "created", header: "Creato il" },

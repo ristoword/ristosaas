@@ -64,6 +64,7 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [plan, setPlan] = useState<"restaurant_only" | "hotel_only" | "all_included">("restaurant_only");
+  const [country, setCountry] = useState<"IT" | "NL">("IT");
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [seats, setSeats] = useState(25);
   const [licenseDurationMonths, setLicenseDurationMonths] = useState<1 | 6 | 12>(12);
@@ -91,6 +92,7 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
     setSlug("");
     setSlugTouched(false);
     setPlan("restaurant_only");
+    setCountry("IT");
     setBillingCycle("monthly");
     setSeats(25);
     setLicenseDurationMonths(12);
@@ -149,6 +151,7 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
       const result = await api.admin.tenants.create({
         name,
         slug: slugFinal,
+        country,
         plan,
         billingCycle,
         seats,
@@ -208,7 +211,8 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
               <p className="font-semibold text-emerald-400">Tenant e licenza creati</p>
               <ul className="mt-2 space-y-1.5 text-rw-soft">
                 <li>
-                  Tenant: <strong>{done.tenant.name}</strong> ({done.tenant.slug})
+                  Tenant: <strong>{done.tenant.name}</strong> ({done.tenant.slug}
+                  {done.tenant.country ? ` · ${done.tenant.country}` : ""})
                 </li>
                 <li>
                   Chiave licenza:{" "}
@@ -327,6 +331,17 @@ export function CreateTenantLicenseModal({ open, onClose, onCreated }: Props) {
                   </select>
                 </label>
               </div>
+              <label className="mt-3 block">
+                <span className="text-xs font-semibold text-rw-muted">Paese di registrazione</span>
+                <select
+                  value={country}
+                  onChange={(e) => setCountry(e.target.value as "IT" | "NL")}
+                  className="mt-1 w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink"
+                >
+                  <option value="IT">Italia (IT) — CCNL / INPS</option>
+                  <option value="NL">Paesi Bassi (NL) — CAO / loonheffing</option>
+                </select>
+              </label>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className="text-xs font-semibold text-rw-muted">Posti licenza</span>

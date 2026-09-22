@@ -64,12 +64,14 @@ async function upsertTenant() {
       name: TENANT_NAME,
       slug: TENANT_ID,
       plan: TENANT_PLAN,
+      country: "IT",
     },
     create: {
       id: TENANT_ID,
       name: TENANT_NAME,
       slug: TENANT_ID,
       plan: TENANT_PLAN,
+      country: "IT",
     },
   });
 }
