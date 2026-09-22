@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
     }
     if (country) {
       void recordAdminAudit({
-        action: "tenant.country.update",
+        action: "tenant.update",
         actor: guard.user,
         tenantId,
         metadata: { country },
