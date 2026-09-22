@@ -59,4 +59,8 @@ describe("rbac", () => {
     expect(canAccessWithRole("partner", ["super_admin"])).toBe(false);
     expect(getApiRequiredRoles("/api/partner/dashboard")).toContain("partner");
   });
+
+  it("allows owner to update the tenant registration country", () => {
+    expect(getApiRequiredRoles("/api/owner/tenant")).toEqual(["owner", "super_admin"]);
+  });
 });

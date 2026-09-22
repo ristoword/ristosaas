@@ -34,6 +34,7 @@ export type TenantSummary = {
   id: string;
   name: string;
   slug?: string;
+  country?: "IT" | "NL";
   plan: "restaurant_only" | "hotel_only" | "all_included";
   accessStatus: "active" | "blocked";
   features: string[];
@@ -59,6 +60,7 @@ type AuthContextValue = {
   loading: boolean;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
+  refresh: () => Promise<void>;
   hasRole: (role: UserRole | UserRole[]) => boolean;
 };
 
@@ -113,6 +115,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const refresh = useCallback(async () => {
+    try {
+      const me = await api.auth.me();
+      if (me) {
+        setUser(me as User);
+        syncTenantProfile((me as User).tenant ?? null);
+      }
+    } catch {
+      /* keep current user */
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     await api.auth.logout().catch(() => {});
     setUser(null);
@@ -136,6 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loading,
         login,
         logout,
+        refresh,
         hasRole,
       }}
     >

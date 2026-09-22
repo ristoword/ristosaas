@@ -5,6 +5,7 @@ import { authUsersRepository } from "@/lib/db/repositories/auth-users.repository
 import { isMaintenanceMode, isTenantBlocked } from "@/lib/db/repositories/platform.repository";
 import { prisma } from "@/lib/db/prisma";
 import type { LicenseStatus, TenantProfile } from "@/lib/auth/types";
+import { staffCostCountryFromTenant } from "@/lib/staff/staff-cost-country";
 
 export async function GET(req: NextRequest) {
   const user = getRequestUser(req);
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
         id: tenant.id,
         name: tenant.name,
         slug: tenant.slug,
+        country: staffCostCountryFromTenant(tenant),
         plan: tenant.plan as TenantProfile["plan"],
         accessStatus: tenant.accessStatus as TenantProfile["accessStatus"],
         features: tenant.features.filter((f) => f.enabled).map((f) => f.code),

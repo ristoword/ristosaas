@@ -64,6 +64,8 @@ async function fetchBlob(path: string): Promise<Blob> {
   return res.blob();
 }
 
+export type StaffCostCountry = "IT" | "NL";
+
 type AuthUser = {
   id: string;
   username: string;
@@ -72,6 +74,16 @@ type AuthUser = {
   email: string;
   mustChangePassword?: boolean;
   isLocked?: boolean;
+  tenantId?: string;
+  tenant?: {
+    id: string;
+    name: string;
+    slug?: string;
+    country?: StaffCostCountry;
+    plan: string;
+    accessStatus: string;
+    features: string[];
+  } | null;
 };
 export type AdminUser = AuthUser & {
   failedLoginAttempts?: number;
@@ -112,6 +124,7 @@ export type UserAccessReport = {
 export type AdminTenant = {
   id: string;
   name: string;
+  country?: StaffCostCountry;
   plan: string;
   users: number;
   created: string;
@@ -131,7 +144,7 @@ export type AdminSystemSnapshot = {
   serverTime: string;
 };
 export type AdminTenantOnboardingResult = {
-  tenant: { id: string; name: string; slug: string; plan: string };
+  tenant: { id: string; name: string; slug: string; plan: string; country?: StaffCostCountry };
   license: { id: string; key: string; status: string; plan: string; seats: number; usedSeats: number; expiresAt: string };
   adminUser: { id: string; username: string; email: string; role: string; mustChangePassword: boolean };
   bootstrap?: {
@@ -2629,6 +2642,9 @@ export const billingApi = {
 export const api = {
   auth: {
     me: () => get<AuthUser>("/auth/me"),
+    updateTenantCountry: (country: StaffCostCountry) =>
+      patch<{ id: string; name: string; slug: string; country: StaffCostCountry }>("/owner/tenant", { country }),
+    getTenant: () => get<{ id: string; name: string; slug: string; country: StaffCostCountry }>("/owner/tenant"),
     login: (username: string, password: string) => post<{ user: AuthUser }>("/auth/login", { username, password }),
     refresh: () => post<{ user: AuthUser }>("/auth/refresh", {}),
     logout: () => post<{ ok: boolean }>("/auth/logout", {}),
@@ -2646,9 +2662,12 @@ export const api = {
     tenants: {
       list: () => get<AdminTenant[]>("/admin/tenants"),
       setAccess: (tenantId: string, status: "active" | "blocked") => patch<AdminTenant>(`/admin/tenants/${tenantId}`, { status }),
+      setCountry: (tenantId: string, country: StaffCostCountry) =>
+        patch<AdminTenant>(`/admin/tenants/${tenantId}`, { country }),
       create: (payload: {
         name: string;
         slug: string;
+        country?: StaffCostCountry;
         plan: "restaurant_only" | "hotel_only" | "all_included";
         billingCycle?: "monthly" | "annual";
         seats?: number;

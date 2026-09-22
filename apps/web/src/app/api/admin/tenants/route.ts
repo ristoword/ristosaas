@@ -5,6 +5,7 @@ import { requireApiUser } from "@/lib/auth/guards";
 import { adminRepository } from "@/lib/db/repositories/admin.repository";
 import { recordAdminAudit } from "@/lib/observability/admin-audit";
 import { validatePasswordStrength } from "@/lib/auth/password";
+import { parseStaffCostCountry, staffCostCountryFromTenant } from "@/lib/staff/staff-cost-country";
 
 const ADMIN_ROLES = ["super_admin"] as const;
 
@@ -63,6 +64,7 @@ export async function GET(req: NextRequest) {
       rows.map((tenant) => ({
         id: tenant.id,
         name: tenant.name,
+        country: staffCostCountryFromTenant(tenant),
         plan: tenant.plan,
         users: tenant.users.length,
         created: tenant.createdAt.toISOString().slice(0, 10),
@@ -86,6 +88,7 @@ export async function POST(req: NextRequest) {
   const payload = await body<{
     name: string;
     slug: string;
+    country?: string;
     plan: "restaurant_only" | "hotel_only" | "all_included";
     billingCycle?: "monthly" | "annual";
     seats?: number;
@@ -121,11 +124,14 @@ export async function POST(req: NextRequest) {
   }
 
   const partnerCode = payload.partnerCode?.trim() || undefined;
+  const country = payload.country != null ? parseStaffCostCountry(payload.country) : "IT";
+  if (payload.country != null && !country) return err("country must be IT or NL");
 
   try {
     const created = await adminRepository.createTenantWithLicense({
       name: payload.name.trim(),
       slug: normalizedSlug,
+      country: country ?? "IT",
       plan: payload.plan,
       billingCycle,
       seats,

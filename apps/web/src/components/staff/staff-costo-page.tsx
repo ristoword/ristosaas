@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Calculator,
   DollarSign,
@@ -17,12 +17,14 @@ import { PageHeader } from "@/components/shared/page-header";
 import { Card } from "@/components/shared/card";
 import { Chip } from "@/components/shared/chip";
 import { useI18n } from "@/core/i18n/provider";
+import { useAuth } from "@/components/auth/auth-context";
+import { resolveStaffCostCountry, type StaffCostCountry } from "@/lib/staff/staff-cost-country";
 
 const INPUT =
   "w-full rounded-xl border border-rw-line bg-rw-surfaceAlt px-3 py-2.5 text-sm text-rw-ink placeholder:text-rw-muted focus:border-rw-accent/50 focus:outline-none focus:ring-1 focus:ring-rw-accent/30 tabular-nums";
 const LABEL = "block text-xs font-semibold text-rw-muted mb-1";
 
-type Country = "IT" | "NL";
+type Country = StaffCostCountry;
 
 /* ═══════════════════════════════════════════════════
    ITALY — CCNL presets & tax engine
@@ -125,9 +127,12 @@ function calcArbeidskorting(inkomen: number): number {
 
 export function StaffCostoPage() {
   const { t } = useI18n();
+  const { tenant, loading: authLoading } = useAuth();
+  const tenantCountry = resolveStaffCostCountry(tenant?.country);
 
-  /* ── Country selector ────────────────────── */
-  const [country, setCountry] = useState<Country>("IT");
+  /* ── Country selector: default from tenant registration country, never from employee phone. */
+  const [country, setCountry] = useState<Country>(tenantCountry);
+  const appliedTenantCountry = useRef<Country | null>(null);
 
   /* ── Common ──────────────────────────────── */
   const [ral, setRal] = useState(22_000);
@@ -196,6 +201,13 @@ export function StaffCostoPage() {
       setFerieGiorni(25); setRal(30_000);
     }
   }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (appliedTenantCountry.current === tenantCountry) return;
+    appliedTenantCountry.current = tenantCountry;
+    switchCountry(tenantCountry);
+  }, [authLoading, tenantCountry, switchCountry]);
 
   /* ═══ ITALY CALCULATIONS ═══ */
   const calcIT = useMemo(() => {
@@ -390,6 +402,7 @@ export function StaffCostoPage() {
             </button>
           ))}
         </div>
+        <span className="text-[11px] text-rw-muted">{t("staffCosto.country.hint")}</span>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">

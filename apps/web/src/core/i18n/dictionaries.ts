@@ -1772,6 +1772,12 @@ const it: TranslationDictionary = {
   "owner.smtp.to": "a",
   "owner.smtp.checkInbox": "Controlla la casella di posta.",
   "owner.smtp.testError": "Errore nell'invio dell'email di test.",
+  "owner.country.title": "Paese di registrazione",
+  "owner.country.desc": "Il costo del personale usa le regole fiscali di questo paese, non il numero di telefono del dipendente.",
+  "owner.country.label": "Paese",
+  "owner.country.save": "Salva paese",
+  "owner.country.saved": "Paese di registrazione aggiornato.",
+  "owner.country.saveError": "Errore nel salvataggio del paese.",
 
   /* ── Owner portfolio multi-locale ──────────────── */
   "owner.portfolio.title": "I tuoi locali",
@@ -2132,6 +2138,7 @@ const it: TranslationDictionary = {
   "staffCosto.country.label": "Paese",
   "staffCosto.country.it": "Italia",
   "staffCosto.country.nl": "Paesi Bassi",
+  "staffCosto.country.hint": "Predefinito: paese di registrazione della struttura (non il telefono del dipendente).",
   "staffCosto.nl.cao.title": "Contratto collettivo (CAO)",
   "staffCosto.nl.cao.desc": "Seleziona il CAO olandese per precompilare contributi e pensione.",
   "staffCosto.nl.cao.contract": "CAO",
@@ -3952,6 +3959,12 @@ const en: TranslationDictionary = {
   "owner.smtp.to": "to",
   "owner.smtp.checkInbox": "Check your inbox.",
   "owner.smtp.testError": "Error sending test email.",
+  "owner.country.title": "Registration country",
+  "owner.country.desc": "Staff cost uses this country's tax rules, not the employee phone number.",
+  "owner.country.label": "Country",
+  "owner.country.save": "Save country",
+  "owner.country.saved": "Registration country updated.",
+  "owner.country.saveError": "Error saving country.",
 
   /* ── Owner portfolio multi-locale ──────────────── */
   "owner.portfolio.title": "Your properties",
@@ -4310,6 +4323,7 @@ const en: TranslationDictionary = {
   "staffCosto.country.label": "Country",
   "staffCosto.country.it": "Italy",
   "staffCosto.country.nl": "Netherlands",
+  "staffCosto.country.hint": "Default: venue registration country (not the employee phone number).",
   "staffCosto.nl.cao.title": "Collective agreement (CAO)",
   "staffCosto.nl.cao.desc": "Select the Dutch CAO to prefill contribution and pension rates.",
   "staffCosto.nl.cao.contract": "CAO",
@@ -6115,6 +6129,12 @@ const nl: TranslationDictionary = {
   "owner.smtp.to": "aan",
   "owner.smtp.checkInbox": "Controleer uw inbox.",
   "owner.smtp.testError": "Fout bij verzenden test-e-mail.",
+  "owner.country.title": "Registratieland",
+  "owner.country.desc": "Personeelskosten gebruiken de fiscale regels van dit land, niet het telefoonnummer van de medewerker.",
+  "owner.country.label": "Land",
+  "owner.country.save": "Land opslaan",
+  "owner.country.saved": "Registratieland bijgewerkt.",
+  "owner.country.saveError": "Fout bij opslaan van het land.",
 
   /* ── Owner portfolio multi-locale ──────────────── */
   "owner.portfolio.title": "Uw vestigingen",
@@ -6473,6 +6493,7 @@ const nl: TranslationDictionary = {
   "staffCosto.country.label": "Land",
   "staffCosto.country.it": "Italië",
   "staffCosto.country.nl": "Nederland",
+  "staffCosto.country.hint": "Standaard: registratieland van de vestiging (niet het telefoonnummer van de medewerker).",
   "staffCosto.nl.cao.title": "Collectieve arbeidsovereenkomst (CAO)",
   "staffCosto.nl.cao.desc": "Selecteer de CAO om premies en pensioen vooraf in te vullen.",
   "staffCosto.nl.cao.contract": "CAO",
@@ -8278,6 +8299,12 @@ const pt: TranslationDictionary = {
   "owner.smtp.to": "para",
   "owner.smtp.checkInbox": "Verifique sua caixa de entrada.",
   "owner.smtp.testError": "Erro ao enviar e-mail de teste.",
+  "owner.country.title": "País de registro",
+  "owner.country.desc": "O custo de pessoal usa as regras fiscais deste país, não o telefone do funcionário.",
+  "owner.country.label": "País",
+  "owner.country.save": "Salvar país",
+  "owner.country.saved": "País de registro atualizado.",
+  "owner.country.saveError": "Erro ao salvar o país.",
 
   /* ── Owner portfolio multi-locale ──────────────── */
   "owner.portfolio.title": "Seus estabelecimentos",
@@ -8636,6 +8663,7 @@ const pt: TranslationDictionary = {
   "staffCosto.country.label": "País",
   "staffCosto.country.it": "Itália",
   "staffCosto.country.nl": "Países Baixos",
+  "staffCosto.country.hint": "Padrão: país de registro do estabelecimento (não o telefone do funcionário).",
   "staffCosto.nl.cao.title": "Acordo coletivo (CAO)",
   "staffCosto.nl.cao.desc": "Selecione o CAO holandês para preencher contribuições e pensão.",
   "staffCosto.nl.cao.contract": "CAO",

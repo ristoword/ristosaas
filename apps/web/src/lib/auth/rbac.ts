@@ -177,6 +177,7 @@ export const API_ROLE_RULES: readonly ApiRule[] = [
   { prefix: "/api/archivio/fiscal-invoices", roles: ["supervisor", "owner", "super_admin", "cassa"] },
   { prefix: "/api/health/ai", roles: ["owner", "super_admin"] },
   { prefix: "/api/owner/portfolio", roles: ["owner", "super_admin"] },
+  { prefix: "/api/owner/tenant", roles: ["owner", "super_admin"] },
   { prefix: "/api/reseller", roles: ["reseller", "super_admin"] },
   { prefix: "/api/partner", roles: ["partner", "super_admin"] },
 ] as const;

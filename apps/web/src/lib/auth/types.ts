@@ -22,6 +22,8 @@ export type TenantProfile = {
   id: string;
   name: string;
   slug?: string;
+  /** Registration country used for staff-cost tax rules (IT | NL). */
+  country?: "IT" | "NL";
   plan: ProductPlan;
   accessStatus: "active" | "blocked";
   features: string[];
